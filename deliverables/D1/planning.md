@@ -1,70 +1,162 @@
-# YOUR PRODUCT/TEAM NAME
-> _Note:_ This document will evolve throughout your project. You commit regularly to this file while working on the project (especially edits/additions/deletions to the _Highlights_ section). 
- > **This document will serve as a master plan between your team, your partner and your TA.**
+# Jack-Of-All-Trades
+
+> *Note:* This document will evolve throughout your project. You commit regularly to this file while working on the project (especially edits/additions/deletions to the *Highlights* section). **This document will serve as a master plan between your team and your TA.**
 
 ## Product Details
- 
+
 #### Q1: What is the product?
 
- > Short (1 - 2 min' read)
- * Start with a single sentence, high-level description of the product.
- * Be clear - Describe the problem you are solving in simple terms.
- * Specify if you have a partner, who they are (role/title), and the organization information.
- * Be concrete. For example:
-    * What are you planning to build? Is it a website, mobile app, browser extension, command-line app, etc.?      
-    * When describing the problem/need, give concrete examples of common use cases.
-    * Assume the reader knows nothing about the partner or the problem domain and provide the necessary context. 
- * Focus on *what* your product does, and avoid discussing *how* you're going to implement it.      
-   For example: This is not the time or the place to talk about which programming language and/or framework you are planning to use.
- * **Feel free (and very much encouraged) to include useful diagrams, mock-ups and/or links**.
+Jack-Of-All-Trades is a web application that gives small business owners, entrepreneurs, and independent creators one centralized dashboard for managing their sales, inventory, public product profiles, and basic business analytics.
 
+Running a small business often requires using several different tools to keep track of sales, inventory, revenue, expenses, projects, and customer-facing information. This can be especially difficult for new business owners who may not yet have an organized system for managing their operations. Jack-Of-All-Trades is intended to reduce this complexity by bringing these tasks together into one customizable and user-friendly dashboard.
+
+For the current scope of the project, we are focusing primarily on sales tracking, inventory management, a public-facing business profile, and basic business analytics. A business owner will be able to record and review sales made through different channels, such as an online store, an in-person marketplace, or another sales method. They will also be able to keep track of their inventory, choose which products are displayed publicly, and see how products are being sold over time.
+
+For example, a creator who sells handmade products both online and at weekend markets could use the dashboard to record sales from both sources, monitor how much inventory remains, display available products on a public profile, and compare how products are performing across different sales channels.
+
+The broader product vision includes additional features such as revenue and expense tracking, more advanced analytics, goal tracking, project management, customer ordering, and custom inquiry forms. These features may be added later depending on the team's available time and capacity.
+
+The product will be delivered as a web application with a dashboard interface for business owners. The goal for this term is to produce a functional MVP that supports sales tracking, inventory management, a public business profile, and basic analytics.
 
 #### Q2: Who are your target users?
 
-  > Short (1 - 2 min' read max)
- * Be specific (e.g. a 'a third-year university student taking CSC301 and studying Computer Science' and not 'a student')
- * **Feel free to use personas. You can create your personas as part of this Markdown file, or add a link to an external site (for example, [Xtensio](https://xtensio.com/user-persona/)).**
+The primary target users are small business owners, entrepreneurs, and independent creators who sell products through one or more sales channels and need a simple way to organize their sales and inventory. The product is intended to be accessible to people who are relatively new to business management while still being useful to more experienced users.
+
+One representative user could be a university student who runs a small handmade jewelry business. They sell products through an online store and at local markets but currently track inventory and sales using separate spreadsheets or notes. They need one place where they can record sales, see which products are running low, and understand how their business is performing.
+
+Another target user could be an independent artist or creator who sells prints, clothing, or other merchandise through social media, e-commerce, and in-person events. Because their sales come from several different sources, they need a centralized dashboard that makes it easier to keep their inventory and sales records organized.
+
+A third example is a first-time entrepreneur running a small product-based business. They may have limited experience with business-management software and want a system that is straightforward rather than spread across several specialized applications.
+
+Potential customers of these businesses are a secondary user group. For the MVP, they will be able to visit a business's public profile and browse products that the business owner has chosen to display. Features such as placing orders, submitting inquiries, or making custom requests are part of the broader product vision rather than the initial MVP.
 
 #### Q3: Why would your users choose your product? What are they using today to solve their problem/need?
 
-> Short (1 - 2 min' read max)
- * We want you to "connect the dots" for us - Why does your product (as described in your answer to Q1) fits the needs of your users (as described in your answer to Q2)?
- * Explain the benefits of your product explicitly & clearly. For example:
-    * Save users time (how and how much?)
-    * Allow users to discover new information (which information? And, why couldn't they discover it before?)
-    * Provide users with more accurate and/or informative data (what kind of data? Why is it useful to them?)
-    * Does this application exist in another form? If so, how does your differ and provide value to the users?
-    * How does this align with your partner's organization's values/mission/mandate?
+Currently, many small businesses use multiple different applications to manage their business. For example, the website their business is on may be tracking their sales profits, but another app or spreadsheet is used for tracking inventory.
 
-#### Q4: What are the user stories that make up the Minumum Viable Product (MVP)?
+Our product aims to reduce the need for multiple different apps for easier navigation and keeping track. This can save users time by avoiding unnecessary switching between different applications, digging through notes when unsure of where something was written down, and comparing different app options for each task they want to handle.
 
- * At least 5 user stories concerning the main features of the application - note that this can broken down further
- * You must follow proper user story format (as taught in lecture) ```As a <user of the app>, I want to <do something in the app> in order to <accomplish some goal>```
- * User stories must contain acceptance criteria. Examples of user stories with different formats can be found here: https://www.justinmind.com/blog/user-story-examples/. **It is important that you provide a link to an artifact containing your user stories**.
- * If you have a partner, these must be reviewed and accepted by them. You need to include the evidence of partner approval (e.g., screenshot from email) or at least communication to the partner (e.g., email you sent)
+A user-friendly application is one of our main goals for this project. This accommodates users who are just starting out with their businesses or projects as well as users who are experienced business owners. A user-friendly interface, as well as a dashboard that combines their main usage needs in one product, is why users may choose our product instead of relying on multiple different products.
+
+#### Q4: What are the user stories that make up the Minimum Viable Product (MVP)?
+
+**User Story Artifact:**
+
+Our MVP user stories and their implementation progress are tracked in Jira:
+
+* [Jack-Of-All-Trades Jira Board](https://jack-of-all-trades.atlassian.net/jira/software/projects/KAN/list?jql=project+%3D+KAN+ORDER+BY+cf%5B10019%5D+ASC&atlOrigin=eyJpIjoiYmU5OTIwMGE3MDJmNDZkOTljZTExNTQ0OTIxZmJlNmYiLCJwIjoiaiJ9)
+
+* US1: Sales Tracking
+  * As a small business owner, I want to log individual sales while also indicating the specific channel (e.g. e-commerce, in-person market, etc.) in order to keep track of my revenue sources.
+  * Acceptance criteria:
+    * Given the user is viewing their "Log Sale" page
+    * When they input the sale amount, date, and sales channel
+    * Then the sale is recorded to the database and the overall revenue total on the dashboard is updated
+
+* US2: Inventory Management
+  * As a small business owner, I want to add and update my product inventory in order to know exactly how much stock I currently have.
+  * Acceptance criteria:
+    * Given the user is viewing their inventory management dashboard
+    * When they click "Add Product", input the product name, price, and quantity and submit the information, or when they update an existing item's quantity and save
+    * Then the item appears in the inventory list with the specified stock amount, or the existing item's stock is adjusted to reflect the change
+
+* US3: Public Profile (Seller)
+  * As a small business owner, I want to set up a public profile with my available products so potential customers can view my offerings.
+  * Acceptance criteria:
+    * Given the user is viewing their inventory management dashboard
+    * When they check the "Visible to Public" box on an item and save the changes
+    * Then their public-facing profile is updated to display that selected item
+
+* US4: Public Profile (Customer)
+  * As a customer, I want to browse a business's public profile in order to see what items they currently have available.
+  * Acceptance criteria:
+    * Given the business owner has set up their public profile with items
+    * When a customer views their profile page
+    * Then they see a gallery displaying the business's public items, including each item's name, image, and price
+
+* US5: Analytics Dashboard
+  * As a small business owner, I want to view basic sales analytics so I can understand how my products and sales channels are performing.
+  * Acceptance criteria:
+    * Given the user has logged their sales
+    * When they navigate to the Analytics Dashboard
+    * Then the dashboard displays monthly sales information
+    * AND a breakdown of sales separated by channel
+    * AND information showing which products are performing well or poorly
+
+**Potential Stretch Goals:**
+
+* US6: Project Management
+  * As a small business owner, I want to create project workspaces where I can set deadlines, goals, and build mood boards in order to organize my creative process and track progress.
+  * Acceptance criteria:
+    * Given the user is on the "Projects" dashboard and clicks to create a new project
+    * When they enter a project title, deadline date, goal, and upload images for their mood board
+    * Then a new project workspace is generated that displays the goal and deadline
+    * AND displays the uploaded images in a visual mood board grid
 
 #### Q5: Have you decided on how you will build it? Share what you know now or tell us the options you are considering.
 
-> Short (1-2 min' read max)
- * What is the technology stack? Specify languages, frameworks, libraries, PaaS products or tools to be used or being considered. 
- * How will you deploy the application?
- * Describe the architecture - what are the high level components or patterns you will use? Diagrams are useful here. 
- * Will you be using third party applications or APIs? If so, what are they?
+**Technology Stack:**
+
+* Frontend: React, TypeScript
+* Styling: Tailwind CSS
+* Backend: Java, Spring Boot
+* Database: PostgreSQL
+* PaaS: Render
+* Version control: GitHub
+
+React and TypeScript will be used for the dashboard and public-facing pages. Spring Boot will provide REST APIs and handle business logic, authentication, validation, and database access. PostgreSQL will store users, products, inventory, and sales data.
+
+**Deployment:**
+
+The application will be deployed as a cloud-hosted web application using Render. The React frontend and Spring Boot backend will be deployed as separate services, with PostgreSQL used as the relational database.
+
+**Architecture:**
+
+We will use a standard three-tier client-server architecture. The backend will use a modular monolith structure, separating features such as authentication, inventory, sales, analytics, and business profiles into different modules while keeping them within one application. This keeps the system organized without the additional complexity of microservices.
+
+```text
++----------------------+
+|        User          |
++----------+-----------+
+           |
+           v
++----------------------+
+| React + TypeScript   |
+| Frontend             |
+| Tailwind CSS         |
++----------+-----------+
+           |
+           | HTTPS / REST API
+           v
++----------------------+
+| Spring Boot Backend  |
+| Modular Monolith     |
++----+-----------+-----+
+     |           |
+     |           |
+     v           v
++----------+   +------------------+
+|PostgreSQL|   | Cloudinary       |
+| Database |   | Product Images   |
++----------+   +------------------+
+```
+
+The frontend handles the user interface and sends requests to the backend. The backend handles business logic, authentication, validation, and communication with the database. PostgreSQL stores users, products, inventory, sales, and other application data.
+
+**Third-Party Applications and APIs:**
+
+* Cloudinary: We are considering Cloudinary for product image upload, storage, and delivery. This is the third-party service most directly relevant to the MVP because product images are used in inventory listings and public business profiles.
+* Google Identity Services: This may be used later as an optional Google Sign-In method.
+* Stripe: This may be used in a later version if customers are able to place orders and make payments through public business profiles.
+* Resend: This may be used later for transactional emails such as password resets, notifications, or customer inquiry confirmations.
+
+Cloudinary is the external service we are most likely to use for the MVP. Google Identity Services, Stripe, and Resend are optional or future integrations and are not required for the initial MVP.
 
 ----
-## Intellectual Property Confidentiality Agreement 
-> Note this section is **not marked** but must be completed briefly if you have a partner. If you have any questions, please ask on Piazza.
->  
-**By default, you own any work that you do as part of your coursework.** However, some partners may want you to keep the project confidential after the course is complete. As part of your first deliverable, you should discuss and agree upon an option with your partner. Examples include:
-1. You can share the software and the code freely with anyone with or without a license, regardless of domain, for any use.
-2. You can upload the code to GitHub or other similar publicly available domains.
-3. You will only share the code under an open-source license with the partner but agree to not distribute it in any way to any other entity or individual. 
-4. You will share the code under an open-source license and distribute it as you wish but only the partner can access the system deployed during the course.
-5. You will only reference the work you did in your resume, interviews, etc. You agree to not share the code or software in any capacity with anyone unless your partner has agreed to it.
 
-**Your partner cannot ask you to sign any legal agreements or documents pertaining to non-disclosure, confidentiality, IP ownership, etc.**
+## Intellectual Property Confidentiality Agreement
 
-Briefly describe which option you have agreed to.
+Not applicable. Jack-Of-All-Trades is a self-proposed project and does not have an external project partner.
 
 ----
 
@@ -72,85 +164,183 @@ Briefly describe which option you have agreed to.
 
 #### Q6: Have you met with your team?
 
-Do a team-building activity in-person or online. This can be playing an online game, meeting for bubble tea, lunch, or any other activity you all enjoy.
-* Get to know each other on a more personal level.
-* Provide a few sentences on what you did and share a picture or other evidence of your team building activity.
-* Share at least three fun facts from members of you team (total not 3 for each member).
-
+* We met online through Discord where we introduced ourselves, shared a few fun facts, and got to know each other better.
+* We played an online game (Bomb Party). The fast-paced, competitive nature of the game helped create a comfortable dynamic between us before we started discussing the project work in more depth.
+* ![Bomb Party 1](bomb_party1.png)
+* ![Bomb Party 2](bomb_party2.png)
+* ![Bomb Party 3](bomb_party3.png)
+* Diana Akhmedova:
+  * Loves to go alpine skiing.
+* Kimberly Prijadi:
+  * Plays mobile rhythm games.
+* Jinuo Tao:
+  * Was a philosophy and linguistics major.
+* Minh Tran:
+  * Gacha addict.
+* Allie Huynh:
+  * Bottle-fed a tiger.
+* Hans Santiago:
+  * Was originally planning to go into law.
+* Aidan Wang:
+  * Likes to play video games and go to the gym.
 
 #### Q7: What are the roles & responsibilities on the team?
 
-Describe the different roles on the team and the responsibilities associated with each role (e.g., frontend, database). 
- * Roles should reflect the structure of your team and be appropriate for your project. One person may have multiple roles.  
- * Add role(s) to your Team-[Team_Number]-[Team_Name].csv file on the main folder.
- * At least one person must be identified as the dedicated partner liaison. They need to have great organization and communication skills.
- * Everyone must contribute to code. Students who don't contribute to code enough will receive a lower mark at the end of the term.
+Our team is divided primarily into frontend and backend development, with Diana and Kimberly also serving as team leads. Everyone will contribute to implementation, while feature ownership and individual tasks will be assigned through Jira as development progresses.
 
-List each team member and:
- * A description of their role(s) and responsibilities including the components they'll work on and non-software related work
- * Why did you choose them to take that role? Specify if they are interested in learning that part, experienced in it, or any other reasons. Do no make things up. This part is not graded but may be reviewed later.
+**Team Leads:**
 
+**Diana: Team Lead / Backend Developer:**
+
+* Responsibilities:
+  * Coordinate the overall development of the project.
+  * Help divide work and keep frontend and backend development aligned.
+  * Contribute to the Spring Boot backend, including business logic, API development, and database-related work.
+  * Review implementation decisions and help resolve technical blockers.
+* Reason for role:
+  * Diana was one of the original members who proposed the project idea, so she has a strong understanding of the intended product direction, core features, and overall vision. She also has experience with Python, Java, C, SQL, Spring Boot, Flask, and MongoDB.
+
+**Kimberly: Team Lead / Frontend Developer:**
+
+* Responsibilities:
+  * Coordinate the overall development of the project.
+  * Work on wireframes and the structure of the user interface.
+  * Implement frontend components and connect the React frontend to backend APIs.
+  * Help maintain consistency in the UI/UX of the application.
+* Reason for role:
+  * Kimberly was also one of the original members who proposed the project idea, so she has a strong understanding of how the team wants the product to look and function. She has experience with frontend development using React, Vue, and TypeScript, as well as UI/UX design.
+
+**Frontend:**
+
+**Allie: Frontend Developer:**
+
+* Responsibilities:
+  * Implement React and TypeScript user-interface components.
+  * Build pages and forms for the application's main features.
+  * Connect frontend components to backend functionality.
+  * Participate in frontend testing and improve the usability of the interface.
+* Reason for role:
+  * Allie has experience with Python, Java, JavaScript, and C. She is open to learning frontend development and is interested in design.
+
+**Minh: Frontend Developer:**
+
+* Responsibilities:
+  * Implement React and TypeScript components.
+  * Build and maintain the dashboard interface.
+  * Integrate backend API responses into the user interface.
+  * Participate in frontend testing and code review.
+* Reason for role:
+  * Minh has experience with React and TypeScript, which directly matches the technologies we plan to use for the frontend.
+
+**Backend:**
+
+**Hans: Backend Developer:**
+
+* Responsibilities:
+  * Implement backend endpoints and application logic in Spring Boot.
+  * Work with the database and application data models.
+  * Integrate backend functionality with the frontend.
+  * Participate in backend testing and code review.
+* Reason for role:
+  * Hans has experience with Python, Java, C, SQL, and shell scripting. His Java and SQL experience is relevant to our Spring Boot and PostgreSQL backend.
+
+**Aidan: Backend Developer:**
+
+* Responsibilities:
+  * Implement Spring Boot APIs and backend business logic.
+  * Work with PostgreSQL and the application's data layer.
+  * Test backend functionality and API behavior.
+  * Participate in code review and frontend-backend integration.
+* Reason for role:
+  * Aidan has experience with Python, Java, C, and SQL. His Java and SQL experience aligns with the technologies selected for the backend.
+
+**Jinuo: Backend Developer:**
+
+* Responsibilities:
+  * Implement REST API endpoints and backend business logic in Spring Boot.
+  * Work with PostgreSQL and database integration.
+  * Help define communication between the frontend and backend.
+  * Participate in backend testing, integration, and code review.
+* Reason for role:
+  * Jinuo has experience with Python, Java, C, TypeScript/JavaScript, and PostgreSQL. His Java and PostgreSQL experience fits the backend stack, while his JavaScript and TypeScript experience can also help with frontend-backend integration.
+
+Although these roles describe our initial division of responsibilities, they are not strict boundaries. Everyone is expected to contribute code, participate in reviews, and help with testing and documentation. Specific feature assignments will be tracked through Jira and adjusted according to workload, experience, and project needs.
 
 #### Q8: How will you work as a team?
 
-Describe meetings (and other events) you are planning to have. 
- * When and where? Recurring or ad hoc? In-person or online?
- * What's the purpose of each meeting?
- * Other events could be coding sessions, code reviews, quick weekly sync meeting online, etc.
- * You should have 2 meetings with your project partner (if you have one) before D1 is due. Describe them here:
-   * You must keep track of meeting minutes and add them to your repo under "deliverables/minutes" folder
-   * You must have a regular meeting schedule established for the rest of the term.  
-  
+Our team will primarily work asynchronously, with recurring online meetings used to coordinate development and resolve issues.
+
+* Weekly sync meetings:
+  * Held online through Discord or Zoom.
+  * Most meetings will be used to go over upcoming deliverables, discuss responsibilities, updates, roadblocks, and the direction of the project.
+  * Meetings are held every Monday at 8:30 PM.
+* Ad hoc meetings:
+  * Additional short meetings may be scheduled when a feature requires closer coordination or when a blocker cannot be resolved asynchronously.
+* Asynchronous work:
+  * The majority of coding will be done individually/asynchronously.
+  * Team members will communicate through Discord and track tasks and progress through Jira.
+  * Code reviews and integration work will be coordinated as needed.
+
 #### Q9: How will you organize your team?
 
-List/describe the artifacts you will produce to organize your team. (We strongly recommend that you use standard collaboration tools like Linear.app, Jira, Slack, Discord, GitHub.)       
-
- * Artifacts can be To-Do lists, Task boards, schedule(s), meeting minutes, etc.
- * We want to understand:
-   * How do you keep track of what needs to get done? (You must grant your TA and partner access to systems you use to manage work)
-   * **How do you prioritize tasks?**
-   * How do tasks get assigned to team members?
-   * How do you determine the status of work from inception to completion?
+* Task tracking:
+  * Jira will be used to keep track of what needs to get done, task assignments, and progress.
+  * [Jack-Of-All-Trades Jira Project](https://jack-of-all-trades.atlassian.net/?continue=https%3A%2F%2Fjack-of-all-trades.atlassian.net%2Fwelcome%2Fsoftware%3FprojectId%3D10001&atlOrigin=eyJpIjoiNmJhODU0NDlhOWFmNDRiNjk1OWZhMDZhOWVmNjJhNjAiLCJwIjoiamlyYS1zb2Z0d2FyZSJ9)
+* Meeting organization:
+  * Meetings may be recorded and processed through AI to help produce minutes.
+  * Meeting minutes will be stored in the repository under deliverables/minutes.
+  * Agendas can be made before meetings, and summaries or minutes can be made after meetings.
+* Task prioritization:
+  * We will focus on main features first. Parts or features that are vital to continuing work on the project, or that other features depend on, will take priority.
+* Task assignment:
+  * Tasks will be assigned based on skill set and experience, while also considering interest, availability, and workload. Assignment will be mostly voluntary when possible.
+* Progress tracking:
+  * Work status will be kept track of in Jira and shared team documents.
 
 #### Q10: What are the rules regarding how your team works?
 
 **Communications:**
- * What is the expected frequency? What methods/channels will be used? 
- * If you have a partner project, what is your process for communicating with your partner? Who is responsible?
- 
+
+* Communication will be mostly through Discord. Meetings will be held on Discord or Zoom weekly.
+* Team members are expected to communicate blockers or delays as early as possible so responsibilities can be adjusted if needed.
+
 **Collaboration:**
- * How are people held accountable for attending meetings, completing action items? What is your process?
- * How will you address the issue if one person doesn't contribute or is not responsive?
+
+* We will keep track of who is attending meetings and contributing to the project through Jira and shared team documents.
+* If one person does not contribute or is not responsive, we will try to contact them in the group chat first.
+* If the person remains unresponsive, we will escalate the issue to the TA and have another member take over the task if necessary.
+* Work may be redistributed later to keep contributions reasonably balanced across the team.
 
 ## Organisation Details
 
 #### Q11. How does your team fit within the overall team organisation of the partner?
-* Given the team structure of your partner, what role do you think your team will play?
-* Examples include product development that includes developing new features, or quality assurance that includes developing features that test the product reliability, or software maintenance that includes fixing crucial bugs in the product.
-* Provide examples of why you think you fit this role.
+
+Not applicable. This is a self-proposed project with no external project partner.
 
 #### Q12. How does your project fit within the overall product from the partner?
-* Look at the big picture of the product and think about how your project fits into this product.
-* Is your project the first step towards building this product? Is it the first prototype? Are you developing the frontend of a product whose backend is developed by the partner? Are you building the release pipelines for a product that is developed by the partner? Are you building a core feature set and take full ownership of these features?
-* You should also provide details of who else is contributing to what parts of the product, if you have this information. This is more important if the project that you will be working on has strong coupling with parts that will be contributed to by members other than your team (e.g., from a partner).
-* You can be creative for these questions and even use a graphical or pictorial representation to demonstrate the fit.
-* Briefly specify what your partner considers a success for this project. Do they want you to build specific features? Publish a usable product? Just a prototype? Be as specific as you can be at this point.
+
+Not applicable. This is a self-proposed project with no external project partner.
 
 ## Potential Risks
 
 #### Q13. What are some potential risks to your project?
-* Now that you have defined your project, what risks can you identify that might impact it?
-* Some examples of risks at this planning stage could include:
-  * Uncertainties regarding a specific feature
-  * Misaligned expectations or conflicts
-  * Lack of clarity in execution or decision-making
-  * Limited access to data, systems, or other dependencies
-  * User stories that are too abstract or too simple
-* For each risk, provide a brief bullet point and then explain the risk in detail. 
+
+* Project scope:
+  * There may be differences between the broader vision or idea and the number of features we can realistically implement. We need to pick a realistic and reasonable number of features based on the timeline we have so that the core MVP can still be completed.
+* Security:
+  * Storing customer and business information securely may be a risk, especially if the application handles personal information. Poor input validation, authentication, or database handling could expose user information or create vulnerabilities.
+* Communication:
+  * Team members might have different visions for the same feature, leading to inconsistent implementations. If expectations are not clarified early, this could also create additional rework during integration.
+* Work distribution:
+  * Some team members might get less or more work than they have time to do. Differences in workload and availability could delay tasks or make development less balanced.
 
 #### Q14. What are some potential mitigation strategies for the risks you identified?
-* Examples of mitigation strategies:
-  * More communication with the partner might help with improving clarity.
-  * Adding more details for an user story might make it less abstract.
-  * Adding an extra user story might increase the project complexity, making it less simple.
-* It's ok if you are unable to find mitigation strategies for all the risks right now.
+
+* Project scope:
+  * We will have conversations about the features to implement and compromise on the amount of features if necessary. Core MVP features will be prioritized first, while lower-priority features can be treated as stretch goals.
+* Security:
+  * We will block SQL injection through parameterized database queries, enforce server-side data validation, and use appropriate authentication and authorization checks.
+* Communication:
+  * Before working on each feature, we will clarify its functionality and the communication pipeline between the backend and frontend. API expectations will be discussed early to reduce inconsistent implementations.
+* Work distribution:
+  * We will consult the TA and team members on expectations for features, check team member availability and workload, and distribute work appropriately. Tasks may be reassigned if someone becomes overloaded or unavailable.
