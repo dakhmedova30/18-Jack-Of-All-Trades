@@ -1,20 +1,12 @@
 # Jack-Of-All-Trades
 
 ## Description About The Project
-Keep this section very brief.
- * Provide a high-level description of your application and it's value from an end-user's perspective
- * What is the problem you're trying to solve? Is there any context required to understand **why** the application solves this problem?
-<br>
 
  * Jack-Of-All-Trades is a business management and intelligence platform targeted at small businesses, entrepreneurs, and independent creators.
  * Starting out a small business may often be daunting, as you have to manage sales, track inventory, and figure out your own analytics.
  * As such, our application aims to simplify the accounting & inventory management process, as well as provide analytics and projections for business performance.
 ​
 ## Key Features
- * Describe the key features in the application that the user can access.
- * Provide a breakdown or detail for each feature.
- * This section will be used to assess the value of the features built
-<br>
    
  * Bookkeeping Dashboard: Allows business owners to record sales.
  * Inventory Dashboard: Allows business owners to add and update inventory items.
@@ -23,11 +15,6 @@ Keep this section very brief.
  * Customer Dashboard: Allows customers to view vendors registered on the platform and make purchases.
 ​
 ## Instructions
- * Clear instructions for how to use the application from the end-user's perspective
- * How do you access it? For example: Are accounts pre-created or does a user register? Where do you start? etc. 
- * Provide clear steps for using each feature described in the previous section.
- * This section is critical to testing your application and must be done carefully and thoughtfully.
-<br>
 
  * Business Owners: Register a business account.
      * Bookkeeping Dashboard: Click the "Add Sale" button to add a sale. Then, set an amount, channel, time, and location.
@@ -44,23 +31,29 @@ Keep this section very brief.
 
  * Not yet available.
  
- ## Deployment and Github Workflow
-Describe your Git/GitHub workflow. Essentially, we want to understand how your team members share codebase, avoid conflicts and deploys the application.
-​
- * Be concise, yet precise. For example, "we use pull-requests" is not a precise statement since it leaves too many open questions - Pull-requests from where to where? Who reviews the pull-requests? Who is responsible for merging them? etc.
- * If applicable, specify any naming conventions or standards you decide to adopt.
- * Describe your overall deployment process from writing code to viewing a live application
- * What deployment tool(s) are you using? And how?
- * Don't forget to **briefly justify why** you chose this workflow or particular aspects of it!
-<br>
+## Deployment and Github Workflow
 
  * We use Jira to list and assign user stories/features to work on.
+     * This allows us to track what features we are working on and easily add new tickets when necessary.
+ * Making Pull Requests for major changes with at least one member from the subteam looking over it before merging.
+     * Ex: if the PR is a backend change, another backend member will look it over.
+     * This allows a fresh set of eyes to look over the functionalities and catch any potential bugs/edge cases that weren't covered in testing.
+     * Additionally, this prevents unreviewed commits to production branch.
+ * Branching Strategy and Naming Convention: all new work is developed on separate feature branches that branch of from *main*, with a naming convention like *feature/JIRA-number-descripition*.
+     * Ex: JIRA-3-accounting-api
+     * This allows us to be able to trace codebase changes and match them with the original Jira requirements.
+  
+  * Deployment tools: in discussion.
+  
 
  ## Coding Standards and Guidelines
- Keep this section brief, a maximum of 2-3 lines. You would want to read through this [article](https://www.geeksforgeeks.org/coding-standards-and-guidelines/) to get more context about what this section is for before attempting to answer.
-  * These are 2 optional resources that you might want to go through: [article with High level explanation](https://blog.codacy.com/coding-standards-what-are-they-and-why-do-you-need-them/) and [this article with Detailed Explanation](https://google.github.io/styleguide/)
+    
+ * We use automated tools like Prettier and linters to enforce consistent code styling and catch syntax errors.
+ * Our development strictly adheres to separation of concerns to ensure a clean & modular architecture between different system components
+ * All developers must write code that have clear, descriptive function names and implement comprehensive error handing.
 ​
  ## Licenses
+​
  Keep this section as brief as possible. You may read this [Github article](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/licensing-a-repository) for a start.
 ​
  * What type of license will you apply to your codebase? And why?
