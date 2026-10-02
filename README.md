@@ -1,17 +1,14 @@
 # Jack-Of-All-Trades
 
-
-## Description about the project
+## Description About The Project
 Keep this section very brief.
  * Provide a high-level description of your application and it's value from an end-user's perspective
  * What is the problem you're trying to solve? Is there any context required to understand **why** the application solves this problem?
 <br>
 
- * Business management & intelligence platform targeted at small business owners.
- * Problem: small business owners often have a difficult time managing sales, tracking inventory & analysing their business.
- * Simplifies the accounting & inventory management process.
- * Provides analytics & projections for business performance.
- 
+ * Jack-Of-All-Trades is a business management and intelligence platform targeted at small businesses, entrepreneurs, and independent creators.
+ * Starting out a small business may often be daunting, as you have to manage sales, track inventory, and figure out your own analytics.
+ * As such, our application aims to simplify the accounting & inventory management process, as well as provide analytics and projections for business performance.
 ​
 ## Key Features
  * Describe the key features in the application that the user can access.
@@ -19,11 +16,11 @@ Keep this section very brief.
  * This section will be used to assess the value of the features built
 <br>
    
- * Bookkeeping Dashboard: allows business owners to record sales.
- * Inventory Dashboard: allows business owners to add/update inventory items.
- * Analytics Dashboard: display performance indicators for the business.
- * Business Profile Dashboard: allows businesses to list their products.
- * Customer's dashboard: allows customers to view vendors registered on the platform and make purchases.
+ * Bookkeeping Dashboard: Allows business owners to record sales.
+ * Inventory Dashboard: Allows business owners to add and update inventory items.
+ * Analytics Dashboard: Displays performance indicators for the business.
+ * Business Profile Dashboard: Allows businesses to list their products.
+ * Customer Dashboard: Allows customers to view vendors registered on the platform and make purchases.
 ​
 ## Instructions
  * Clear instructions for how to use the application from the end-user's perspective
@@ -32,22 +29,22 @@ Keep this section very brief.
  * This section is critical to testing your application and must be done carefully and thoughtfully.
 <br>
 
- * Business owners: register a business account
-     * Bookkeeping Dashboard: click "Add Sale" button to add a sale, set amount, channel, time, location.
-     * Inventory Dashboard: click "Add Item" button to add an item, set prices, set stock count.
+ * Business Owners: Register a business account.
+     * Bookkeeping Dashboard: Click the "Add Sale" button to add a sale. Then, set an amount, channel, time, and location.
+     * Inventory Dashboard: Click the "Add Item" button to add an item, set prices, and set stock count.
      * Analytics Dashboard: View various business performance metrics.
      * Business Profile Dashboard: Set up a public profile for customers to see.
- * Customers: register a customer account, can browse/lookup available businesses and make purchases. 
+ * Customers: Register a customer account.
+     * Can browse and look up available businesses and make purchases. 
  
- ## Development requirements
+## Development Requirements
  * What are the technical requirements for a developer to set up on their machine or server (e.g. OS, libraries, etc.)?
  * Briefly describe instructions for setting up and running the application. You should address this part like how one would expect a README doc of real-world deployed application would be.
  * You can see this [example](https://github.com/alichtman/shallow-backup#readme) to get started.
 
- * Not Yet Available.
+ * Not yet available.
  
  ## Deployment and Github Workflow
-​
 Describe your Git/GitHub workflow. Essentially, we want to understand how your team members share codebase, avoid conflicts and deploys the application.
 ​
  * Be concise, yet precise. For example, "we use pull-requests" is not a precise statement since it leaves too many open questions - Pull-requests from where to where? Who reviews the pull-requests? Who is responsible for merging them? etc.
@@ -58,14 +55,12 @@ Describe your Git/GitHub workflow. Essentially, we want to understand how your t
 <br>
 
  * We use Jira to list and assign user stories/features to work on.
-   
 
  ## Coding Standards and Guidelines
  Keep this section brief, a maximum of 2-3 lines. You would want to read through this [article](https://www.geeksforgeeks.org/coding-standards-and-guidelines/) to get more context about what this section is for before attempting to answer.
   * These are 2 optional resources that you might want to go through: [article with High level explanation](https://blog.codacy.com/coding-standards-what-are-they-and-why-do-you-need-them/) and [this article with Detailed Explanation](https://google.github.io/styleguide/)
 ​
  ## Licenses
-​
  Keep this section as brief as possible. You may read this [Github article](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/licensing-a-repository) for a start.
 ​
  * What type of license will you apply to your codebase? And why?
