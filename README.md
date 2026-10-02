@@ -5,22 +5,45 @@
 Keep this section very brief.
  * Provide a high-level description of your application and it's value from an end-user's perspective
  * What is the problem you're trying to solve? Is there any context required to understand **why** the application solves this problem?
+
+   
+ * Business management & intelligence platform targeted at small business owners.
+ * Problem: small business owners often have a difficult time managing sales, tracking inventory & analysing their business.
+ * Simplifies the accounting & inventory management process.
+ * Provides analytics & projections for business performance.
+ 
 ​
 ## Key Features
  * Describe the key features in the application that the user can access.
  * Provide a breakdown or detail for each feature.
  * This section will be used to assess the value of the features built
+
+   
+ * Bookkeeping Dashboard: allows business owners to record sales.
+ * Inventory Dashboard: allows business owners to add/update inventory items.
+ * Analytics Dashboard: display performance indicators for the business.
+ * Business Profile Dashboard: allows businesses to list their products.
+ * Customer's dashboard: allows customers to view vendors registered on the platform and make purchases.
 ​
 ## Instructions
  * Clear instructions for how to use the application from the end-user's perspective
  * How do you access it? For example: Are accounts pre-created or does a user register? Where do you start? etc. 
  * Provide clear steps for using each feature described in the previous section.
  * This section is critical to testing your application and must be done carefully and thoughtfully.
+
+ * Business owners: register a business account
+     * Bookkeeping Dashboard: click "Add Sale" button to add a sale, set amount, channel, time, location.
+     * Inventory Dashboard: click "Add Item" button to add an item, set prices, set stock count.
+     * Analytics Dashboard: View various business performance metrics.
+     * Business Profile Dashboard: Set up a public profile for customers to see.
+ * Customers: register a customer account, can browse/lookup available businesses and make purchases. 
  
  ## Development requirements
  * What are the technical requirements for a developer to set up on their machine or server (e.g. OS, libraries, etc.)?
  * Briefly describe instructions for setting up and running the application. You should address this part like how one would expect a README doc of real-world deployed application would be.
  * You can see this [example](https://github.com/alichtman/shallow-backup#readme) to get started.
+
+ * Not Yet Available.
  
  ## Deployment and Github Workflow
 ​
@@ -31,6 +54,8 @@ Describe your Git/GitHub workflow. Essentially, we want to understand how your t
  * Describe your overall deployment process from writing code to viewing a live application
  * What deployment tool(s) are you using? And how?
  * Don't forget to **briefly justify why** you chose this workflow or particular aspects of it!
+
+ * We use Jira to list and assign user stories/features to work on.
 
  ## Coding Standards and Guidelines
  Keep this section brief, a maximum of 2-3 lines. You would want to read through this [article](https://www.geeksforgeeks.org/coding-standards-and-guidelines/) to get more context about what this section is for before attempting to answer.
@@ -47,6 +72,4 @@ Describe your Git/GitHub workflow. Essentially, we want to understand how your t
 
 Provide a link to the deployed application or clear instructions for how to access it. For mobile apps, include TestFlight/APK links or emulator instructions. For APIs, include Postman collections or curl examples.
 
-## D3 Improvement Highlight
-
-Briefly describe what changed since D2 and how to find it (2-3 sentences). Save the full analysis for the product evolution report.
+* Not yet available.
