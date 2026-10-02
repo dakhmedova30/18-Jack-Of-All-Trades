@@ -5,8 +5,8 @@
 Keep this section very brief.
  * Provide a high-level description of your application and it's value from an end-user's perspective
  * What is the problem you're trying to solve? Is there any context required to understand **why** the application solves this problem?
+<br>
 
-   
  * Business management & intelligence platform targeted at small business owners.
  * Problem: small business owners often have a difficult time managing sales, tracking inventory & analysing their business.
  * Simplifies the accounting & inventory management process.
@@ -17,7 +17,7 @@ Keep this section very brief.
  * Describe the key features in the application that the user can access.
  * Provide a breakdown or detail for each feature.
  * This section will be used to assess the value of the features built
-
+<br>
    
  * Bookkeeping Dashboard: allows business owners to record sales.
  * Inventory Dashboard: allows business owners to add/update inventory items.
@@ -30,6 +30,7 @@ Keep this section very brief.
  * How do you access it? For example: Are accounts pre-created or does a user register? Where do you start? etc. 
  * Provide clear steps for using each feature described in the previous section.
  * This section is critical to testing your application and must be done carefully and thoughtfully.
+<br>
 
  * Business owners: register a business account
      * Bookkeeping Dashboard: click "Add Sale" button to add a sale, set amount, channel, time, location.
@@ -54,8 +55,10 @@ Describe your Git/GitHub workflow. Essentially, we want to understand how your t
  * Describe your overall deployment process from writing code to viewing a live application
  * What deployment tool(s) are you using? And how?
  * Don't forget to **briefly justify why** you chose this workflow or particular aspects of it!
+<br>
 
  * We use Jira to list and assign user stories/features to work on.
+   
 
  ## Coding Standards and Guidelines
  Keep this section brief, a maximum of 2-3 lines. You would want to read through this [article](https://www.geeksforgeeks.org/coding-standards-and-guidelines/) to get more context about what this section is for before attempting to answer.
