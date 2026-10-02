@@ -48,35 +48,35 @@ Our MVP user stories and their implementation progress are tracked in Jira:
 
 * US1: Sales Tracking
   * As a small business owner, I want to log individual sales while also indicating the specific channel (e.g. e-commerce, in-person market, etc.) in order to keep track of my revenue sources.
-  * Acceptance criteria:
+  * Acceptance Criteria:
     * Given the user is viewing their "Log Sale" page
     * When they input the sale amount, date, and sales channel
     * Then the sale is recorded to the database and the overall revenue total on the dashboard is updated
 
 * US2: Inventory Management
   * As a small business owner, I want to add and update my product inventory in order to know exactly how much stock I currently have.
-  * Acceptance criteria:
+  * Acceptance Criteria:
     * Given the user is viewing their inventory management dashboard
     * When they click "Add Product", input the product name, price, and quantity and submit the information, or when they update an existing item's quantity and save
     * Then the item appears in the inventory list with the specified stock amount, or the existing item's stock is adjusted to reflect the change
 
 * US3: Public Profile (Seller)
   * As a small business owner, I want to set up a public profile with my available products so potential customers can view my offerings.
-  * Acceptance criteria:
+  * Acceptance Criteria:
     * Given the user is viewing their inventory management dashboard
     * When they check the "Visible to Public" box on an item and save the changes
     * Then their public-facing profile is updated to display that selected item
 
 * US4: Public Profile (Customer)
   * As a customer, I want to browse a business's public profile in order to see what items they currently have available.
-  * Acceptance criteria:
+  * Acceptance Criteria:
     * Given the business owner has set up their public profile with items
     * When a customer views their profile page
     * Then they see a gallery displaying the business's public items, including each item's name, image, and price
 
 * US5: Analytics Dashboard
   * As a small business owner, I want to view basic sales analytics so I can understand how my products and sales channels are performing.
-  * Acceptance criteria:
+  * Acceptance Criteria:
     * Given the user has logged their sales
     * When they navigate to the Analytics Dashboard
     * Then the dashboard displays monthly sales information
@@ -87,7 +87,7 @@ Our MVP user stories and their implementation progress are tracked in Jira:
 
 * US6: Project Management
   * As a small business owner, I want to create project workspaces where I can set deadlines, goals, and build mood boards in order to organize my creative process and track progress.
-  * Acceptance criteria:
+  * Acceptance Criteria:
     * Given the user is on the "Projects" dashboard and clicks to create a new project
     * When they enter a project title, deadline date, goal, and upload images for their mood board
     * Then a new project workspace is generated that displays the goal and deadline
@@ -102,7 +102,7 @@ Our MVP user stories and their implementation progress are tracked in Jira:
 * Backend: Java, Spring Boot
 * Database: PostgreSQL
 * PaaS: Render
-* Version control: GitHub
+* Version Control: GitHub
 
 React and TypeScript will be used for the dashboard and public-facing pages. Spring Boot will provide REST APIs and handle business logic, authentication, validation, and database access. PostgreSQL will store users, products, inventory, and sales data.
 
@@ -116,28 +116,28 @@ We will use a standard three-tier client-server architecture. The backend will u
 
 ```text
 +----------------------+
-|        User          |
+|         User         |
 +----------+-----------+
            |
            v
 +----------------------+
-| React + TypeScript   |
-| Frontend             |
-| Tailwind CSS         |
+|  React + TypeScript  |
+|       Frontend       |
+|     Tailwind CSS     |
 +----------+-----------+
            |
            | HTTPS / REST API
            v
 +----------------------+
 | Spring Boot Backend  |
-| Modular Monolith     |
+|   Modular Monolith   |
 +----+-----------+-----+
      |           |
      |           |
      v           v
 +----------+   +------------------+
-|PostgreSQL|   | Cloudinary       |
-| Database |   | Product Images   |
+|PostgreSQL|   |    Cloudinary    |
+| Database |   |  Product Images  |
 +----------+   +------------------+
 ```
 
@@ -164,8 +164,8 @@ Not applicable. Jack-Of-All-Trades is a self-proposed project and does not have 
 
 #### Q6: Have you met with your team?
 
-* We met online through Discord where we introduced ourselves, shared a few fun facts, and got to know each other better.
-* We played an online game (Bomb Party). The fast-paced, competitive nature of the game helped create a comfortable dynamic between us before we started discussing the project work in more depth.
+* We met online through Discord, where we introduced ourselves, shared a few fun facts, and got to know each other better.
+* We played an online game called Bomb Party. The fast-paced, competitive nature of the game helped create a comfortable dynamic between us before we started discussing the project work in more depth.
 * ![Bomb Party 1](bomb_party1.png)
 * ![Bomb Party 2](bomb_party2.png)
 * ![Bomb Party 3](bomb_party3.png)
@@ -270,32 +270,32 @@ Although these roles describe our initial division of responsibilities, they are
 
 Our team will primarily work asynchronously, with recurring online meetings used to coordinate development and resolve issues.
 
-* Weekly sync meetings:
+* Weekly Sync Meetings:
   * Held online through Discord or Zoom.
   * Most meetings will be used to go over upcoming deliverables, discuss responsibilities, updates, roadblocks, and the direction of the project.
   * Meetings are held every Monday at 8:30 PM.
-* Ad hoc meetings:
+* Ad Hoc Meetings:
   * Additional short meetings may be scheduled when a feature requires closer coordination or when a blocker cannot be resolved asynchronously.
-* Asynchronous work:
+* Asynchronous Work:
   * The majority of coding will be done individually/asynchronously.
   * Team members will communicate through Discord and track tasks and progress through Jira.
   * Code reviews and integration work will be coordinated as needed.
 
 #### Q9: How will you organize your team?
 
-* Task tracking:
+* Task Tracking:
   * Jira will be used to keep track of what needs to get done, task assignments, and progress.
   * [Jack-Of-All-Trades Jira Project](https://jack-of-all-trades.atlassian.net/?continue=https%3A%2F%2Fjack-of-all-trades.atlassian.net%2Fwelcome%2Fsoftware%3FprojectId%3D10001&atlOrigin=eyJpIjoiNmJhODU0NDlhOWFmNDRiNjk1OWZhMDZhOWVmNjJhNjAiLCJwIjoiamlyYS1zb2Z0d2FyZSJ9)
-* Meeting organization:
+* Meeting Organization:
   * Meetings may be recorded and processed through AI to help produce minutes.
   * Meeting minutes will be stored in the repository under deliverables/minutes.
   * Agendas can be made before meetings, and summaries or minutes can be made after meetings.
-* Task prioritization:
+* Task Prioritization:
   * We will focus on main features first. Parts or features that are vital to continuing work on the project, or that other features depend on, will take priority.
-* Task assignment:
+* Task Assignment:
   * Tasks will be assigned based on skill set and experience, while also considering interest, availability, and workload. Assignment will be mostly voluntary when possible.
-* Progress tracking:
-  * Work status will be kept track of in Jira and shared team documents.
+* Progress Tracking:
+  * Work status will be tracked in Jira and shared team documents.
 
 #### Q10: What are the rules regarding how your team works?
 
@@ -325,22 +325,22 @@ Not applicable. This is a self-proposed project with no external project partner
 
 #### Q13. What are some potential risks to your project?
 
-* Project scope:
+* Project Scope:
   * There may be differences between the broader vision or idea and the number of features we can realistically implement. We need to pick a realistic and reasonable number of features based on the timeline we have so that the core MVP can still be completed.
 * Security:
   * Storing customer and business information securely may be a risk, especially if the application handles personal information. Poor input validation, authentication, or database handling could expose user information or create vulnerabilities.
 * Communication:
   * Team members might have different visions for the same feature, leading to inconsistent implementations. If expectations are not clarified early, this could also create additional rework during integration.
-* Work distribution:
+* Work Distribution:
   * Some team members might get less or more work than they have time to do. Differences in workload and availability could delay tasks or make development less balanced.
 
 #### Q14. What are some potential mitigation strategies for the risks you identified?
 
-* Project scope:
-  * We will have conversations about the features to implement and compromise on the amount of features if necessary. Core MVP features will be prioritized first, while lower-priority features can be treated as stretch goals.
+* Project Scope:
+  * We will have conversations about the features to implement and compromise on the number of features if necessary. Core MVP features will be prioritized first, while lower-priority features can be treated as stretch goals.
 * Security:
   * We will block SQL injection through parameterized database queries, enforce server-side data validation, and use appropriate authentication and authorization checks.
 * Communication:
   * Before working on each feature, we will clarify its functionality and the communication pipeline between the backend and frontend. API expectations will be discussed early to reduce inconsistent implementations.
-* Work distribution:
+* Work Distribution:
   * We will consult the TA and team members on expectations for features, check team member availability and workload, and distribute work appropriately. Tasks may be reassigned if someone becomes overloaded or unavailable.
