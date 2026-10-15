@@ -1,0 +1,20 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# One web service runs Express, which serves both /api and the built React app.
+# The database lives elsewhere (AWS RDS, Neon, Supabase...): set DATABASE_URL in
+# the Render dashboard when prompted. It is never committed to git.
+services:
+  - type: web
+    name: jack-of-all-trades
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: DATABASE_URL
+        sync: false
+      - key: SEED_IF_EMPTY
+        value: 'true'
