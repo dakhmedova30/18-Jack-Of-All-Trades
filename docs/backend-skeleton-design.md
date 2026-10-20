@@ -331,6 +331,7 @@ Read-only. Query parameters: `from` (default: 30 days before `to`), `to` (defaul
 | `GET /summary` | — | `{ from, to, revenueCents, expensesCents, profitCents, salesCount }` for the dashboard tiles |
 
 Definitions:
+
 - `salesCount`: number of sales.
 - `unitsSold`: sum of line quantities.
 - `revenueCents`: sum of sale line totals.
@@ -360,10 +361,12 @@ Items and Expenses pages need no changes.
 
 - **No secrets in git.** The local defaults only work with the Docker database.
 - **Run locally** (needs JDK 25, Docker and Node 22+):
+
   ```bash
   cd backend && docker compose up -d && ./mvnw spring-boot:run    # Windows: mvnw.cmd; http://localhost:4000
   cd demo/client && npm install && npm run dev                   # http://localhost:5173
   ```
+
 - **Health:** `GET /api/health` runs `SELECT 1`. It returns `200 {"status":"ok","database":"ok"}`, or `503` with `"database":"unreachable"`. Render uses it as the health check.
 - **Demo data:** with the `demo` profile and an empty database, `DemoDataSeeder` creates a demo account (credentials in `backend/README.md`) with ~20 items, ~6 weeks of sales across all four channels (dated relative to today) and a few expenses. It writes through the services, so stock rules apply. It never runs in tests.
 - **Tests:** `./mvnw test` (Docker must be running). `PostgresTestBase` starts one Testcontainers Postgres per run, so migrations are tested too, and provides a helper that creates a user and runs requests logged in as them. Every module adds tests for its endpoints, including "another account's id returns 404".
