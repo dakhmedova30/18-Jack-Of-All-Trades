@@ -249,7 +249,7 @@ sale_items   id, sale_id → sales (ON DELETE CASCADE)
              item_name        TEXT    NOT NULL  -- copied from the item at sale time
              quantity         INTEGER NOT NULL CHECK (quantity > 0)
              unit_price_cents INTEGER NOT NULL CHECK (unit_price_cents >= 0)  -- defaults to item price (Q11)
-             line_total_cents INTEGER NOT NULL  -- quantity × unit_price_cents
+             total_cents      INTEGER NOT NULL  -- quantity × unit_price_cents (JSON: totalCents)
 ```
 
 `sales` is owned by Jinuo (US1) and created in his own migration; `items` changes belong to Diana (US2).
@@ -263,6 +263,15 @@ sale_items   id, sale_id → sales (ON DELETE CASCADE)
 | Delete sale | Restore each line's quantity. |
 
 - Inactive items can't be added to new sales. Existing sales that include them still display normally.
+
+**Concurrency (decided):** two sales of the same item at the same moment must not oversell it.
+
+1. **Pre-check** (for good error messages): load the items and validate every line (exists, active, enough stock), collecting all problems into one 400 response.
+2. **Atomic update** (for correctness): for each line, sorted by `item_id` to avoid deadlocks, run
+   `UPDATE items SET quantity = quantity - :qty WHERE id = :id AND business_id = :biz AND quantity >= :qty`.
+   If it changes 0 rows, another sale took the stock after the pre-check: roll back the whole transaction and return that line's stock error.
+3. Restoring stock (edit, delete) is a plain `quantity = quantity + :qty`.
+4. The repository method uses `@Modifying(clearAutomatically = true)` so Hibernate doesn't keep stale copies of the items after the native update.
 - `item_name` and `unit_price_cents` are copied into each line, so renaming or repricing an item never changes past sales or analytics.
 
 **US1 mapping:** amount = `total_cents`, date = `sold_at`, product = the lines, sales channel = `channel` (+ optional `storefront`).
@@ -363,7 +372,7 @@ POST requires `name`, `quantity` and `unitPriceCents`.
 }
 ```
 
-A line's `totalCents` is the `line_total_cents` column. `itemId` is `null` if the item was later removed from the database; `itemName` still shows what was sold.
+`itemId` is `null` if the item was later removed from the database; `itemName` still shows what was sold.
 
 #### SaleInput
 
@@ -536,6 +545,8 @@ Render settings: Docker runtime, health check path `/api/health`, the three `SPR
 
 Each decision lists the options, a recommendation, and who should confirm it. Until confirmed, the draft follows the recommendation. Reply in Discord with the question ID (e.g. "Q3: agree" or "Q3: prefer B").
 
+**Status (2026-10-19):** confirmed: Q15, Q18, Q19, Q20. Reopened: Q16. Everything else is still a recommendation awaiting confirmation.
+
 ### Product and scope
 
 **Q1. US2 goal text.** The D2 split's US2 goal ("log individual sales and sales channel…") duplicates US1. `planning.md` defines US2 as *add and update products with name, price and quantity*.
@@ -630,20 +641,42 @@ Each decision lists the options, a recommendation, and who should confirm it. Un
 - A: keep `tags` on sales as a Postgres `TEXT[]` column (current Hibernate maps it to `List<String>` directly)
 - B: drop them; channel and storefront cover the grouping the Lucidchart needs
 - Recommendation: **A** for D2, so the existing Sales page works unchanged. Revisit with Q9 so items and sales handle tags the same way.
-- Confirm: Minh
+- **Decided: A** (frontend confirmed they need `id`, `tags`, `createdAt`, `updatedAt` on sales).
 
 **Q16. Expenses in the Java backend.** Hans added an Expenses page and API to the Node demo (lines either restock an item or record a free-text cost). No D2 user story covers it.
 
 - A: port it to Java after D2, together with Lucidchart fields (category, manufacturer)
 - B: port it for D2, since the frontend already exists
 - Recommendation: **A**. D2 is graded on US1–US3; porting Expenses also means reworking how stock is tracked (Q5). If the team wants it in the D2 demo, it needs an owner.
-- Confirm: Hans, team
+- **Reopened:** the analytics dashboard discussed on Discord (Oct 14) shows total expenses and net profit, which need expense data. New option under discussion: **cost-only Expenses for D2** (free-text cost lines, no restocking, no stock effect), so Analytics can show expenses and profit; restocking after D2.
+- Confirm: Hans, Aidan, Kimberly, team
 
 **Q17. Time zone for dates.** "Sales on Oct 18" and the daily analytics buckets depend on a time zone: a sale at 9 PM Toronto time is already Oct 19 in UTC.
 
 - Recommendation: store timestamps in UTC (`TIMESTAMPTZ`). Interpret date filters and group analytics in a fixed **`America/Toronto`** zone for D2; later, a per-business time zone setting.
 - Confirm: Aidan, Kimberly
 
+
+**Q18. Which backend runs the D2 demo.**
+
+- A: Java (rebuild Items, Sales, Analytics before Oct 23)
+- B: TypeScript for D2, Java right after
+- C: hybrid, two backends on one database
+- **Decided: A.** The skeleton is on the D2 critical path. On Oct 23 the deployed app runs on Java; `demo/server` is no longer deployed. Pages whose backend isn't ported (e.g. Expenses, see Q16) are hidden from navigation, not deleted.
+
+**Q19. Stock concurrency.**
+
+- A: atomic `UPDATE … WHERE quantity >= :qty`
+- B: row lock with `SELECT … FOR UPDATE`
+- C: optimistic locking (`@Version`)
+- **Decided: A**, with a pre-check for error messages. Details in §6, *Concurrency*.
+
+**Q20. Demo data.**
+
+- A: Java seeder, only active with the `demo` Spring profile
+- B: Flyway seed migration
+- C: no seeding
+- **Decided: A.** When the database is empty, the seeder creates ~20 items and ~6 weeks of sales across all four channels, with dates relative to today so charts always show recent data. It writes through the Sales service, so sample data follows the same stock rules. Enabled locally and on Render for D2 with `SPRING_PROFILES_ACTIVE=demo`; disabled once real users exist. Never runs in tests.
 
 ## 15. Build order
 
