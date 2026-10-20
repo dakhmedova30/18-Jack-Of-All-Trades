@@ -1,8 +1,8 @@
-# Backend Skeleton Design (Spring Boot)
+# Backend Design: Skeleton + D2 Data Model (Spring Boot)
 
 **Owner:** Jinuo Tao  
 **Status:** Draft for team review  
-**Date:** 2026-10-15  
+**Date:** 2026-10-15 (updated 2026-10-19)  
 **Branch:** `backend-skeleton` (from `claude-demo`)
 
 ## 1. Purpose
@@ -88,7 +88,7 @@ The skeleton is done when:
     src/main/resources/
       application.yml
       db/migration/
-        V20261015_1__create_items.sql
+        V20261015_1__create_businesses_and_items.sql
     src/test/java/ca/jackofalltrades/
       PostgresTestBase.java    # starts a Testcontainers Postgres
       items/ItemControllerTest.java
@@ -198,24 +198,88 @@ Modules signal errors by **throwing** (`throw new NotFoundException("Item", id)`
 - `spring.flyway.out-of-order: true` is enabled. A branch merged late can carry an older date than a migration already applied to Neon; without this setting Flyway would refuse to start.
 - Hibernate is set to `ddl-auto: validate`. It checks that entities match the tables but never changes them; only Flyway changes the schema.
 
-### First migration: `items` (minimal)
+### First migration: `businesses` + `items` (minimal)
 
-Diana's Lucidchart data model isn't finalized, so the skeleton creates only the columns every version of Inventory and Sales needs. Diana adds the rest (tags, note, image, public visibility, …) in her own migration.
+The skeleton creates only the columns every version of Inventory and Sales needs. Diana adds the rest in her own migration (see §13, decisions D7–D9).
 
 ```sql
+-- Whose data a row belongs to. One seeded row until login exists (decision D4).
+CREATE TABLE businesses (
+    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name       TEXT        NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO businesses (name) VALUES ('Demo Business');
+
 CREATE TABLE items (
     id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    business_id      BIGINT      NOT NULL REFERENCES businesses (id),
     name             TEXT        NOT NULL,
     quantity         INTEGER     NOT NULL DEFAULT 0 CHECK (quantity >= 0),
     unit_price_cents INTEGER     NOT NULL DEFAULT 0 CHECK (unit_price_cents >= 0),
+    active           BOOLEAN     NOT NULL DEFAULT true,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_items_name ON items (name);
+CREATE INDEX idx_items_business_name ON items (business_id, name);
 ```
 
-**Known gap:** the current React `Item` type also has `tags` and `note`. Until Diana's migration adds them, `ItemResponse` returns `tags: []` and `note: ""` so the Inventory page still renders.
+**Known gap:** the current React `Item` type also has `tags` and `note`. Until decision D9 is made, `ItemResponse` returns `tags: []` and `note: ""` so the Inventory page still renders.
+
+### D2 data model (draft)
+
+Derived from the D2 user stories and the team's Lucidchart (`CSC301 Database Design`). The Lucidchart describes **screens**; this translates them into tables. Values marked `*` in the Lucidchart (auto-calculated) are computed by the backend, not stored or typed in, except where noted.
+
+**In D2:** `businesses`, `items`, `sales`, `sale_items`.
+
+```sql
+sales        id, business_id → businesses
+             channel     TEXT        NOT NULL   -- IN_PERSON | ONLINE | COMMISSION | MISC   (D2)
+             storefront  TEXT        NULL       -- optional: "Etsy", "Comic Con 2026"         (D2)
+             sold_at     TIMESTAMPTZ NOT NULL
+             note        TEXT        NOT NULL DEFAULT ''
+             total_cents INTEGER     NOT NULL   -- sum of line totals, written with the lines (D10)
+             created_at, updated_at
+
+sale_items   id, sale_id → sales (ON DELETE CASCADE)
+             item_id          → items, NULL allowed (ON DELETE SET NULL)
+             item_name        TEXT    NOT NULL  -- copied from the item at sale time
+             quantity         INTEGER NOT NULL CHECK (quantity > 0)
+             unit_price_cents INTEGER NOT NULL CHECK (unit_price_cents >= 0)  -- defaults to item price (D11)
+             line_total_cents INTEGER NOT NULL  -- quantity × unit_price_cents
+```
+
+`sales` is owned by Jinuo (US1) and created in his own migration; `items` changes belong to Diana (US2).
+
+**Sales service rules** (enforced in code, inside one transaction per request):
+
+| Action | Stock effect |
+|---|---|
+| Create sale | Subtract each line's quantity from its item. Rejected if any item would go below zero (D3). |
+| Edit sale | Restore the old lines' quantities, then subtract the new lines' quantities. |
+| Delete sale | Restore each line's quantity. |
+
+- Inactive items can't be added to new sales. Existing sales that include them still display normally.
+- `item_name` and `unit_price_cents` are copied into each line, so renaming or repricing an item never changes past sales or analytics.
+
+**US1 mapping:** amount = `total_cents`, date = `sold_at`, product = the lines, sales channel = `channel` (+ optional `storefront`).
+
+**Later (in the Lucidchart, not in D2):**
+
+| Table | Purpose | Note |
+|---|---|---|
+| `item_types` | User-defined categories (Print, Sticker, Charm…) | Items sorted by type |
+| item size / currency | Size `W × H` + unit; currency | See D6 for currency |
+| `events` | Markets and conventions: days, location, table fee, extra expenses, status, going | In-person sales link to one |
+| `sale_adjustments` | Discounts, charges, tips | Discount *rules* (buy 2 get 1, tiered, %) are a separate project |
+| `expenses` + `expense_items` | Supply purchases by category / manufacturer | Buying items adds stock (D5) |
+| `commissions` | Per-customer requests with deadline, expenses, revenue | |
+| `tasks` | To-do list with category and deadline | |
+| services | Not yet defined in the Lucidchart | |
+
+Revenue, expenses, profit, "amount sold", and the monthly and yearly views are **queries** (Analytics), not tables.
 
 ## 7. Configuration
 
@@ -290,17 +354,87 @@ Spring serves the React files. `SpaForwardingController` forwards any non-`/api`
 
 Render settings: Docker runtime, health check path `/api/health`, the three `SPRING_DATASOURCE_*` variables set as secrets. `demo/render.yaml` is updated (or a new root `render.yaml` added) to point at `backend/Dockerfile`.
 
-## 13. Open questions
+## 13. Decisions needed
 
-1. **Data model.** Diana's Lucidchart diagram is the source of truth for tables beyond the minimal `items`. Once shared, it should be exported to the repo (e.g. `docs/data-model.png`).
-2. **Branching.** Will `claude-demo` be merged into `main`? This branch is based on it so the React client is available.
-3. **Neon ownership.** Who creates the Neon project and the Render service, and who on the team gets dashboard access? (Proposed: Jinuo creates both and invites the team.)
-4. **Sales channels.** Discord discussion leaned toward named storefronts (Etsy, Shopify, store location) rather than online/in-person. To be confirmed in the Sales design, not the skeleton.
+Each decision lists the options, a recommendation, and who should confirm it. Until confirmed, the draft follows the recommendation. Reply in Discord with the decision ID (e.g. "D3: agree" or "D3: prefer B").
+
+### Product and scope
+
+**D1. US2 goal text.** The D2 split's US2 goal ("log individual sales and sales channel…") duplicates US1. `planning.md` defines US2 as *add and update products with name, price and quantity*.
+- Recommendation: correct the D2 split doc to match `planning.md`. This design assumes the `planning.md` version.
+- Confirm: Diana, Allie
+
+**D2. What a "sales channel" is.**
+- A: four channel types from the Lucidchart (In-Person Market, Online Shop, Commission, Miscellaneous), plus an optional free-text storefront name ("Etsy", "Comic Con 2026")
+- B: free-text storefront only (Discord discussion: Etsy, Shopify, store location)
+- C: online / in-person only
+- Recommendation: **A**. Analytics can group by type, and storefront still captures the Discord idea. When `events` arrive later, in-person sales can link to an event instead of a storefront name.
+- Confirm: Minh, Kimberly (charts group by this)
+
+**D3. Selling more than is in stock.**
+- A: reject the sale with a 400 naming the line ("Only 2 Flower Prints in stock")
+- B: allow it and let stock go negative; flag it in the UI
+- Recommendation: **A** for D2. It's simpler and keeps stock trustworthy. Revisit if market use shows counts are often wrong in practice.
+- Confirm: team
+
+### Data
+
+**D4. Data ownership (`business_id`).** The Lucidchart has no owner on any table, but once sign-up exists each user must only see their own data.
+- Recommendation: add `business_id` to every table now, with one seeded business. Queries filter by business `1` until Hans's login supplies the real one. Adding it later means changing every table and query.
+- Open sub-question: one user per business, or several users (staff) per business? Affects Hans's `users` table, not D2.
+- Confirm: Hans
+
+**D5. How stock is tracked.**
+- A: a `quantity` column, updated whenever a sale or expense changes it
+- B: a `stock_movements` ledger (+200 bought, −3 sold), with stock as the sum
+- Recommendation: **A** for D2; consider **B** when expenses arrive, because it gives an audit trail of why stock changed.
+- Confirm: Diana
+
+**D6. Money and currency.** The Lucidchart types prices as `Float` and has a currency dropdown per item and per event.
+- Recommendation: store money as **integer cents** everywhere (floats accumulate rounding errors; `0.1 + 0.2 ≠ 0.3`). Use **one currency per business** rather than per item: totals can't add CAD and USD without exchange rates. Not needed for D2.
+- Confirm: Diana, Aidan
+
+**D7. Deleting items.** The Lucidchart deactivates old items (grayed out) rather than deleting them.
+- Recommendation: `DELETE /api/items/{id}` sets `active = false`. Hard deletes aren't exposed. Past sales keep pointing at the item, and analytics keeps its history.
+- Note: the current React client has delete and bulk delete buttons; they'd become "deactivate".
+- Confirm: Diana, Allie
+
+**D8. Item types, sizes, and other Lucidchart item fields** (type, size W × H + unit, currency).
+- Recommendation: after D2, in Diana's migration. Not needed for any D2 user story.
+- Confirm: Diana
+
+**D9. `tags` and `note` on items.** The React client has them; the Lucidchart doesn't.
+- A: keep them (Postgres `TEXT[]` for tags, or an `item_tags` table)
+- B: drop them from the client and replace tags with item types (D8)
+- Recommendation: **B**. Types cover the same need and match the Lucidchart.
+- Confirm: Diana, Allie
+
+### Sales
+
+**D10. Sale total.** The Lucidchart calculates totals for in-person and miscellaneous sales, but has a typed-in total for Online Shop sales (platform fees and discounts make calculating it impossible).
+- Recommendation: D2 always calculates `total_cents` from the lines. A manual-total option for online sales comes later, together with monthly online logging.
+- Confirm: Minh
+
+**D11. Price override, free, and trade.** The Lucidchart lets each sale line change its price, or mark it free or traded.
+- Recommendation: D2 supports a price override per line (`unitPriceCents` in the request, defaulting to the item's price). Free = override to 0. A separate "trade" flag (so analytics can tell trades from free gifts) comes later.
+- Confirm: Minh
+
+### Project setup
+
+**D12. Branching.** Will `claude-demo` be merged into `main`? This branch is based on it so the React client is available.
+- Confirm: Hans
+
+**D13. Neon and Render ownership.** Who creates the Neon project and the Render service, and who gets dashboard access?
+- Recommendation: Jinuo creates both and invites the team.
+- Confirm: team
+
+**D14. Lucidchart in the repo.** Export the Lucidchart to `docs/data-model.pdf` so the design doc, and anyone prompting Claude with it, can reference the source.
+- Confirm: Diana
 
 ## 14. Build order
 
 1. Generate the project (start.spring.io), add the wrapper, `compose.yaml` and `application.yml`. The app starts and connects.
-2. Flyway + `V20261015_1__create_items.sql`.
+2. Flyway + `V20261015_1__create_businesses_and_items.sql`.
 3. `common/`: `ApiError`, `GlobalExceptionHandler`, `NotFoundException`, `Paginated`, `PageQuery`.
 4. `HealthController`.
 5. `items` example module.
