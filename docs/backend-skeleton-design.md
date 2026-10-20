@@ -9,27 +9,63 @@ We are replacing the TypeScript demo backend (`demo/server`) with Java + Spring 
 - **The TypeScript demo is the reference design.** Java reproduces its tables, endpoints, JSON, validation limits and business rules, so the existing React client keeps working. This document only describes what's **different or new**: private accounts with login, a sales channel, analytics, and the Spring Boot project itself. When this document is silent, do what the demo does.
 - **Everyone builds on one shared skeleton** (project, security, database setup, error handling, tests, deployment), which Jinuo builds first.
 
-## Who does what
+## Work by user story
 
-> ⚠ Assignments follow the **Oct 5** D2 split. The **Oct 12** meeting moved people around (backend: Jinuo, Diana, Minh; frontend coding: Hans, Allie, Aidan). **Confirm the current split in Discord before starting.** Rows marked *Proposed* or *Unassigned* need a volunteer.
+Following the D2 handout's recommendation, work is split **by user story**: each story's team owns its backend and frontend end to end, demos it, and reports on it. The owners shown are from the D2 split; ⚠ the Oct 12 meeting reassigned some people, so confirm in Discord (Q22).
 
-| Work | Spec | Owner | Target |
+Everything depends on the **shared skeleton** (target **Oct 20**), so it comes first.
+
+### Shared skeleton (Jinuo), target Oct 20
+
+- Spring Boot project, Docker Compose, error handling, health check, test setup (§1–2, §6)
+- Accounts backend: `users`, sessions, Spring Security, `/api/auth` endpoints (§3, §5.1). Every story's tests need a logged-in user, so this is part of the skeleton.
+- Neon database + Render service (Q13)
+- Pattern for every story: `items/` read endpoints (§7)
+
+### US1 Sales: log a sale with amount, date, product and channel. Target Oct 21
+
+| Part | Work | Spec | Owner |
 |---|---|---|---|
-| Skeleton: project, security, `users` + sessions, error handling, health check, test setup, Docker Compose | §1–3, §6, §7 | Jinuo | Oct 20 |
-| Neon database + Render service (create, invite team) | §6 | Jinuo (*Proposed*, Q13) | Oct 20 |
-| Auth endpoints (`/api/auth`) | §5.1 | Jinuo, as part of the skeleton (*Proposed*: every test needs login) | Oct 20 |
-| Items backend | §4, §5.2 | Diana | Oct 21 |
-| Sales backend, incl. `channel` | §4, §5.3 | Jinuo | Oct 21 |
-| Expenses backend, incl. restocking | §4, §5.4 | *Unassigned* (Hans built the TypeScript version) | Oct 21 |
-| Analytics backend | §5.5 | Aidan | Oct 22 |
-| Demo data seeder | §6 | *Unassigned* | Oct 22 |
-| Login, sign-up, logout pages; `401` handling; CSRF header in `http.ts` | §5.1, §5.6 | Hans | Oct 21 |
-| Sale form and list: channel dropdown, filter | §5.6 | Minh | Oct 21 |
-| Analytics page on real data | §5.6 | Kimberly | Oct 22 |
-| Switch Render from Node to Java; remove the Node server from deployment | §6 | Jinuo | Oct 22 |
-| CI: run backend tests on every push | §6 | *Unassigned* | Oct 22 |
-| D2 README, `iteration-02-review.md`, individual contributions | course handout | Everyone | Oct 23 |
-| Fix the US2 goal text in the D2 split doc (Q1) | Appendix A | Diana | Oct 20 |
+| Backend | `sales` + `sale_items` migration; `/api/sales` endpoints; `channel`; stock rules | §4, §5.3 | Jinuo |
+| Frontend | Required channel dropdown on the sale form; show and filter by channel | §5.6 | Minh |
+
+### US2 Inventory: add and update products with name, price and quantity. Target Oct 21
+
+| Part | Work | Spec | Owner |
+|---|---|---|---|
+| Backend | `/api/items` create, update, delete, bulk delete (the skeleton provides list and get) | §4, §5.2 | Diana |
+| Frontend | No changes needed beyond login (the existing Inventory page matches the API) | §5.6 | Allie |
+
+### US3 Analytics: charts of sales over time and sales per item. Target Oct 22
+
+| Part | Work | Spec | Owner |
+|---|---|---|---|
+| Backend | `/api/analytics/sales-over-time`, `/sales-by-item`, `/summary` | §5.5 | Aidan |
+| Frontend | Replace the mock data on the Analytics page | §5.6 | Kimberly |
+
+### Sign-up and login: a user logs in to see their own dashboard. Target Oct 21
+
+| Part | Work | Spec | Owner |
+|---|---|---|---|
+| Backend | Done in the skeleton | §3, §5.1 | Jinuo |
+| Frontend | Login, sign-up and logout pages; `GET /api/auth/me` on startup; `401` → login; CSRF header in `http.ts` | §5.1, §5.6 | Hans |
+
+### Expenses (supports US3's expense and profit tiles). Target Oct 21
+
+| Part | Work | Spec | Owner |
+|---|---|---|---|
+| Backend | `expenses` + `expense_items` migration; `/api/expenses`; restock rules | §4, §5.4 | *Unassigned* (Hans built the TypeScript version) |
+| Frontend | No changes needed beyond login | — | — |
+
+### Shared finishing work, target Oct 22–23
+
+| Work | Owner |
+|---|---|
+| Demo data seeder (§6) | *Unassigned* |
+| CI: backend tests on every push (§6) | *Unassigned* |
+| Switch Render from Node to Java (§6) | Jinuo |
+| D2 README, `iteration-02-review.md`, individual contributions | Everyone |
+| Fix the US2 goal text in the D2 split doc (Q1) | Diana |
 
 ## Open questions
 
@@ -41,7 +77,7 @@ Reply in Discord with the ID, e.g. "Q17: agree".
 | Q13 | Who creates Neon and Render? | Jinuo creates both and invites the team | Team |
 | Q14 | Put the Lucidchart in the repo? | Export to `docs/data-model.pdf` | Diana |
 | Q17 | Which time zone defines "a day"? A 9 PM Toronto sale is already the next day in UTC. | Store UTC; group analytics by day in `America/Toronto` | Aidan, Kimberly |
-| Q22 | Which assignment split is current, Oct 5 or Oct 12? | Confirm before starting | Team |
+| Q22 | Which owners are current for each user story: the Oct 5 split or the Oct 12 meeting? | Confirm before starting | Team |
 
 All other design decisions are settled; see Appendix A.
 
