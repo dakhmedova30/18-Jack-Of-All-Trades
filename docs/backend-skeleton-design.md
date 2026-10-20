@@ -361,7 +361,7 @@ Same endpoints and JSON as the demo (see `*.routes.ts` and `demo/client/src/type
 
 ### 7.0 Accounts: `/api/auth` (Hans)
 
-Login uses a **session cookie** (Q21). After sign-up or login, the browser sends the session cookie automatically with every request; `http.ts` needs no token handling.
+Login uses a **session cookie** (Q21). After sign-up or login, the browser sends the session cookie automatically with every request; `http.ts` only needs to add the CSRF header described below.
 
 | Method | Path | Body | Success | Errors |
 |---|---|---|---|---|
