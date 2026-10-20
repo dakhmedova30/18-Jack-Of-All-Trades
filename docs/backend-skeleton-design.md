@@ -181,7 +181,8 @@ Every error response has this shape:
 | Bean Validation failure on a request body or query | 400 | `Validation failed` + `details` |
 | Malformed JSON body | 400 | `Request body is not valid JSON` |
 | Wrong type in path or query (e.g. `/api/items/abc`) | 400 | `Invalid value for '<param>'` |
-| `NotFoundException` thrown by a service | 404 | e.g. `Item 7 not found` |
+| Not logged in | 401 | `Login required` |
+| `NotFoundException` thrown by a service (including another account's id) | 404 | e.g. `Item 7 not found` |
 | Unknown `/api/...` route | 404 | `Route GET /api/xyz not found` |
 | Stock would go below 0 (`items_quantity_check` violation; Q19) | 400 | `Not enough stock` |
 | Other database constraint violation (foreign key, unique, check) | 400 | short generic message, e.g. `Value is not allowed` |
@@ -203,7 +204,7 @@ Modules signal errors by **throwing** (`throw new NotFoundException("Item", id)`
 
 ### Reference implementation
 
-The TypeScript backend on `claude-demo` (`demo/server/src`) is the **reference design**. The Java backend reproduces its tables, endpoints, JSON, validation limits and business rules, so the existing React client works unchanged. This document only spells out the **differences** and the parts the demo doesn't have (sales channel, analytics). When this document is silent, do what the demo does.
+The TypeScript backend on `claude-demo` (`demo/server/src`) is the **reference design**. The Java backend reproduces its tables, endpoints, JSON, validation limits and business rules, so the existing React client works unchanged. This document only spells out the **differences** and the parts the demo doesn't have (accounts, sales channel, analytics). When this document is silent, do what the demo does.
 
 | Area | Java backend | Same as demo? |
 |---|---|---|
@@ -212,6 +213,7 @@ The TypeScript backend on `claude-demo` (`demo/server/src`) is the **reference d
 | Validation limits | Same (`*.schema.ts` → Bean Validation) | ✅ |
 | Stock rules for sales and expenses | Same | ✅, plus a readable oversell error |
 | Error format, paging format | Same (`errorHandler.ts`, `pagination.ts`) | ✅ |
+| Per-account data (`users`, `user_id` on every table) | New (§6 *Accounts and data ownership*, Q4) | ➕ |
 | Analytics endpoints | New (§7.4) | ➕ |
 | Schema setup | Flyway migrations; the demo's `DROP_LEGACY_SALES_TABLE` step is not carried over | Changed |
 
@@ -221,17 +223,28 @@ One file per table group, owned by the module's owner:
 
 | File | Tables | Owner |
 |---|---|---|
-| `V20261015_1__create_items.sql` | `items` | Jinuo (skeleton), then Diana |
+| `V20261015_1__create_users_and_items.sql` | `users`, `items` | Jinuo (skeleton); `users` details with Hans, `items` with Diana |
 | `V20261020_1__create_sales.sql` | `sales`, `sale_items` | Jinuo |
 | `V20261020_2__create_expenses.sql` | `expenses`, `expense_items` | Expenses owner (Q16) |
 
 ### Tables
 
-Copied from `demo/server/src/db/schema.ts`. The only addition is `sales.channel`.
+Copied from `demo/server/src/db/schema.ts`. Additions: the `users` table, `user_id` on `items`, `sales` and `expenses` (Q4), and `sales.channel`. Line tables (`sale_items`, `expense_items`) get their owner through their parent.
 
 ```sql
+-- NEW (Q4). One account = one business.
+CREATE TABLE users (
+  id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  email         TEXT        NOT NULL,
+  password_hash TEXT        NOT NULL,  -- BCrypt via Spring Security; never the raw password
+  display_name  TEXT        NOT NULL DEFAULT '',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX idx_users_email ON users (lower(email));  -- case-insensitive uniqueness
+
 CREATE TABLE items (
   id               INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id          INTEGER     NOT NULL REFERENCES users (id) ON DELETE CASCADE,  -- NEW (Q4)
   name             TEXT        NOT NULL,
   quantity         INTEGER     NOT NULL DEFAULT 0 CHECK (quantity >= 0),
   unit_price_cents INTEGER     NOT NULL DEFAULT 0 CHECK (unit_price_cents >= 0),
@@ -240,11 +253,12 @@ CREATE TABLE items (
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_items_name ON items (name);
+CREATE INDEX idx_items_user_name ON items (user_id, name);
 
 -- One sale = one transaction (checkout); its lines are in sale_items.
 CREATE TABLE sales (
   id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id    INTEGER     NOT NULL REFERENCES users (id) ON DELETE CASCADE,  -- NEW (Q4)
   sold_at    TIMESTAMPTZ NOT NULL,
   channel    TEXT        NOT NULL
              CHECK (channel IN ('IN_PERSON', 'ONLINE', 'COMMISSION', 'MISC')),  -- NEW (US1, Q2)
@@ -252,7 +266,7 @@ CREATE TABLE sales (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_sales_sold_at ON sales (sold_at);
+CREATE INDEX idx_sales_user_sold_at ON sales (user_id, sold_at);
 
 CREATE TABLE sale_items (
   id               INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -271,12 +285,13 @@ CREATE INDEX idx_sale_items_item_id ON sale_items (item_id);
 -- an item (item_id set) or is a free-text cost like "Rent" (item_id NULL, item_name = description).
 CREATE TABLE expenses (
   id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id     INTEGER     NOT NULL REFERENCES users (id) ON DELETE CASCADE,  -- NEW (Q4)
   incurred_at TIMESTAMPTZ NOT NULL,
   tags        TEXT[]      NOT NULL DEFAULT '{}',
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_expenses_incurred_at ON expenses (incurred_at);
+CREATE INDEX idx_expenses_user_incurred_at ON expenses (user_id, incurred_at);
 
 CREATE TABLE expense_items (
   id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -294,6 +309,19 @@ CREATE INDEX idx_expense_items_item_id ON expense_items (item_id);
 - A sale's or expense's `totalCents` isn't stored; it's the sum of its lines' `total_cents`, as in the demo.
 - `updated_at` is set by Hibernate (`@UpdateTimestamp`) on every update.
 - In Java, `TEXT[]` maps to `List<String>` with `@JdbcTypeCode(SqlTypes.ARRAY)`.
+
+### Accounts and data ownership (Q4)
+
+Every account sees and changes **only its own** items, sales, expenses and analytics.
+
+- **Who is asking:** a `CurrentUser` component returns the logged-in user's id from the security context. Services take the user id from it, never from the request body or query string.
+- **Every query filters by owner:** repositories only offer methods that take a `userId` (e.g. `findByIdAndUserId`, `findPageByUserId`). There is no unscoped `findById` for owned tables, so forgetting the filter doesn't compile.
+- **Someone else's id → 404,** not 403: `GET /api/sales/42` for another account's sale returns `Sale 42 not found`, so ids don't reveal other accounts' data.
+- **Line references are checked too:** a sale or expense line whose `itemId` belongs to another account fails exactly like a nonexistent item (`Item 7 does not exist`).
+- **Stock updates include the owner:** `UPDATE items SET quantity = quantity + :delta WHERE id = :id AND user_id = :userId`.
+- **Analytics** queries filter by `user_id` on `sales` / `expenses`.
+- **New accounts start empty.** The demo seeder (Q20) creates one demo account with sample data.
+- How login works (session vs token, endpoints) is Q21.
 
 ### Stock rules (same as the demo)
 
@@ -326,7 +354,7 @@ Every write runs in one `@Transactional` service method, so stock and the sale o
 
 ## 7. D2 API
 
-Same endpoints and JSON as the demo (see `*.routes.ts` and `demo/client/src/types.ts`), plus `channel` on sales and the new analytics endpoints.
+Same endpoints and JSON as the demo (see `*.routes.ts` and `demo/client/src/types.ts`), plus `channel` on sales and the new analytics endpoints. Every `/api` endpoint except `/api/health` and the auth endpoints (Q21) requires login and returns `401` without it; all data is scoped to the logged-in account (§6).
 
 ### 7.1 Items: `/api/items` (US2, Diana)
 
@@ -444,8 +472,9 @@ Definitions: `salesCount` = number of sales; `unitsSold` = sum of line quantitie
 | Sale form, `types.ts` | Required channel dropdown; add `channel` to `Sale` and `SaleInput` | Minh |
 | Sales list | Show the channel; optional channel filter | Minh |
 | Analytics | Replace the mock data with §7.4 | Kimberly |
+| Sign-up, login, logout | New pages; on any `401`, send the user to the login page | Hans |
 
-Items and Expenses pages need no changes.
+Items and Expenses pages need no changes beyond the shared `401` handling.
 
 ## 8. Configuration
 
@@ -526,12 +555,9 @@ Guiding rule (decided 2026-10-19): **match the `claude-demo` TypeScript design u
 
 ### Open
 
-**Q4. Separate data per account.** The demo has no notion of whose data a row is. If Hans's sign-up creates separate accounts, every account would see and edit the same items and sales.
+**Q21. How login works.** Needed before any module can be tested end to end, because every endpoint now requires login.
 
-- A: one shared business for D2. Sign-up and login only gate access to the app; everyone who logs in sees the same data. Matches the demo; ownership comes later.
-- B: add `business_id` (or `user_id`) to every table now, with a `CurrentBusiness` component that returns the logged-in user's business.
-- Recommendation: **A** if the D2 demo only needs "log in to see the dashboard"; **B** if the TA is expected to sign up and get an empty, private dashboard. B adds a column and a filter to every query, roughly half a day across the team.
-- Confirm: Hans, team
+- To be decided next (see conversation); owner Hans.
 
 **Q17. Time zone for dates.** "Sales on Oct 18" and daily analytics buckets depend on a time zone: a sale at 9 PM Toronto time is already Oct 19 in UTC.
 
@@ -558,6 +584,7 @@ Guiding rule (decided 2026-10-19): **match the `claude-demo` TypeScript design u
 | Q1 | US2 goal text in the D2 split duplicates US1 | Use the `planning.md` version (add and update products). Fix the split doc. |
 | Q2 | What a sales channel is | New `channel` column: `IN_PERSON`, `ONLINE`, `COMMISSION`, `MISC` (the Lucidchart's four sale types). No storefront name for D2. |
 | Q3 | Selling more than is in stock | Rejected with a 400 (as the demo). |
+| Q4 | Separate data per account | **Private per account.** `users` table; `user_id` on `items`, `sales`, `expenses`; every query scoped to the logged-in user; other accounts' ids return 404. One account = one business (no staff accounts). |
 | Q5 | How stock is tracked | A `quantity` column changed by sales and expenses (as the demo). A stock-movements ledger may come later. |
 | Q6 | Money | Integer cents everywhere (as the demo). One currency; per-item currency is not in D2. |
 | Q7 | Deleting items | Hard delete; past lines keep the item name (as the demo). Lucidchart-style deactivation comes later. |
