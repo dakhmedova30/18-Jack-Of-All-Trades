@@ -290,7 +290,7 @@ Each write is one `@Transactional` service call: stock and the sale or expense c
 
 ## 5. API
 
-Same endpoints and JSON as the demo (`demo/server/src/modules/*/…routes.ts`, `demo/client/src/types.ts`), plus what's listed here. All data endpoints require login (§3).
+The full request and response contract is in [`api-contracts.md`](api-contracts.md). Same endpoints and JSON as the demo (`demo/server/src/modules/*/…routes.ts`, `demo/client/src/types.ts`), plus what's listed here. All data endpoints require login (§3).
 
 ### 5.1 Auth: `/api/auth` (new)
 
