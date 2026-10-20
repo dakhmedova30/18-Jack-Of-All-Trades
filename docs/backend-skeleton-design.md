@@ -7,7 +7,7 @@
 
 ## 1. Purpose
 
-We are replacing the Node/Express demo server (`demo/server`) with the Java + Spring Boot backend described in `planning.md`. This document covers only the **shared skeleton**: the project, conventions and infrastructure that every backend feature (Sales, Inventory, Analytics, Sign-up) is built on.
+We are replacing the Node/Express demo server (`demo/server`) with the Java + Spring Boot backend described in `planning.md`. This document covers the **shared skeleton** (the project, conventions and infrastructure every backend feature is built on), the **D2 data model** (§6) and the **D2 API** (§7). The TypeScript demo on `claude-demo` is the reference design: Java matches it unless this document says otherwise.
 
 The skeleton is done when:
 
@@ -21,7 +21,7 @@ The skeleton is done when:
 
 - Spring Boot project in `backend/`, built with the Maven wrapper
 - Postgres connection, local (Docker) and hosted (Neon)
-- Flyway migrations, with a minimal `items` table
+- Flyway migrations, starting with the `items` table
 - Shared response formats: errors and paginated lists
 - Global error handler
 - `GET /api/health`
@@ -32,10 +32,12 @@ The skeleton is done when:
 
 **Out of scope** (later, in each owner's own module)
 
-- Full Inventory CRUD (Diana): create, update, delete, search, tags, image, public visibility
-- Sales (Jinuo, next step after the skeleton)
-- Analytics endpoints (Aidan)
-- Sign-up and login (Hans)
+- Full Items CRUD (Diana, §7.1)
+- Sales (Jinuo, §7.2; next step after the skeleton)
+- Expenses (owner to be decided, §7.3)
+- Analytics endpoints (Aidan, §7.4)
+- Sign-up and login (Hans; see Q4)
+- Demo data seeder (Q20)
 - Deleting `demo/server` (done once the Java backend replaces every route)
 
 ## 3. Technology decisions
@@ -88,7 +90,7 @@ The skeleton is done when:
     src/main/resources/
       application.yml
       db/migration/
-        V20261015_1__create_businesses_and_items.sql
+        V20261015_1__create_items.sql
     src/test/java/ca/jackofalltrades/
       PostgresTestBase.java    # starts a Testcontainers Postgres
       items/ItemControllerTest.java
@@ -181,7 +183,8 @@ Every error response has this shape:
 | Wrong type in path or query (e.g. `/api/items/abc`) | 400 | `Invalid value for '<param>'` |
 | `NotFoundException` thrown by a service | 404 | e.g. `Item 7 not found` |
 | Unknown `/api/...` route | 404 | `Route GET /api/xyz not found` |
-| Database constraint violation (foreign key, unique, check) | 400 | short generic message, e.g. `Value is not allowed` |
+| Stock would go below 0 (`items_quantity_check` violation; Q19) | 400 | `Not enough stock` |
+| Other database constraint violation (foreign key, unique, check) | 400 | short generic message, e.g. `Value is not allowed` |
 | Database unreachable | 503 | `Database is unavailable, try again shortly` |
 | Anything else | 500 | `Internal server error` (details are logged, never sent) |
 
@@ -198,173 +201,178 @@ Modules signal errors by **throwing** (`throw new NotFoundException("Item", id)`
 - `spring.flyway.out-of-order: true` is enabled. A branch merged late can carry an older date than a migration already applied to Neon; without this setting Flyway would refuse to start.
 - Hibernate is set to `ddl-auto: validate`. It checks that entities match the tables but never changes them; only Flyway changes the schema.
 
-### First migration: `businesses` + `items` (minimal)
+### Reference implementation
 
-The skeleton creates only the columns every version of Inventory and Sales needs. Diana adds the rest in her own migration (see §14, decisions Q7–Q9).
+The TypeScript backend on `claude-demo` (`demo/server/src`) is the **reference design**. The Java backend reproduces its tables, endpoints, JSON, validation limits and business rules, so the existing React client works unchanged. This document only spells out the **differences** and the parts the demo doesn't have (sales channel, analytics). When this document is silent, do what the demo does.
 
-```sql
--- Whose data a row belongs to. One seeded row until login exists (decision Q4).
-CREATE TABLE businesses (
-    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    name       TEXT        NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-INSERT INTO businesses (name) VALUES ('Demo Business');
-
-CREATE TABLE items (
-    id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    business_id      BIGINT      NOT NULL REFERENCES businesses (id),
-    name             TEXT        NOT NULL,
-    quantity         INTEGER     NOT NULL DEFAULT 0 CHECK (quantity >= 0),
-    unit_price_cents INTEGER     NOT NULL DEFAULT 0 CHECK (unit_price_cents >= 0),
-    active           BOOLEAN     NOT NULL DEFAULT true,
-    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_items_business_name ON items (business_id, name);
-```
-
-**Known gap:** the current React `Item` type also has `tags` and `note`. Until decision Q9 is made, `ItemResponse` returns `tags: []` and `note: ""` so the Inventory page still renders.
-
-### D2 data model (draft)
-
-Derived from the D2 user stories and the team's Lucidchart (`CSC301 Database Design`). The Lucidchart describes **screens**; this translates them into tables. Values marked `*` in the Lucidchart (auto-calculated) are computed by the backend, not stored or typed in, except where noted.
-
-**In D2:** `businesses`, `items`, `sales`, `sale_items`.
-
-```sql
-sales        id, business_id → businesses
-             channel     TEXT        NOT NULL   -- IN_PERSON | ONLINE | COMMISSION | MISC   (Q2)
-             storefront  TEXT        NULL       -- optional: "Etsy", "Comic Con 2026"         (Q2)
-             sold_at     TIMESTAMPTZ NOT NULL
-             note        TEXT        NOT NULL DEFAULT ''
-             tags        TEXT[]      NOT NULL DEFAULT '{}'  -- the React client already uses these (Q15)
-             total_cents INTEGER     NOT NULL   -- sum of line totals, written with the lines (Q10)
-             created_at, updated_at
-
-sale_items   id, sale_id → sales (ON DELETE CASCADE)
-             item_id          → items, NULL allowed (ON DELETE SET NULL)
-             item_name        TEXT    NOT NULL  -- copied from the item at sale time
-             quantity         INTEGER NOT NULL CHECK (quantity > 0)
-             unit_price_cents INTEGER NOT NULL CHECK (unit_price_cents >= 0)  -- defaults to item price (Q11)
-             total_cents      INTEGER NOT NULL  -- quantity × unit_price_cents (JSON: totalCents)
-```
-
-`sales` is owned by Jinuo (US1) and created in his own migration; `items` changes belong to Diana (US2).
-
-**Sales service rules** (enforced in code, inside one transaction per request):
-
-| Action | Stock effect |
-|---|---|
-| Create sale | Subtract each line's quantity from its item. Rejected if any item would go below zero (Q3). |
-| Edit sale | Restore the old lines' quantities, then subtract the new lines' quantities. |
-| Delete sale | Restore each line's quantity. |
-
-- Inactive items can't be added to new sales. Existing sales that include them still display normally.
-
-**Concurrency (decided):** two sales of the same item at the same moment must not oversell it.
-
-1. **Pre-check** (for good error messages): load the items and validate every line (exists, active, enough stock), collecting all problems into one 400 response.
-2. **Atomic update** (for correctness): for each line, sorted by `item_id` to avoid deadlocks, run
-   `UPDATE items SET quantity = quantity - :qty WHERE id = :id AND business_id = :biz AND quantity >= :qty`.
-   If it changes 0 rows, another sale took the stock after the pre-check: roll back the whole transaction and return that line's stock error.
-3. Restoring stock (edit, delete) is a plain `quantity = quantity + :qty`.
-4. The repository method uses `@Modifying(clearAutomatically = true)` so Hibernate doesn't keep stale copies of the items after the native update.
-- `item_name` and `unit_price_cents` are copied into each line, so renaming or repricing an item never changes past sales or analytics.
-
-**US1 mapping:** amount = `total_cents`, date = `sold_at`, product = the lines, sales channel = `channel` (+ optional `storefront`).
-
-**Later (in the Lucidchart, not in D2):**
-
-| Table | Purpose | Note |
+| Area | Java backend | Same as demo? |
 |---|---|---|
-| `item_types` | User-defined categories (Print, Sticker, Charm…) | Items sorted by type |
-| item size / currency | Size `W × H` + unit; currency | See Q6 for currency |
-| `events` | Markets and conventions: days, location, table fee, extra expenses, status, going | In-person sales link to one |
-| `sale_adjustments` | Discounts, charges, tips | Discount *rules* (buy 2 get 1, tiered, %) are a separate project |
-| `expenses` + `expense_items` | Supply purchases by category / manufacturer | Buying items adds stock (Q5). Already built in the Node demo (Q16). |
-| `commissions` | Per-customer requests with deadline, expenses, revenue | |
-| `tasks` | To-do list with category and deadline | |
-| services | Not yet defined in the Lucidchart | |
+| Tables, columns, constraints | Same (via Flyway instead of `schema.ts`) | ✅, plus `sales.channel` |
+| Items, Sales, Expenses endpoints and JSON | Same | ✅, plus `channel` on sales |
+| Validation limits | Same (`*.schema.ts` → Bean Validation) | ✅ |
+| Stock rules for sales and expenses | Same | ✅, plus a readable oversell error |
+| Error format, paging format | Same (`errorHandler.ts`, `pagination.ts`) | ✅ |
+| Analytics endpoints | New (§7.4) | ➕ |
+| Schema setup | Flyway migrations; the demo's `DROP_LEGACY_SALES_TABLE` step is not carried over | Changed |
 
-Revenue, expenses, profit, "amount sold", and the monthly and yearly views are **queries** (Analytics), not tables.
+### Migration files
+
+One file per table group, owned by the module's owner:
+
+| File | Tables | Owner |
+|---|---|---|
+| `V20261015_1__create_items.sql` | `items` | Jinuo (skeleton), then Diana |
+| `V20261020_1__create_sales.sql` | `sales`, `sale_items` | Jinuo |
+| `V20261020_2__create_expenses.sql` | `expenses`, `expense_items` | Expenses owner (Q16) |
+
+### Tables
+
+Copied from `demo/server/src/db/schema.ts`. The only addition is `sales.channel`.
+
+```sql
+CREATE TABLE items (
+  id               INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name             TEXT        NOT NULL,
+  quantity         INTEGER     NOT NULL DEFAULT 0 CHECK (quantity >= 0),
+  unit_price_cents INTEGER     NOT NULL DEFAULT 0 CHECK (unit_price_cents >= 0),
+  tags             TEXT[]      NOT NULL DEFAULT '{}',
+  note             TEXT        NOT NULL DEFAULT '',
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_items_name ON items (name);
+
+-- One sale = one transaction (checkout); its lines are in sale_items.
+CREATE TABLE sales (
+  id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  sold_at    TIMESTAMPTZ NOT NULL,
+  channel    TEXT        NOT NULL
+             CHECK (channel IN ('IN_PERSON', 'ONLINE', 'COMMISSION', 'MISC')),  -- NEW (US1, Q2)
+  tags       TEXT[]      NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_sales_sold_at ON sales (sold_at);
+
+CREATE TABLE sale_items (
+  id               INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  sale_id          INTEGER NOT NULL REFERENCES sales (id) ON DELETE CASCADE,
+  -- Nullable + name snapshot: past sales keep their history if the item is renamed or deleted.
+  item_id          INTEGER REFERENCES items (id) ON DELETE SET NULL,
+  item_name        TEXT    NOT NULL,
+  quantity         INTEGER NOT NULL CHECK (quantity > 0),
+  unit_price_cents INTEGER NOT NULL DEFAULT 0 CHECK (unit_price_cents >= 0),
+  total_cents      INTEGER NOT NULL DEFAULT 0 CHECK (total_cents >= 0)
+);
+CREATE INDEX idx_sale_items_sale_id ON sale_items (sale_id);
+CREATE INDEX idx_sale_items_item_id ON sale_items (item_id);
+
+-- One expense = one transaction (a supplier order or a bill). A line either restocks
+-- an item (item_id set) or is a free-text cost like "Rent" (item_id NULL, item_name = description).
+CREATE TABLE expenses (
+  id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  incurred_at TIMESTAMPTZ NOT NULL,
+  tags        TEXT[]      NOT NULL DEFAULT '{}',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_expenses_incurred_at ON expenses (incurred_at);
+
+CREATE TABLE expense_items (
+  id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  expense_id      INTEGER NOT NULL REFERENCES expenses (id) ON DELETE CASCADE,
+  item_id         INTEGER REFERENCES items (id) ON DELETE SET NULL,
+  item_name       TEXT    NOT NULL,
+  quantity        INTEGER NOT NULL CHECK (quantity > 0),
+  unit_cost_cents INTEGER NOT NULL DEFAULT 0 CHECK (unit_cost_cents >= 0),
+  total_cents     INTEGER NOT NULL DEFAULT 0 CHECK (total_cents >= 0)
+);
+CREATE INDEX idx_expense_items_expense_id ON expense_items (expense_id);
+CREATE INDEX idx_expense_items_item_id ON expense_items (item_id);
+```
+
+- A sale's or expense's `totalCents` isn't stored; it's the sum of its lines' `total_cents`, as in the demo.
+- `updated_at` is set by Hibernate (`@UpdateTimestamp`) on every update.
+- In Java, `TEXT[]` maps to `List<String>` with `@JdbcTypeCode(SqlTypes.ARRAY)`.
+
+### Stock rules (same as the demo)
+
+Every write runs in one `@Transactional` service method, so stock and the sale or expense rows change together or not at all.
+
+| Action | Stock effect | Rejected when |
+|---|---|---|
+| Record sale | Each line: `quantity − line.quantity`; snapshot the item's current name and price | Item doesn't exist; not enough stock |
+| Edit sale | Restore the old lines, then apply the new ones (the whole line list is replaced) | Same as record |
+| Delete / bulk-delete sale | Restore each line (lines whose item was deleted are skipped) | — |
+| Record expense | Restock lines: `quantity + line.quantity`; free-text lines don't touch stock | Restocked item doesn't exist |
+| Edit expense | Undo the old restocks, then apply the new lines | Undoing would take stock below 0 ("some may have already been sold") |
+| Delete / bulk-delete expense | Undo each restock | Same as edit |
+| Delete item | Hard delete; lines keep `item_name` and get `item_id = NULL` | — |
+
+- **Prices:** a sale line always uses the item's **current** price; there is no per-line override (Q11).
+- **First error wins:** like the demo, the first failing line stops the request with a 400 whose message names the item, e.g. `Not enough stock for "Flower Print" (have 1, need 2)`.
+- **Concurrency (Q19):** the service checks stock, then runs `UPDATE items SET quantity = quantity + :delta`. If two requests race, `CHECK (quantity >= 0)` makes Postgres reject the one that would oversell. The Java error handler maps that specific violation (`items_quantity_check`) to `400 Not enough stock`, instead of the demo's generic "Value is not allowed".
+
+### Not in D2 (from the Lucidchart)
+
+| Feature | Note |
+|---|---|
+| Item types, sizes, currency | Lucidchart item fields |
+| Events (markets, conventions) | Table fee, status, days; in-person sales link to one |
+| Discounts, charges, tips | Discount rules (buy 2 get 1, tiered, %) are their own project |
+| Expense category / manufacturer | Lucidchart expense fields |
+| Commissions, to-do list, services | |
+| Item deactivation | Lucidchart grays out old items; the demo hard-deletes (Q7) |
 
 ## 7. D2 API
 
-Every endpoint follows the conventions in §5 (routes, camelCase JSON, cents, pagination, error format). JSON names match `demo/client/src/types.ts` wherever the client already has the field, so existing pages keep working. New fields the frontend must add are listed in §7.4.
+Same endpoints and JSON as the demo (see `*.routes.ts` and `demo/client/src/types.ts`), plus `channel` on sales and the new analytics endpoints.
 
-All requests are scoped to business `1` until login exists (Q4).
-
-### 7.1 Inventory: `/api/items` (US2, Diana)
+### 7.1 Items: `/api/items` (US2, Diana)
 
 | Method | Path | Body | Success |
 |---|---|---|---|
-| GET | `/api/items?page&pageSize&search&includeInactive` | — | `200` `Paginated<Item>` |
+| GET | `/api/items?page&pageSize&search` | — | `200` `Paginated<Item>`, ordered by `id` ascending |
 | GET | `/api/items/{id}` | — | `200` `Item` |
 | POST | `/api/items` | `ItemInput` | `201` `Item` |
-| PATCH | `/api/items/{id}` | partial `ItemInput` (only the fields that change) | `200` `Item` |
-| DELETE | `/api/items/{id}` | — | `204` (deactivates; Q7) |
-| POST | `/api/items/bulk-delete` | `{ "ids": [1, 2] }` | `200` `{ "deleted": 2 }` (deactivates) |
+| PATCH | `/api/items/{id}` | any subset of `ItemInput`, at least one field | `200` `Item` |
+| DELETE | `/api/items/{id}` | — | `204` |
+| POST | `/api/items/bulk-delete` | `{ "ids": [1, 2] }` (1–100 ids) | `200` `{ "deleted": 2 }` |
 
-- `search`: case-insensitive match on name. `includeInactive` defaults to `false`.
-- Results are sorted newest first.
-
-#### Item
+`search` matches name or tags, case-insensitive.
 
 ```json
 {
-  "id": 7,
-  "name": "Flower Print (8x12)",
-  "quantity": 10,
-  "unitPriceCents": 1200,
-  "active": true,
-  "tags": [],
-  "note": "",
-  "createdAt": "2026-10-19T20:00:00Z",
-  "updatedAt": "2026-10-19T20:00:00Z"
+  "id": 7, "name": "Flower Print", "quantity": 10, "unitPriceCents": 1200,
+  "tags": ["print"], "note": "",
+  "createdAt": "2026-10-19T20:00:00Z", "updatedAt": "2026-10-19T20:00:00Z"
 }
 ```
 
-#### ItemInput
-
-POST requires `name`, `quantity` and `unitPriceCents`.
-
-```json
-{ "name": "Flower Print (8x12)", "quantity": 10, "unitPriceCents": 1200, "tags": [], "note": "" }
-```
-
-**Validation:** name 1–120 chars; quantity and price are whole numbers ≥ 0; PATCH must include at least one field. `tags` / `note` follow Q9.
+`ItemInput`: `name` (1–120 chars, trimmed), `quantity` and `unitPriceCents` (whole numbers ≥ 0), `tags` (≤ 10, each 1–30 chars, duplicates removed, default `[]`), `note` (≤ 1000 chars, default `""`).
 
 ### 7.2 Sales: `/api/sales` (US1, Jinuo)
 
 | Method | Path | Body | Success |
 |---|---|---|---|
-| GET | `/api/sales?page&pageSize&search&channel&from&to` | — | `200` `Paginated<Sale>` |
+| GET | `/api/sales?page&pageSize&search&channel` | — | `200` `Paginated<Sale>`, newest `soldAt` first |
 | GET | `/api/sales/{id}` | — | `200` `Sale` |
 | POST | `/api/sales` | `SaleInput` | `201` `Sale` |
-| PATCH | `/api/sales/{id}` | `SaleInput` (**replaces** the whole sale, including all lines) | `200` `Sale` |
-| DELETE | `/api/sales/{id}` | — | `204` (restores stock) |
+| PATCH | `/api/sales/{id}` | `SaleInput` (replaces the whole sale and its lines) | `200` `Sale` |
+| DELETE | `/api/sales/{id}` | — | `204` |
 | POST | `/api/sales/bulk-delete` | `{ "ids": [1, 2] }` | `200` `{ "deleted": 2 }` |
 
-- Filters: `search` matches item names on the sale's lines; `channel` is one of the four channel values; `from` / `to` are dates (`2026-10-01`) on `soldAt`, inclusive (see Q17 for time zone).
-- Results are sorted by `soldAt`, newest first.
-- PATCH replaces the sale rather than merging fields, to match the existing client. Strictly that's `PUT`'s meaning; kept for compatibility.
-
-#### Sale
+`search` matches tags or item names on the lines. `channel` (new) filters to one channel.
 
 ```json
 {
   "id": 42,
   "soldAt": "2026-10-18T15:30:00Z",
   "channel": "IN_PERSON",
-  "storefront": "Toronto Comic Con 2026",
-  "note": "",
   "tags": [],
   "totalCents": 3500,
   "items": [
-    { "id": 101, "itemId": 7, "itemName": "Flower Print (8x12)", "quantity": 2, "unitPriceCents": 1200, "totalCents": 2400 },
+    { "id": 101, "itemId": 7, "itemName": "Flower Print", "quantity": 2, "unitPriceCents": 1200, "totalCents": 2400 },
     { "id": 102, "itemId": 9, "itemName": "Flower Keychain", "quantity": 1, "unitPriceCents": 1100, "totalCents": 1100 }
   ],
   "createdAt": "2026-10-18T15:31:02Z",
@@ -372,101 +380,72 @@ POST requires `name`, `quantity` and `unitPriceCents`.
 }
 ```
 
-`itemId` is `null` if the item was later removed from the database; `itemName` still shows what was sold.
+`SaleInput`:
 
-#### SaleInput
+```json
+{ "soldAt": "2026-10-18T15:30:00-04:00", "channel": "IN_PERSON", "tags": [], "items": [ { "itemId": 7, "quantity": 2 } ] }
+```
+
+`soldAt`: ISO-8601 with an offset. `channel`: required, one of `IN_PERSON`, `ONLINE`, `COMMISSION`, `MISC`. `items`: 1–50 lines, each `itemId` and `quantity` ≥ 1. `tags`: as for items.
+
+### 7.3 Expenses: `/api/expenses` (Q16)
+
+Same endpoint set as Sales (`GET` list with `search`, `GET` one, `POST`, `PATCH` replace, `DELETE`, `POST bulk-delete`), ordered by newest `incurredAt`.
 
 ```json
 {
-  "soldAt": "2026-10-18T15:30:00Z",
-  "channel": "IN_PERSON",
-  "storefront": "Toronto Comic Con 2026",
-  "note": "",
-  "tags": [],
+  "id": 5, "incurredAt": "2026-10-10T12:00:00Z", "tags": ["supplies"], "totalCents": 17500,
   "items": [
-    { "itemId": 7, "quantity": 2 },
-    { "itemId": 9, "quantity": 1, "unitPriceCents": 1100 }
-  ]
+    { "id": 11, "itemId": 7, "itemName": "Flower Print", "quantity": 200, "unitCostCents": 75, "totalCents": 15000 },
+    { "id": 12, "itemId": null, "itemName": "Shipping", "quantity": 1, "unitCostCents": 2500, "totalCents": 2500 }
+  ],
+  "createdAt": "2026-10-10T12:01:00Z", "updatedAt": "2026-10-10T12:01:00Z"
 }
 ```
 
-- Required: `soldAt`, `channel`, and 1–50 lines.
-- Each line: `itemId` must be an active item of this business; `quantity` is a whole number ≥ 1.
-- `unitPriceCents` is optional. It defaults to the item's current price; send it to override the price, or `0` for a free item (Q11).
-- The same `itemId` may not appear on two lines of one sale.
-- `storefront`: optional, ≤ 120 chars. `note`: optional, ≤ 1000 chars.
+`ExpenseInput`: `incurredAt`, `tags`, and 1–50 lines of `{ itemId: number | null, description, quantity ≥ 1, unitCostCents ≥ 0 }`. Each line needs an `itemId` (restock) **or** a non-empty `description` (free-text cost, ≤ 120 chars).
 
-**Sale-specific errors** (all `400`, in the §5 error format):
+### 7.4 Analytics: `/api/analytics` (US3, Aidan), new
 
-| Situation | `details` entry |
-|---|---|
-| Not enough stock (Q3) | `{ "field": "items[0].quantity", "message": "Only 1 Flower Print (8x12) in stock" }` |
-| Item doesn't exist or belongs to another business | `{ "field": "items[1].itemId", "message": "Item 99 not found" }` |
-| Item is inactive | `{ "field": "items[1].itemId", "message": "Flower Keychain is inactive" }` |
-| Same item on two lines | `{ "field": "items[2].itemId", "message": "Item already on this sale" }` |
-| Unknown channel | `{ "field": "channel", "message": "Must be one of IN_PERSON, ONLINE, COMMISSION, MISC" }` |
-
-All lines are checked before anything is written, so the response lists every problem at once and stock is never partly updated.
-
-### 7.3 Analytics: `/api/analytics` (US3, Aidan)
-
-Read-only. Revenue and counts come only from `sales` and `sale_items`.
-
-Common query parameters:
+Read-only. Revenue comes from `sale_items.total_cents`; expenses from `expense_items.total_cents`.
 
 | Param | Default | Rules |
 |---|---|---|
 | `from` | 30 days before `to` | date, inclusive |
 | `to` | today | date, inclusive; range ≤ 366 days |
-| `channel` | all channels | one of the four channel values |
+| `channel` | all | sales endpoints only |
 
-**Sales over time**: `GET /api/analytics/sales-over-time?from&to&channel&interval`
-
-`interval` is `day`, `week` or `month` (default `day`). Every period in the range is returned, including periods with no sales (zeros), so the chart has no gaps.
+**Sales over time:** `GET /api/analytics/sales-over-time?from&to&channel&interval`, with `interval` = `day` (default), `week` or `month`. Every period in the range is returned, with zeros for empty periods, so charts have no gaps.
 
 ```json
-{
-  "from": "2026-10-01",
-  "to": "2026-10-07",
-  "interval": "day",
-  "points": [
-    { "periodStart": "2026-10-01", "salesCount": 3, "unitsSold": 5, "revenueCents": 6100 },
-    { "periodStart": "2026-10-02", "salesCount": 0, "unitsSold": 0, "revenueCents": 0 }
-  ]
-}
+{ "from": "2026-10-01", "to": "2026-10-07", "interval": "day",
+  "points": [ { "periodStart": "2026-10-01", "salesCount": 3, "unitsSold": 5, "revenueCents": 6100 } ] }
 ```
 
-**Sales per item**: `GET /api/analytics/sales-by-item?from&to&channel&limit`
-
-`limit` defaults to 10 (max 100). Sorted by `unitsSold`, highest first. Lines whose item was removed are grouped under their `itemName` with `itemId: null`.
+**Sales per item:** `GET /api/analytics/sales-by-item?from&to&channel&limit` (`limit` default 10, max 100), sorted by `unitsSold` descending. Lines whose item was deleted are grouped by `itemName` with `itemId: null`.
 
 ```json
-{
-  "from": "2026-10-01",
-  "to": "2026-10-31",
-  "data": [
-    { "itemId": 7, "itemName": "Flower Print (8x12)", "unitsSold": 14, "salesCount": 9, "revenueCents": 16800 }
-  ]
-}
+{ "from": "2026-10-01", "to": "2026-10-31",
+  "data": [ { "itemId": 7, "itemName": "Flower Print", "unitsSold": 14, "salesCount": 9, "revenueCents": 16800 } ] }
 ```
 
-**Optional, if time allows: sales per channel**: `GET /api/analytics/sales-by-channel?from&to` returns `{ "from", "to", "data": [{ "channel", "salesCount", "revenueCents" }] }`. Not required by US3, but the Lucidchart and the Discord dashboard discussion both group by channel.
+**Summary (for the dashboard tiles):** `GET /api/analytics/summary?from&to`
 
-**Definitions** (so frontend and backend agree on what the numbers mean):
+```json
+{ "from": "2026-10-01", "to": "2026-10-31", "revenueCents": 95000, "expensesCents": 12500, "profitCents": 82500, "salesCount": 41 }
+```
 
-- `salesCount`: number of sales (transactions)
-- `unitsSold`: sum of line quantities
-- `revenueCents`: sum of line totals, after any price overrides
+Definitions: `salesCount` = number of sales; `unitsSold` = sum of line quantities; `revenueCents` = sum of sale line totals; `expensesCents` = sum of expense line totals (restocks included); `profitCents` = revenue − expenses. Dates are interpreted in `America/Toronto` (Q17). Sums use `BIGINT`.
 
-### 7.4 Frontend changes needed
+### 7.5 Frontend changes needed
 
 | Page | Change | Owner |
 |---|---|---|
-| Sale form | Add a channel dropdown (required), a storefront text field (optional), and an optional price field per line | Minh |
-| Sales list | Show channel and storefront; add channel and date filters | Minh |
-| `types.ts` | Add `channel`, `storefront`, `note` to `Sale`; `unitPriceCents?` to `SaleLineItemInput`; `active` to `Item` | Minh, Allie |
-| Inventory | Delete becomes "Deactivate"; inactive items grayed out; an option to show inactive items (Q7) | Allie |
-| Analytics | Replace the mock data with the two endpoints in §7.3 | Kimberly |
+| Sale form, `types.ts` | Required channel dropdown; add `channel` to `Sale` and `SaleInput` | Minh |
+| Sales list | Show the channel; optional channel filter | Minh |
+| Analytics | Replace the mock data with §7.4 | Kimberly |
+
+Items and Expenses pages need no changes.
 
 ## 8. Configuration
 
@@ -541,87 +520,25 @@ Spring serves the React files. `SpaForwardingController` forwards any non-`/api`
 
 Render settings: Docker runtime, health check path `/api/health`, the three `SPRING_DATASOURCE_*` variables set as secrets. `demo/render.yaml` is updated (or a new root `render.yaml` added) to point at `backend/Dockerfile`.
 
-## 14. Decisions needed
+## 14. Decisions
 
-Each decision lists the options, a recommendation, and who should confirm it. Until confirmed, the draft follows the recommendation. Reply in Discord with the question ID (e.g. "Q3: agree" or "Q3: prefer B").
+Guiding rule (decided 2026-10-19): **match the `claude-demo` TypeScript design unless it is clearly harmful.** Most questions below are therefore settled by "do what the demo does". Reply in Discord with the question ID (e.g. "Q4: agree" or "Q4: prefer B") for anything still open.
 
-**Status (2026-10-19):** confirmed: Q15, Q18, Q19, Q20. Reopened: Q16. Everything else is still a recommendation awaiting confirmation.
+### Open
 
-### Product and scope
+**Q4. Separate data per account.** The demo has no notion of whose data a row is. If Hans's sign-up creates separate accounts, every account would see and edit the same items and sales.
 
-**Q1. US2 goal text.** The D2 split's US2 goal ("log individual sales and sales channel…") duplicates US1. `planning.md` defines US2 as *add and update products with name, price and quantity*.
+- A: one shared business for D2. Sign-up and login only gate access to the app; everyone who logs in sees the same data. Matches the demo; ownership comes later.
+- B: add `business_id` (or `user_id`) to every table now, with a `CurrentBusiness` component that returns the logged-in user's business.
+- Recommendation: **A** if the D2 demo only needs "log in to see the dashboard"; **B** if the TA is expected to sign up and get an empty, private dashboard. B adds a column and a filter to every query, roughly half a day across the team.
+- Confirm: Hans, team
 
-- Recommendation: correct the D2 split doc to match `planning.md`. This design assumes the `planning.md` version.
-- Confirm: Diana, Allie
+**Q17. Time zone for dates.** "Sales on Oct 18" and daily analytics buckets depend on a time zone: a sale at 9 PM Toronto time is already Oct 19 in UTC.
 
-**Q2. What a "sales channel" is.**
+- Recommendation: store timestamps in UTC (`TIMESTAMPTZ`, as the demo does); interpret analytics date ranges and group by day in `America/Toronto`.
+- Confirm: Aidan, Kimberly
 
-- A: four channel types from the Lucidchart (In-Person Market, Online Shop, Commission, Miscellaneous), plus an optional free-text storefront name ("Etsy", "Comic Con 2026")
-- B: free-text storefront only (Discord discussion: Etsy, Shopify, store location)
-- C: online / in-person only
-- Recommendation: **A**. Analytics can group by type, and storefront still captures the Discord idea. When `events` arrive later, in-person sales can link to an event instead of a storefront name.
-- Confirm: Minh, Kimberly (charts group by this)
-
-**Q3. Selling more than is in stock.**
-
-- A: reject the sale with a 400 naming the line ("Only 2 Flower Prints in stock")
-- B: allow it and let stock go negative; flag it in the UI
-- Recommendation: **A** for D2. It's simpler and keeps stock trustworthy. Revisit if market use shows counts are often wrong in practice.
-- Confirm: team
-
-### Data
-
-**Q4. Data ownership (`business_id`).** The Lucidchart has no owner on any table, but once sign-up exists each user must only see their own data.
-
-- Recommendation: add `business_id` to every table now, with one seeded business. Queries filter by business `1` until Hans's login supplies the real one. Adding it later means changing every table and query.
-- Open sub-question: one user per business, or several users (staff) per business? Affects Hans's `users` table, not D2.
-- Confirm: Hans
-
-**Q5. How stock is tracked.**
-
-- A: a `quantity` column, updated whenever a sale or expense changes it
-- B: a `stock_movements` ledger (+200 bought, −3 sold), with stock as the sum
-- Recommendation: **A** for D2; consider **B** when expenses arrive, because it gives an audit trail of why stock changed.
-- Confirm: Diana
-
-**Q6. Money and currency.** The Lucidchart types prices as `Float` and has a currency dropdown per item and per event.
-
-- Recommendation: store money as **integer cents** everywhere (floats accumulate rounding errors; `0.1 + 0.2 ≠ 0.3`). Use **one currency per business** rather than per item: totals can't add CAD and USD without exchange rates. Not needed for D2.
-- Confirm: Diana, Aidan
-
-**Q7. Deleting items.** The Lucidchart deactivates old items (grayed out) rather than deleting them.
-
-- Recommendation: `DELETE /api/items/{id}` sets `active = false`. Hard deletes aren't exposed. Past sales keep pointing at the item, and analytics keeps its history.
-- Note: the current React client has delete and bulk delete buttons; they'd become "deactivate".
-- Confirm: Diana, Allie
-
-**Q8. Item types, sizes, and other Lucidchart item fields** (type, size W × H + unit, currency).
-
-- Recommendation: after D2, in Diana's migration. Not needed for any D2 user story.
-- Confirm: Diana
-
-**Q9. `tags` and `note` on items.** The React client has them; the Lucidchart doesn't.
-
-- A: keep them (Postgres `TEXT[]` for tags, or an `item_tags` table)
-- B: drop them from the client and replace tags with item types (Q8)
-- Recommendation: **B**. Types cover the same need and match the Lucidchart.
-- Confirm: Diana, Allie
-
-### Sales
-
-**Q10. Sale total.** The Lucidchart calculates totals for in-person and miscellaneous sales, but has a typed-in total for Online Shop sales (platform fees and discounts make calculating it impossible).
-
-- Recommendation: D2 always calculates `total_cents` from the lines. A manual-total option for online sales comes later, together with monthly online logging.
-- Confirm: Minh
-
-**Q11. Price override, free, and trade.** The Lucidchart lets each sale line change its price, or mark it free or traded.
-
-- Recommendation: D2 supports a price override per line (`unitPriceCents` in the request, defaulting to the item's price). Free = override to 0. A separate "trade" flag (so analytics can tell trades from free gifts) comes later.
-- Confirm: Minh
-
-### Project setup
-
-**Q12. Branching.** Will `claude-demo` be merged into `main`? The Java backend is planned on `claude-demo` because the React client lives there.
+**Q12. Branching.** Will `claude-demo` be merged into `main`? This design and the Java backend are on `claude-demo` because the React client lives there.
 
 - Confirm: Hans
 
@@ -630,58 +547,34 @@ Each decision lists the options, a recommendation, and who should confirm it. Un
 - Recommendation: Jinuo creates both and invites the team.
 - Confirm: team
 
-**Q14. Lucidchart in the repo.** Export the Lucidchart to `docs/data-model.pdf` so the design doc, and anyone prompting Claude with it, can reference the source.
+**Q14. Lucidchart in the repo.** Export the Lucidchart to `docs/data-model.pdf` so the design, and anyone prompting Claude with it, can reference it.
 
 - Confirm: Diana
 
-### API and scope
+### Decided
 
-**Q15. Tags on sales.** The React client already shows and edits tags on sales; the Lucidchart doesn't mention them.
-
-- A: keep `tags` on sales as a Postgres `TEXT[]` column (current Hibernate maps it to `List<String>` directly)
-- B: drop them; channel and storefront cover the grouping the Lucidchart needs
-- Recommendation: **A** for D2, so the existing Sales page works unchanged. Revisit with Q9 so items and sales handle tags the same way.
-- **Decided: A** (frontend confirmed they need `id`, `tags`, `createdAt`, `updatedAt` on sales).
-
-**Q16. Expenses in the Java backend.** Hans added an Expenses page and API to the Node demo (lines either restock an item or record a free-text cost). No D2 user story covers it.
-
-- A: port it to Java after D2, together with Lucidchart fields (category, manufacturer)
-- B: port it for D2, since the frontend already exists
-- Recommendation: **A**. D2 is graded on US1–US3; porting Expenses also means reworking how stock is tracked (Q5). If the team wants it in the D2 demo, it needs an owner.
-- **Reopened:** the analytics dashboard discussed on Discord (Oct 14) shows total expenses and net profit, which need expense data. New option under discussion: **cost-only Expenses for D2** (free-text cost lines, no restocking, no stock effect), so Analytics can show expenses and profit; restocking after D2.
-- Confirm: Hans, Aidan, Kimberly, team
-
-**Q17. Time zone for dates.** "Sales on Oct 18" and the daily analytics buckets depend on a time zone: a sale at 9 PM Toronto time is already Oct 19 in UTC.
-
-- Recommendation: store timestamps in UTC (`TIMESTAMPTZ`). Interpret date filters and group analytics in a fixed **`America/Toronto`** zone for D2; later, a per-business time zone setting.
-- Confirm: Aidan, Kimberly
-
-
-**Q18. Which backend runs the D2 demo.**
-
-- A: Java (rebuild Items, Sales, Analytics before Oct 23)
-- B: TypeScript for D2, Java right after
-- C: hybrid, two backends on one database
-- **Decided: A.** The skeleton is on the D2 critical path. On Oct 23 the deployed app runs on Java; `demo/server` is no longer deployed. Pages whose backend isn't ported (e.g. Expenses, see Q16) are hidden from navigation, not deleted.
-
-**Q19. Stock concurrency.**
-
-- A: atomic `UPDATE … WHERE quantity >= :qty`
-- B: row lock with `SELECT … FOR UPDATE`
-- C: optimistic locking (`@Version`)
-- **Decided: A**, with a pre-check for error messages. Details in §6, *Concurrency*.
-
-**Q20. Demo data.**
-
-- A: Java seeder, only active with the `demo` Spring profile
-- B: Flyway seed migration
-- C: no seeding
-- **Decided: A.** When the database is empty, the seeder creates ~20 items and ~6 weeks of sales across all four channels, with dates relative to today so charts always show recent data. It writes through the Sales service, so sample data follows the same stock rules. Enabled locally and on Render for D2 with `SPRING_PROFILES_ACTIVE=demo`; disabled once real users exist. Never runs in tests.
+| # | Question | Decision |
+|---|---|---|
+| Q1 | US2 goal text in the D2 split duplicates US1 | Use the `planning.md` version (add and update products). Fix the split doc. |
+| Q2 | What a sales channel is | New `channel` column: `IN_PERSON`, `ONLINE`, `COMMISSION`, `MISC` (the Lucidchart's four sale types). No storefront name for D2. |
+| Q3 | Selling more than is in stock | Rejected with a 400 (as the demo). |
+| Q5 | How stock is tracked | A `quantity` column changed by sales and expenses (as the demo). A stock-movements ledger may come later. |
+| Q6 | Money | Integer cents everywhere (as the demo). One currency; per-item currency is not in D2. |
+| Q7 | Deleting items | Hard delete; past lines keep the item name (as the demo). Lucidchart-style deactivation comes later. |
+| Q8 | Item types, sizes, currency | After D2. |
+| Q9 | `tags` and `note` on items | Keep them (as the demo). |
+| Q10 | Sale total | Not stored; the sum of line totals (as the demo). |
+| Q11 | Per-line price override, free, trade | Not in D2: lines use the item's current price (as the demo). |
+| Q15 | Tags on sales | Keep (as the demo; frontend confirmed). |
+| Q16 | Expenses in D2 | Full Expenses, including restocking (as the demo). Analytics uses it for expenses and profit. Needs an owner. |
+| Q18 | Backend for the D2 demo | Java. `demo/server` stops being deployed once Java reaches parity. |
+| Q19 | Stock concurrency | Demo approach (check, then `quantity + delta`) with `CHECK (quantity >= 0)` as the guarantee; that constraint violation is mapped to a readable "Not enough stock" error. |
+| Q20 | Demo data | A Java seeder enabled by the `demo` Spring profile: when the database is empty it creates ~20 items, ~6 weeks of sales across all four channels, and a few expenses, with dates relative to today. Writes go through the services, so stock rules apply. Never runs in tests. |
 
 ## 15. Build order
 
 1. Generate the project (start.spring.io), add the wrapper, `compose.yaml` and `application.yml`. The app starts and connects.
-2. Flyway + `V20261015_1__create_businesses_and_items.sql`.
+2. Flyway + `V20261015_1__create_items.sql`.
 3. `common/`: `ApiError`, `GlobalExceptionHandler`, `NotFoundException`, `Paginated`, `PageQuery`.
 4. `HealthController`.
 5. `items` example module.
