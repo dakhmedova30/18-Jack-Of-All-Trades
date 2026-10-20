@@ -3,6 +3,8 @@ import path from 'node:path';
 import express, { type Express } from 'express';
 import type { Db } from './db/database.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { createAnalyticsRouter } from './modules/analytics/analytics.routes.js';
+import { createAnalyticsService } from './modules/analytics/analytics.service.js';
 import { createExpensesRouter } from './modules/expenses/expenses.routes.js';
 import { createExpenseService } from './modules/expenses/expenses.service.js';
 import { createItemRepository } from './modules/items/items.repository.js';
@@ -34,6 +36,7 @@ export function createApp(db: Db, options: AppOptions = {}): Express {
   // need the pool itself to run multi-table transactions, not a bound repository.
   const saleService = createSaleService(db);
   const expenseService = createExpenseService(db);
+  const analyticsService = createAnalyticsService(db);
 
   app.get('/api/health', async (_req, res) => {
     await db.query('SELECT 1');
@@ -42,6 +45,7 @@ export function createApp(db: Db, options: AppOptions = {}): Express {
   app.use('/api/items', createItemsRouter(itemService));
   app.use('/api/sales', createSalesRouter(saleService));
   app.use('/api/expenses', createExpensesRouter(expenseService));
+  app.use('/api/analytics', createAnalyticsRouter(analyticsService));
   app.use('/api', notFoundHandler);
 
   if (options.clientDistPath && fs.existsSync(path.join(options.clientDistPath, 'index.html'))) {

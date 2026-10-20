@@ -13,7 +13,11 @@ async function main(): Promise<void> {
 
   if (config.seedIfEmpty) {
     const result = await seedSampleItems(db);
-    if ('seeded' in result) console.log(`Seeded ${result.seeded} sample items`);
+    if ('seeded' in result) {
+      console.log(
+        `Seeded ${result.seeded} sample items, ${result.sales} sales, ${result.expenses} expenses`,
+      );
+    }
   }
 
   const app = createApp(db, { clientDistPath: config.clientDistPath });

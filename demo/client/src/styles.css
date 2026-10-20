@@ -632,6 +632,13 @@ code {
 
 /* ---------- Analytics ---------- */
 
+.analytics-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
 .analytics-top {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -641,7 +648,7 @@ code {
 
 .analytics-bottom {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
 }
 
@@ -649,12 +656,6 @@ code {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-}
-
-.analytics-card__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
 }
 
 .analytics-card__footer {
@@ -667,6 +668,8 @@ code {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  flex-shrink: 0;
+  padding-top: 0.2rem;
   font-size: 0.8rem;
   color: var(--color-muted);
 }
@@ -704,6 +707,10 @@ code {
   background: var(--color-search);
 }
 
+.stat-card--negative {
+  background: var(--color-danger-bg);
+}
+
 .stat-card__label {
   color: var(--color-muted);
   font-size: 0.85rem;
@@ -712,12 +719,6 @@ code {
 .stat-card__value {
   font-size: 1.5rem;
   font-weight: 700;
-}
-
-.stat-card__delta {
-  color: #006300;
-  font-size: 0.8rem;
-  font-weight: 600;
 }
 
 .analytics-donut {
@@ -733,49 +734,6 @@ code {
   color: var(--color-muted);
   font-size: 0.8rem;
   font-style: italic;
-}
-
-.analytics-inventory {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.analytics-inventory li {
-  display: grid;
-  grid-template-columns: 1.5rem 1fr auto auto;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 0.82rem;
-}
-
-.analytics-inventory__swatch {
-  width: 1.4rem;
-  height: 1.4rem;
-  border-radius: 4px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-}
-
-.analytics-inventory__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.analytics-inventory__stat {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  font-variant-numeric: tabular-nums;
-  min-width: 3.5rem;
-}
-
-.analytics-inventory__stat .muted {
-  font-size: 0.68rem;
 }
 
 /* ---------- SVG charts ---------- */
@@ -850,6 +808,11 @@ code {
 
   .content {
     padding: 1rem;
+  }
+
+  .analytics-header {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .analytics-top,

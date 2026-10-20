@@ -76,6 +76,28 @@ export interface ExpenseInput {
   items: ExpenseLineItemInput[];
 }
 
+export interface AnalyticsTagSeries {
+  label: string;
+  values: number[];
+}
+
+export type AnalyticsRange = 'week' | 'month' | 'ytd' | '12months';
+
+export interface AnalyticsSummary {
+  /** Sum of revenueSeries / expenseSeries — i.e. scoped to `range`, not all-time. */
+  totalRevenueCents: number;
+  totalExpensesCents: number;
+  netProfitCents: number;
+  /** The page-wide "Show by" filter: every chart and total above moves with it. */
+  range: AnalyticsRange;
+  granularity: 'day' | 'month';
+  buckets: string[];
+  bucketLabels: string[];
+  revenueSeries: AnalyticsTagSeries[];
+  expenseSeries: AnalyticsTagSeries[];
+  salesByTag: { label: string; valueCents: number }[];
+}
+
 export interface Paginated<T> {
   data: T[];
   page: number;

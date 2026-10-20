@@ -20,7 +20,9 @@ async function main(): Promise<void> {
         `Database already has ${result.existing} items. Run "npm run seed -- --force" to reset it.`,
       );
     } else {
-      console.log(`Seeded ${result.seeded} items.`);
+      console.log(
+        `Seeded ${result.seeded} items, ${result.sales} sales, ${result.expenses} expenses.`,
+      );
     }
   } finally {
     await db.end();

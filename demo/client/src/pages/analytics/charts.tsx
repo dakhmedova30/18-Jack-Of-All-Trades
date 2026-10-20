@@ -9,6 +9,16 @@
  */
 export const SERIES_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100'] as const;
 
+/** Neutral color for a folded "Other" bucket (see analytics.service#buildTagSeries
+ *  on the server) — overflow categories get a neutral color, not another hue
+ *  competing with the real ones, per the dataviz skill's guidance. */
+export const OTHER_LABEL = 'Other';
+const OTHER_COLOR = '#9a9890';
+
+function colorForSeries(label: string, index: number): string {
+  return label === OTHER_LABEL ? OTHER_COLOR : (SERIES_COLORS[index] ?? OTHER_COLOR);
+}
+
 export interface ChartSeries {
   label: string;
   values: number[];
@@ -63,13 +73,13 @@ export function LineChart({
           <path
             d={s.values.map((v, i) => `${i === 0 ? 'M' : 'L'} ${x(i)} ${y(v)}`).join(' ')}
             fill="none"
-            stroke={SERIES_COLORS[si]}
+            stroke={colorForSeries(s.label, si)}
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
           {s.values.map((v, i) => (
-            <circle key={i} cx={x(i)} cy={y(v)} r={4} fill={SERIES_COLORS[si]}>
+            <circle key={i} cx={x(i)} cy={y(v)} r={4} fill={colorForSeries(s.label, si)}>
               <title>{`${s.label}, ${categories[i]}: $${v.toLocaleString()}`}</title>
             </circle>
           ))}
@@ -133,7 +143,7 @@ export function StackedBarChart({
                   y={top + 1}
                   width={barWidth}
                   height={Math.max(segmentHeight - 2, 0)}
-                  fill={SERIES_COLORS[si]}
+                  fill={colorForSeries(s.label, si)}
                   rx={2}
                 >
                   <title>{`${s.label}, ${category}: $${value.toLocaleString()}`}</title>
@@ -180,7 +190,7 @@ export function DonutChart({ segments, size = 160, thickness = 30, ariaLabel }: 
     const dash = fraction * circumference;
     return {
       key: segment.label,
-      color: SERIES_COLORS[i],
+      color: colorForSeries(segment.label, i),
       dashArray: `${Math.max(dash - 2, 0)} ${circumference - dash + 2}`,
       dashOffset: -(fractionBefore(i) * circumference),
       title: `${segment.label}: ${Math.round(fraction * 100)}%`,
@@ -226,7 +236,11 @@ export function DonutChart({ segments, size = 160, thickness = 30, ariaLabel }: 
           textAnchor="middle"
           dominantBaseline="middle"
           className="viz-donut-label"
-          fill={isLightFill(SERIES_COLORS[label.index]) ? '#1f1f1f' : '#ffffff'}
+          fill={
+            needsDarkText(colorForSeries(segments[label.index]!.label, label.index))
+              ? '#1f1f1f'
+              : '#ffffff'
+          }
         >
           {label.text}
         </text>
@@ -235,9 +249,9 @@ export function DonutChart({ segments, size = 160, thickness = 30, ariaLabel }: 
   );
 }
 
-/** Yellow (slot 4) needs dark text to stay readable; the others take white. */
-function isLightFill(hex: string): boolean {
-  return hex === SERIES_COLORS[3];
+/** Yellow (slot 4) and the neutral "Other" gray both need dark text to stay readable. */
+function needsDarkText(hex: string): boolean {
+  return hex === SERIES_COLORS[3] || hex === OTHER_COLOR;
 }
 
 export function ChartLegend({ labels }: { labels: string[] }) {
@@ -245,7 +259,7 @@ export function ChartLegend({ labels }: { labels: string[] }) {
     <ul className="viz-legend">
       {labels.map((label, i) => (
         <li key={label}>
-          <span className="viz-legend__swatch" style={{ background: SERIES_COLORS[i] }} />
+          <span className="viz-legend__swatch" style={{ background: colorForSeries(label, i) }} />
           {label}
         </li>
       ))}

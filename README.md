@@ -21,7 +21,7 @@
      * Bookkeeping Dashboard: Click "Add" to record a sale (one transaction). Set a date and tags, then add one or more line items (an inventory item + quantity each); the line and sale totals are computed from the item's price. Recording, editing or deleting a sale keeps inventory stock in sync automatically.
      * Inventory Dashboard: Click the "Add Item" button to add an item, set prices, and set stock count.
      * Expenses Dashboard: Click "Add" to record an expense. Set a date and tags, then add one or more lines; each line either restocks an inventory item (pick it, and its stock goes up by the quantity) or is a free-text cost like "Rent" with no stock effect. Recording, editing or deleting an expense keeps inventory stock in sync automatically.
-     * Analytics Dashboard: View various business performance metrics. Currently a static visual demo; the numbers aren't wired to real data yet.
+     * Analytics Dashboard: View real revenue, expenses and net profit, computed from your sales and expenses. Revenue, expenses and sales group by each record's first tag (top 3, the rest folded into "Other"); "Show by" (Weekly / Month / Year to date / 12 months) sets the time range for all three charts together.
      * Business Profile Dashboard: Set up a public profile for customers to see.
  * Customers: Register a customer account.
      * Can browse and look up available businesses and make purchases. 
@@ -116,6 +116,7 @@ All error responses share one shape: `{ "error": { "message": string, "details"?
 | PATCH  | `/api/expenses/:id`         | Replace an expense's date, tags and lines     |
 | DELETE | `/api/expenses/:id`         | Delete an expense (undoes any restock)        |
 | POST   | `/api/expenses/bulk-delete` | Delete several expenses (`{ "ids": [1, 2] }`) |
+| GET    | `/api/analytics/summary`    | Dashboard totals and charts (`range`, default `12months`) |
 
 A sale is one transaction: a date, optional tags, and one or more line items
 (`{ itemId, quantity }`). Each line's unit price is snapshotted from the item at
@@ -128,6 +129,13 @@ item's sale price); a `description` line (e.g. `"Rent"`) is a free-text cost wit
 no stock effect. Editing or deleting an expense undoes its restock first, so if
 the restocked stock has since been sold below that amount, the edit/delete is
 rejected with a 400 rather than letting stock go negative.
+
+Analytics groups sales and expenses by each record's first tag (top 3 by value;
+the rest fold into "Other"). `range` is one of `week` (last 7 days), `month`
+(month-to-date, by day), `ytd` (year-to-date, by month), or `12months` (default,
+trailing 12 months) — it's the one page-wide window: Revenue Overview, Expenses
+Overview, the Sales Overview donut, and Net Profit/Revenue/Expenses are all
+scoped to it, so changing it moves the whole page together.
 
 ### Configuration
 
