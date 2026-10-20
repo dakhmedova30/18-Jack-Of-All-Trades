@@ -10,6 +10,7 @@
    
  * Bookkeeping Dashboard: Allows business owners to record sales.
  * Inventory Dashboard: Allows business owners to add and update inventory items.
+ * Expenses Dashboard: Allows business owners to record costs, including restocking inventory.
  * Analytics Dashboard: Displays performance indicators for the business.
  * Business Profile Dashboard: Allows businesses to list their products.
  * Customer Dashboard: Allows customers to view vendors registered on the platform and make purchases.
@@ -19,6 +20,7 @@
  * Business Owners: Register a business account.
      * Bookkeeping Dashboard: Click "Add" to record a sale (one transaction). Set a date and tags, then add one or more line items (an inventory item + quantity each); the line and sale totals are computed from the item's price. Recording, editing or deleting a sale keeps inventory stock in sync automatically.
      * Inventory Dashboard: Click the "Add Item" button to add an item, set prices, and set stock count.
+     * Expenses Dashboard: Click "Add" to record an expense. Set a date and tags, then add one or more lines; each line either restocks an inventory item (pick it, and its stock goes up by the quantity) or is a free-text cost like "Rent" with no stock effect. Recording, editing or deleting an expense keeps inventory stock in sync automatically.
      * Analytics Dashboard: View various business performance metrics. Currently a static visual demo; the numbers aren't wired to real data yet.
      * Business Profile Dashboard: Set up a public profile for customers to see.
  * Customers: Register a customer account.
@@ -108,10 +110,24 @@ All error responses share one shape: `{ "error": { "message": string, "details"?
 | PATCH  | `/api/sales/:id`         | Replace a sale's date, tags and line items |
 | DELETE | `/api/sales/:id`         | Delete a sale (restores item stock)        |
 | POST   | `/api/sales/bulk-delete` | Delete several sales (`{ "ids": [1, 2] }`) |
+| GET    | `/api/expenses`             | List expenses (`page`, `pageSize`, `search`)  |
+| GET    | `/api/expenses/:id`         | Get one expense                               |
+| POST   | `/api/expenses`             | Record an expense (restocks any linked items) |
+| PATCH  | `/api/expenses/:id`         | Replace an expense's date, tags and lines     |
+| DELETE | `/api/expenses/:id`         | Delete an expense (undoes any restock)        |
+| POST   | `/api/expenses/bulk-delete` | Delete several expenses (`{ "ids": [1, 2] }`) |
 
 A sale is one transaction: a date, optional tags, and one or more line items
 (`{ itemId, quantity }`). Each line's unit price is snapshotted from the item at
 sale time, so editing an item's price later doesn't change past sales.
+
+An expense is the same shape, but each line is `{ itemId?, description?, quantity, unitCostCents }`
+and must give exactly one of `itemId` or `description`: an `itemId` line restocks
+that item (adds `quantity` to its stock, using the unit cost you paid, not the
+item's sale price); a `description` line (e.g. `"Rent"`) is a free-text cost with
+no stock effect. Editing or deleting an expense undoes its restock first, so if
+the restocked stock has since been sold below that amount, the edit/delete is
+rejected with a 400 rather than letting stock go negative.
 
 ### Configuration
 

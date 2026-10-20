@@ -1,10 +1,11 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { BoxIcon, ChartIcon, HomeIcon, ReceiptIcon } from './icons';
+import { BoxIcon, ChartIcon, HomeIcon, ReceiptIcon, WalletIcon } from './icons';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Home', icon: HomeIcon, end: true },
   { to: '/inventory', label: 'Inventory', icon: BoxIcon, end: false },
   { to: '/sales', label: 'Sales', icon: ReceiptIcon, end: false },
+  { to: '/expenses', label: 'Expenses', icon: WalletIcon, end: false },
   { to: '/analytics', label: 'Analytics', icon: ChartIcon, end: false },
 ];
 

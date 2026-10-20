@@ -47,6 +47,34 @@ const SCHEMA = `
 
   CREATE INDEX IF NOT EXISTS idx_sale_items_sale_id ON sale_items (sale_id);
   CREATE INDEX IF NOT EXISTS idx_sale_items_item_id ON sale_items (item_id);
+
+  -- An expense is one transaction (e.g. a supplier order or a bill); its lines
+  -- are in expense_items. A line either restocks an inventory item (item_id set,
+  -- quantity added back to stock) or is a free-text cost with no stock effect.
+  CREATE TABLE IF NOT EXISTS expenses (
+    id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    incurred_at TIMESTAMPTZ NOT NULL,
+    tags        TEXT[]      NOT NULL DEFAULT '{}',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_expenses_incurred_at ON expenses (incurred_at);
+
+  CREATE TABLE IF NOT EXISTS expense_items (
+    id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    expense_id      INTEGER     NOT NULL REFERENCES expenses (id) ON DELETE CASCADE,
+    -- item_id is kept nullable, and item_name is snapshotted, same reasoning as
+    -- sale_items. A line with item_id null is a free-text expense (e.g. "Rent").
+    item_id         INTEGER     REFERENCES items (id) ON DELETE SET NULL,
+    item_name       TEXT        NOT NULL,
+    quantity        INTEGER     NOT NULL CHECK (quantity > 0),
+    unit_cost_cents INTEGER     NOT NULL DEFAULT 0 CHECK (unit_cost_cents >= 0),
+    total_cents     INTEGER     NOT NULL DEFAULT 0 CHECK (total_cents >= 0)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_expense_items_expense_id ON expense_items (expense_id);
+  CREATE INDEX IF NOT EXISTS idx_expense_items_item_id ON expense_items (item_id);
 `;
 
 /**

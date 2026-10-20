@@ -4,6 +4,7 @@ import { HomeLayout } from '../components/HomeLayout';
 const DASHBOARDS = [
   { to: '/sales', title: 'Sales', graphic: 'table' },
   { to: '/inventory', title: 'Inventory', graphic: 'table' },
+  { to: '/expenses', title: 'Expenses', graphic: 'table' },
   { to: '/analytics', title: 'Analytics', graphic: 'chart' },
 ] as const;
 

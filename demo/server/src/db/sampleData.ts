@@ -42,7 +42,11 @@ export async function seedSampleItems(db: Db, { force = false } = {}): Promise<S
     const existing = rows[0]?.count ?? 0;
     if (existing > 0 && !force) return { skipped: true, existing };
 
-    if (force) await client.query('TRUNCATE sale_items, sales, items RESTART IDENTITY');
+    if (force) {
+      await client.query(
+        'TRUNCATE expense_items, expenses, sale_items, sales, items RESTART IDENTITY',
+      );
+    }
 
     const items = createItemRepository(client);
     for (const [name, quantity, unitPriceCents, tags] of SAMPLE_ITEMS) {

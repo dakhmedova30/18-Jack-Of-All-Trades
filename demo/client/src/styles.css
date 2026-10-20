@@ -526,7 +526,7 @@ code {
 }
 
 .sale-line__error {
-  grid-column: 2 / span 2;
+  grid-column: 1 / -1;
   margin-top: -0.3rem;
   color: var(--color-danger);
   font-size: 0.8rem;
@@ -534,6 +534,20 @@ code {
 
 .sale-lines__add {
   align-self: flex-start;
+}
+
+/* Expenses reuse .sale-line__field etc., just with two extra columns
+   (Description, Unit cost) since a line can restock an item or be free-text. */
+.expense-line {
+  display: grid;
+  grid-template-columns: 1.25rem 1.3fr 1.3fr 4rem 5.5rem 6rem auto;
+  gap: 0.6rem;
+  align-items: end;
+}
+
+.expense-line .sale-line__field input:disabled {
+  color: var(--color-muted);
+  background: var(--color-surface);
 }
 
 .sale-total {
@@ -841,5 +855,23 @@ code {
   .analytics-top,
   .analytics-bottom {
     grid-template-columns: 1fr;
+  }
+
+  /* The sale/expense line grids are too narrow-column for the modal's mobile
+     width; stack each field full-width instead of squeezing them side by side. */
+  .sale-line,
+  .expense-line {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .sale-line__index {
+    padding-bottom: 0;
+  }
+
+  .sale-line__field--total span {
+    text-align: left;
   }
 }

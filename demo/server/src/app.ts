@@ -3,6 +3,8 @@ import path from 'node:path';
 import express, { type Express } from 'express';
 import type { Db } from './db/database.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { createExpensesRouter } from './modules/expenses/expenses.routes.js';
+import { createExpenseService } from './modules/expenses/expenses.service.js';
 import { createItemRepository } from './modules/items/items.repository.js';
 import { createItemsRouter } from './modules/items/items.routes.js';
 import { createItemService } from './modules/items/items.service.js';
@@ -28,9 +30,10 @@ export function createApp(db: Db, options: AppOptions = {}): Express {
 
   const itemRepository = createItemRepository(db);
   const itemService = createItemService(itemRepository);
-  // Sales keeps inventory stock in sync on every write, so it needs the pool
-  // itself to run multi-table transactions, not a single bound repository.
+  // Sales and expenses keep inventory stock in sync on every write, so they
+  // need the pool itself to run multi-table transactions, not a bound repository.
   const saleService = createSaleService(db);
+  const expenseService = createExpenseService(db);
 
   app.get('/api/health', async (_req, res) => {
     await db.query('SELECT 1');
@@ -38,6 +41,7 @@ export function createApp(db: Db, options: AppOptions = {}): Express {
   });
   app.use('/api/items', createItemsRouter(itemService));
   app.use('/api/sales', createSalesRouter(saleService));
+  app.use('/api/expenses', createExpensesRouter(expenseService));
   app.use('/api', notFoundHandler);
 
   if (options.clientDistPath && fs.existsSync(path.join(options.clientDistPath, 'index.html'))) {

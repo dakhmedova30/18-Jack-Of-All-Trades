@@ -72,3 +72,10 @@ export const ChartIcon = (p: IconProps) => (
     <path d="M3 20h18" />
   </Icon>
 );
+
+export const WalletIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <path d="M16 12h3M3 9h18" />
+  </Icon>
+);

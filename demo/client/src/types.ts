@@ -43,6 +43,39 @@ export interface SaleInput {
   items: SaleLineItemInput[];
 }
 
+export interface ExpenseItem {
+  id: number;
+  itemId: number | null;
+  itemName: string;
+  quantity: number;
+  unitCostCents: number;
+  totalCents: number;
+}
+
+export interface Expense {
+  id: number;
+  incurredAt: string;
+  tags: string[];
+  totalCents: number;
+  items: ExpenseItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExpenseLineItemInput {
+  /** Set to restock an inventory item; leave null and give `description` for a free-text cost. */
+  itemId: number | null;
+  description: string;
+  quantity: number;
+  unitCostCents: number;
+}
+
+export interface ExpenseInput {
+  incurredAt: string;
+  tags: string[];
+  items: ExpenseLineItemInput[];
+}
+
 export interface Paginated<T> {
   data: T[];
   page: number;
