@@ -3,7 +3,7 @@
 **Owner:** Jinuo Tao  
 **Status:** Draft for team review  
 **Date:** 2026-10-15 (updated 2026-10-19)  
-**Branch:** `backend-skeleton` (from `claude-demo`)
+**Branch:** `claude-demo`
 
 ## 1. Purpose
 
@@ -200,7 +200,7 @@ Modules signal errors by **throwing** (`throw new NotFoundException("Item", id)`
 
 ### First migration: `businesses` + `items` (minimal)
 
-The skeleton creates only the columns every version of Inventory and Sales needs. Diana adds the rest in her own migration (see §13, decisions Q7–Q9).
+The skeleton creates only the columns every version of Inventory and Sales needs. Diana adds the rest in her own migration (see §14, decisions Q7–Q9).
 
 ```sql
 -- Whose data a row belongs to. One seeded row until login exists (decision Q4).
@@ -240,6 +240,7 @@ sales        id, business_id → businesses
              storefront  TEXT        NULL       -- optional: "Etsy", "Comic Con 2026"         (Q2)
              sold_at     TIMESTAMPTZ NOT NULL
              note        TEXT        NOT NULL DEFAULT ''
+             tags        TEXT[]      NOT NULL DEFAULT '{}'  -- the React client already uses these (Q15)
              total_cents INTEGER     NOT NULL   -- sum of line totals, written with the lines (Q10)
              created_at, updated_at
 
@@ -274,14 +275,191 @@ sale_items   id, sale_id → sales (ON DELETE CASCADE)
 | item size / currency | Size `W × H` + unit; currency | See Q6 for currency |
 | `events` | Markets and conventions: days, location, table fee, extra expenses, status, going | In-person sales link to one |
 | `sale_adjustments` | Discounts, charges, tips | Discount *rules* (buy 2 get 1, tiered, %) are a separate project |
-| `expenses` + `expense_items` | Supply purchases by category / manufacturer | Buying items adds stock (Q5) |
+| `expenses` + `expense_items` | Supply purchases by category / manufacturer | Buying items adds stock (Q5). Already built in the Node demo (Q16). |
 | `commissions` | Per-customer requests with deadline, expenses, revenue | |
 | `tasks` | To-do list with category and deadline | |
 | services | Not yet defined in the Lucidchart | |
 
 Revenue, expenses, profit, "amount sold", and the monthly and yearly views are **queries** (Analytics), not tables.
 
-## 7. Configuration
+## 7. D2 API
+
+Every endpoint follows the conventions in §5 (routes, camelCase JSON, cents, pagination, error format). JSON names match `demo/client/src/types.ts` wherever the client already has the field, so existing pages keep working. New fields the frontend must add are listed in §7.4.
+
+All requests are scoped to business `1` until login exists (Q4).
+
+### 7.1 Inventory: `/api/items` (US2, Diana)
+
+| Method | Path | Body | Success |
+|---|---|---|---|
+| GET | `/api/items?page&pageSize&search&includeInactive` | — | `200` `Paginated<Item>` |
+| GET | `/api/items/{id}` | — | `200` `Item` |
+| POST | `/api/items` | `ItemInput` | `201` `Item` |
+| PATCH | `/api/items/{id}` | partial `ItemInput` (only the fields that change) | `200` `Item` |
+| DELETE | `/api/items/{id}` | — | `204` (deactivates; Q7) |
+| POST | `/api/items/bulk-delete` | `{ "ids": [1, 2] }` | `200` `{ "deleted": 2 }` (deactivates) |
+
+- `search`: case-insensitive match on name. `includeInactive` defaults to `false`.
+- Results are sorted newest first.
+
+#### Item
+
+```json
+{
+  "id": 7,
+  "name": "Flower Print (8x12)",
+  "quantity": 10,
+  "unitPriceCents": 1200,
+  "active": true,
+  "tags": [],
+  "note": "",
+  "createdAt": "2026-10-19T20:00:00Z",
+  "updatedAt": "2026-10-19T20:00:00Z"
+}
+```
+
+#### ItemInput
+
+POST requires `name`, `quantity` and `unitPriceCents`.
+
+```json
+{ "name": "Flower Print (8x12)", "quantity": 10, "unitPriceCents": 1200, "tags": [], "note": "" }
+```
+
+**Validation:** name 1–120 chars; quantity and price are whole numbers ≥ 0; PATCH must include at least one field. `tags` / `note` follow Q9.
+
+### 7.2 Sales: `/api/sales` (US1, Jinuo)
+
+| Method | Path | Body | Success |
+|---|---|---|---|
+| GET | `/api/sales?page&pageSize&search&channel&from&to` | — | `200` `Paginated<Sale>` |
+| GET | `/api/sales/{id}` | — | `200` `Sale` |
+| POST | `/api/sales` | `SaleInput` | `201` `Sale` |
+| PATCH | `/api/sales/{id}` | `SaleInput` (**replaces** the whole sale, including all lines) | `200` `Sale` |
+| DELETE | `/api/sales/{id}` | — | `204` (restores stock) |
+| POST | `/api/sales/bulk-delete` | `{ "ids": [1, 2] }` | `200` `{ "deleted": 2 }` |
+
+- Filters: `search` matches item names on the sale's lines; `channel` is one of the four channel values; `from` / `to` are dates (`2026-10-01`) on `soldAt`, inclusive (see Q17 for time zone).
+- Results are sorted by `soldAt`, newest first.
+- PATCH replaces the sale rather than merging fields, to match the existing client. Strictly that's `PUT`'s meaning; kept for compatibility.
+
+#### Sale
+
+```json
+{
+  "id": 42,
+  "soldAt": "2026-10-18T15:30:00Z",
+  "channel": "IN_PERSON",
+  "storefront": "Toronto Comic Con 2026",
+  "note": "",
+  "tags": [],
+  "totalCents": 3500,
+  "items": [
+    { "id": 101, "itemId": 7, "itemName": "Flower Print (8x12)", "quantity": 2, "unitPriceCents": 1200, "totalCents": 2400 },
+    { "id": 102, "itemId": 9, "itemName": "Flower Keychain", "quantity": 1, "unitPriceCents": 1100, "totalCents": 1100 }
+  ],
+  "createdAt": "2026-10-18T15:31:02Z",
+  "updatedAt": "2026-10-18T15:31:02Z"
+}
+```
+
+A line's `totalCents` is the `line_total_cents` column. `itemId` is `null` if the item was later removed from the database; `itemName` still shows what was sold.
+
+#### SaleInput
+
+```json
+{
+  "soldAt": "2026-10-18T15:30:00Z",
+  "channel": "IN_PERSON",
+  "storefront": "Toronto Comic Con 2026",
+  "note": "",
+  "tags": [],
+  "items": [
+    { "itemId": 7, "quantity": 2 },
+    { "itemId": 9, "quantity": 1, "unitPriceCents": 1100 }
+  ]
+}
+```
+
+- Required: `soldAt`, `channel`, and 1–50 lines.
+- Each line: `itemId` must be an active item of this business; `quantity` is a whole number ≥ 1.
+- `unitPriceCents` is optional. It defaults to the item's current price; send it to override the price, or `0` for a free item (Q11).
+- The same `itemId` may not appear on two lines of one sale.
+- `storefront`: optional, ≤ 120 chars. `note`: optional, ≤ 1000 chars.
+
+**Sale-specific errors** (all `400`, in the §5 error format):
+
+| Situation | `details` entry |
+|---|---|
+| Not enough stock (Q3) | `{ "field": "items[0].quantity", "message": "Only 1 Flower Print (8x12) in stock" }` |
+| Item doesn't exist or belongs to another business | `{ "field": "items[1].itemId", "message": "Item 99 not found" }` |
+| Item is inactive | `{ "field": "items[1].itemId", "message": "Flower Keychain is inactive" }` |
+| Same item on two lines | `{ "field": "items[2].itemId", "message": "Item already on this sale" }` |
+| Unknown channel | `{ "field": "channel", "message": "Must be one of IN_PERSON, ONLINE, COMMISSION, MISC" }` |
+
+All lines are checked before anything is written, so the response lists every problem at once and stock is never partly updated.
+
+### 7.3 Analytics: `/api/analytics` (US3, Aidan)
+
+Read-only. Revenue and counts come only from `sales` and `sale_items`.
+
+Common query parameters:
+
+| Param | Default | Rules |
+|---|---|---|
+| `from` | 30 days before `to` | date, inclusive |
+| `to` | today | date, inclusive; range ≤ 366 days |
+| `channel` | all channels | one of the four channel values |
+
+**Sales over time**: `GET /api/analytics/sales-over-time?from&to&channel&interval`
+
+`interval` is `day`, `week` or `month` (default `day`). Every period in the range is returned, including periods with no sales (zeros), so the chart has no gaps.
+
+```json
+{
+  "from": "2026-10-01",
+  "to": "2026-10-07",
+  "interval": "day",
+  "points": [
+    { "periodStart": "2026-10-01", "salesCount": 3, "unitsSold": 5, "revenueCents": 6100 },
+    { "periodStart": "2026-10-02", "salesCount": 0, "unitsSold": 0, "revenueCents": 0 }
+  ]
+}
+```
+
+**Sales per item**: `GET /api/analytics/sales-by-item?from&to&channel&limit`
+
+`limit` defaults to 10 (max 100). Sorted by `unitsSold`, highest first. Lines whose item was removed are grouped under their `itemName` with `itemId: null`.
+
+```json
+{
+  "from": "2026-10-01",
+  "to": "2026-10-31",
+  "data": [
+    { "itemId": 7, "itemName": "Flower Print (8x12)", "unitsSold": 14, "salesCount": 9, "revenueCents": 16800 }
+  ]
+}
+```
+
+**Optional, if time allows: sales per channel**: `GET /api/analytics/sales-by-channel?from&to` returns `{ "from", "to", "data": [{ "channel", "salesCount", "revenueCents" }] }`. Not required by US3, but the Lucidchart and the Discord dashboard discussion both group by channel.
+
+**Definitions** (so frontend and backend agree on what the numbers mean):
+
+- `salesCount`: number of sales (transactions)
+- `unitsSold`: sum of line quantities
+- `revenueCents`: sum of line totals, after any price overrides
+
+### 7.4 Frontend changes needed
+
+| Page | Change | Owner |
+|---|---|---|
+| Sale form | Add a channel dropdown (required), a storefront text field (optional), and an optional price field per line | Minh |
+| Sales list | Show channel and storefront; add channel and date filters | Minh |
+| `types.ts` | Add `channel`, `storefront`, `note` to `Sale`; `unitPriceCents?` to `SaleLineItemInput`; `active` to `Item` | Minh, Allie |
+| Inventory | Delete becomes "Deactivate"; inactive items grayed out; an option to show inactive items (Q7) | Allie |
+| Analytics | Replace the mock data with the two endpoints in §7.3 | Kimberly |
+
+## 8. Configuration
 
 `application.yml` reads everything environment-specific from environment variables, with defaults that work for local development:
 
@@ -297,7 +475,7 @@ Revenue, expenses, profit, "amount sold", and the monthly and yearly views are *
 - Docker Postgres is mapped to host port **5433**, so it doesn't clash with any Postgres already installed on 5432.
 - These are Spring's standard variable names, so no custom parsing code is needed. The Node server's single `DATABASE_URL` is not reused, because JDBC needs a different URL format.
 
-## 8. Health check
+## 9. Health check
 
 `GET /api/health` runs `SELECT 1` against the database:
 
@@ -306,7 +484,7 @@ Revenue, expenses, profit, "amount sold", and the monthly and yearly views are *
 
 Render uses this path as its health check.
 
-## 9. Example module: `items` (skeleton version)
+## 10. Example module: `items` (skeleton version)
 
 Only enough to prove the pattern and let the Inventory page load:
 
@@ -315,7 +493,7 @@ Only enough to prove the pattern and let the Inventory page load:
 
 Create, update, delete and bulk delete belong to Diana's Inventory work and are built on this structure.
 
-## 10. Local development
+## 11. Local development
 
 Prerequisites: JDK 25, Docker Desktop, and Node 22+ (for the client).
 
@@ -332,7 +510,7 @@ npm run dev                   # http://localhost:5173, /api proxied to :4000
 
 Tests: `./mvnw test` (Docker must be running).
 
-## 11. Testing
+## 12. Testing
 
 - `PostgresTestBase` starts one Postgres container per test run using Spring Boot's `@ServiceConnection`, so tests never touch your local or hosted database.
 - Flyway runs against that container, which means every test run also checks that the migrations apply cleanly.
@@ -342,7 +520,7 @@ Tests: `./mvnw test` (Docker must be running).
   - `pageSize=500` returns 400 with `details`
 - Each module owner adds tests for their own endpoints, following the same pattern.
 
-## 12. Deployment (Render)
+## 13. Deployment (Render)
 
 One Docker web service, built from a multi-stage `backend/Dockerfile`:
 
@@ -354,7 +532,7 @@ Spring serves the React files. `SpaForwardingController` forwards any non-`/api`
 
 Render settings: Docker runtime, health check path `/api/health`, the three `SPRING_DATASOURCE_*` variables set as secrets. `demo/render.yaml` is updated (or a new root `render.yaml` added) to point at `backend/Dockerfile`.
 
-## 13. Decisions needed
+## 14. Decisions needed
 
 Each decision lists the options, a recommendation, and who should confirm it. Until confirmed, the draft follows the recommendation. Reply in Discord with the question ID (e.g. "Q3: agree" or "Q3: prefer B").
 
@@ -432,7 +610,7 @@ Each decision lists the options, a recommendation, and who should confirm it. Un
 
 ### Project setup
 
-**Q12. Branching.** Will `claude-demo` be merged into `main`? This branch is based on it so the React client is available.
+**Q12. Branching.** Will `claude-demo` be merged into `main`? The Java backend is planned on `claude-demo` because the React client lives there.
 
 - Confirm: Hans
 
@@ -445,7 +623,29 @@ Each decision lists the options, a recommendation, and who should confirm it. Un
 
 - Confirm: Diana
 
-## 14. Build order
+### API and scope
+
+**Q15. Tags on sales.** The React client already shows and edits tags on sales; the Lucidchart doesn't mention them.
+
+- A: keep `tags` on sales as a Postgres `TEXT[]` column (current Hibernate maps it to `List<String>` directly)
+- B: drop them; channel and storefront cover the grouping the Lucidchart needs
+- Recommendation: **A** for D2, so the existing Sales page works unchanged. Revisit with Q9 so items and sales handle tags the same way.
+- Confirm: Minh
+
+**Q16. Expenses in the Java backend.** Hans added an Expenses page and API to the Node demo (lines either restock an item or record a free-text cost). No D2 user story covers it.
+
+- A: port it to Java after D2, together with Lucidchart fields (category, manufacturer)
+- B: port it for D2, since the frontend already exists
+- Recommendation: **A**. D2 is graded on US1–US3; porting Expenses also means reworking how stock is tracked (Q5). If the team wants it in the D2 demo, it needs an owner.
+- Confirm: Hans, team
+
+**Q17. Time zone for dates.** "Sales on Oct 18" and the daily analytics buckets depend on a time zone: a sale at 9 PM Toronto time is already Oct 19 in UTC.
+
+- Recommendation: store timestamps in UTC (`TIMESTAMPTZ`). Interpret date filters and group analytics in a fixed **`America/Toronto`** zone for D2; later, a per-business time zone setting.
+- Confirm: Aidan, Kimberly
+
+
+## 15. Build order
 
 1. Generate the project (start.spring.io), add the wrapper, `compose.yaml` and `application.yml`. The app starts and connects.
 2. Flyway + `V20261015_1__create_businesses_and_items.sql`.
