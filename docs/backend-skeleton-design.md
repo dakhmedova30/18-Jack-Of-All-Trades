@@ -1,4 +1,4 @@
-# Backend Design: Skeleton + D2 Data Model (Spring Boot)
+# Backend Design: Skeleton, D2 Data Model and API (Spring Boot)
 
 **Owner:** Jinuo Tao  
 **Status:** Draft for team review  
