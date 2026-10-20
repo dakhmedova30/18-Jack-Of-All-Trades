@@ -56,7 +56,7 @@ The skeleton is done when:
 | Hosted DB | **Neon** (free tier) | Free, doesn't expire, standard Postgres. |
 | Hosting | **Render**, one Docker web service | One URL serves both the React app and `/api`. |
 
-**Dependencies (start.spring.io):** Spring Web, Spring Data JPA, Validation, PostgreSQL Driver, Flyway Migration, Spring Boot Actuator (optional), Testcontainers.
+**Dependencies (start.spring.io):** Spring Web, Spring Data JPA, Validation, PostgreSQL Driver, Flyway Migration, Spring Security, Spring Session JDBC, Testcontainers.
 
 ## 4. Repository layout
 
@@ -182,6 +182,8 @@ Every error response has this shape:
 | Malformed JSON body | 400 | `Request body is not valid JSON` |
 | Wrong type in path or query (e.g. `/api/items/abc`) | 400 | `Invalid value for '<param>'` |
 | Not logged in | 401 | `Login required` |
+| Missing or invalid CSRF token | 403 | `Invalid or missing CSRF token` |
+| Email already registered (sign-up) | 409 | `An account with that email already exists` |
 | `NotFoundException` thrown by a service (including another account's id) | 404 | e.g. `Item 7 not found` |
 | Unknown `/api/...` route | 404 | `Route GET /api/xyz not found` |
 | Stock would go below 0 (`items_quantity_check` violation; Q19) | 400 | `Not enough stock` |
@@ -225,6 +227,7 @@ One file per table group, owned by the module's owner:
 |---|---|---|
 | `V20261015_1__create_users_and_items.sql` | `users`, `items` | Jinuo (skeleton); `users` details with Hans, `items` with Diana |
 | `V20261020_1__create_sales.sql` | `sales`, `sale_items` | Jinuo |
+| `V20261015_2__create_spring_session.sql` | `spring_session`, `spring_session_attributes` (copied from Spring Session's PostgreSQL schema) | Jinuo (skeleton) |
 | `V20261020_2__create_expenses.sql` | `expenses`, `expense_items` | Expenses owner (Q16) |
 
 ### Tables
@@ -321,7 +324,7 @@ Every account sees and changes **only its own** items, sales, expenses and analy
 - **Stock updates include the owner:** `UPDATE items SET quantity = quantity + :delta WHERE id = :id AND user_id = :userId`.
 - **Analytics** queries filter by `user_id` on `sales` / `expenses`.
 - **New accounts start empty.** The demo seeder (Q20) creates one demo account with sample data.
-- How login works (session vs token, endpoints) is Q21.
+- Login uses a server-side session cookie (Q21, §7.0).
 
 ### Stock rules (same as the demo)
 
@@ -355,6 +358,28 @@ Every write runs in one `@Transactional` service method, so stock and the sale o
 ## 7. D2 API
 
 Same endpoints and JSON as the demo (see `*.routes.ts` and `demo/client/src/types.ts`), plus `channel` on sales and the new analytics endpoints. Every `/api` endpoint except `/api/health` and the auth endpoints (Q21) requires login and returns `401` without it; all data is scoped to the logged-in account (§6).
+
+### 7.0 Accounts: `/api/auth` (Hans)
+
+Login uses a **session cookie** (Q21). After sign-up or login, the browser sends the session cookie automatically with every request; `http.ts` needs no token handling.
+
+| Method | Path | Body | Success | Errors |
+|---|---|---|---|---|
+| POST | `/api/auth/signup` | `{ "email", "password", "displayName" }` | `201` `User`, and logged in | `400` validation; `409` email already registered |
+| POST | `/api/auth/login` | `{ "email", "password" }` | `200` `User` | `401` `Invalid email or password` |
+| POST | `/api/auth/logout` | — | `204` | — |
+| GET | `/api/auth/me` | — | `200` `User` | `401` not logged in |
+
+```json
+{ "id": 3, "email": "allie@example.com", "displayName": "Allie" }
+```
+
+- **Validation:** `email` is a valid address, ≤ 254 chars, stored as typed but matched case-insensitively. `password` is 8–72 characters (BCrypt ignores anything past 72 bytes). `displayName` ≤ 60 chars, optional.
+- **Login errors don't say which part was wrong** ("Invalid email or password"), so the form can't be used to discover registered emails.
+- **Sessions** are stored in Postgres with Spring Session JDBC, so a Render redeploy or a free-tier sleep doesn't log anyone out. A session expires after **7 days** without activity. Spring Security issues a new session id on login (protection against session fixation).
+- **Cookie:** `HttpOnly` (JavaScript can't read it), `SameSite=Lax`, and `Secure` on Render (HTTPS only).
+- **CSRF protection:** because the browser sends the cookie automatically, other websites could otherwise make requests as the user. Spring Security's `CookieCsrfTokenRepository` sets a readable `XSRF-TOKEN` cookie; `http.ts` copies its value into an `X-XSRF-TOKEN` header on every `POST`, `PATCH` and `DELETE`. The React app calls `GET /api/auth/me` on startup, which also sets the cookie. A missing or wrong token returns `403`.
+- **On app start**, the client calls `GET /api/auth/me`: `200` shows the app, `401` shows the login page.
 
 ### 7.1 Items: `/api/items` (US2, Diana)
 
@@ -472,7 +497,8 @@ Definitions: `salesCount` = number of sales; `unitsSold` = sum of line quantitie
 | Sale form, `types.ts` | Required channel dropdown; add `channel` to `Sale` and `SaleInput` | Minh |
 | Sales list | Show the channel; optional channel filter | Minh |
 | Analytics | Replace the mock data with §7.4 | Kimberly |
-| Sign-up, login, logout | New pages; on any `401`, send the user to the login page | Hans |
+| Sign-up, login, logout | New pages using §7.0; check `GET /api/auth/me` on startup; on any `401`, go to the login page | Hans |
+| `http.ts` | Send the `X-XSRF-TOKEN` header (value of the `XSRF-TOKEN` cookie) on `POST`, `PATCH`, `DELETE` | Hans |
 
 Items and Expenses pages need no changes beyond the shared `401` handling.
 
@@ -555,10 +581,6 @@ Guiding rule (decided 2026-10-19): **match the `claude-demo` TypeScript design u
 
 ### Open
 
-**Q21. How login works.** Needed before any module can be tested end to end, because every endpoint now requires login.
-
-- To be decided next (see conversation); owner Hans.
-
 **Q17. Time zone for dates.** "Sales on Oct 18" and daily analytics buckets depend on a time zone: a sale at 9 PM Toronto time is already Oct 19 in UTC.
 
 - Recommendation: store timestamps in UTC (`TIMESTAMPTZ`, as the demo does); interpret analytics date ranges and group by day in `America/Toronto`.
@@ -585,6 +607,7 @@ Guiding rule (decided 2026-10-19): **match the `claude-demo` TypeScript design u
 | Q2 | What a sales channel is | New `channel` column: `IN_PERSON`, `ONLINE`, `COMMISSION`, `MISC` (the Lucidchart's four sale types). No storefront name for D2. |
 | Q3 | Selling more than is in stock | Rejected with a 400 (as the demo). |
 | Q4 | Separate data per account | **Private per account.** `users` table; `user_id` on `items`, `sales`, `expenses`; every query scoped to the logged-in user; other accounts' ids return 404. One account = one business (no staff accounts). |
+| Q21 | How login works | **Session cookie** via Spring Security, sessions stored in Postgres (Spring Session JDBC), CSRF token in a cookie + header. Details in §7.0. Owner: Hans. |
 | Q5 | How stock is tracked | A `quantity` column changed by sales and expenses (as the demo). A stock-movements ledger may come later. |
 | Q6 | Money | Integer cents everywhere (as the demo). One currency; per-item currency is not in D2. |
 | Q7 | Deleting items | Hard delete; past lines keep the item name (as the demo). Lucidchart-style deactivation comes later. |
