@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { HomeLayout } from '../components/HomeLayout';
 import { useAnalyticsSummary } from '../hooks/useAnalyticsSummary';
 import { useItemCount } from '../hooks/useItemCount';
 import { useLowStock } from '../hooks/useLowStock';
@@ -39,21 +38,19 @@ export function HomePage() {
   ];
 
   return (
-    <HomeLayout>
-      <section className="page home">
-        <h1>Welcome back</h1>
-        <p className="muted">Pick a dashboard to get started.</p>
-        <KpiStrip summary={summary} />
-        <div className="home-cards">
-          {dashboards.map(({ to, title, preview }) => (
-            <Link key={to} to={to} className="home-card">
-              <h2 className="home-card__title">{title}</h2>
-              {preview}
-            </Link>
-          ))}
-        </div>
-      </section>
-    </HomeLayout>
+    <section className="page home">
+      <h1>Welcome back</h1>
+      <p className="muted">Pick a dashboard to get started.</p>
+      <KpiStrip summary={summary} />
+      <div className="home-cards">
+        {dashboards.map(({ to, title, preview }) => (
+          <Link key={to} to={to} className="home-card">
+            <h2 className="home-card__title">{title}</h2>
+            {preview}
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }
 

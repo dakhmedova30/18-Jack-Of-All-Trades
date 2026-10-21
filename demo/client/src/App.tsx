@@ -9,10 +9,9 @@ import { SalesPage } from './pages/sales/SalesPage';
 export function App() {
   return (
     <Routes>
-      {/* Home has its own minimal shell (logo only); dashboards share AppLayout's
-          sidebar nav, so once you're inside one you never need to come back here. */}
-      <Route index element={<HomePage />} />
+      {/* Every page, Home included, shares AppLayout's sidebar nav. */}
       <Route element={<AppLayout />}>
+        <Route index element={<HomePage />} />
         <Route path="inventory" element={<InventoryPage />} />
         <Route path="sales" element={<SalesPage />} />
         <Route path="expenses" element={<ExpensesPage />} />
