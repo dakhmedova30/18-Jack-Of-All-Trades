@@ -122,6 +122,68 @@ describe.skipIf(!testDatabaseUrl)('API', () => {
       expect(remaining.body.data.map((i: { id: number }) => i.id)).toEqual([4]);
     });
 
+    it('sorts by a whitelisted column in either direction, and rejects unknown ones', async () => {
+      const rows = [
+        { name: 'banana', quantity: 3, unitPriceCents: 300 },
+        { name: 'Apple', quantity: 9, unitPriceCents: 100 },
+        { name: 'cherry', quantity: 1, unitPriceCents: 200 },
+      ];
+      for (const row of rows)
+        await request(app)
+          .post('/api/items')
+          .send({ ...candle, ...row });
+      const names = (res: request.Response) => res.body.data.map((i: { name: string }) => i.name);
+
+      // Case-insensitive name sort: "Apple" first, not after the lowercase names.
+      const byName = await request(app).get('/api/items?sort=name').expect(200);
+      expect(names(byName)).toEqual(['Apple', 'banana', 'cherry']);
+      const byQtyDesc = await request(app).get('/api/items?sort=quantity&order=desc').expect(200);
+      expect(names(byQtyDesc)).toEqual(['Apple', 'banana', 'cherry']);
+      const byPrice = await request(app).get('/api/items?sort=unitPriceCents').expect(200);
+      expect(names(byPrice)).toEqual(['Apple', 'cherry', 'banana']);
+      // Default is unchanged: id ascending.
+      const byDefault = await request(app).get('/api/items').expect(200);
+      expect(names(byDefault)).toEqual(['banana', 'Apple', 'cherry']);
+
+      await request(app).get('/api/items?sort=note').expect(400);
+      await request(app).get('/api/items?order=sideways').expect(400);
+    });
+
+    it("reports stock value and this month's top 3 sellers", async () => {
+      const soap = { name: 'Soap', quantity: 50, unitPriceCents: 700, tags: [] };
+      const ids: number[] = [];
+      for (const [name, quantity, unitPriceCents] of [
+        ['A', 50, 100],
+        ['B', 50, 200],
+        ['C', 50, 300],
+        ['D', 50, 400],
+      ] as const) {
+        const res = await request(app)
+          .post('/api/items')
+          .send({ ...soap, name, quantity, unitPriceCents })
+          .expect(201);
+        ids.push(res.body.id);
+      }
+      const thisMonth = new Date().toISOString();
+      const sell = (itemId: number, quantity: number, soldAt = thisMonth) =>
+        request(app)
+          .post('/api/sales')
+          .send({ soldAt, items: [{ itemId, quantity }] })
+          .expect(201);
+      await sell(ids[0]!, 5);
+      await sell(ids[1]!, 2);
+      await sell(ids[1]!, 2); // B: 4 total, across two sales
+      await sell(ids[2]!, 1);
+      await sell(ids[3]!, 9, '2020-01-15T00:00:00Z'); // D: long ago, not this month
+
+      const res = await request(app).get('/api/items/insights').expect(200);
+      expect(res.body.bestSellers.map((b: { name: string }) => b.name)).toEqual(['A', 'B', 'C']);
+      expect(res.body.bestSellers[1]).toMatchObject({ unitsSold: 4, revenueCents: 800 });
+      // Stock after sales: A 45, B 46, C 49, D 41 (the old sale still took stock).
+      expect(res.body.totalUnits).toBe(45 + 46 + 49 + 41);
+      expect(res.body.stockValueCents).toBe(45 * 100 + 46 * 200 + 49 * 300 + 41 * 400);
+    });
+
     it('reports low stock (at or below 5), naming the 5 lowest, lowest first', async () => {
       const quantities = [9, 0, 5, 6, 3, 1, 4, 2];
       for (const [i, quantity] of quantities.entries()) {
@@ -134,6 +196,12 @@ describe.skipIf(!testDatabaseUrl)('API', () => {
       expect(res.body.count).toBe(6); // 0, 1, 2, 3, 4, 5 — not 6 or 9
       expect(res.body.threshold).toBe(5);
       expect(res.body.items.map((i: { quantity: number }) => i.quantity)).toEqual([0, 1, 2, 3, 4]);
+
+      // `limit` lists more (the count is unaffected), and is validated.
+      const all = await request(app).get('/api/items/low-stock?limit=100').expect(200);
+      expect(all.body.count).toBe(6);
+      expect(all.body.items).toHaveLength(6);
+      await request(app).get('/api/items/low-stock?limit=0').expect(400);
     });
   });
 

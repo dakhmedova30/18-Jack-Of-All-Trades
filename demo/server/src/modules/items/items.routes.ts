@@ -4,6 +4,7 @@ import {
   bulkDeleteSchema,
   createItemSchema,
   listItemsQuerySchema,
+  lowStockQuerySchema,
   updateItemSchema,
 } from './items.schema.js';
 import type { ItemService } from './items.service.js';
@@ -13,8 +14,9 @@ import type { ItemService } from './items.service.js';
  * Thrown errors (validation, 404s, database errors) are handled by the error
  * middleware; Express 5 forwards rejected promises from async handlers to it.
  *
- *   GET    /api/items?page=1&pageSize=10&search=soap
- *   GET    /api/items/low-stock     count + the 5 lowest items at or below the threshold
+ *   GET    /api/items?page=1&pageSize=10&search=soap&sort=name&order=desc
+ *   GET    /api/items/insights      stock value + this month's top 3 sellers
+ *   GET    /api/items/low-stock?limit=5   count + the `limit` lowest items at or below the threshold
  *   GET    /api/items/:id
  *   POST   /api/items
  *   PATCH  /api/items/:id
@@ -33,9 +35,14 @@ export function createItemsRouter(service: ItemService): Router {
     res.json(await service.bulkDeleteItems(ids));
   });
 
-  // Must stay above GET /:id, or "low-stock" would be parsed as an item id.
-  router.get('/low-stock', async (_req, res) => {
-    res.json(await service.getLowStock());
+  // These must stay above GET /:id, or "low-stock"/"insights" would be parsed as an item id.
+  router.get('/insights', async (_req, res) => {
+    res.json(await service.getInsights());
+  });
+
+  router.get('/low-stock', async (req, res) => {
+    const { limit } = lowStockQuerySchema.parse(req.query);
+    res.json(await service.getLowStock(limit));
   });
 
   router.get('/:id', async (req, res) => {

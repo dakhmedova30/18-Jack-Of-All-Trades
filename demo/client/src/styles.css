@@ -106,6 +106,16 @@ code {
   background: rgb(255 255 255 / 0.06);
 }
 
+/* Pinned to the bottom of the sidebar, under the nav. */
+.sidebar__logout {
+  margin-top: auto;
+  width: 100%;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .sidebar__link.is-active {
   border-color: var(--color-sidebar-text);
 }
@@ -571,6 +581,120 @@ code {
   color: var(--color-danger);
 }
 
+/* ---------- Inventory: table, stat, panels ---------- */
+
+.inventory-stat {
+  align-self: flex-start;
+  min-width: 260px;
+}
+
+/* About 15 rows tall, then the table scrolls inside itself with the header pinned. */
+.inventory-table {
+  max-height: calc(15 * 2.6rem + 2.8rem);
+  overflow-y: auto;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.inventory-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-bg);
+}
+
+/* Sortable column headers look like the plain ones, plus a direction arrow. */
+.sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sort-button__arrow {
+  font-size: 0.7rem;
+  color: var(--color-muted);
+}
+
+.sort-button.is-active .sort-button__arrow {
+  color: var(--color-text);
+}
+
+.inventory-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.best-sellers__rank {
+  display: inline-block;
+  width: 1.5rem;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .inventory-panels {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Inventory: low stock panel ---------- */
+
+.low-stock {
+  gap: 0.6rem;
+}
+
+.low-stock__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* Fixed height with its own scrollbar, so a long list doesn't push the page down. */
+.low-stock__list {
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.low-stock__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.low-stock__row:last-child {
+  border-bottom: none;
+}
+
+.low-stock__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.low-stock__qty {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+}
+
+.low-stock__qty.is-out {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
 /* ---------- Home ---------- */
 
 .home-kpis {
@@ -1014,6 +1138,14 @@ code {
 
   .sidebar__nav {
     flex-direction: row;
+  }
+
+  /* In the phone top bar, sit at the far end instead of the bottom. */
+  .sidebar__logout {
+    margin-top: 0;
+    margin-left: auto;
+    width: auto;
+    flex-shrink: 0;
   }
 
   .content {

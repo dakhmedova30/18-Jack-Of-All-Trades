@@ -5,12 +5,30 @@ import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
 import { TagList } from '../../components/TagList';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useInventoryInsights } from '../../hooks/useInventoryInsights';
 import { useItems } from '../../hooks/useItems';
-import type { Item, ItemInput } from '../../types';
+import { useLowStock } from '../../hooks/useLowStock';
+import type {
+  InventoryInsights,
+  Item,
+  ItemInput,
+  ItemSortField,
+  LowStock,
+  SortOrder,
+} from '../../types';
 import { formatCents } from '../../utils/money';
 import { ItemFormModal } from './ItemFormModal';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 25;
+/** The server's max; enough to list every low item for any realistic shop. */
+const LOW_STOCK_LIST_LIMIT = 100;
+
+const SORTABLE_COLUMNS: { field: ItemSortField; label: string; numeric?: boolean }[] = [
+  { field: 'id', label: 'ID' },
+  { field: 'name', label: 'Name' },
+  { field: 'quantity', label: 'Qty', numeric: true },
+  { field: 'unitPriceCents', label: 'Unit price', numeric: true },
+];
 
 type FormState = { mode: 'create' } | { mode: 'edit'; item: Item } | null;
 type DeleteTarget = { kind: 'single'; item: Item } | { kind: 'bulk'; ids: number[] } | null;
@@ -18,8 +36,36 @@ type DeleteTarget = { kind: 'single'; item: Item } | { kind: 'bulk'; ids: number
 export function InventoryPage() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
+  const [sort, setSort] = useState<{ field: ItemSortField; order: SortOrder }>({
+    field: 'id',
+    order: 'asc',
+  });
   const search = useDebouncedValue(searchInput.trim());
-  const { data, error, loading, reload } = useItems({ page, pageSize: PAGE_SIZE, search });
+  const {
+    data,
+    error,
+    loading,
+    reload: reloadItems,
+  } = useItems({ page, pageSize: PAGE_SIZE, search, sort: sort.field, order: sort.order });
+  const lowStock = useLowStock(LOW_STOCK_LIST_LIMIT);
+  const insights = useInventoryInsights();
+
+  // Any add/edit/delete can change what's low and what stock is worth, so refresh all together.
+  function reload() {
+    reloadItems();
+    lowStock.reload();
+    insights.reload();
+  }
+
+  /** Clicking the current sort column flips its direction; a new column starts ascending. */
+  function toggleSort(field: ItemSortField) {
+    setSort((current) =>
+      current.field === field
+        ? { field, order: current.order === 'asc' ? 'desc' : 'asc' }
+        : { field, order: 'asc' },
+    );
+    setPage(1);
+  }
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [formState, setFormState] = useState<FormState>(null);
@@ -67,14 +113,19 @@ export function InventoryPage() {
 
     // If we just emptied the last page, step back one page instead of showing nothing.
     const removedFromPage = items.filter((item) => ids.includes(item.id)).length;
-    if (page > 1 && removedFromPage === items.length) setPage(page - 1);
-    else reload();
+    if (page > 1 && removedFromPage === items.length) {
+      setPage(page - 1);
+      lowStock.reload();
+      insights.reload();
+    } else reload();
   }
 
   const isEmpty = data !== undefined && data.total === 0;
 
   return (
     <section className="page">
+      <StockValueStat data={insights.data} loading={insights.loading} />
+
       <div className="toolbar">
         <div className="toolbar__actions">
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
@@ -113,7 +164,7 @@ export function InventoryPage() {
         </div>
       )}
 
-      <div className={`table-wrap${loading && data ? ' is-loading' : ''}`}>
+      <div className={`table-wrap inventory-table${loading && data ? ' is-loading' : ''}`}>
         <table className="table">
           <thead>
             <tr>
@@ -125,10 +176,29 @@ export function InventoryPage() {
                   aria-label="Select all items on this page"
                 />
               </th>
-              <th>ID</th>
-              <th>Name</th>
-              <th className="numeric">Qty</th>
-              <th className="numeric">Unit price</th>
+              {SORTABLE_COLUMNS.map(({ field, label, numeric }) => {
+                const active = sort.field === field;
+                return (
+                  <th
+                    key={field}
+                    className={numeric ? 'numeric' : undefined}
+                    aria-sort={
+                      active ? (sort.order === 'asc' ? 'ascending' : 'descending') : 'none'
+                    }
+                  >
+                    <button
+                      type="button"
+                      className={`sort-button${active ? ' is-active' : ''}`}
+                      onClick={() => toggleSort(field)}
+                    >
+                      {label}
+                      <span className="sort-button__arrow" aria-hidden="true">
+                        {active ? (sort.order === 'asc' ? '▲' : '▼') : '↕'}
+                      </span>
+                    </button>
+                  </th>
+                );
+              })}
               <th>Tags</th>
               <th className="table__action">Delete</th>
             </tr>
@@ -191,6 +261,11 @@ export function InventoryPage() {
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}
 
+      <div className="inventory-panels">
+        <LowStockPanel {...lowStock} />
+        <BestSellersPanel {...insights} />
+      </div>
+
       {formState && (
         <ItemFormModal
           item={formState.mode === 'edit' ? formState.item : undefined}
@@ -212,5 +287,121 @@ export function InventoryPage() {
         />
       )}
     </section>
+  );
+}
+
+interface LowStockPanelProps {
+  data?: LowStock;
+  error?: string;
+  loading: boolean;
+  reload: () => void;
+}
+
+/** Every item at or below the low-stock threshold, lowest first, in a scrollable list. */
+function LowStockPanel({ data, error, loading, reload }: LowStockPanelProps) {
+  return (
+    <div className="card low-stock">
+      <div className="low-stock__header">
+        <h2>Low stock{data ? ` (${data.count})` : ''}</h2>
+        {data && <span className="muted">{data.threshold} or fewer in stock</span>}
+      </div>
+      {error ? (
+        <div className="banner banner--error" role="alert">
+          Couldn't load low stock: {error}{' '}
+          <button type="button" className="link-button" onClick={reload}>
+            Retry
+          </button>
+        </div>
+      ) : !data ? (
+        <p className="empty-state">{loading ? 'Loading…' : 'No data.'}</p>
+      ) : data.count === 0 ? (
+        <p className="empty-state">Nothing is low on stock.</p>
+      ) : (
+        <>
+          <ul className="low-stock__list">
+            {data.items.map((item) => (
+              <li key={item.id} className="low-stock__row">
+                <span className="low-stock__name">{item.name}</span>
+                <span className={`low-stock__qty${item.quantity === 0 ? ' is-out' : ''}`}>
+                  {item.quantity === 0 ? 'Out of stock' : `${item.quantity} left`}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {data.count > data.items.length && (
+            <p className="muted">
+              Showing the {data.items.length} lowest of {data.count}.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Total stock value at selling price, shown above the table. */
+function StockValueStat({ data, loading }: { data?: InventoryInsights; loading: boolean }) {
+  return (
+    <div className="stat-card stat-card--neutral inventory-stat">
+      <span className="stat-card__label">Stock value · at selling price</span>
+      <span className="stat-card__value">
+        {data ? formatCents(data.stockValueCents) : loading ? '…' : '—'}
+      </span>
+      {data && (
+        <span className="stat-card__detail">{data.totalUnits.toLocaleString()} units in stock</span>
+      )}
+    </div>
+  );
+}
+
+interface BestSellersPanelProps {
+  data?: InventoryInsights;
+  error?: string;
+  loading: boolean;
+  reload: () => void;
+}
+
+/** This month's top 3 items by units sold. */
+function BestSellersPanel({ data, error, loading, reload }: BestSellersPanelProps) {
+  const month = data
+    ? new Date(data.periodStart).toLocaleDateString('en-CA', {
+        month: 'long',
+        timeZone: 'UTC',
+      })
+    : '';
+
+  return (
+    <div className="card low-stock">
+      <div className="low-stock__header">
+        <h2>Best sellers</h2>
+        {data && <span className="muted">{month}, by units sold</span>}
+      </div>
+      {error ? (
+        <div className="banner banner--error" role="alert">
+          Couldn't load best sellers: {error}{' '}
+          <button type="button" className="link-button" onClick={reload}>
+            Retry
+          </button>
+        </div>
+      ) : !data ? (
+        <p className="empty-state">{loading ? 'Loading…' : 'No data.'}</p>
+      ) : data.bestSellers.length === 0 ? (
+        <p className="empty-state">No sales yet this month.</p>
+      ) : (
+        <ol className="low-stock__list best-sellers">
+          {data.bestSellers.map((item, index) => (
+            <li key={item.id} className="low-stock__row">
+              <span className="low-stock__name">
+                <span className="best-sellers__rank">{index + 1}</span>
+                {item.name}
+              </span>
+              <span className="low-stock__qty">
+                {item.unitsSold} sold · {formatCents(item.revenueCents)}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
   );
 }

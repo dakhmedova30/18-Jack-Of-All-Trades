@@ -1,5 +1,5 @@
 import type { Queryable } from '../../db/database.js';
-import type { CreateItemInput, UpdateItemInput } from './items.schema.js';
+import type { CreateItemInput, ItemSortField, UpdateItemInput } from './items.schema.js';
 import { toItem, type Item, type ItemRow } from './items.types.js';
 
 /** Data access only: SQL lives here and nowhere else. */
@@ -8,7 +8,18 @@ export interface ItemPageQuery {
   search?: string;
   limit: number;
   offset: number;
+  sort?: ItemSortField;
+  order?: 'asc' | 'desc';
 }
+
+/** Whitelisted ORDER BY expressions; user input never reaches the SQL directly.
+ *  Names sort case-insensitively, so "apple" doesn't land after "Zebra". */
+const ORDER_BY_FIELD = {
+  id: 'id',
+  name: 'lower(name)',
+  quantity: 'quantity',
+  unitPriceCents: 'unit_price_cents',
+} as const satisfies Record<ItemSortField, string>;
 
 const COLUMN_BY_FIELD = {
   name: 'name',
@@ -29,7 +40,7 @@ export function createItemRepository(db: Queryable) {
     return rows[0] ? toItem(rows[0]) : undefined;
   }
 
-  async function findPage({ search, limit, offset }: ItemPageQuery) {
+  async function findPage({ search, limit, offset, sort = 'id', order = 'asc' }: ItemPageQuery) {
     const filterParams: string[] = [];
     let where = '';
     if (search) {
@@ -43,7 +54,10 @@ export function createItemRepository(db: Queryable) {
     );
     const limitIndex = filterParams.length + 1;
     const { rows } = await db.query<ItemRow>(
-      `SELECT * FROM items ${where} ORDER BY id ASC LIMIT $${limitIndex} OFFSET $${limitIndex + 1}`,
+      // id breaks ties, so rows with equal values keep a stable order across pages.
+      `SELECT * FROM items ${where}
+       ORDER BY ${ORDER_BY_FIELD[sort]} ${order === 'desc' ? 'DESC' : 'ASC'}, id ASC
+       LIMIT $${limitIndex} OFFSET $${limitIndex + 1}`,
       [...filterParams, limit, offset],
     );
 
@@ -127,6 +141,48 @@ export function createItemRepository(db: Queryable) {
     return { count: countResult.rows[0]?.total ?? 0, items: rows };
   }
 
+  /** Total value of everything in stock at selling price, plus total units. */
+  async function stockTotals(): Promise<{ valueCents: number; units: number }> {
+    const { rows } = await db.query<{ value_cents: string; units: string }>(
+      `SELECT COALESCE(SUM(quantity::bigint * unit_price_cents), 0) AS value_cents,
+              COALESCE(SUM(quantity), 0) AS units
+       FROM items`,
+    );
+    return { valueCents: Number(rows[0]!.value_cents), units: Number(rows[0]!.units) };
+  }
+
+  /**
+   * The `limit` items with the most units sold in [from, to), most first.
+   * Only lines still linked to an inventory item count: a deleted item isn't
+   * in the inventory anymore, so it has no place in this list.
+   */
+  async function bestSellers(from: Date, to: Date, limit: number) {
+    const { rows } = await db.query<{
+      id: number;
+      name: string;
+      units_sold: number;
+      revenue_cents: number;
+    }>(
+      `SELECT i.id, i.name,
+              SUM(si.quantity)::int AS units_sold,
+              SUM(si.total_cents)::int AS revenue_cents
+       FROM sale_items si
+       JOIN sales s ON s.id = si.sale_id
+       JOIN items i ON i.id = si.item_id
+       WHERE s.sold_at >= $1 AND s.sold_at < $2
+       GROUP BY i.id, i.name
+       ORDER BY units_sold DESC, revenue_cents DESC, i.name ASC
+       LIMIT $3`,
+      [from.toISOString(), to.toISOString(), limit],
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      unitsSold: row.units_sold,
+      revenueCents: row.revenue_cents,
+    }));
+  }
+
   return {
     findById,
     findPage,
@@ -137,6 +193,8 @@ export function createItemRepository(db: Queryable) {
     exists,
     adjustQuantity,
     findLowStock,
+    stockTotals,
+    bestSellers,
   };
 }
 

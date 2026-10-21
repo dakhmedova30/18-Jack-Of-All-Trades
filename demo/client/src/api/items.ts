@@ -1,20 +1,45 @@
-import type { Item, ItemInput, LowStock, Paginated } from '../types';
+import type {
+  InventoryInsights,
+  Item,
+  ItemInput,
+  ItemSortField,
+  LowStock,
+  Paginated,
+  SortOrder,
+} from '../types';
 import { apiRequest } from './http';
 
 export interface ListItemsParams {
   page: number;
   pageSize: number;
   search?: string;
+  /** Server default: id ascending. */
+  sort?: ItemSortField;
+  order?: SortOrder;
 }
 
-export function listItems({ page, pageSize, search }: ListItemsParams): Promise<Paginated<Item>> {
+export function listItems({
+  page,
+  pageSize,
+  search,
+  sort,
+  order,
+}: ListItemsParams): Promise<Paginated<Item>> {
   const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (search) query.set('search', search);
+  if (sort) query.set('sort', sort);
+  if (order) query.set('order', order);
   return apiRequest(`/items?${query}`);
 }
 
-export function getLowStock(): Promise<LowStock> {
-  return apiRequest('/items/low-stock');
+/** @param limit How many of the lowest items to list (server default 5, max 100). */
+export function getLowStock(limit?: number): Promise<LowStock> {
+  return apiRequest(`/items/low-stock${limit !== undefined ? `?limit=${limit}` : ''}`);
+}
+
+/** Stock value and this month's top 3 sellers. */
+export function getInventoryInsights(): Promise<InventoryInsights> {
+  return apiRequest('/items/insights');
 }
 
 export function createItem(input: ItemInput): Promise<Item> {

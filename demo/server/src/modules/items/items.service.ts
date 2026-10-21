@@ -7,21 +7,40 @@ import type { Item } from './items.types.js';
 /** An item counts as "low stock" at or below this quantity. A fixed rule for
  *  now; a per-item reorder level would replace it if the schema gains one. */
 export const LOW_STOCK_THRESHOLD = 5;
-/** How many of the lowest-stock items to name in the home page warning. */
-const LOW_STOCK_PREVIEW_LIMIT = 5;
 
 export interface LowStockSummary {
   count: number;
   threshold: number;
-  /** Up to LOW_STOCK_PREVIEW_LIMIT items, lowest quantity first. */
+  /** Up to the requested limit (5 by default), lowest quantity first. */
   items: { id: number; name: string; quantity: number }[];
+}
+
+const BEST_SELLERS_LIMIT = 3;
+
+export interface InventoryInsights {
+  /** Quantity x unit (selling) price, summed over every item. */
+  stockValueCents: number;
+  totalUnits: number;
+  /** Calendar month (UTC) the best sellers cover: [start, end). */
+  periodStart: string;
+  periodEnd: string;
+  /** Top items by units sold this month, most first. */
+  bestSellers: { id: number; name: string; unitsSold: number; revenueCents: number }[];
 }
 
 /** Business rules for inventory. No HTTP or SQL details in here. */
 export function createItemService(repository: ItemRepository) {
-  async function listItems({ page, pageSize, search }: ListItemsQuery): Promise<Paginated<Item>> {
+  async function listItems({
+    page,
+    pageSize,
+    search,
+    sort,
+    order,
+  }: ListItemsQuery): Promise<Paginated<Item>> {
     const { items, total } = await repository.findPage({
       search: search || undefined,
+      sort,
+      order,
       limit: pageSize,
       offset: toOffset(page, pageSize),
     });
@@ -52,12 +71,28 @@ export function createItemService(repository: ItemRepository) {
     return { deleted: await repository.removeMany([...new Set(ids)]) };
   }
 
-  async function getLowStock(): Promise<LowStockSummary> {
-    const { count, items } = await repository.findLowStock(
-      LOW_STOCK_THRESHOLD,
-      LOW_STOCK_PREVIEW_LIMIT,
-    );
+  /** `limit` defaults to 5 for the home page tile; the Inventory page asks for more. */
+  async function getLowStock(limit = 5): Promise<LowStockSummary> {
+    const { count, items } = await repository.findLowStock(LOW_STOCK_THRESHOLD, limit);
     return { count, threshold: LOW_STOCK_THRESHOLD, items };
+  }
+
+  /** Stock value and this month's best sellers, for the Inventory page. */
+  async function getInsights(now = new Date()): Promise<InventoryInsights> {
+    // UTC calendar month, matching how Analytics buckets dates.
+    const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    const [totals, bestSellers] = await Promise.all([
+      repository.stockTotals(),
+      repository.bestSellers(periodStart, periodEnd, BEST_SELLERS_LIMIT),
+    ]);
+    return {
+      stockValueCents: totals.valueCents,
+      totalUnits: totals.units,
+      periodStart: periodStart.toISOString(),
+      periodEnd: periodEnd.toISOString(),
+      bestSellers,
+    };
   }
 
   return {
@@ -68,6 +103,7 @@ export function createItemService(repository: ItemRepository) {
     deleteItem,
     bulkDeleteItems,
     getLowStock,
+    getInsights,
   };
 }
 

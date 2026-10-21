@@ -13,11 +13,25 @@ export interface Item {
 
 export type ItemInput = Pick<Item, 'name' | 'quantity' | 'unitPriceCents' | 'tags' | 'note'>;
 
+export type ItemSortField = 'id' | 'name' | 'quantity' | 'unitPriceCents';
+export type SortOrder = 'asc' | 'desc';
+
+export interface InventoryInsights {
+  /** Quantity x unit (selling) price, summed over every item. */
+  stockValueCents: number;
+  totalUnits: number;
+  /** The calendar month the best sellers cover: [start, end). */
+  periodStart: string;
+  periodEnd: string;
+  /** Top 3 items by units sold this month, most first. */
+  bestSellers: { id: number; name: string; unitsSold: number; revenueCents: number }[];
+}
+
 export interface LowStock {
   /** Every item at or below `threshold`, not just the ones listed in `items`. */
   count: number;
   threshold: number;
-  /** Up to 5 of those items, lowest quantity first. */
+  /** Up to the requested limit (5 by default) of those items, lowest quantity first. */
   items: Pick<Item, 'id' | 'name' | 'quantity'>[];
 }
 
