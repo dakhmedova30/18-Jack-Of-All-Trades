@@ -2,7 +2,9 @@ import { Link } from 'react-router-dom';
 import { useAnalyticsSummary } from '../hooks/useAnalyticsSummary';
 import { useItemCount } from '../hooks/useItemCount';
 import { useLowStock } from '../hooks/useLowStock';
-import type { AnalyticsSummary, LowStock } from '../types';
+import { useRecentSales } from '../hooks/useRecentSales';
+import type { AnalyticsSummary, LowStock, Sale } from '../types';
+import { formatDate } from '../utils/date';
 import { formatCents } from '../utils/money';
 import {
   AnalyticsPreview,
@@ -50,7 +52,70 @@ export function HomePage() {
           </Link>
         ))}
       </div>
+      <RecentSales />
     </section>
+  );
+}
+
+const RECENT_SALES_COUNT = 5;
+const ITEMS_NAMED_PER_SALE = 2;
+
+/** "Ceramic planter ×2, Soap ×1 +1 more": the first few line items, the rest counted. */
+function describeSaleItems(sale: Sale): string {
+  const named = sale.items
+    .slice(0, ITEMS_NAMED_PER_SALE)
+    .map((item) => `${item.itemName} ×${item.quantity}`)
+    .join(', ');
+  const remaining = sale.items.length - ITEMS_NAMED_PER_SALE;
+  return remaining > 0 ? `${named} +${remaining} more` : named;
+}
+
+/** The latest sales by sale date. Display only: rows don't open the sale. */
+function RecentSales() {
+  const { sales, error, loading, reload } = useRecentSales(RECENT_SALES_COUNT);
+
+  return (
+    <div className="card home-recent">
+      <div className="home-recent__header">
+        <h2>Recent sales</h2>
+        <Link to="/sales" className="home-recent__link">
+          View all sales →
+        </Link>
+      </div>
+      {error ? (
+        <div className="banner banner--error" role="alert">
+          Couldn't load recent sales: {error}{' '}
+          <button type="button" className="link-button" onClick={reload}>
+            Retry
+          </button>
+        </div>
+      ) : !sales ? (
+        <p className="empty-state">{loading ? 'Loading recent sales…' : 'No data.'}</p>
+      ) : sales.length === 0 ? (
+        <p className="empty-state">No sales recorded yet.</p>
+      ) : (
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Items</th>
+                <th className="numeric">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sales.map((sale) => (
+                <tr key={sale.id}>
+                  <td className="home-recent__date">{formatDate(sale.soldAt)}</td>
+                  <td className="home-recent__items">{describeSaleItems(sale)}</td>
+                  <td className="numeric home-recent__amount">+{formatCents(sale.totalCents)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
 

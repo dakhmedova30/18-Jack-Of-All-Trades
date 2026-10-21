@@ -584,6 +584,43 @@ code {
   margin-top: 1rem;
 }
 
+.home-recent {
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+}
+
+.home-recent__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.home-recent__link {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.home-recent__date {
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+
+.home-recent__items {
+  /* One line per sale on desktop; long item names get cut with an ellipsis. */
+  max-width: 0;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-recent__amount {
+  white-space: nowrap;
+  color: #1a7f4b;
+  font-weight: 600;
+}
+
 .stat-card__detail {
   color: var(--color-muted);
   font-size: 0.8rem;
