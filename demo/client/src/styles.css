@@ -754,6 +754,29 @@ code {
   gap: 0.75rem;
 }
 
+/*
+ * All four chart cards share one height, sized so both rows fit on screen
+ * under the header and stat cards (~280px of the viewport, measured at
+ * desktop widths). Each chart then grows/shrinks to fill whatever its card has
+ * left after the title, legend and insight line, which is what keeps the four
+ * cards equal even though their extras differ. The min-height stops short
+ * windows from crushing the charts; they scroll instead.
+ */
+.analytics-row .analytics-card {
+  height: max(260px, calc((100vh - 280px) / 2));
+}
+
+.analytics-card > .viz,
+.analytics-donut {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.analytics-donut .viz {
+  width: auto;
+  height: 100%;
+}
+
 .analytics-card__footer {
   display: flex;
   align-items: flex-end;
@@ -920,6 +943,16 @@ code {
   .analytics-row,
   .analytics-stats {
     grid-template-columns: 1fr;
+  }
+
+  /* Stacked one per row on phones, so natural heights are fine again. */
+  .analytics-row .analytics-card {
+    height: auto;
+  }
+
+  .analytics-card > .viz,
+  .analytics-donut {
+    flex: none;
   }
 
   /* The sale/expense line grids are too narrow-column for the modal's mobile
