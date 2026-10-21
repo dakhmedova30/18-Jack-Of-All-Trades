@@ -91,6 +91,14 @@ export interface AnalyticsTagSeries {
 
 export type AnalyticsRange = 'week' | 'month' | 'ytd' | '12months';
 
+/** Current stock by first tag. A snapshot, so the "Show by" range doesn't apply. */
+export interface InventoryByTag {
+  /** Largest first; tags past the top 7 fold into "Other" (last). */
+  byTag: { label: string; quantity: number; itemCount: number }[];
+  totalQuantity: number;
+  totalItems: number;
+}
+
 export interface AnalyticsSummary {
   /** Sum of revenueSeries / expenseSeries — i.e. scoped to `range`, not all-time. */
   totalRevenueCents: number;

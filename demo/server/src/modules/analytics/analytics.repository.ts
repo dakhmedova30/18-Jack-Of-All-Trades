@@ -50,7 +50,21 @@ export function createAnalyticsRepository(db: Queryable) {
     }));
   }
 
-  return { revenueLines, expenseLines };
+  /** Current stock grouped by each item's first tag ('Untagged' if none), largest first.
+   *  A snapshot: items only store today's quantity, so there's no date filter. */
+  async function stockByTag(): Promise<{ tag: string; quantity: number; itemCount: number }[]> {
+    const { rows } = await db.query<{ tag: string; quantity: number; item_count: number }>(
+      `SELECT COALESCE(tags[1], 'Untagged') AS tag,
+              SUM(quantity)::int AS quantity,
+              COUNT(*)::int AS item_count
+       FROM items
+       GROUP BY 1
+       ORDER BY quantity DESC, tag ASC`,
+    );
+    return rows.map((row) => ({ tag: row.tag, quantity: row.quantity, itemCount: row.item_count }));
+  }
+
+  return { revenueLines, expenseLines, stockByTag };
 }
 
 export type AnalyticsRepository = ReturnType<typeof createAnalyticsRepository>;

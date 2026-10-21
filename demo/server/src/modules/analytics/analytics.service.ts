@@ -142,6 +142,16 @@ export function buildTagSeries(
 
 const MAX_TAG_SERIES = 3;
 
+/** Horizontal bars have room for more categories than the stacked/donut charts. */
+const MAX_INVENTORY_TAGS = 7;
+
+export interface InventoryByTag {
+  /** Units in stock per first tag, largest first; tags past the top 7 fold into "Other" (last). */
+  byTag: { label: string; quantity: number; itemCount: number }[];
+  totalQuantity: number;
+  totalItems: number;
+}
+
 export interface GetSummaryOptions {
   now?: Date;
   /** The page-wide "Show by" range filter. */
@@ -192,7 +202,33 @@ export function createAnalyticsService(db: Db) {
     };
   }
 
-  return { getSummary };
+  /** Current stock by tag for the Inventory Overview chart. Not affected by "Show by". */
+  async function getInventoryByTag(): Promise<InventoryByTag> {
+    const rows = await repository.stockByTag();
+    const kept = rows.slice(0, MAX_INVENTORY_TAGS);
+    const folded = rows.slice(MAX_INVENTORY_TAGS);
+
+    const byTag = kept.map((row) => ({
+      label: row.tag,
+      quantity: row.quantity,
+      itemCount: row.itemCount,
+    }));
+    if (folded.length > 0) {
+      byTag.push({
+        label: OTHER_LABEL,
+        quantity: folded.reduce((sum, row) => sum + row.quantity, 0),
+        itemCount: folded.reduce((sum, row) => sum + row.itemCount, 0),
+      });
+    }
+
+    return {
+      byTag,
+      totalQuantity: rows.reduce((sum, row) => sum + row.quantity, 0),
+      totalItems: rows.reduce((sum, row) => sum + row.itemCount, 0),
+    };
+  }
+
+  return { getSummary, getInventoryByTag };
 }
 
 export type AnalyticsService = ReturnType<typeof createAnalyticsService>;

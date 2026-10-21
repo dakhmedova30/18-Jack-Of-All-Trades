@@ -741,16 +741,10 @@ code {
   gap: 1.5rem;
 }
 
-.analytics-top {
+/* Each chart row is two equal columns; minmax(0, 1fr) lets SVGs shrink instead of overflowing. */
+.analytics-row {
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 1rem;
-  align-items: stretch;
-}
-
-.analytics-bottom {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
 }
 
@@ -786,8 +780,8 @@ code {
 }
 
 .analytics-stats {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
@@ -860,6 +854,12 @@ code {
   font-size: 10px;
 }
 
+/* Bar-chart category and value labels are read, not just glanced at. */
+.viz-label--bar {
+  fill: var(--color-text);
+  font-size: 12px;
+}
+
 .viz-donut-label {
   font-size: 11px;
   font-weight: 700;
@@ -917,8 +917,8 @@ code {
     align-items: stretch;
   }
 
-  .analytics-top,
-  .analytics-bottom {
+  .analytics-row,
+  .analytics-stats {
     grid-template-columns: 1fr;
   }
 

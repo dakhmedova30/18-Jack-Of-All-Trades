@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useAnalyticsSummary } from '../../hooks/useAnalyticsSummary';
+import { useInventoryByTag } from '../../hooks/useInventoryByTag';
 import { formatCents } from '../../utils/money';
-import { ChartLegend, DonutChart, LineChart, StackedBarChart } from './charts';
+import { ChartLegend, DonutChart, HorizontalBarChart, LineChart, StackedBarChart } from './charts';
 import type { AnalyticsRange, AnalyticsSummary } from '../../types';
 
 const RANGE_OPTIONS: { value: AnalyticsRange; label: string }[] = [
@@ -37,7 +38,8 @@ export function AnalyticsPage() {
           <h1>Analytics</h1>
           <p className="muted">
             Revenue, expenses and sales group by each record's first tag (top 3, the rest folded
-            into "Other"). "Show by" sets the time range for everything on this page.
+            into "Other"). "Show by" sets the time range for everything on this page except
+            Inventory Overview, which always shows current stock.
           </p>
         </div>
         <label className="analytics-select">
@@ -87,7 +89,25 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
 
   return (
     <>
-      <div className="analytics-top">
+      <div className="analytics-stats">
+        <StatCard
+          label="Net Profit"
+          value={formatCents(data.netProfitCents)}
+          tone={netProfitTone}
+        />
+        <StatCard
+          label="Total Revenue"
+          value={formatCents(data.totalRevenueCents)}
+          tone="neutral"
+        />
+        <StatCard
+          label="Total Expenses"
+          value={formatCents(data.totalExpensesCents)}
+          tone="neutral"
+        />
+      </div>
+
+      <div className="analytics-row">
         <div className="card analytics-card">
           <h2>Revenue Overview</h2>
           {data.revenueSeries.length === 0 ? (
@@ -107,35 +127,18 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
           )}
         </div>
 
-        <div className="analytics-stats">
-          <StatCard
-            label="Net Profit"
-            value={formatCents(data.netProfitCents)}
-            tone={netProfitTone}
-          />
-          <StatCard
-            label="Total Revenue"
-            value={formatCents(data.totalRevenueCents)}
-            tone="neutral"
-          />
-          <StatCard
-            label="Total Expenses"
-            value={formatCents(data.totalExpensesCents)}
-            tone="neutral"
-          />
-        </div>
-      </div>
-
-      <div className="analytics-bottom">
         <div className="card analytics-card">
           <h2>Expenses Overview</h2>
           {data.expenseSeries.length === 0 ? (
             <p className="empty-state">No expenses in {rangeDescription(range)}.</p>
           ) : (
             <>
+              {/* Same proportions as the Revenue line chart, now that they sit side by side. */}
               <StackedBarChart
                 categories={data.bucketLabels}
                 series={data.expenseSeries}
+                width={600}
+                height={230}
                 ariaLabel="Expenses overview"
               />
               <ChartLegend labels={data.expenseSeries.map((s) => s.label)} />
@@ -147,7 +150,9 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
               : `No expenses recorded in ${rangeDescription(range)}.`}
           </p>
         </div>
+      </div>
 
+      <div className="analytics-row">
         <div className="card analytics-card">
           <h2>Sales Overview</h2>
           {data.salesByTag.length === 0 ? (
@@ -167,8 +172,58 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
               : `No sales recorded in ${rangeDescription(range)}.`}
           </p>
         </div>
+
+        <InventoryOverview />
       </div>
     </>
+  );
+}
+
+/**
+ * Current stock (units) by first tag. Loads separately from the summary since
+ * it's a snapshot that "Show by" doesn't affect, so changing the range doesn't
+ * refetch it.
+ */
+function InventoryOverview() {
+  const { data, error, loading, reload } = useInventoryByTag();
+  const top = data?.byTag[0];
+
+  return (
+    <div className="card analytics-card">
+      <h2>Inventory Overview</h2>
+      {error ? (
+        <p className="empty-state">
+          Couldn't load inventory: {error}{' '}
+          <button type="button" className="link-button" onClick={reload}>
+            Retry
+          </button>
+        </p>
+      ) : !data ? (
+        <p className="empty-state">{loading ? 'Loading inventory…' : 'No inventory data.'}</p>
+      ) : data.totalItems === 0 ? (
+        <p className="empty-state">No products in inventory yet.</p>
+      ) : (
+        <>
+          <HorizontalBarChart
+            bars={data.byTag.map((t) => ({
+              label: t.label,
+              value: t.quantity,
+              detail: `${t.itemCount} ${t.itemCount === 1 ? 'product' : 'products'}`,
+            }))}
+            unit="units"
+            ariaLabel="Units in stock by tag"
+          />
+          <div className="analytics-card__footer">
+            <span className="muted">Units in stock</span>
+          </div>
+        </>
+      )}
+      <p className="analytics-insight">
+        {data && top && data.totalQuantity > 0
+          ? `${data.totalQuantity.toLocaleString()} units across ${data.totalItems} products; "${top.label}" holds the most stock (${Math.round((top.quantity / data.totalQuantity) * 100)}%).`
+          : 'Current stock, not affected by "Show by".'}
+      </p>
+    </div>
   );
 }
 

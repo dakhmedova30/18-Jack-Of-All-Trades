@@ -160,6 +160,99 @@ export function StackedBarChart({
   );
 }
 
+export interface HorizontalBar {
+  label: string;
+  value: number;
+  /** Extra hover text, e.g. "3 products". */
+  detail?: string;
+}
+
+interface HorizontalBarChartProps {
+  bars: HorizontalBar[];
+  width?: number;
+  ariaLabel: string;
+  /** Unit for value labels and hover text, e.g. "units". */
+  unit: string;
+}
+
+const HBAR = { row: 28, bar: 16, labelWidth: 110, valueWidth: 56, top: 4 };
+const MAX_LABEL_CHARS = 15;
+
+/**
+ * One bar per category (y axis), length = value (x axis). A single series, so
+ * every bar shares one color (category is read from the label, not the hue);
+ * a folded "Other" bar gets the neutral color, as everywhere else.
+ */
+export function HorizontalBarChart({
+  bars,
+  width = 600,
+  ariaLabel,
+  unit,
+}: HorizontalBarChartProps) {
+  const height = HBAR.top * 2 + bars.length * HBAR.row;
+  const barStart = HBAR.labelWidth;
+  const innerW = width - HBAR.labelWidth - HBAR.valueWidth;
+  const max = Math.max(...bars.map((b) => b.value), 1);
+  const bottom = height - HBAR.top;
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={ariaLabel} className="viz">
+      {[0.25, 0.5, 0.75, 1].map((t) => (
+        <line
+          key={t}
+          x1={barStart + innerW * t}
+          x2={barStart + innerW * t}
+          y1={HBAR.top}
+          y2={bottom}
+          className="viz-grid"
+        />
+      ))}
+      <line x1={barStart} x2={barStart} y1={HBAR.top} y2={bottom} className="viz-axis" />
+      {bars.map((bar, i) => {
+        const y = HBAR.top + i * HBAR.row + (HBAR.row - HBAR.bar) / 2;
+        const barW = (bar.value / max) * innerW;
+        const label =
+          bar.label.length > MAX_LABEL_CHARS
+            ? `${bar.label.slice(0, MAX_LABEL_CHARS - 1)}…`
+            : bar.label;
+        const color = bar.label === OTHER_LABEL ? OTHER_COLOR : SERIES_COLORS[2];
+        return (
+          <g key={bar.label}>
+            <title>{`${bar.label}: ${bar.value.toLocaleString()} ${unit}${bar.detail ? ` (${bar.detail})` : ''}`}</title>
+            <text
+              x={barStart - 8}
+              y={y + HBAR.bar / 2}
+              textAnchor="end"
+              dominantBaseline="middle"
+              className="viz-label viz-label--bar"
+            >
+              {label}
+            </text>
+            {bar.value > 0 && (
+              <rect
+                x={barStart}
+                y={y}
+                width={Math.max(barW, 2)}
+                height={HBAR.bar}
+                fill={color}
+                rx={2}
+              />
+            )}
+            <text
+              x={barStart + barW + 6}
+              y={y + HBAR.bar / 2}
+              dominantBaseline="middle"
+              className="viz-label viz-label--bar"
+            >
+              {bar.value.toLocaleString()}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 export interface DonutSegment {
   label: string;
   value: number;

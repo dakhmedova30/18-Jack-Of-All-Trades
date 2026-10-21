@@ -18,5 +18,10 @@ export function createAnalyticsRouter(service: AnalyticsService): Router {
     res.json(await service.getSummary({ range }));
   });
 
+  /** GET /api/analytics/inventory — current stock by first tag (a snapshot; no `range`). */
+  router.get('/inventory', async (_req, res) => {
+    res.json(await service.getInventoryByTag());
+  });
+
   return router;
 }

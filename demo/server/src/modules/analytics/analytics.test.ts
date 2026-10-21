@@ -337,6 +337,47 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
     expect(summary.salesByTag.reduce((sum, s) => sum + s.valueCents, 0)).toBe(1500);
   });
 
+  it('groups current stock by first tag, folding past the top 7 into "Other"', async () => {
+    const items = createItemRepository(db);
+    // 9 tags with quantities 90, 80, ... 10, plus an untagged item and a second
+    // 'tag-0' item to check summing and that only the first tag counts.
+    for (let i = 0; i < 9; i++) {
+      await items.insert({
+        name: `Item ${i}`,
+        quantity: 90 - i * 10,
+        unitPriceCents: 100,
+        tags: [`tag-${i}`, 'ignored-second-tag'],
+        note: '',
+      });
+    }
+    await items.insert({
+      name: 'Extra',
+      quantity: 5,
+      unitPriceCents: 100,
+      tags: ['tag-0'],
+      note: '',
+    });
+    await items.insert({ name: 'Loose', quantity: 1, unitPriceCents: 100, tags: [], note: '' });
+
+    const res = await request(createApp(db)).get('/api/analytics/inventory').expect(200);
+
+    expect(res.body.byTag.map((t: { label: string }) => t.label)).toEqual([
+      'tag-0',
+      'tag-1',
+      'tag-2',
+      'tag-3',
+      'tag-4',
+      'tag-5',
+      'tag-6',
+      'Other',
+    ]);
+    expect(res.body.byTag[0]).toEqual({ label: 'tag-0', quantity: 95, itemCount: 2 });
+    // tag-7 (20) + tag-8 (10) + Untagged (1)
+    expect(res.body.byTag.at(-1)).toEqual({ label: 'Other', quantity: 31, itemCount: 3 });
+    expect(res.body.totalQuantity).toBe(450 + 5 + 1);
+    expect(res.body.totalItems).toBe(11);
+  });
+
   it('reports the API route with the expected shape, defaulting to the 12-month range', async () => {
     const app = createApp(db);
     const res = await request(app).get('/api/analytics/summary').expect(200);
