@@ -2,7 +2,13 @@ import { useState } from 'react';
 import { useAnalyticsSummary } from '../../hooks/useAnalyticsSummary';
 import { useInventoryByTag } from '../../hooks/useInventoryByTag';
 import { formatCents } from '../../utils/money';
-import { ChartLegend, DonutChart, HorizontalBarChart, LineChart, StackedBarChart } from './charts';
+import {
+  ChartLegend,
+  DonutChart,
+  HorizontalBarChart,
+  LineChart,
+  type DonutSegment,
+} from './charts';
 import type { AnalyticsRange, AnalyticsSummary } from '../../types';
 
 const RANGE_OPTIONS: { value: AnalyticsRange; label: string }[] = [
@@ -85,6 +91,12 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
   const topExpenseTag = topSeriesLabel(data.expenseSeries);
   const topSalesTag = data.salesByTag[0];
   const salesTotal = data.salesByTag.reduce((sum, t) => sum + t.valueCents, 0);
+  // Same tags as the Expenses Overview lines (top 3 + "Other"), totaled over the range.
+  const expensesByTag = data.expenseSeries
+    .map((s) => ({ label: s.label, value: s.values.reduce((sum, v) => sum + v, 0) }))
+    .filter((s) => s.value > 0);
+  const topExpense = [...expensesByTag].sort((a, b) => b.value - a.value)[0];
+  const expensesTotal = expensesByTag.reduce((sum, s) => sum + s.value, 0);
   const axisLabel = data.granularity === 'day' ? 'Day' : 'Month';
 
   return (
@@ -133,15 +145,15 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
             <p className="empty-state">No expenses in {rangeDescription(range)}.</p>
           ) : (
             <>
-              {/* Same proportions as the Revenue line chart, now that they sit side by side. */}
-              <StackedBarChart
+              <LineChart
                 categories={data.bucketLabels}
                 series={data.expenseSeries}
-                width={600}
-                height={230}
                 ariaLabel="Expenses overview"
               />
-              <ChartLegend labels={data.expenseSeries.map((s) => s.label)} />
+              <div className="analytics-card__footer">
+                <span className="muted">{axisLabel}</span>
+                <ChartLegend labels={data.expenseSeries.map((s) => s.label)} />
+              </div>
             </>
           )}
           <p className="analytics-insight">
@@ -154,22 +166,28 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
 
       <div className="analytics-row">
         <div className="card analytics-card">
-          <h2>Sales Overview</h2>
-          {data.salesByTag.length === 0 ? (
-            <p className="empty-state">No sales in {rangeDescription(range)}.</p>
-          ) : (
-            <div className="analytics-donut">
-              <DonutChart
-                segments={data.salesByTag.map((t) => ({ label: t.label, value: t.valueCents }))}
-                ariaLabel="Sales overview by tag"
-              />
-              <ChartLegend labels={data.salesByTag.map((t) => t.label)} />
-            </div>
-          )}
+          <h2>Sales &amp; Expense Breakdown</h2>
+          <div className="analytics-donuts">
+            <BreakdownDonut
+              title="Sales"
+              segments={data.salesByTag.map((t) => ({ label: t.label, value: t.valueCents }))}
+              emptyText={`No sales in ${rangeDescription(range)}.`}
+            />
+            <BreakdownDonut
+              title="Expenses"
+              segments={expensesByTag}
+              emptyText={`No expenses in ${rangeDescription(range)}.`}
+            />
+          </div>
           <p className="analytics-insight">
-            {topSalesTag && salesTotal > 0
-              ? `"${topSalesTag.label}" leads at ${Math.round((topSalesTag.valueCents / salesTotal) * 100)}% of recent sales.`
-              : `No sales recorded in ${rangeDescription(range)}.`}
+            {[
+              topSalesTag && salesTotal > 0
+                ? `"${topSalesTag.label}" leads sales at ${percentOf(topSalesTag.valueCents, salesTotal)}%.`
+                : `No sales recorded in ${rangeDescription(range)}.`,
+              topExpense && expensesTotal > 0
+                ? `"${topExpense.label}" is ${percentOf(topExpense.value, expensesTotal)}% of expenses.`
+                : `No expenses recorded in ${rangeDescription(range)}.`,
+            ].join(' ')}
           </p>
         </div>
 
@@ -223,6 +241,33 @@ function InventoryOverview() {
           ? `${data.totalQuantity.toLocaleString()} units across ${data.totalItems} products; "${top.label}" holds the most stock (${Math.round((top.quantity / data.totalQuantity) * 100)}%).`
           : 'Current stock, not affected by "Show by".'}
       </p>
+    </div>
+  );
+}
+
+function percentOf(part: number, total: number): number {
+  return Math.round((part / total) * 100);
+}
+
+interface BreakdownDonutProps {
+  title: string;
+  segments: DonutSegment[];
+  emptyText: string;
+}
+
+/** One half of the breakdown card: a titled donut with its own legend. */
+function BreakdownDonut({ title, segments, emptyText }: BreakdownDonutProps) {
+  return (
+    <div className="analytics-donut-panel">
+      <h3 className="analytics-donut-panel__title">{title}</h3>
+      {segments.length === 0 ? (
+        <p className="empty-state">{emptyText}</p>
+      ) : (
+        <div className="analytics-donut">
+          <DonutChart segments={segments} ariaLabel={`${title} by tag`} />
+          <ChartLegend labels={segments.map((s) => s.label)} />
+        </div>
+      )}
     </div>
   );
 }
