@@ -1,31 +1,54 @@
 import { Link } from 'react-router-dom';
 import { HomeLayout } from '../components/HomeLayout';
 import { useAnalyticsSummary } from '../hooks/useAnalyticsSummary';
+import { useItemCount } from '../hooks/useItemCount';
 import { useLowStock } from '../hooks/useLowStock';
-import type { LowStock } from '../types';
+import type { AnalyticsSummary, LowStock } from '../types';
 import { formatCents } from '../utils/money';
+import {
+  AnalyticsPreview,
+  ExpensesPreview,
+  InventoryPreview,
+  SalesPreview,
+  type PreviewState,
+} from './HomeCardPreviews';
 
-const DASHBOARDS = [
-  { to: '/sales', title: 'Sales', graphic: 'table' },
-  { to: '/inventory', title: 'Inventory', graphic: 'table' },
-  { to: '/expenses', title: 'Expenses', graphic: 'table' },
-  { to: '/analytics', title: 'Analytics', graphic: 'chart' },
-] as const;
+type SummaryResult = ReturnType<typeof useAnalyticsSummary>;
+
+/** Keeps showing the last data while a reload is in flight, like the KPI strip does. */
+function toPreviewState<T>(data: T | undefined, error: string | undefined): PreviewState<T> {
+  if (data !== undefined) return { status: 'ready', data };
+  return error ? { status: 'error' } : { status: 'loading' };
+}
 
 export function HomePage() {
+  // One month-summary request feeds both the KPI strip and the card previews.
+  const summary = useAnalyticsSummary('month');
+  const itemCount = useItemCount();
+  const summaryState: PreviewState<AnalyticsSummary> = toPreviewState(summary.data, summary.error);
+
+  const dashboards = [
+    { to: '/sales', title: 'Sales', preview: <SalesPreview summary={summaryState} /> },
+    {
+      to: '/inventory',
+      title: 'Inventory',
+      preview: <InventoryPreview itemCount={toPreviewState(itemCount.count, itemCount.error)} />,
+    },
+    { to: '/expenses', title: 'Expenses', preview: <ExpensesPreview summary={summaryState} /> },
+    { to: '/analytics', title: 'Analytics', preview: <AnalyticsPreview summary={summaryState} /> },
+  ];
+
   return (
     <HomeLayout>
       <section className="page home">
         <h1>Welcome back</h1>
         <p className="muted">Pick a dashboard to get started.</p>
-        <KpiStrip />
+        <KpiStrip summary={summary} />
         <div className="home-cards">
-          {DASHBOARDS.map(({ to, title, graphic }) => (
+          {dashboards.map(({ to, title, preview }) => (
             <Link key={to} to={to} className="home-card">
               <h2 className="home-card__title">{title}</h2>
-              <div className="home-card__preview">
-                {graphic === 'table' ? <TablePreview /> : <ChartPreview />}
-              </div>
+              {preview}
             </Link>
           ))}
         </div>
@@ -35,15 +58,14 @@ export function HomePage() {
 }
 
 /**
- * Month-to-date Revenue / Expenses / Net Profit, reusing the Analytics
- * summary's "month" range, plus a Low stock warning. No vs-last-month
- * comparison yet: the summary has no matching prior window, and comparing part
- * of this month to all of last month would make every tile look worse until
- * the month ends. The two requests load independently, so one failing still
- * leaves the other's tiles showing.
+ * Month-to-date Revenue / Expenses / Net Profit, from the Analytics summary's
+ * "month" range, plus a Low stock warning. No vs-last-month comparison yet:
+ * the summary has no matching prior window, and comparing part of this month
+ * to all of last month would make every tile look worse until the month ends.
+ * The two requests load independently, so one failing still leaves the
+ * other's tiles showing.
  */
-function KpiStrip() {
-  const summary = useAnalyticsSummary('month');
+function KpiStrip({ summary }: { summary: SummaryResult }) {
   const lowStock = useLowStock();
 
   const data = summary.data;
@@ -143,60 +165,5 @@ function KpiTile({ label, value, tone, detail }: KpiTileProps) {
       <span className="stat-card__value">{value}</span>
       {detail && <span className="stat-card__detail">{detail}</span>}
     </div>
-  );
-}
-
-/** Decorative stand-in for a toolbar + search + table dashboard (Sales, Inventory). */
-function TablePreview() {
-  return (
-    <svg viewBox="0 0 240 140" role="presentation" aria-hidden="true" className="home-card__svg">
-      <rect x="10" y="10" width="38" height="14" rx="4" fill="var(--color-primary)" />
-      <rect x="52" y="10" width="52" height="14" rx="4" fill="#4a4a4a" />
-      <rect x="168" y="10" width="62" height="14" rx="7" fill="var(--color-search)" />
-      <line
-        x1="10"
-        y1="36"
-        x2="230"
-        y2="36"
-        stroke="var(--color-border-strong)"
-        strokeWidth="1.5"
-      />
-      {[48, 64, 80, 96, 112].map((y, i) => (
-        <g key={y}>
-          <rect
-            x="10"
-            y={y}
-            width={i % 2 === 0 ? 150 : 110}
-            height="6"
-            rx="3"
-            fill="var(--color-border)"
-          />
-          <rect x="214" y={y} width="16" height="6" rx="3" fill="var(--color-border)" />
-        </g>
-      ))}
-    </svg>
-  );
-}
-
-/** Decorative stand-in for the Analytics dashboard (chart + stat tiles). */
-function ChartPreview() {
-  return (
-    <svg viewBox="0 0 240 140" role="presentation" aria-hidden="true" className="home-card__svg">
-      <rect x="10" y="10" width="150" height="120" rx="6" fill="var(--color-surface)" />
-      <polyline
-        points="22,96 50,60 78,84 106,48 134,70 150,38"
-        fill="none"
-        stroke="#2a78d6"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {[22, 50, 78, 106, 134, 150].map((x, i) => (
-        <circle key={x} cx={x} cy={[96, 60, 84, 48, 70, 38][i]} r="3" fill="#2a78d6" />
-      ))}
-      <rect x="168" y="10" width="62" height="34" rx="5" fill="#dcefdc" />
-      <rect x="168" y="50" width="62" height="34" rx="5" fill="var(--color-search)" />
-      <rect x="168" y="90" width="62" height="34" rx="5" fill="var(--color-search)" />
-    </svg>
   );
 }

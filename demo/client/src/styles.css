@@ -621,7 +621,14 @@ code {
 }
 
 .home-card__preview {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.4rem;
   width: 100%;
+  /* Same height on every card, whatever its preview holds, so the row lines up. */
+  height: 130px;
+  padding: 0.6rem 0.75rem;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   overflow: hidden;
@@ -632,6 +639,85 @@ code {
   display: block;
   width: 100%;
   height: auto;
+  max-height: 100%;
+}
+
+.home-card__caption {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.home-card__message {
+  margin: 0;
+  text-align: center;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.home-card__number {
+  margin: 0;
+  text-align: center;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.home-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+}
+
+.home-bars__row {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.home-bars__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-bars__track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.home-bars__fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.home-bars__value {
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-legend {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+
+.home-legend__swatch {
+  display: inline-block;
+  width: 10px;
+  height: 3px;
+  margin-right: 0.35rem;
+  border-radius: 2px;
+  vertical-align: middle;
 }
 
 /* ---------- Shared card (Analytics panels reuse this) ---------- */
