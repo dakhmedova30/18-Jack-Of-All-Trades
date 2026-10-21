@@ -13,6 +13,14 @@ export interface Item {
 
 export type ItemInput = Pick<Item, 'name' | 'quantity' | 'unitPriceCents' | 'tags' | 'note'>;
 
+export interface LowStock {
+  /** Every item at or below `threshold`, not just the ones listed in `items`. */
+  count: number;
+  threshold: number;
+  /** Up to 5 of those items, lowest quantity first. */
+  items: Pick<Item, 'id' | 'name' | 'quantity'>[];
+}
+
 export interface SaleItem {
   id: number;
   itemId: number | null;

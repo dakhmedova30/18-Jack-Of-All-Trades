@@ -121,6 +121,20 @@ describe.skipIf(!testDatabaseUrl)('API', () => {
       const remaining = await request(app).get('/api/items').expect(200);
       expect(remaining.body.data.map((i: { id: number }) => i.id)).toEqual([4]);
     });
+
+    it('reports low stock (at or below 5), naming the 5 lowest, lowest first', async () => {
+      const quantities = [9, 0, 5, 6, 3, 1, 4, 2];
+      for (const [i, quantity] of quantities.entries()) {
+        await request(app)
+          .post('/api/items')
+          .send({ ...candle, name: `Item ${i}`, quantity });
+      }
+
+      const res = await request(app).get('/api/items/low-stock').expect(200);
+      expect(res.body.count).toBe(6); // 0, 1, 2, 3, 4, 5 — not 6 or 9
+      expect(res.body.threshold).toBe(5);
+      expect(res.body.items.map((i: { quantity: number }) => i.quantity)).toEqual([0, 1, 2, 3, 4]);
+    });
   });
 
   describe('/api/sales', () => {

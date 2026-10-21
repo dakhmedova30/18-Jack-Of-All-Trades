@@ -4,6 +4,19 @@ import type { ItemRepository } from './items.repository.js';
 import type { CreateItemInput, ListItemsQuery, UpdateItemInput } from './items.schema.js';
 import type { Item } from './items.types.js';
 
+/** An item counts as "low stock" at or below this quantity. A fixed rule for
+ *  now; a per-item reorder level would replace it if the schema gains one. */
+export const LOW_STOCK_THRESHOLD = 5;
+/** How many of the lowest-stock items to name in the home page warning. */
+const LOW_STOCK_PREVIEW_LIMIT = 5;
+
+export interface LowStockSummary {
+  count: number;
+  threshold: number;
+  /** Up to LOW_STOCK_PREVIEW_LIMIT items, lowest quantity first. */
+  items: { id: number; name: string; quantity: number }[];
+}
+
 /** Business rules for inventory. No HTTP or SQL details in here. */
 export function createItemService(repository: ItemRepository) {
   async function listItems({ page, pageSize, search }: ListItemsQuery): Promise<Paginated<Item>> {
@@ -39,7 +52,23 @@ export function createItemService(repository: ItemRepository) {
     return { deleted: await repository.removeMany([...new Set(ids)]) };
   }
 
-  return { listItems, getItem, createItem, updateItem, deleteItem, bulkDeleteItems };
+  async function getLowStock(): Promise<LowStockSummary> {
+    const { count, items } = await repository.findLowStock(
+      LOW_STOCK_THRESHOLD,
+      LOW_STOCK_PREVIEW_LIMIT,
+    );
+    return { count, threshold: LOW_STOCK_THRESHOLD, items };
+  }
+
+  return {
+    listItems,
+    getItem,
+    createItem,
+    updateItem,
+    deleteItem,
+    bulkDeleteItems,
+    getLowStock,
+  };
 }
 
 export type ItemService = ReturnType<typeof createItemService>;

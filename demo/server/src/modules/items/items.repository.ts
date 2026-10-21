@@ -111,7 +111,33 @@ export function createItemRepository(db: Queryable) {
     return rows[0] ? toItem(rows[0]) : undefined;
   }
 
-  return { findById, findPage, insert, update, remove, removeMany, exists, adjustQuantity };
+  /** How many items are at or below `threshold`, plus the `limit` lowest of them (lowest first). */
+  async function findLowStock(threshold: number, limit: number) {
+    const countResult = await db.query<{ total: number }>(
+      'SELECT COUNT(*)::int AS total FROM items WHERE quantity <= $1',
+      [threshold],
+    );
+    const { rows } = await db.query<{ id: number; name: string; quantity: number }>(
+      `SELECT id, name, quantity FROM items
+       WHERE quantity <= $1
+       ORDER BY quantity ASC, name ASC
+       LIMIT $2`,
+      [threshold, limit],
+    );
+    return { count: countResult.rows[0]?.total ?? 0, items: rows };
+  }
+
+  return {
+    findById,
+    findPage,
+    insert,
+    update,
+    remove,
+    removeMany,
+    exists,
+    adjustQuantity,
+    findLowStock,
+  };
 }
 
 export type ItemRepository = ReturnType<typeof createItemRepository>;

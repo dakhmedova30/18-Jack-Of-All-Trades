@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { HomeLayout } from '../components/HomeLayout';
 import { useAnalyticsSummary } from '../hooks/useAnalyticsSummary';
+import { useLowStock } from '../hooks/useLowStock';
+import type { LowStock } from '../types';
 import { formatCents } from '../utils/money';
 
 const DASHBOARDS = [
@@ -34,25 +36,18 @@ export function HomePage() {
 
 /**
  * Month-to-date Revenue / Expenses / Net Profit, reusing the Analytics
- * summary's "month" range. No vs-last-month comparison yet: the summary has no
- * matching prior window, and comparing part of this month to all of last month
- * would make every tile look worse until the month ends.
+ * summary's "month" range, plus a Low stock warning. No vs-last-month
+ * comparison yet: the summary has no matching prior window, and comparing part
+ * of this month to all of last month would make every tile look worse until
+ * the month ends. The two requests load independently, so one failing still
+ * leaves the other's tiles showing.
  */
 function KpiStrip() {
-  const { data, error, loading, reload } = useAnalyticsSummary('month');
+  const summary = useAnalyticsSummary('month');
+  const lowStock = useLowStock();
 
-  if (error) {
-    return (
-      <div className="banner banner--error home-kpis__error" role="alert">
-        Couldn't load this month's numbers: {error}{' '}
-        <button type="button" className="link-button" onClick={reload}>
-          Retry
-        </button>
-      </div>
-    );
-  }
-
-  const placeholder = loading && !data ? '…' : '—';
+  const data = summary.data;
+  const moneyPlaceholder = summary.loading && !data ? '…' : '—';
   const revenue = data?.totalRevenueCents;
   const netProfit = data?.netProfitCents;
   const margin =
@@ -61,23 +56,75 @@ function KpiStrip() {
       : undefined;
 
   return (
-    <div className="home-kpis" aria-busy={loading}>
+    <>
+      {summary.error && (
+        <KpiError
+          message={`Couldn't load this month's numbers: ${summary.error}`}
+          onRetry={summary.reload}
+        />
+      )}
+      {lowStock.error && (
+        <KpiError
+          message={`Couldn't load low stock: ${lowStock.error}`}
+          onRetry={lowStock.reload}
+        />
+      )}
+      <div className="home-kpis" aria-busy={summary.loading || lowStock.loading}>
+        <KpiTile
+          label="Revenue · this month"
+          value={revenue !== undefined ? formatCents(revenue) : moneyPlaceholder}
+          tone="neutral"
+        />
+        <KpiTile
+          label="Expenses · this month"
+          value={data ? formatCents(data.totalExpensesCents) : moneyPlaceholder}
+          tone="neutral"
+        />
+        <KpiTile
+          label="Net Profit · this month"
+          value={netProfit !== undefined ? formatCents(netProfit) : moneyPlaceholder}
+          tone={netProfit === undefined ? 'neutral' : netProfit >= 0 ? 'positive' : 'negative'}
+          detail={margin}
+        />
+        <LowStockTile data={lowStock.data} loading={lowStock.loading} />
+      </div>
+    </>
+  );
+}
+
+function LowStockTile({ data, loading }: { data?: LowStock; loading: boolean }) {
+  if (!data) {
+    return <KpiTile label="Low stock" value={loading ? '…' : '—'} tone="neutral" />;
+  }
+  if (data.count === 0) {
+    return (
       <KpiTile
-        label="Revenue"
-        value={revenue !== undefined ? formatCents(revenue) : placeholder}
+        label="Low stock"
+        value="0 items"
         tone="neutral"
+        detail={`Nothing at ${data.threshold} or below`}
       />
-      <KpiTile
-        label="Expenses"
-        value={data ? formatCents(data.totalExpensesCents) : placeholder}
-        tone="neutral"
-      />
-      <KpiTile
-        label="Net Profit"
-        value={netProfit !== undefined ? formatCents(netProfit) : placeholder}
-        tone={netProfit === undefined ? 'neutral' : netProfit >= 0 ? 'positive' : 'negative'}
-        detail={margin}
-      />
+    );
+  }
+  // "Candle (2), Soap (4)…": the ellipsis only when more items are low than are named.
+  const names = data.items.map((item) => `${item.name} (${item.quantity})`).join(', ');
+  return (
+    <KpiTile
+      label={`Low stock · ${data.threshold} or below`}
+      value={`${data.count} ${data.count === 1 ? 'item' : 'items'}`}
+      tone="negative"
+      detail={data.count > data.items.length ? `${names}…` : names}
+    />
+  );
+}
+
+function KpiError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="banner banner--error home-kpis__error" role="alert">
+      {message}{' '}
+      <button type="button" className="link-button" onClick={onRetry}>
+        Retry
+      </button>
     </div>
   );
 }
@@ -92,7 +139,7 @@ interface KpiTileProps {
 function KpiTile({ label, value, tone, detail }: KpiTileProps) {
   return (
     <div className={`stat-card stat-card--${tone}`}>
-      <span className="stat-card__label">{label} · this month</span>
+      <span className="stat-card__label">{label}</span>
       <span className="stat-card__value">{value}</span>
       {detail && <span className="stat-card__detail">{detail}</span>}
     </div>

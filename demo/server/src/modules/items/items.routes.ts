@@ -14,6 +14,7 @@ import type { ItemService } from './items.service.js';
  * middleware; Express 5 forwards rejected promises from async handlers to it.
  *
  *   GET    /api/items?page=1&pageSize=10&search=soap
+ *   GET    /api/items/low-stock     count + the 5 lowest items at or below the threshold
  *   GET    /api/items/:id
  *   POST   /api/items
  *   PATCH  /api/items/:id
@@ -30,6 +31,11 @@ export function createItemsRouter(service: ItemService): Router {
   router.post('/bulk-delete', async (req, res) => {
     const { ids } = bulkDeleteSchema.parse(req.body);
     res.json(await service.bulkDeleteItems(ids));
+  });
+
+  // Must stay above GET /:id, or "low-stock" would be parsed as an item id.
+  router.get('/low-stock', async (_req, res) => {
+    res.json(await service.getLowStock());
   });
 
   router.get('/:id', async (req, res) => {
