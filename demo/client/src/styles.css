@@ -571,6 +571,22 @@ code {
 
 /* ---------- Home ---------- */
 
+.home-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.home-kpis__error {
+  margin-top: 1rem;
+}
+
+.stat-card__detail {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+
 .home-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));

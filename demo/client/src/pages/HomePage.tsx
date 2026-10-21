@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { HomeLayout } from '../components/HomeLayout';
+import { useAnalyticsSummary } from '../hooks/useAnalyticsSummary';
+import { formatCents } from '../utils/money';
 
 const DASHBOARDS = [
   { to: '/sales', title: 'Sales', graphic: 'table' },
@@ -14,6 +16,7 @@ export function HomePage() {
       <section className="page home">
         <h1>Welcome back</h1>
         <p className="muted">Pick a dashboard to get started.</p>
+        <KpiStrip />
         <div className="home-cards">
           {DASHBOARDS.map(({ to, title, graphic }) => (
             <Link key={to} to={to} className="home-card">
@@ -26,6 +29,73 @@ export function HomePage() {
         </div>
       </section>
     </HomeLayout>
+  );
+}
+
+/**
+ * Month-to-date Revenue / Expenses / Net Profit, reusing the Analytics
+ * summary's "month" range. No vs-last-month comparison yet: the summary has no
+ * matching prior window, and comparing part of this month to all of last month
+ * would make every tile look worse until the month ends.
+ */
+function KpiStrip() {
+  const { data, error, loading, reload } = useAnalyticsSummary('month');
+
+  if (error) {
+    return (
+      <div className="banner banner--error home-kpis__error" role="alert">
+        Couldn't load this month's numbers: {error}{' '}
+        <button type="button" className="link-button" onClick={reload}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const placeholder = loading && !data ? '…' : '—';
+  const revenue = data?.totalRevenueCents;
+  const netProfit = data?.netProfitCents;
+  const margin =
+    revenue !== undefined && netProfit !== undefined && revenue > 0
+      ? `${Math.round((netProfit / revenue) * 100)}% margin`
+      : undefined;
+
+  return (
+    <div className="home-kpis" aria-busy={loading}>
+      <KpiTile
+        label="Revenue"
+        value={revenue !== undefined ? formatCents(revenue) : placeholder}
+        tone="neutral"
+      />
+      <KpiTile
+        label="Expenses"
+        value={data ? formatCents(data.totalExpensesCents) : placeholder}
+        tone="neutral"
+      />
+      <KpiTile
+        label="Net Profit"
+        value={netProfit !== undefined ? formatCents(netProfit) : placeholder}
+        tone={netProfit === undefined ? 'neutral' : netProfit >= 0 ? 'positive' : 'negative'}
+        detail={margin}
+      />
+    </div>
+  );
+}
+
+interface KpiTileProps {
+  label: string;
+  value: string;
+  tone: 'positive' | 'negative' | 'neutral';
+  detail?: string;
+}
+
+function KpiTile({ label, value, tone, detail }: KpiTileProps) {
+  return (
+    <div className={`stat-card stat-card--${tone}`}>
+      <span className="stat-card__label">{label} · this month</span>
+      <span className="stat-card__value">{value}</span>
+      {detail && <span className="stat-card__detail">{detail}</span>}
+    </div>
   );
 }
 
