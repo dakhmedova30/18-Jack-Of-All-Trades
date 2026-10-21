@@ -12,6 +12,7 @@ import type { ExpenseService } from './expenses.service.js';
  * HTTP layer: parse + validate input, call the service, shape the response.
  *
  *   GET    /api/expenses?page=1&pageSize=10&search=soap
+ *   GET    /api/expenses/month-breakdown   this month's restock vs running-cost spending
  *   GET    /api/expenses/:id
  *   POST   /api/expenses               { incurredAt, tags?, items: [{ itemId?, description?, quantity, unitCostCents }] }
  *   PATCH  /api/expenses/:id           replaces incurredAt, tags and the whole item list
@@ -28,6 +29,11 @@ export function createExpensesRouter(service: ExpenseService): Router {
   router.post('/bulk-delete', async (req, res) => {
     const { ids } = bulkDeleteExpensesSchema.parse(req.body);
     res.json(await service.bulkDeleteExpenses(ids));
+  });
+
+  // Must stay above GET /:id, or "month-breakdown" would be parsed as an expense id.
+  router.get('/month-breakdown', async (_req, res) => {
+    res.json(await service.getMonthBreakdown());
   });
 
   router.get('/:id', async (req, res) => {

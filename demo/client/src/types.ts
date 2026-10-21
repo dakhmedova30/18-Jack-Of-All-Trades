@@ -14,7 +14,33 @@ export interface Item {
 export type ItemInput = Pick<Item, 'name' | 'quantity' | 'unitPriceCents' | 'tags' | 'note'>;
 
 export type ItemSortField = 'id' | 'name' | 'quantity' | 'unitPriceCents';
+export type SaleSortField = 'id' | 'soldAt' | 'total' | 'tags';
+export type ExpenseSortField = 'id' | 'incurredAt' | 'total' | 'tags';
 export type SortOrder = 'asc' | 'desc';
+
+export interface ExpenseMonthBreakdown {
+  /** The calendar month covered: [start, end). */
+  periodStart: string;
+  periodEnd: string;
+  /** Lines linked to an inventory item. */
+  restockCents: number;
+  /** Free-text lines: rent, fees, supplies and so on. */
+  runningCents: number;
+  totalCents: number;
+  /** Top items by restock spending this month, most first (up to 5). */
+  topRestockItems: { id: number; name: string; units: number; spentCents: number }[];
+}
+
+export interface SalesMonthSummary {
+  /** The calendar month covered: [start, end). */
+  periodStart: string;
+  periodEnd: string;
+  saleCount: number;
+  revenueCents: number;
+  /** Revenue / number of sales; 0 with no sales. */
+  averageSaleCents: number;
+  largestSale: { id: number; soldAt: string; totalCents: number } | null;
+}
 
 export interface InventoryInsights {
   /** Quantity x unit (selling) price, summed over every item. */

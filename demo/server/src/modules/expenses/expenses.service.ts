@@ -27,6 +27,21 @@ interface ExpenseLineInput {
  * sales.service decrements stock. Every write runs inside one transaction so the
  * expense rows and the item's stock change together.
  */
+export interface ExpenseMonthBreakdown {
+  /** Calendar month (UTC) covered: [start, end). */
+  periodStart: string;
+  periodEnd: string;
+  /** Lines linked to an inventory item. */
+  restockCents: number;
+  /** Free-text lines: rent, fees, supplies and so on. */
+  runningCents: number;
+  totalCents: number;
+  /** Top items by restock spending this month, most first (up to 5). */
+  topRestockItems: { id: number; name: string; units: number; spentCents: number }[];
+}
+
+const TOP_RESTOCK_ITEMS_LIMIT = 5;
+
 export function createExpenseService(db: Db) {
   const reader = createExpenseRepository(db);
 
@@ -34,9 +49,13 @@ export function createExpenseService(db: Db) {
     page,
     pageSize,
     search,
+    sort,
+    order,
   }: ListExpensesQuery): Promise<Paginated<Expense>> {
     const { expenses, total } = await reader.findPage({
       search: search || undefined,
+      sort,
+      order,
       limit: pageSize,
       offset: toOffset(page, pageSize),
     });
@@ -148,6 +167,28 @@ export function createExpenseService(db: Db) {
     });
   }
 
+  /**
+   * "Where the money goes" for the Expenses page: this calendar month's (UTC)
+   * spending split into restocks vs running costs. A restock line whose item
+   * was later deleted loses its item link, so it counts as a running cost.
+   */
+  async function getMonthBreakdown(now = new Date()): Promise<ExpenseMonthBreakdown> {
+    const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    const [{ restockCents, runningCents }, topRestockItems] = await Promise.all([
+      reader.spendingByKind(periodStart, periodEnd),
+      reader.topRestockItems(periodStart, periodEnd, TOP_RESTOCK_ITEMS_LIMIT),
+    ]);
+    return {
+      periodStart: periodStart.toISOString(),
+      periodEnd: periodEnd.toISOString(),
+      restockCents,
+      runningCents,
+      totalCents: restockCents + runningCents,
+      topRestockItems,
+    };
+  }
+
   return {
     listExpenses,
     getExpense,
@@ -155,6 +196,7 @@ export function createExpenseService(db: Db) {
     updateExpense,
     deleteExpense,
     bulkDeleteExpenses,
+    getMonthBreakdown,
   };
 }
 

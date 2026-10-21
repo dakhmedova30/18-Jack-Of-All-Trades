@@ -312,6 +312,66 @@ describe.skipIf(!testDatabaseUrl)('API', () => {
       expect((await request(app).get('/api/items/2')).body.quantity).toBe(20);
     });
 
+    it('sorts sales by id, date, total or first tag, defaulting to newest first', async () => {
+      const item = await request(app)
+        .post('/api/items')
+        .send({ name: 'Mug', quantity: 100, unitPriceCents: 500, tags: [] })
+        .expect(201);
+      const sell = (soldAt: string, quantity: number, tags: string[]) =>
+        request(app)
+          .post('/api/sales')
+          .send({ soldAt, tags, items: [{ itemId: item.body.id, quantity }] })
+          .expect(201);
+      await sell('2026-03-02T00:00:00Z', 3, ['market']); // id 1, 1500
+      await sell('2026-03-05T00:00:00Z', 1, []); // id 2, 500, untagged
+      await sell('2026-03-01T00:00:00Z', 5, ['Online']); // id 3, 2500
+      const ids = (res: request.Response) => res.body.data.map((s: { id: number }) => s.id);
+
+      expect(ids(await request(app).get('/api/sales').expect(200))).toEqual([2, 1, 3]);
+      expect(ids(await request(app).get('/api/sales?sort=id&order=asc').expect(200))).toEqual([
+        1, 2, 3,
+      ]);
+      expect(ids(await request(app).get('/api/sales?sort=total&order=desc').expect(200))).toEqual([
+        3, 1, 2,
+      ]);
+      // Case-insensitive first tag; the untagged sale is last in both directions.
+      expect(ids(await request(app).get('/api/sales?sort=tags&order=asc').expect(200))).toEqual([
+        1, 3, 2,
+      ]);
+      expect(ids(await request(app).get('/api/sales?sort=tags&order=desc').expect(200))).toEqual([
+        3, 1, 2,
+      ]);
+      await request(app).get('/api/sales?sort=items').expect(400);
+    });
+
+    it("summarizes this month's sales: count, average and largest", async () => {
+      const empty = await request(app).get('/api/sales/month-summary').expect(200);
+      expect(empty.body).toMatchObject({ saleCount: 0, averageSaleCents: 0, largestSale: null });
+
+      const item = await request(app)
+        .post('/api/items')
+        .send({ name: 'Mug', quantity: 100, unitPriceCents: 500, tags: [] })
+        .expect(201);
+      const sell = (soldAt: string, quantity: number) =>
+        request(app)
+          .post('/api/sales')
+          .send({ soldAt, items: [{ itemId: item.body.id, quantity }] })
+          .expect(201);
+      const now = new Date().toISOString();
+      await sell(now, 1); // 500
+      await sell(now, 4); // 2000, the largest
+      await sell(now, 2); // 1000
+      await sell('2020-01-15T00:00:00Z', 50); // long ago: excluded
+
+      const res = await request(app).get('/api/sales/month-summary').expect(200);
+      expect(res.body).toMatchObject({
+        saleCount: 3,
+        revenueCents: 3500,
+        averageSaleCents: 1167, // 3500 / 3, rounded
+        largestSale: { totalCents: 2000 },
+      });
+    });
+
     it('lists and paginates sales, most recent first', async () => {
       await request(app).post('/api/items').send(candle);
       for (let i = 1; i <= 3; i++) {
@@ -327,6 +387,58 @@ describe.skipIf(!testDatabaseUrl)('API', () => {
   });
 
   describe('/api/expenses', () => {
+    it('sorts expenses by id, date, total or first tag, defaulting to newest first', async () => {
+      const record = (incurredAt: string, unitCostCents: number, tags: string[]) =>
+        request(app)
+          .post('/api/expenses')
+          .send({ incurredAt, tags, items: [{ description: 'Cost', quantity: 1, unitCostCents }] })
+          .expect(201);
+      await record('2026-03-02T00:00:00Z', 1500, ['supplies']); // id 1
+      await record('2026-03-05T00:00:00Z', 500, []); // id 2, untagged
+      await record('2026-03-01T00:00:00Z', 2500, ['Rent']); // id 3
+      const ids = (res: request.Response) => res.body.data.map((e: { id: number }) => e.id);
+      const get = (query: string) => request(app).get(`/api/expenses${query}`).expect(200);
+
+      expect(ids(await get(''))).toEqual([2, 1, 3]);
+      expect(ids(await get('?sort=id&order=asc'))).toEqual([1, 2, 3]);
+      expect(ids(await get('?sort=total&order=desc'))).toEqual([3, 1, 2]);
+      // Case-insensitive first tag; the untagged expense is last in both directions.
+      expect(ids(await get('?sort=tags&order=asc'))).toEqual([3, 1, 2]);
+      expect(ids(await get('?sort=tags&order=desc'))).toEqual([1, 3, 2]);
+      await request(app).get('/api/expenses?sort=items').expect(400);
+    });
+
+    it("splits this month's spending into restocks vs running costs", async () => {
+      const item = await request(app)
+        .post('/api/items')
+        .send({ name: 'Mug', quantity: 1, unitPriceCents: 500, tags: [] })
+        .expect(201);
+      const now = new Date().toISOString();
+      await request(app)
+        .post('/api/expenses')
+        .send({
+          incurredAt: now,
+          items: [
+            { itemId: item.body.id, quantity: 10, unitCostCents: 200 }, // restock 2000
+            { description: 'Card fees', quantity: 1, unitCostCents: 300 }, // running 300
+          ],
+        })
+        .expect(201);
+      await request(app)
+        .post('/api/expenses')
+        .send({
+          incurredAt: '2020-01-15T00:00:00Z', // long ago: excluded
+          items: [{ description: 'Old rent', quantity: 1, unitCostCents: 99900 }],
+        })
+        .expect(201);
+
+      const res = await request(app).get('/api/expenses/month-breakdown').expect(200);
+      expect(res.body).toMatchObject({ restockCents: 2000, runningCents: 300, totalCents: 2300 });
+      expect(res.body.topRestockItems).toEqual([
+        { id: item.body.id, name: 'Mug', units: 10, spentCents: 2000 },
+      ]);
+    });
+
     it('records a free-text line with no stock effect', async () => {
       const res = await request(app)
         .post('/api/expenses')

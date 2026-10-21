@@ -38,8 +38,14 @@ export const createExpenseSchema = z.object(expenseFieldsWithTagsDefault);
 // expenses.repository#replace), so soldAt/items are required; only tags defaults.
 export const updateExpenseSchema = z.object(expenseFieldsWithTagsDefault);
 
+export const EXPENSE_SORT_FIELDS = ['id', 'incurredAt', 'total', 'tags'] as const;
+export type ExpenseSortField = (typeof EXPENSE_SORT_FIELDS)[number];
+
 export const listExpensesQuerySchema = paginationQuerySchema.extend({
   search: z.string().trim().max(100).optional(),
+  /** Defaults to newest expense first, the order the list always had. */
+  sort: z.enum(EXPENSE_SORT_FIELDS).default('incurredAt'),
+  order: z.enum(['asc', 'desc']).default('desc'),
 });
 
 export const bulkDeleteExpensesSchema = z.object({

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import {
   bulkDeleteExpenses,
   createExpense,
@@ -10,13 +10,40 @@ import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
 import { TagList } from '../../components/TagList';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useExpenseMonthBreakdown } from '../../hooks/useExpenseMonthBreakdown';
 import { useExpenses } from '../../hooks/useExpenses';
-import type { Expense, ExpenseInput } from '../../types';
+import type { Expense, ExpenseInput, ExpenseSortField, SortOrder } from '../../types';
 import { formatDate } from '../../utils/date';
 import { formatCents } from '../../utils/money';
 import { ExpenseFormModal } from './ExpenseFormModal';
+import { MoneyBreakdownPanel } from './MoneyBreakdownPanel';
+import { TopRestockPanel } from './TopRestockPanel';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 15;
+
+const SORTABLE_COLUMNS: { field: ExpenseSortField; label: string; numeric?: boolean }[] = [
+  { field: 'id', label: 'ID' },
+  { field: 'incurredAt', label: 'Date' },
+  { field: 'total', label: 'Total', numeric: true },
+  { field: 'tags', label: 'Tags' },
+];
+const LINES_NAMED_PER_EXPENSE = 2;
+
+/** "Studio rent, flower pot ×10 +1 more": each line's description (or restocked
+ *  item's name), the first few named and the rest counted. */
+function describeExpenseLines(expense: Expense): string {
+  const named = expense.items
+    .slice(0, LINES_NAMED_PER_EXPENSE)
+    .map((line) => (line.quantity > 1 ? `${line.itemName} ×${line.quantity}` : line.itemName))
+    .join(', ');
+  const remaining = expense.items.length - LINES_NAMED_PER_EXPENSE;
+  return remaining > 0 ? `${named} +${remaining} more` : named;
+}
+
+const DEFAULT_SORT: { field: ExpenseSortField; order: SortOrder } = {
+  field: 'incurredAt',
+  order: 'desc',
+};
 
 type FormState = { mode: 'create' } | { mode: 'edit'; expense: Expense } | null;
 type DeleteTarget = { kind: 'single'; expense: Expense } | { kind: 'bulk'; ids: number[] } | null;
@@ -25,7 +52,37 @@ export function ExpensesPage() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebouncedValue(searchInput.trim());
-  const { data, error, loading, reload } = useExpenses({ page, pageSize: PAGE_SIZE, search });
+  const [sort, setSort] = useState(DEFAULT_SORT);
+  const {
+    data,
+    error,
+    loading,
+    reload: reloadExpenses,
+  } = useExpenses({
+    page,
+    pageSize: PAGE_SIZE,
+    search,
+    sort: sort.field,
+    order: sort.order,
+  });
+
+  const breakdown = useExpenseMonthBreakdown();
+
+  // Any add/edit/delete can change this month's split, so refresh both together.
+  function reload() {
+    reloadExpenses();
+    breakdown.reload();
+  }
+
+  /** Clicking the current sort column flips its direction; a new column starts ascending. */
+  function toggleSort(field: ExpenseSortField) {
+    setSort((current) =>
+      current.field === field
+        ? { field, order: current.order === 'asc' ? 'desc' : 'asc' }
+        : { field, order: 'asc' },
+    );
+    setPage(1);
+  }
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [formState, setFormState] = useState<FormState>(null);
@@ -74,8 +131,10 @@ export function ExpensesPage() {
 
     // If we just emptied the last page, step back one page instead of showing nothing.
     const removedFromPage = expenses.filter((expense) => ids.includes(expense.id)).length;
-    if (page > 1 && removedFromPage === expenses.length) setPage(page - 1);
-    else reload();
+    if (page > 1 && removedFromPage === expenses.length) {
+      setPage(page - 1);
+      breakdown.reload();
+    } else reload();
   }
 
   const isEmpty = data !== undefined && data.total === 0;
@@ -132,10 +191,32 @@ export function ExpensesPage() {
                   aria-label="Select all expenses on this page"
                 />
               </th>
-              <th>ID</th>
-              <th>Date</th>
-              <th className="numeric">Total</th>
-              <th>Tags</th>
+              {SORTABLE_COLUMNS.map(({ field, label, numeric }) => {
+                const active = sort.field === field;
+                return (
+                  <Fragment key={field}>
+                    <th
+                      className={numeric ? 'numeric' : undefined}
+                      aria-sort={
+                        active ? (sort.order === 'asc' ? 'ascending' : 'descending') : 'none'
+                      }
+                    >
+                      <button
+                        type="button"
+                        className={`sort-button${active ? ' is-active' : ''}`}
+                        onClick={() => toggleSort(field)}
+                      >
+                        {label}
+                        <span className="sort-button__arrow" aria-hidden="true">
+                          {active ? (sort.order === 'asc' ? '▲' : '▼') : '↕'}
+                        </span>
+                      </button>
+                    </th>
+                    {/* Description sits between Date and Total; it isn't sortable. */}
+                    {field === 'incurredAt' && <th>Description</th>}
+                  </Fragment>
+                );
+              })}
               <th className="table__action">Delete</th>
             </tr>
           </thead>
@@ -156,6 +237,7 @@ export function ExpensesPage() {
                 </td>
                 <td>{expense.id}</td>
                 <td>{formatDate(expense.incurredAt)}</td>
+                <td className="expense-description">{describeExpenseLines(expense)}</td>
                 <td className="numeric">{formatCents(expense.totalCents)}</td>
                 <td>
                   <TagList tags={expense.tags} />
@@ -195,6 +277,11 @@ export function ExpensesPage() {
       </div>
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}
+
+      <div className="panel-row">
+        <MoneyBreakdownPanel {...breakdown} />
+        <TopRestockPanel {...breakdown} />
+      </div>
 
       {formState && (
         <ExpenseFormModal
