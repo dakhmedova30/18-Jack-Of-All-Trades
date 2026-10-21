@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAnalyticsSummary } from '../../hooks/useAnalyticsSummary';
 import { useInventoryByTag } from '../../hooks/useInventoryByTag';
-import { formatCents } from '../../utils/money';
+import { formatCents, formatCentsCompact } from '../../utils/money';
 import {
   ChartLegend,
   DonutChart,
@@ -44,8 +44,9 @@ export function AnalyticsPage() {
           <h1>Analytics</h1>
           <p className="muted">
             Revenue, expenses and sales group by each record's first tag (top 3, the rest folded
-            into "Other"). "Show by" sets the time range for everything on this page except
-            Inventory Overview, which always shows current stock.
+            into "Other"). "Show by" sets the time range for everything on this page except the
+            Breakdown, which has its own month picker, and Inventory Overview, which always shows
+            current stock.
           </p>
         </div>
         <label className="analytics-select">
@@ -88,15 +89,8 @@ interface AnalyticsContentProps {
 function AnalyticsContent({ data, range }: AnalyticsContentProps) {
   const netProfitTone = data.netProfitCents >= 0 ? 'positive' : 'negative';
 
+  const topRevenueTag = topSeriesLabel(data.revenueSeries);
   const topExpenseTag = topSeriesLabel(data.expenseSeries);
-  const topSalesTag = data.salesByTag[0];
-  const salesTotal = data.salesByTag.reduce((sum, t) => sum + t.valueCents, 0);
-  // Same tags as the Expenses Overview lines (top 3 + "Other"), totaled over the range.
-  const expensesByTag = data.expenseSeries
-    .map((s) => ({ label: s.label, value: s.values.reduce((sum, v) => sum + v, 0) }))
-    .filter((s) => s.value > 0);
-  const topExpense = [...expensesByTag].sort((a, b) => b.value - a.value)[0];
-  const expensesTotal = expensesByTag.reduce((sum, s) => sum + s.value, 0);
   const axisLabel = data.granularity === 'day' ? 'Day' : 'Month';
 
   return (
@@ -130,6 +124,9 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
                 categories={data.bucketLabels}
                 series={data.revenueSeries}
                 ariaLabel="Revenue overview"
+                height={190}
+                formatValue={formatCentsCompact}
+                formatTooltip={formatCents}
               />
               <div className="analytics-card__footer">
                 <span className="muted">{axisLabel}</span>
@@ -137,6 +134,12 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
               </div>
             </>
           )}
+          {/* Mirrors the Expenses note, which also keeps the two charts the same size. */}
+          <p className="analytics-insight">
+            {topRevenueTag
+              ? `"${topRevenueTag}" is your top revenue category in ${rangeDescription(range)}.`
+              : `No sales recorded in ${rangeDescription(range)}.`}
+          </p>
         </div>
 
         <div className="card analytics-card">
@@ -149,6 +152,9 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
                 categories={data.bucketLabels}
                 series={data.expenseSeries}
                 ariaLabel="Expenses overview"
+                height={190}
+                formatValue={formatCentsCompact}
+                formatTooltip={formatCents}
               />
               <div className="analytics-card__footer">
                 <span className="muted">{axisLabel}</span>
@@ -165,31 +171,7 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
       </div>
 
       <div className="analytics-row">
-        <div className="card analytics-card">
-          <h2>Sales &amp; Expense Breakdown</h2>
-          <div className="analytics-donuts">
-            <BreakdownDonut
-              title="Sales"
-              segments={data.salesByTag.map((t) => ({ label: t.label, value: t.valueCents }))}
-              emptyText={`No sales in ${rangeDescription(range)}.`}
-            />
-            <BreakdownDonut
-              title="Expenses"
-              segments={expensesByTag}
-              emptyText={`No expenses in ${rangeDescription(range)}.`}
-            />
-          </div>
-          <p className="analytics-insight">
-            {[
-              topSalesTag && salesTotal > 0
-                ? `"${topSalesTag.label}" leads sales at ${percentOf(topSalesTag.valueCents, salesTotal)}%.`
-                : `No sales recorded in ${rangeDescription(range)}.`,
-              topExpense && expensesTotal > 0
-                ? `"${topExpense.label}" is ${percentOf(topExpense.value, expensesTotal)}% of expenses.`
-                : `No expenses recorded in ${rangeDescription(range)}.`,
-            ].join(' ')}
-          </p>
-        </div>
+        <BreakdownCard />
 
         <InventoryOverview />
       </div>
@@ -245,6 +227,110 @@ function InventoryOverview() {
   );
 }
 
+/** "2026-10" -> "Oct 2026" */
+function formatMonthKey(key: string): string {
+  return new Date(`${key}-01T00:00:00Z`).toLocaleDateString('en-CA', {
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+/** Per-tag totals for one bucket of a tag series, dropping tags with nothing that month. */
+function segmentsAt(series: AnalyticsSummary['revenueSeries'], index: number): DonutSegment[] {
+  return series
+    .map((s) => ({ label: s.label, value: s.values[index] ?? 0 }))
+    .filter((s) => s.value > 0);
+}
+
+/**
+ * Sales and expense pies for one chosen month (current month by default), out
+ * of the last 12. Has its own month picker and loads the 12-month summary
+ * itself, so the page-wide "Show by" doesn't affect it. Tags are the top 3
+ * across those 12 months (the rest in "Other"), so a tag keeps the same
+ * meaning whichever month is picked.
+ */
+function BreakdownCard() {
+  const { data, error, loading, reload } = useAnalyticsSummary('12months');
+  const [pickedMonth, setPickedMonth] = useState<string | null>(null);
+
+  const months = data?.buckets ?? [];
+  // Default (and fallback, e.g. after the month rolls over): the latest month.
+  const month = pickedMonth && months.includes(pickedMonth) ? pickedMonth : months.at(-1);
+  const index = month ? months.indexOf(month) : -1;
+  const monthLabel = month ? formatMonthKey(month) : '';
+
+  const sales = data && index >= 0 ? segmentsAt(data.revenueSeries, index) : [];
+  const expenses = data && index >= 0 ? segmentsAt(data.expenseSeries, index) : [];
+  const insight = [
+    breakdownInsight(sales, 'leads sales at', `No sales in ${monthLabel}.`),
+    breakdownInsight(expenses, 'is', `No expenses in ${monthLabel}.`, 'of expenses'),
+  ].join(' ');
+
+  return (
+    <div className="card analytics-card">
+      <div className="analytics-card__header">
+        <h2>Revenue &amp; Expense Breakdown</h2>
+        {months.length > 0 && (
+          <label className="analytics-select">
+            Month
+            <select
+              value={month}
+              onChange={(event) => setPickedMonth(event.target.value)}
+              aria-label="Month for the sales and expense breakdown"
+            >
+              {[...months].reverse().map((key) => (
+                <option key={key} value={key}>
+                  {formatMonthKey(key)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+      {error ? (
+        <p className="empty-state">
+          Couldn't load the breakdown: {error}{' '}
+          <button type="button" className="link-button" onClick={reload}>
+            Retry
+          </button>
+        </p>
+      ) : !data ? (
+        <p className="empty-state">{loading ? 'Loading breakdown…' : 'No data.'}</p>
+      ) : (
+        <>
+          <div className="analytics-donuts">
+            <BreakdownDonut
+              title="Sales"
+              segments={sales}
+              emptyText={`No sales in ${monthLabel}.`}
+            />
+            <BreakdownDonut
+              title="Expenses"
+              segments={expenses}
+              emptyText={`No expenses in ${monthLabel}.`}
+            />
+          </div>
+          <p className="analytics-insight">{insight}</p>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** '"Bathroom" leads sales at 59%.' for the largest segment, or `emptyText`. */
+function breakdownInsight(
+  segments: DonutSegment[],
+  verb: string,
+  emptyText: string,
+  suffix = '',
+): string {
+  const total = segments.reduce((sum, s) => sum + s.value, 0);
+  const top = [...segments].sort((a, b) => b.value - a.value)[0];
+  if (!top || total === 0) return emptyText;
+  return `"${top.label}" ${verb} ${percentOf(top.value, total)}%${suffix ? ` ${suffix}` : ''}.`;
+}
+
 function percentOf(part: number, total: number): number {
   return Math.round((part / total) * 100);
 }
@@ -272,7 +358,7 @@ function BreakdownDonut({ title, segments, emptyText }: BreakdownDonutProps) {
   );
 }
 
-function topSeriesLabel(series: AnalyticsSummary['expenseSeries']): string | null {
+function topSeriesLabel(series: AnalyticsSummary['revenueSeries']): string | null {
   if (series.length === 0) return null;
   const totals = series.map((s) => ({
     label: s.label,
