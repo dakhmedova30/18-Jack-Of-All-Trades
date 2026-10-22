@@ -120,6 +120,7 @@ export interface ExpenseItem {
 export interface Expense {
   id: number;
   incurredAt: string;
+  description: string;
   tags: string[];
   totalCents: number;
   items: ExpenseItem[];
@@ -137,6 +138,8 @@ export interface ExpenseLineItemInput {
 
 export interface ExpenseInput {
   incurredAt: string;
+  /** Leave blank and the server writes "Item x qty, ..." from the lines. */
+  description: string;
   tags: string[];
   items: ExpenseLineItemInput[];
 }

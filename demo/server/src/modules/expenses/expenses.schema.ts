@@ -19,6 +19,8 @@ const expenseLineItemSchema = z
 
 const expenseFields = {
   incurredAt: z.iso.datetime({ offset: true }),
+  // Blank means "describe it from the lines" (see utils/describeLines).
+  description: z.string().trim().max(200).default(''),
   tags: z
     .array(tagSchema)
     .max(10, 'At most 10 tags')

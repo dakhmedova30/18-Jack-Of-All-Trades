@@ -13,6 +13,7 @@ export interface ExpenseItem {
 export interface Expense {
   id: number;
   incurredAt: string;
+  description: string;
   tags: string[];
   /** Sum of the line items' totalCents. */
   totalCents: number;
@@ -32,6 +33,7 @@ export interface NewExpenseLineItem {
 
 export interface ExpenseWrite {
   incurredAt: string;
+  description: string;
   tags: string[];
   items: NewExpenseLineItem[];
 }
@@ -39,6 +41,7 @@ export interface ExpenseWrite {
 interface ExpenseRow {
   id: number;
   incurred_at: Date;
+  description: string;
   tags: string[];
   created_at: Date;
   updated_at: Date;
@@ -70,6 +73,7 @@ function assembleExpense(row: ExpenseRow, itemRows: ExpenseItemRow[]): Expense {
   return {
     id: row.id,
     incurredAt: row.incurred_at.toISOString(),
+    description: row.description,
     tags: row.tags,
     totalCents: items.reduce((sum, item) => sum + item.totalCents, 0),
     items,
@@ -139,6 +143,7 @@ export function createExpenseRepository(db: Queryable) {
     if (search) {
       filterParams.push(`%${escapeLikePattern(search)}%`);
       where = `WHERE array_to_string(tags, ' ') ILIKE $1
+        OR description ILIKE $1
         OR EXISTS (SELECT 1 FROM expense_items ei WHERE ei.expense_id = expenses.id AND ei.item_name ILIKE $1)`;
     }
 
@@ -174,8 +179,8 @@ export function createExpenseRepository(db: Queryable) {
 
   async function insert(input: ExpenseWrite): Promise<Expense> {
     const { rows } = await db.query<ExpenseRow>(
-      `INSERT INTO expenses (incurred_at, tags) VALUES ($1, $2) RETURNING *`,
-      [input.incurredAt, input.tags],
+      `INSERT INTO expenses (incurred_at, description, tags) VALUES ($1, $2, $3) RETURNING *`,
+      [input.incurredAt, input.description, input.tags],
     );
     const row = rows[0]!;
     await insertItems(row.id, input.items);
@@ -185,8 +190,9 @@ export function createExpenseRepository(db: Queryable) {
   /** Replaces an expense's header and its entire line-item list (not a partial patch). */
   async function replace(id: number, input: ExpenseWrite): Promise<Expense | undefined> {
     const { rows } = await db.query<ExpenseRow>(
-      `UPDATE expenses SET incurred_at = $1, tags = $2, updated_at = now() WHERE id = $3 RETURNING *`,
-      [input.incurredAt, input.tags, id],
+      `UPDATE expenses SET incurred_at = $1, description = $2, tags = $3, updated_at = now()
+       WHERE id = $4 RETURNING *`,
+      [input.incurredAt, input.description, input.tags, id],
     );
     if (!rows[0]) return undefined;
 

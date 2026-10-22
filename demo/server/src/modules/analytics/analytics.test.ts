@@ -238,6 +238,7 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
     // Mar 2026), so both count toward totalExpensesCents.
     await expenses.insert({
       incurredAt: '2026-03-14T00:00:00Z',
+      description: '',
       tags: ['supplier'],
       items: [
         {
@@ -251,6 +252,7 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
     });
     await expenses.insert({
       incurredAt: '2026-01-01T00:00:00Z',
+      description: '',
       tags: ['supplier'],
       items: [
         { itemId: soap.id, itemName: soap.name, quantity: 5, unitCostCents: 300, totalCents: 1500 },

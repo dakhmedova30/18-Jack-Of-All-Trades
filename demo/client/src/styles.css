@@ -617,6 +617,11 @@ code {
   font-weight: 700;
 }
 
+/* The date/channel/ID rows follow the total in the sale and expense forms. */
+.sale-total + .form-row {
+  margin-top: 1rem;
+}
+
 .banner {
   padding: 0.6rem 0.9rem;
   border-radius: var(--radius);

@@ -274,6 +274,7 @@ async function seedSampleTransactions(
         : monthsAgoIso(expense.monthsAgo!, expense.day!);
     await expenses.recordExpense({
       incurredAt,
+      description: '',
       tags: expense.tags,
       items: expense.lines.map((line) =>
         isItemLine(line)

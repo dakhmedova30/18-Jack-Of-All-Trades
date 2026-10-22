@@ -80,6 +80,9 @@ const SCHEMA = `
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
   );
 
+  -- Added later, like sales.description; blank on expenses recorded before it.
+  ALTER TABLE expenses ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT '';
+
   CREATE INDEX IF NOT EXISTS idx_expenses_incurred_at ON expenses (incurred_at);
 
   -- The choices in the expense form's Tag dropdown; users can add their own.

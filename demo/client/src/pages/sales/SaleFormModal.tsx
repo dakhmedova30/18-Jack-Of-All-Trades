@@ -4,8 +4,10 @@ import { listItems } from '../../api/items';
 import { getErrorMessage } from '../../api/http';
 import { Modal } from '../../components/Modal';
 import { PlusIcon, TrashIcon } from '../../components/icons';
+import { DescriptionRow } from '../../components/DescriptionRow';
 import { SelectWithAddRow } from '../../components/SelectWithAddRow';
 import { dateInputValueToIso, isoToDateInputValue } from '../../utils/date';
+import { describeLines } from '../../utils/describeLines';
 import { formatCents } from '../../utils/money';
 import type { Channel, Item, Sale, SaleInput } from '../../types';
 
@@ -26,11 +28,6 @@ let nextKey = 0;
 function newLine(itemId = '', quantity = '1'): LineState {
   nextKey += 1;
   return { key: `line-${nextKey}`, itemId, quantity };
-}
-
-/** Same format as the server's default, so the field shows what will be saved. */
-function describeLines(lines: { itemName: string; quantity: number }[]): string {
-  return lines.map((line) => `${line.itemName} x ${line.quantity}`).join(', ');
 }
 
 function linesFromSale(sale?: Sale): LineState[] {
@@ -173,72 +170,13 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
       }
     >
       <form id="sale-form" className="item-form" onSubmit={handleSubmit} noValidate>
-        <div className="form-row">
-          <label>ID</label>
-          <span className="form-row__static">{sale?.id ?? 'Assigned on save'}</span>
-        </div>
-
-        <div className="form-row">
-          <label htmlFor="sale-date">Date</label>
-          <div className="form-row__control">
-            <input
-              id="sale-date"
-              type="date"
-              value={date}
-              onChange={(event) => {
-                setDate(event.target.value);
-                setDateError(null);
-              }}
-              aria-invalid={dateError ? true : undefined}
-            />
-            {dateError && <span className="field-error">{dateError}</span>}
-          </div>
-        </div>
-
-        <SelectWithAddRow
-          id="sale-channel"
-          label="Channel"
-          noun="channel"
-          options={
-            channels?.map((channel) => ({ value: String(channel.id), label: channel.name })) ?? null
-          }
-          loadError={channelsError}
-          value={channelId}
-          onChange={(value) => {
-            setChannelId(value);
-            setChannelError(null);
-          }}
-          onAdd={async (name) => {
-            const channel = await createChannel(name);
-            setChannels((current) => [...(current ?? []), channel]);
-            return String(channel.id);
-          }}
-          error={channelError}
-          maxLength={40}
-          placeholder="e.g. Etsy"
+        <DescriptionRow
+          id="sale-description"
+          customDescription={customDescription}
+          onChange={setCustomDescription}
+          autoDescription={autoDescription}
+          placeholder="Add a description (optional)"
         />
-
-        <div className="form-row">
-          <label htmlFor="sale-description">Description</label>
-          <div className="form-row__control">
-            <input
-              id="sale-description"
-              value={customDescription ?? autoDescription}
-              onChange={(event) => setCustomDescription(event.target.value)}
-              placeholder="Item x units sold"
-              maxLength={200}
-            />
-            {customDescription !== null && (
-              <button
-                type="button"
-                className="link-button form-row__reset"
-                onClick={() => setCustomDescription(null)}
-              >
-                Use item names
-              </button>
-            )}
-          </div>
-        </div>
 
         <div className="sale-lines">
           {itemsError && <p className="form-error">Could not load items: {itemsError}</p>}
@@ -308,7 +246,7 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
             className="button button--secondary sale-lines__add"
             onClick={addLine}
           >
-            Add <PlusIcon />
+            Add another item <PlusIcon />
           </button>
         </div>
 
@@ -316,6 +254,54 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
           <span>Total</span>
           <span>{formatCents(grandTotalCents)}</span>
         </div>
+
+        <div className="form-row">
+          <label htmlFor="sale-date">Date</label>
+          <div className="form-row__control">
+            <input
+              id="sale-date"
+              type="date"
+              value={date}
+              onChange={(event) => {
+                setDate(event.target.value);
+                setDateError(null);
+              }}
+              aria-invalid={dateError ? true : undefined}
+            />
+            {dateError && <span className="field-error">{dateError}</span>}
+          </div>
+        </div>
+
+        <SelectWithAddRow
+          id="sale-channel"
+          label="Channel"
+          noun="channel"
+          options={
+            channels?.map((channel) => ({ value: String(channel.id), label: channel.name })) ?? null
+          }
+          loadError={channelsError}
+          value={channelId}
+          onChange={(value) => {
+            setChannelId(value);
+            setChannelError(null);
+          }}
+          onAdd={async (name) => {
+            const channel = await createChannel(name);
+            setChannels((current) => [...(current ?? []), channel]);
+            return String(channel.id);
+          }}
+          error={channelError}
+          maxLength={40}
+          placeholder="e.g. Etsy"
+        />
+
+        {/* A new sale has no ID until it's saved, so only show it when editing. */}
+        {sale && (
+          <div className="form-row">
+            <label>ID</label>
+            <span className="form-row__static">{sale.id}</span>
+          </div>
+        )}
 
         {submitError && <p className="form-error">{submitError}</p>}
       </form>

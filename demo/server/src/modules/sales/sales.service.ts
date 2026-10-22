@@ -1,4 +1,5 @@
 import { runInTransaction, type Db, type Queryable } from '../../db/database.js';
+import { describeLines } from '../../utils/describeLines.js';
 import { HttpError } from '../../utils/httpError.js';
 import { buildPage, toOffset, type Paginated } from '../../utils/pagination.js';
 import { createItemRepository } from '../items/items.repository.js';
@@ -25,12 +26,6 @@ export interface SalesMonthSummary {
 interface SaleLineInput {
   itemId: number;
   quantity: number;
-}
-
-/** The default description: "Flower Print x 2, Keychain x 1". Fits the 200-character limit. */
-export function describeLines(lines: Pick<NewSaleLineItem, 'itemName' | 'quantity'>[]): string {
-  const text = lines.map((line) => `${line.itemName} x ${line.quantity}`).join(', ');
-  return text.length <= 200 ? text : `${text.slice(0, 199)}…`;
 }
 
 /**

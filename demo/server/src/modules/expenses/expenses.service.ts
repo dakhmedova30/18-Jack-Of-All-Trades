@@ -1,4 +1,5 @@
 import { runInTransaction, type Db, type Queryable } from '../../db/database.js';
+import { describeLines } from '../../utils/describeLines.js';
 import { HttpError } from '../../utils/httpError.js';
 import { buildPage, toOffset, type Paginated } from '../../utils/pagination.js';
 import { createItemRepository } from '../items/items.repository.js';
@@ -122,7 +123,12 @@ export function createExpenseService(db: Db) {
     return runInTransaction(db, async (client) => {
       const expenses = createExpenseRepository(client);
       const items = await applyLines(client, input.items);
-      return expenses.insert({ incurredAt: input.incurredAt, tags: input.tags, items });
+      return expenses.insert({
+        incurredAt: input.incurredAt,
+        description: input.description || describeLines(items),
+        tags: input.tags,
+        items,
+      });
     });
   }
 
@@ -136,6 +142,7 @@ export function createExpenseService(db: Db) {
       const items = await applyLines(client, input.items);
       const updated = await expenses.replace(id, {
         incurredAt: input.incurredAt,
+        description: input.description || describeLines(items),
         tags: input.tags,
         items,
       });

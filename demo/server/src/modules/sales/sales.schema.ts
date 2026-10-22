@@ -11,7 +11,7 @@ const saleLineItemSchema = z.object({
 const saleFields = {
   soldAt: z.iso.datetime({ offset: true }),
   channelId: z.number().int().positive().max(MAX_INT),
-  // Blank means "describe it from the items" (see sales.service#describeLines).
+  // Blank means "describe it from the items" (see utils/describeLines).
   description: z.string().trim().max(200).default(''),
   tags: z
     .array(tagSchema)

@@ -503,6 +503,26 @@ describe.skipIf(!testDatabaseUrl)('API', () => {
       await request(app).get('/api/expenses?sort=items').expect(400);
     });
 
+    it('describes an expense from its lines unless given a description', async () => {
+      await request(app).post('/api/items').send(candle); // id 1
+      const expense = {
+        incurredAt: '2026-10-12T15:00:00Z',
+        items: [
+          { itemId: 1, quantity: 5, unitCostCents: 900 },
+          { description: 'Shipping', quantity: 1, unitCostCents: 1200 },
+        ],
+      };
+
+      const res = await request(app).post('/api/expenses').send(expense).expect(201);
+      expect(res.body.description).toBe('Lavender candle x 5, Shipping x 1');
+
+      const custom = await request(app)
+        .patch('/api/expenses/1')
+        .send({ ...expense, description: ' Market prep ' })
+        .expect(200);
+      expect(custom.body.description).toBe('Market prep');
+    });
+
     it("splits this month's spending into restocks vs running costs", async () => {
       const item = await request(app)
         .post('/api/items')
