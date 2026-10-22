@@ -8,6 +8,8 @@ spring:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/jack}
     username: ${SPRING_DATASOURCE_USERNAME:jack}
     password: ${SPRING_DATASOURCE_PASSWORD:jack}
+    hikari:
+      connection-timeout: 10000           # milliseconds, as the demo; fail fast (503) when the database is down
   jpa:
     open-in-view: false
     hibernate:
