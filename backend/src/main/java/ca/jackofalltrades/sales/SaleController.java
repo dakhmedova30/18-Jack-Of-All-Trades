@@ -49,6 +49,12 @@ public class SaleController {
         return saleService.list(trimmed == null || trimmed.isEmpty() ? null : trimmed, sort, order, page, pageSize);
     }
 
+    /** A literal path, so Spring matches it before {@code /{id}}; "month-summary" is never parsed as an id. */
+    @GetMapping("/month-summary")
+    public SalesMonthSummary monthSummary() {
+        return saleService.monthSummary();
+    }
+
     @GetMapping("/{id}")
     public SaleResponse get(@PathVariable String id) {
         return saleService.get(Ids.parse(id, "sale id"));

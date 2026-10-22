@@ -7,6 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -80,6 +81,40 @@ public class SaleQueries {
                         lines.getOrDefault(row.id(), List.of()), row.createdAt(), row.updatedAt()))
                 .toList();
         return Paginated.of(data, page, pageSize, total);
+    }
+
+    /** Sale count, revenue and the largest sale for sales in {@code [from, to)}, from merge-ui-mods' periodSummary. */
+    public SalesMonthSummary periodSummary(int businessId, Instant from, Instant to) {
+        String perSale = """
+                WITH per_sale AS (
+                  SELECT s.id, s.sold_at, COALESCE(SUM(si.total_cents), 0) AS total_cents
+                  FROM sales s LEFT JOIN sale_items si ON si.sale_id = s.id
+                  WHERE s.business_id = :businessId AND s.sold_at >= :from AND s.sold_at < :to
+                  GROUP BY s.id)
+                """;
+        Map<String, Object> params = Map.of(
+                "businessId", businessId,
+                "from", OffsetDateTime.ofInstant(from, ZoneOffset.UTC),
+                "to", OffsetDateTime.ofInstant(to, ZoneOffset.UTC));
+
+        long[] totals = jdbcClient.sql(perSale + "SELECT COUNT(*), COALESCE(SUM(total_cents), 0) FROM per_sale")
+                .params(params)
+                .query((rs, rowNum) -> new long[] {rs.getLong(1), rs.getLong(2)})
+                .single();
+        SalesMonthSummary.LargestSale largest = jdbcClient.sql(perSale
+                        + "SELECT * FROM per_sale ORDER BY total_cents DESC, sold_at DESC, id DESC LIMIT 1")
+                .params(params)
+                .query((rs, rowNum) -> new SalesMonthSummary.LargestSale(
+                        rs.getInt("id"),
+                        rs.getObject("sold_at", OffsetDateTime.class).toInstant(),
+                        rs.getLong("total_cents")))
+                .optional()
+                .orElse(null);
+
+        long count = totals[0];
+        long revenue = totals[1];
+        long average = count > 0 ? Math.round((double) revenue / count) : 0;
+        return new SalesMonthSummary(from, to, count, revenue, average, largest);
     }
 
     /** All the page's lines in one query, grouped by sale, each sale's lines in id order. */

@@ -8,7 +8,10 @@ import ca.jackofalltrades.common.api.Paginated;
 import ca.jackofalltrades.common.security.CurrentBusiness;
 import ca.jackofalltrades.items.Item;
 import ca.jackofalltrades.items.ItemRepository;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -59,6 +62,15 @@ public class SaleService {
         return sales.findByIdAndBusinessId(id, currentBusiness.id())
                 .map(SaleResponse::from)
                 .orElseThrow(() -> new NotFoundException("Sale", id));
+    }
+
+    /** "This month at a glance": the current UTC calendar month, as the demo and Analytics use. */
+    @Transactional(readOnly = true)
+    public SalesMonthSummary monthSummary() {
+        LocalDate firstOfMonth = LocalDate.now(ZoneOffset.UTC).withDayOfMonth(1);
+        Instant start = firstOfMonth.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant end = firstOfMonth.plusMonths(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        return queries.periodSummary(currentBusiness.id(), start, end);
     }
 
     @Transactional
