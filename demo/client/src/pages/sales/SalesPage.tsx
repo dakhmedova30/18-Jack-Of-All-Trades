@@ -5,13 +5,25 @@ import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
 import { TagList } from '../../components/TagList';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useInventoryInsights } from '../../hooks/useInventoryInsights';
+import { useSalesMonthSummary } from '../../hooks/useSalesMonthSummary';
 import { useSales } from '../../hooks/useSales';
-import type { Sale, SaleInput } from '../../types';
+import type { Sale, SaleInput, SaleSortField, SortOrder } from '../../types';
 import { formatDate } from '../../utils/date';
 import { formatCents } from '../../utils/money';
+import { BestSellersPanel } from './BestSellersPanel';
+import { MonthGlancePanel } from './MonthGlancePanel';
 import { SaleFormModal } from './SaleFormModal';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 15;
+
+const SORTABLE_COLUMNS: { field: SaleSortField; label: string; numeric?: boolean }[] = [
+  { field: 'id', label: 'ID' },
+  { field: 'soldAt', label: 'Date' },
+  { field: 'total', label: 'Total', numeric: true },
+  { field: 'tags', label: 'Tags' },
+];
+const DEFAULT_SORT: { field: SaleSortField; order: SortOrder } = { field: 'soldAt', order: 'desc' };
 
 type FormState = { mode: 'create' } | { mode: 'edit'; sale: Sale } | null;
 type DeleteTarget = { kind: 'single'; sale: Sale } | { kind: 'bulk'; ids: number[] } | null;
@@ -20,7 +32,32 @@ export function SalesPage() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebouncedValue(searchInput.trim());
-  const { data, error, loading, reload } = useSales({ page, pageSize: PAGE_SIZE, search });
+  const [sort, setSort] = useState(DEFAULT_SORT);
+  const {
+    data,
+    error,
+    loading,
+    reload: reloadSales,
+  } = useSales({ page, pageSize: PAGE_SIZE, search, sort: sort.field, order: sort.order });
+  const insights = useInventoryInsights();
+  const monthSummary = useSalesMonthSummary();
+
+  // Any add/edit/delete can change this month's numbers, so refresh everything together.
+  function reload() {
+    reloadSales();
+    insights.reload();
+    monthSummary.reload();
+  }
+
+  /** Clicking the current sort column flips its direction; a new column starts ascending. */
+  function toggleSort(field: SaleSortField) {
+    setSort((current) =>
+      current.field === field
+        ? { field, order: current.order === 'asc' ? 'desc' : 'asc' }
+        : { field, order: 'asc' },
+    );
+    setPage(1);
+  }
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [formState, setFormState] = useState<FormState>(null);
@@ -68,8 +105,11 @@ export function SalesPage() {
 
     // If we just emptied the last page, step back one page instead of showing nothing.
     const removedFromPage = sales.filter((sale) => ids.includes(sale.id)).length;
-    if (page > 1 && removedFromPage === sales.length) setPage(page - 1);
-    else reload();
+    if (page > 1 && removedFromPage === sales.length) {
+      setPage(page - 1);
+      insights.reload();
+      monthSummary.reload();
+    } else reload();
   }
 
   const isEmpty = data !== undefined && data.total === 0;
@@ -126,10 +166,29 @@ export function SalesPage() {
                   aria-label="Select all sales on this page"
                 />
               </th>
-              <th>ID</th>
-              <th>Date</th>
-              <th className="numeric">Total</th>
-              <th>Tags</th>
+              {SORTABLE_COLUMNS.map(({ field, label, numeric }) => {
+                const active = sort.field === field;
+                return (
+                  <th
+                    key={field}
+                    className={numeric ? 'numeric' : undefined}
+                    aria-sort={
+                      active ? (sort.order === 'asc' ? 'ascending' : 'descending') : 'none'
+                    }
+                  >
+                    <button
+                      type="button"
+                      className={`sort-button${active ? ' is-active' : ''}`}
+                      onClick={() => toggleSort(field)}
+                    >
+                      {label}
+                      <span className="sort-button__arrow" aria-hidden="true">
+                        {active ? (sort.order === 'asc' ? '▲' : '▼') : '↕'}
+                      </span>
+                    </button>
+                  </th>
+                );
+              })}
               <th className="table__action">Delete</th>
             </tr>
           </thead>
@@ -189,6 +248,11 @@ export function SalesPage() {
       </div>
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}
+
+      <div className="panel-row">
+        <MonthGlancePanel {...monthSummary} />
+        <BestSellersPanel {...insights} />
+      </div>
 
       {formState && (
         <SaleFormModal

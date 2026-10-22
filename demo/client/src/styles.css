@@ -583,23 +583,17 @@ code {
 
 /* ---------- Inventory: table, stat, panels ---------- */
 
-.inventory-stat {
-  align-self: flex-start;
-  min-width: 260px;
+.stock-value {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0.6rem;
 }
 
-/* About 15 rows tall, then the table scrolls inside itself with the header pinned. */
-.inventory-table {
-  max-height: calc(15 * 2.6rem + 2.8rem);
-  overflow-y: auto;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.inventory-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--color-bg);
+.stock-value__amount {
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Sortable column headers look like the plain ones, plus a direction arrow. */
@@ -624,11 +618,106 @@ code {
   color: var(--color-text);
 }
 
-.inventory-panels {
+/* Two equal panels side by side under a table (Inventory, Sales). */
+.panel-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
   align-items: start;
+}
+
+/* Expenses table: one line per expense; long descriptions get an ellipsis. */
+.expense-description {
+  max-width: 0;
+  width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Expenses: "Where the money goes" restock vs running-cost bars. */
+.money-split {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.5rem 0.6rem;
+  list-style: none;
+}
+
+.money-split__row {
+  display: grid;
+  grid-template-columns: 10rem 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.money-split__track {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.money-split__fill {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+}
+
+/* Restock matches the expenses orange used across the app; running costs stay neutral. */
+.money-split__fill--restock {
+  background: #eb6834;
+}
+
+.money-split__fill--running {
+  background: #9a9890;
+}
+
+.money-split__value {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .money-split__row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .money-split__track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+.glance {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0.5rem 0.6rem;
+}
+
+.glance__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.glance__item dt {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.glance__item dd {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.glance__note {
+  font-size: 0.8rem;
 }
 
 .best-sellers__rank {
@@ -639,7 +728,7 @@ code {
 }
 
 @media (max-width: 720px) {
-  .inventory-panels {
+  .panel-row {
     grid-template-columns: 1fr;
   }
 }

@@ -1,4 +1,5 @@
 import type { Queryable } from '../../db/database.js';
+import type { SaleSortField } from './sales.schema.js';
 
 export interface SaleItem {
   id: number;
@@ -86,7 +87,19 @@ export interface SalePageQuery {
   search?: string;
   limit: number;
   offset: number;
+  sort?: SaleSortField;
+  order?: 'asc' | 'desc';
 }
+
+/** Whitelisted ORDER BY expressions; user input never reaches the SQL directly.
+ *  A sale's total is the sum of its lines; tags sort by the first tag,
+ *  case-insensitively. */
+const ORDER_BY_FIELD = {
+  id: 'id',
+  soldAt: 'sold_at',
+  total: '(SELECT COALESCE(SUM(si.total_cents), 0) FROM sale_items si WHERE si.sale_id = sales.id)',
+  tags: 'lower(tags[1])',
+} as const satisfies Record<SaleSortField, string>;
 
 export function createSaleRepository(db: Queryable) {
   async function itemRowsBySaleId(saleIds: number[]): Promise<Map<number, SaleItemRow[]>> {
@@ -113,7 +126,13 @@ export function createSaleRepository(db: Queryable) {
     return assembleSale(row, itemRows.get(id) ?? []);
   }
 
-  async function findPage({ search, limit, offset }: SalePageQuery) {
+  async function findPage({
+    search,
+    limit,
+    offset,
+    sort = 'soldAt',
+    order = 'desc',
+  }: SalePageQuery) {
     const filterParams: string[] = [];
     let where = '';
     if (search) {
@@ -128,8 +147,10 @@ export function createSaleRepository(db: Queryable) {
     );
     const limitIndex = filterParams.length + 1;
     const { rows } = await db.query<SaleRow>(
+      // Untagged sales go last either way; id breaks ties so paging stays stable.
       `SELECT * FROM sales ${where}
-       ORDER BY sold_at DESC, id DESC LIMIT $${limitIndex} OFFSET $${limitIndex + 1}`,
+       ORDER BY ${ORDER_BY_FIELD[sort]} ${order === 'desc' ? 'DESC' : 'ASC'} NULLS LAST, id DESC
+       LIMIT $${limitIndex} OFFSET $${limitIndex + 1}`,
       [...filterParams, limit, offset],
     );
 
@@ -178,7 +199,38 @@ export function createSaleRepository(db: Queryable) {
     return (result.rowCount ?? 0) > 0;
   }
 
-  return { findById, findPage, insert, replace, remove };
+  /** Sale count, revenue and the single largest sale for sales in [from, to). */
+  async function periodSummary(from: Date, to: Date) {
+    const params = [from.toISOString(), to.toISOString()];
+    // One row per sale with its total (sum of lines), reused by both queries.
+    const perSale = `
+      SELECT s.id, s.sold_at, COALESCE(SUM(si.total_cents), 0)::int AS total_cents
+      FROM sales s
+      LEFT JOIN sale_items si ON si.sale_id = s.id
+      WHERE s.sold_at >= $1 AND s.sold_at < $2
+      GROUP BY s.id`;
+    const [totals, largest] = await Promise.all([
+      db.query<{ count: number; revenue_cents: string }>(
+        `SELECT COUNT(*)::int AS count, COALESCE(SUM(total_cents), 0) AS revenue_cents
+         FROM (${perSale}) per_sale`,
+        params,
+      ),
+      db.query<{ id: number; sold_at: Date; total_cents: number }>(
+        `SELECT * FROM (${perSale}) per_sale ORDER BY total_cents DESC, sold_at DESC, id DESC LIMIT 1`,
+        params,
+      ),
+    ]);
+    const top = largest.rows[0];
+    return {
+      count: totals.rows[0]!.count,
+      revenueCents: Number(totals.rows[0]!.revenue_cents),
+      largest: top
+        ? { id: top.id, soldAt: top.sold_at.toISOString(), totalCents: top.total_cents }
+        : null,
+    };
+  }
+
+  return { findById, findPage, insert, replace, remove, periodSummary };
 }
 
 export type SaleRepository = ReturnType<typeof createSaleRepository>;

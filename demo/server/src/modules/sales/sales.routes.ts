@@ -11,7 +11,8 @@ import type { SaleService } from './sales.service.js';
 /**
  * HTTP layer: parse + validate input, call the service, shape the response.
  *
- *   GET    /api/sales?page=1&pageSize=10&search=soap
+ *   GET    /api/sales?page=1&pageSize=10&search=soap&sort=total&order=desc
+ *   GET    /api/sales/month-summary this month's sale count, average and largest sale
  *   GET    /api/sales/:id
  *   POST   /api/sales               { soldAt, tags?, items: [{ itemId, quantity }] }
  *   PATCH  /api/sales/:id           replaces soldAt, tags and the whole item list
@@ -28,6 +29,11 @@ export function createSalesRouter(service: SaleService): Router {
   router.post('/bulk-delete', async (req, res) => {
     const { ids } = bulkDeleteSalesSchema.parse(req.body);
     res.json(await service.bulkDeleteSales(ids));
+  });
+
+  // Must stay above GET /:id, or "month-summary" would be parsed as a sale id.
+  router.get('/month-summary', async (_req, res) => {
+    res.json(await service.getMonthSummary());
   });
 
   router.get('/:id', async (req, res) => {

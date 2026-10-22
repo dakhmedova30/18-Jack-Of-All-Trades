@@ -3,8 +3,8 @@ import { getErrorMessage } from '../api/http';
 import { getLowStock } from '../api/items';
 import type { LowStock } from '../types';
 
-/** Loads the low-stock summary once. Call `reload()` to refetch. */
-export function useLowStock() {
+/** Loads the low-stock summary, listing up to `limit` items. Call `reload()` to refetch. */
+export function useLowStock(limit?: number) {
   const [reloadToken, setReloadToken] = useState(0);
   const [result, setResult] = useState<{ token: number; data?: LowStock; error?: string } | null>(
     null,
@@ -12,7 +12,7 @@ export function useLowStock() {
 
   useEffect(() => {
     let cancelled = false;
-    getLowStock()
+    getLowStock(limit)
       .then((data) => {
         if (!cancelled) setResult({ token: reloadToken, data });
       })
@@ -22,7 +22,7 @@ export function useLowStock() {
     return () => {
       cancelled = true;
     };
-  }, [reloadToken]);
+  }, [reloadToken, limit]);
 
   const reload = useCallback(() => setReloadToken((token) => token + 1), []);
 

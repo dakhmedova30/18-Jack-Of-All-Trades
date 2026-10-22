@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { BoxIcon, ChartIcon, HomeIcon, ReceiptIcon, WalletIcon } from './icons';
+import { BoxIcon, ChartIcon, HomeIcon, LogOutIcon, ReceiptIcon, WalletIcon } from './icons';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Home', icon: HomeIcon, end: true },
@@ -27,6 +27,11 @@ export function AppLayout() {
             </NavLink>
           ))}
         </nav>
+        {/* Placeholder until auth lands: looks like the real thing, does nothing yet. */}
+        <button type="button" className="sidebar__link sidebar__logout">
+          <LogOutIcon />
+          Log Out
+        </button>
       </aside>
       <main className="content">
         <Outlet />

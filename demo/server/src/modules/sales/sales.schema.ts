@@ -29,8 +29,14 @@ export const createSaleSchema = z.object(saleFieldsWithTagsDefault);
 // so, unlike items, soldAt and items are required; only tags defaults.
 export const updateSaleSchema = z.object(saleFieldsWithTagsDefault);
 
+export const SALE_SORT_FIELDS = ['id', 'soldAt', 'total', 'tags'] as const;
+export type SaleSortField = (typeof SALE_SORT_FIELDS)[number];
+
 export const listSalesQuerySchema = paginationQuerySchema.extend({
   search: z.string().trim().max(100).optional(),
+  /** Defaults to newest sale first, the order the list always had. */
+  sort: z.enum(SALE_SORT_FIELDS).default('soldAt'),
+  order: z.enum(['asc', 'desc']).default('desc'),
 });
 
 export const bulkDeleteSalesSchema = z.object({

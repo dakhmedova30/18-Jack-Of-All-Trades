@@ -5,6 +5,17 @@ import { createItemRepository } from '../items/items.repository.js';
 import { createSaleRepository, type NewSaleLineItem, type Sale } from './sales.repository.js';
 import type { CreateSaleInput, ListSalesQuery, UpdateSaleInput } from './sales.schema.js';
 
+export interface SalesMonthSummary {
+  /** Calendar month (UTC) covered: [start, end). */
+  periodStart: string;
+  periodEnd: string;
+  saleCount: number;
+  revenueCents: number;
+  /** Revenue / number of sales, rounded to the cent; 0 with no sales. */
+  averageSaleCents: number;
+  largestSale: { id: number; soldAt: string; totalCents: number } | null;
+}
+
 interface SaleLineInput {
   itemId: number;
   quantity: number;
@@ -18,9 +29,17 @@ interface SaleLineInput {
 export function createSaleService(db: Db) {
   const reader = createSaleRepository(db);
 
-  async function listSales({ page, pageSize, search }: ListSalesQuery): Promise<Paginated<Sale>> {
+  async function listSales({
+    page,
+    pageSize,
+    search,
+    sort,
+    order,
+  }: ListSalesQuery): Promise<Paginated<Sale>> {
     const { sales, total } = await reader.findPage({
       search: search || undefined,
+      sort,
+      order,
       limit: pageSize,
       offset: toOffset(page, pageSize),
     });
@@ -110,7 +129,31 @@ export function createSaleService(db: Db) {
     });
   }
 
-  return { listSales, getSale, recordSale, updateSale, deleteSale, bulkDeleteSales };
+  /** "This month at a glance" for the Sales page: count, average and largest sale. */
+  async function getMonthSummary(now = new Date()): Promise<SalesMonthSummary> {
+    // UTC calendar month, matching Analytics and the Inventory best sellers.
+    const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    const { count, revenueCents, largest } = await reader.periodSummary(periodStart, periodEnd);
+    return {
+      periodStart: periodStart.toISOString(),
+      periodEnd: periodEnd.toISOString(),
+      saleCount: count,
+      revenueCents,
+      averageSaleCents: count > 0 ? Math.round(revenueCents / count) : 0,
+      largestSale: largest,
+    };
+  }
+
+  return {
+    listSales,
+    getSale,
+    recordSale,
+    updateSale,
+    deleteSale,
+    bulkDeleteSales,
+    getMonthSummary,
+  };
 }
 
 export type SaleService = ReturnType<typeof createSaleService>;

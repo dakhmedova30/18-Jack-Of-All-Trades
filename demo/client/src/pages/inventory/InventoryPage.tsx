@@ -19,7 +19,7 @@ import type {
 import { formatCents } from '../../utils/money';
 import { ItemFormModal } from './ItemFormModal';
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 15;
 /** The server's max; enough to list every low item for any realistic shop. */
 const LOW_STOCK_LIST_LIMIT = 100;
 
@@ -124,8 +124,6 @@ export function InventoryPage() {
 
   return (
     <section className="page">
-      <StockValueStat data={insights.data} loading={insights.loading} />
-
       <div className="toolbar">
         <div className="toolbar__actions">
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
@@ -164,7 +162,7 @@ export function InventoryPage() {
         </div>
       )}
 
-      <div className={`table-wrap inventory-table${loading && data ? ' is-loading' : ''}`}>
+      <div className={`table-wrap${loading && data ? ' is-loading' : ''}`}>
         <table className="table">
           <thead>
             <tr>
@@ -261,9 +259,9 @@ export function InventoryPage() {
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}
 
-      <div className="inventory-panels">
+      <div className="panel-row">
+        <StockValuePanel {...insights} />
         <LowStockPanel {...lowStock} />
-        <BestSellersPanel {...insights} />
       </div>
 
       {formState && (
@@ -339,68 +337,35 @@ function LowStockPanel({ data, error, loading, reload }: LowStockPanelProps) {
   );
 }
 
-/** Total stock value at selling price, shown above the table. */
-function StockValueStat({ data, loading }: { data?: InventoryInsights; loading: boolean }) {
-  return (
-    <div className="stat-card stat-card--neutral inventory-stat">
-      <span className="stat-card__label">Stock value · at selling price</span>
-      <span className="stat-card__value">
-        {data ? formatCents(data.stockValueCents) : loading ? '…' : '—'}
-      </span>
-      {data && (
-        <span className="stat-card__detail">{data.totalUnits.toLocaleString()} units in stock</span>
-      )}
-    </div>
-  );
-}
-
-interface BestSellersPanelProps {
+interface StockValuePanelProps {
   data?: InventoryInsights;
   error?: string;
   loading: boolean;
   reload: () => void;
 }
 
-/** This month's top 3 items by units sold. */
-function BestSellersPanel({ data, error, loading, reload }: BestSellersPanelProps) {
-  const month = data
-    ? new Date(data.periodStart).toLocaleDateString('en-CA', {
-        month: 'long',
-        timeZone: 'UTC',
-      })
-    : '';
-
+/** What everything in stock is worth at selling price, next to Low stock. */
+function StockValuePanel({ data, error, loading, reload }: StockValuePanelProps) {
   return (
     <div className="card low-stock">
       <div className="low-stock__header">
-        <h2>Best sellers</h2>
-        {data && <span className="muted">{month}, by units sold</span>}
+        <h2>Stock value</h2>
+        <span className="muted">at selling price</span>
       </div>
       {error ? (
         <div className="banner banner--error" role="alert">
-          Couldn't load best sellers: {error}{' '}
+          Couldn't load stock value: {error}{' '}
           <button type="button" className="link-button" onClick={reload}>
             Retry
           </button>
         </div>
       ) : !data ? (
         <p className="empty-state">{loading ? 'Loading…' : 'No data.'}</p>
-      ) : data.bestSellers.length === 0 ? (
-        <p className="empty-state">No sales yet this month.</p>
       ) : (
-        <ol className="low-stock__list best-sellers">
-          {data.bestSellers.map((item, index) => (
-            <li key={item.id} className="low-stock__row">
-              <span className="low-stock__name">
-                <span className="best-sellers__rank">{index + 1}</span>
-                {item.name}
-              </span>
-              <span className="low-stock__qty">
-                {item.unitsSold} sold · {formatCents(item.revenueCents)}
-              </span>
-            </li>
-          ))}
-        </ol>
+        <div className="stock-value">
+          <span className="stock-value__amount">{formatCents(data.stockValueCents)}</span>
+          <span className="muted">{data.totalUnits.toLocaleString()} units in stock</span>
+        </div>
       )}
     </div>
   );
