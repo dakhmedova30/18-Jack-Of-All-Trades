@@ -1,14 +1,14 @@
-# Your Team Number and Name
+# Team 18 - Jack Of All Trades
 
- > _Note:_ This document is meant to be written during (or shortly after) your review meeting, which should happen fairly close to the due date.      
+ <!-- > _Note:_ This document is meant to be written during (or shortly after) your review meeting, which should happen fairly close to the due date.      
  >      
- > _Suggestion:_ Have your review meeting a day or two before the due date. This way you will have some time to go over (and edit) this document, and all team members should have a chance to make their contribution.
+ > _Suggestion:_ Have your review meeting a day or two before the due date. This way you will have some time to go over (and edit) this document, and all team members should have a chance to make their contribution. -->
 
 
-## Iteration XX - Review & Retrospect
+## Iteration 01 - Review & Retrospect
 
- * When: FILL IN THE DATE WHEN YOU ACTUALLY HAD YOUR REVIEW MEETING
- * Where: PHYSICAL LOCATION AND/OR ONLINE
+ * When: October 22, 2026
+ * Where: Online
 
 ## Process - Reflection
 
@@ -16,11 +16,11 @@
 #### Q1. What worked well
 
 List **process-related** (i.e. team organization and how you work) decisions and actions that worked well.
-
-
  * 2 - 4 important decisions, processes, actions, or anything else that worked well for you, ordered from most to least important.
  * Give a supporting argument about what makes you think that way.
  * Feel free to refer/link to process artifact(s).
+   
+ * 
 
 #### Q2. What did not work well
 
