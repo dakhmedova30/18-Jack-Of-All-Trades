@@ -261,7 +261,7 @@ One response drives the whole dashboard. `range` is the page's "Show by" filter:
 | `ytd` | Year to date | One per month, labelled `Jan`, `Feb`, … |
 | `12months` (default) | The last 12 calendar months | One per month |
 
-Revenue and expenses are grouped by each record's **first tag**: the top 3 tags by value, with the rest combined as `"Other"`. Days and months are UTC.
+Revenue and expenses are grouped by each record's **first tag** (records without tags count as `"Untagged"`): the top 3 tags by value, with the rest combined as `"Other"`. Days and months are UTC.
 
 ```json
 {
