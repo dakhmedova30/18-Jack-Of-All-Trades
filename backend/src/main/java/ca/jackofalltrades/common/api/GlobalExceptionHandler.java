@@ -79,6 +79,11 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.UNAUTHORIZED, ApiError.of(ex.getMessage()));
     }
 
+    @ExceptionHandler(ConflictException.class)
+    ResponseEntity<ApiError> conflict(ConflictException ex) {
+        return respond(HttpStatus.CONFLICT, ApiError.of(ex.getMessage()));
+    }
+
     @ExceptionHandler(NotFoundException.class)
     ResponseEntity<ApiError> notFound(NotFoundException ex) {
         return respond(HttpStatus.NOT_FOUND, ApiError.of(ex.getMessage()));

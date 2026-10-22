@@ -2,6 +2,7 @@ package ca.jackofalltrades.seed;
 
 import ca.jackofalltrades.auth.Business;
 import ca.jackofalltrades.auth.BusinessRepository;
+import ca.jackofalltrades.channels.ChannelService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -27,10 +28,13 @@ public class DemoDataSeeder implements ApplicationRunner {
 
     private final BusinessRepository businesses;
     private final PasswordEncoder passwordEncoder;
+    private final ChannelService channelService;
 
-    public DemoDataSeeder(BusinessRepository businesses, PasswordEncoder passwordEncoder) {
+    public DemoDataSeeder(BusinessRepository businesses, PasswordEncoder passwordEncoder,
+            ChannelService channelService) {
         this.businesses = businesses;
         this.passwordEncoder = passwordEncoder;
+        this.channelService = channelService;
     }
 
     @Override
@@ -39,7 +43,8 @@ public class DemoDataSeeder implements ApplicationRunner {
         if (businesses.existsByEmail(DEMO_EMAIL)) {
             return;
         }
-        businesses.save(new Business(DEMO_NAME, DEMO_EMAIL, passwordEncoder.encode(DEMO_PASSWORD)));
+        Business demo = businesses.save(new Business(DEMO_NAME, DEMO_EMAIL, passwordEncoder.encode(DEMO_PASSWORD)));
+        channelService.createStarterChannels(demo.getId());
         log.info("Created demo business {}", DEMO_EMAIL);
     }
 }

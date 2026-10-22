@@ -1,5 +1,6 @@
 package ca.jackofalltrades.auth;
 
+import ca.jackofalltrades.channels.ChannelService;
 import ca.jackofalltrades.common.api.BadRequestException;
 import ca.jackofalltrades.common.api.UnauthorizedException;
 import java.util.Optional;
@@ -12,10 +13,13 @@ public class AuthService {
 
     private final BusinessRepository businesses;
     private final PasswordEncoder passwordEncoder;
+    private final ChannelService channelService;
 
-    public AuthService(BusinessRepository businesses, PasswordEncoder passwordEncoder) {
+    public AuthService(BusinessRepository businesses, PasswordEncoder passwordEncoder,
+            ChannelService channelService) {
         this.businesses = businesses;
         this.passwordEncoder = passwordEncoder;
+        this.channelService = channelService;
     }
 
     @Transactional
@@ -24,7 +28,9 @@ public class AuthService {
             throw new BadRequestException("An account with that email already exists");
         }
         String hash = passwordEncoder.encode(request.password());
-        return businesses.save(new Business(request.name(), request.email(), hash));
+        Business business = businesses.save(new Business(request.name(), request.email(), hash));
+        channelService.createStarterChannels(business.getId());
+        return business;
     }
 
     @Transactional(readOnly = true)
