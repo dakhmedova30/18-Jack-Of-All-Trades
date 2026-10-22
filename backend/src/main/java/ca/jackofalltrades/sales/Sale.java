@@ -14,11 +14,10 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
 /** One checkout (contract §4). Its total isn't stored: it's the sum of its lines. */
@@ -51,11 +50,10 @@ public class Sale {
     @OrderBy("id")
     private List<SaleLine> lines = new ArrayList<>();
 
-    @CreationTimestamp
+    // Set in replace() rather than by @UpdateTimestamp, which skips edits that only change lines.
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
-    @UpdateTimestamp
     @Column(nullable = false)
     private Instant updatedAt;
 
@@ -69,6 +67,11 @@ public class Sale {
 
     /** Sets every field and replaces all lines; used for both create and PATCH (which replaces the sale). */
     void replace(Instant soldAt, Channel channel, String description, List<String> tags, List<SaleLine> newLines) {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS); // Postgres keeps microseconds
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        updatedAt = now;
         this.soldAt = soldAt;
         this.channel = channel;
         this.description = description;

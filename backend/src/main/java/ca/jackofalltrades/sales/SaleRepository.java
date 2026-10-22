@@ -14,7 +14,8 @@ import org.springframework.data.repository.Repository;
  */
 public interface SaleRepository extends Repository<Sale, Integer> {
 
-    Sale save(Sale sale);
+    /** Flushes so the returned sale has its new lines' ids and the database's timestamps. */
+    Sale saveAndFlush(Sale sale);
 
     void delete(Sale sale);
 
