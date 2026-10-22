@@ -33,4 +33,4 @@ Precise description:
 - Database: migrated from local Postgres to a hosted Neon Postgres instance
 - Webapp: deployed the application to Render
 - Login: implemented user authentication registration, login, logout, and session-cookie-based auth using Node’s built-in password hashing.
-- Security: added user data isolation, and every protected route requires a valid session, returning 401 otherwise
+- Security: scoped all data (inventory, sales, expenses, analytics) so each business only sees its own records; every protected route requires a valid session, returning 401 otherwise
