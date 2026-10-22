@@ -2,6 +2,8 @@
 
 **Owner:** Jinuo Tao · **Status:** Draft for team review · **Updated:** 2026-10-19 · **Branch:** `claude-demo`
 
+> ⚠ **Superseded in part (2026-10-21).** The team decided the API should match what the TypeScript demo implements. **[`api-contracts.md`](api-contracts.md) is now the source of truth** for endpoints, JSON and accounts. Where this document differs, follow the contract. The main differences: `businesses` / `business_id` / `/api/auth/register` instead of `users` / `user_id` / `/signup`; no CSRF token; no `channel` yet; a single `GET /api/analytics/summary?range=` instead of three analytics endpoints. Sections 3–5 here have not been updated yet.
+
 ## Summary
 
 We are replacing the TypeScript demo backend (`demo/server`) with Java + Spring Boot, as planned in `planning.md`, and the D2 demo on **Oct 23** runs on Java.
