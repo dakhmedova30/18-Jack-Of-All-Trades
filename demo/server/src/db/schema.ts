@@ -22,6 +22,20 @@ const SCHEMA = `
 
   CREATE INDEX IF NOT EXISTS idx_items_name ON items (name);
 
+  -- Where a sale happened (in person, online, ...). Users can add their own.
+  CREATE TABLE IF NOT EXISTS channels (
+    id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name       TEXT        NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_channels_name ON channels (lower(name));
+
+  -- Starter channels, only into an empty table so a fresh database has a usable dropdown.
+  INSERT INTO channels (name)
+  SELECT name FROM (VALUES ('In person'), ('Online'), ('Commission'), ('Misc')) AS defaults (name)
+  WHERE NOT EXISTS (SELECT 1 FROM channels);
+
   -- A sale is one transaction (one checkout); its line items are in sale_items.
   CREATE TABLE IF NOT EXISTS sales (
     id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -30,6 +44,13 @@ const SCHEMA = `
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
   );
+
+  -- Added after sales first shipped, so ALTER rather than CREATE keeps existing
+  -- databases working. channel_id is nullable only for sales recorded before it
+  -- existed; the API requires it on every new or edited sale. Don't rename it to
+  -- "channel": DROP_LEGACY_SALES_TABLE below treats that column as the old schema.
+  ALTER TABLE sales ADD COLUMN IF NOT EXISTS channel_id  INTEGER REFERENCES channels (id);
+  ALTER TABLE sales ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT '';
 
   CREATE INDEX IF NOT EXISTS idx_sales_sold_at ON sales (sold_at);
 
@@ -60,6 +81,28 @@ const SCHEMA = `
   );
 
   CREATE INDEX IF NOT EXISTS idx_expenses_incurred_at ON expenses (incurred_at);
+
+  -- The choices in the expense form's Tag dropdown; users can add their own.
+  -- An expense still stores its tag in expenses.tags, so charts and search are unchanged.
+  CREATE TABLE IF NOT EXISTS expense_tags (
+    id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name       TEXT        NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_expense_tags_name ON expense_tags (lower(name));
+
+  -- Starter tags (matching the sample data's), plus any already used on expenses,
+  -- only into an empty table.
+  INSERT INTO expense_tags (name)
+  SELECT DISTINCT ON (lower(name)) name FROM (
+    SELECT name FROM (VALUES ('supplier'), ('supplies'), ('rent'), ('utilities'), ('market'))
+      AS defaults (name)
+    UNION ALL
+    SELECT unnest(tags) FROM expenses
+  ) AS starting (name)
+  WHERE NOT EXISTS (SELECT 1 FROM expense_tags)
+  ORDER BY lower(name);
 
   CREATE TABLE IF NOT EXISTS expense_items (
     id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

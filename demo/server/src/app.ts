@@ -10,6 +10,9 @@ import { createExpenseService } from './modules/expenses/expenses.service.js';
 import { createItemRepository } from './modules/items/items.repository.js';
 import { createItemsRouter } from './modules/items/items.routes.js';
 import { createItemService } from './modules/items/items.service.js';
+import { createNamedListRepository } from './modules/namedLists/namedLists.repository.js';
+import { createNamedListRouter } from './modules/namedLists/namedLists.routes.js';
+import { createNamedListService } from './modules/namedLists/namedLists.service.js';
 import { createSalesRouter } from './modules/sales/sales.routes.js';
 import { createSaleService } from './modules/sales/sales.service.js';
 
@@ -32,6 +35,15 @@ export function createApp(db: Db, options: AppOptions = {}): Express {
 
   const itemRepository = createItemRepository(db);
   const itemService = createItemService(itemRepository);
+  const channelService = createNamedListService(createNamedListRepository(db, 'channels'), {
+    label: 'Channel',
+    maxNameLength: 40,
+  });
+  // Same length limit as any tag (see expenses.schema).
+  const expenseTagService = createNamedListService(createNamedListRepository(db, 'expense_tags'), {
+    label: 'Tag',
+    maxNameLength: 30,
+  });
   // Sales and expenses keep inventory stock in sync on every write, so they
   // need the pool itself to run multi-table transactions, not a bound repository.
   const saleService = createSaleService(db);
@@ -43,6 +55,8 @@ export function createApp(db: Db, options: AppOptions = {}): Express {
     res.json({ status: 'ok', database: 'ok' });
   });
   app.use('/api/items', createItemsRouter(itemService));
+  app.use('/api/channels', createNamedListRouter(channelService));
+  app.use('/api/expense-tags', createNamedListRouter(expenseTagService));
   app.use('/api/sales', createSalesRouter(saleService));
   app.use('/api/expenses', createExpensesRouter(expenseService));
   app.use('/api/analytics', createAnalyticsRouter(analyticsService));

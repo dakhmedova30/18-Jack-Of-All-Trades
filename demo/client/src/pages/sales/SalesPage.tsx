@@ -3,7 +3,6 @@ import { bulkDeleteSales, createSale, deleteSale, updateSale } from '../../api/s
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
-import { TagList } from '../../components/TagList';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useInventoryInsights } from '../../hooks/useInventoryInsights';
 import { useSalesMonthSummary } from '../../hooks/useSalesMonthSummary';
@@ -17,11 +16,13 @@ import { SaleFormModal } from './SaleFormModal';
 
 const PAGE_SIZE = 15;
 
-const SORTABLE_COLUMNS: { field: SaleSortField; label: string; numeric?: boolean }[] = [
+/** Table columns in order; those without a `field` aren't sortable. */
+const COLUMNS: { field?: SaleSortField; label: string; numeric?: boolean }[] = [
   { field: 'id', label: 'ID' },
   { field: 'soldAt', label: 'Date' },
+  { label: 'Description' },
   { field: 'total', label: 'Total', numeric: true },
-  { field: 'tags', label: 'Tags' },
+  { field: 'channel', label: 'Channel' },
 ];
 const DEFAULT_SORT: { field: SaleSortField; order: SortOrder } = { field: 'soldAt', order: 'desc' };
 
@@ -139,7 +140,7 @@ export function SalesPage() {
               setSearchInput(event.target.value);
               setPage(1);
             }}
-            aria-label="Search sales by tag or item"
+            aria-label="Search sales by description, channel or item"
           />
           <SearchIcon />
         </label>
@@ -166,7 +167,8 @@ export function SalesPage() {
                   aria-label="Select all sales on this page"
                 />
               </th>
-              {SORTABLE_COLUMNS.map(({ field, label, numeric }) => {
+              {COLUMNS.map(({ field, label, numeric }) => {
+                if (!field) return <th key={label}>{label}</th>;
                 const active = sort.field === field;
                 return (
                   <th
@@ -209,10 +211,11 @@ export function SalesPage() {
                 </td>
                 <td>{sale.id}</td>
                 <td>{formatDate(sale.soldAt)}</td>
-                <td className="numeric">{formatCents(sale.totalCents)}</td>
-                <td>
-                  <TagList tags={sale.tags} />
+                <td className="table__description" title={sale.description}>
+                  {sale.description || <span className="muted">—</span>}
                 </td>
+                <td className="numeric">{formatCents(sale.totalCents)}</td>
+                <td>{sale.channel?.name ?? <span className="muted">—</span>}</td>
                 <td className="table__action">
                   <button
                     type="button"

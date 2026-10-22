@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { createChannel, listChannels } from '../../api/channels';
 import { listItems } from '../../api/items';
 import { getErrorMessage } from '../../api/http';
 import { Modal } from '../../components/Modal';
 import { PlusIcon, TrashIcon } from '../../components/icons';
+import { SelectWithAddRow } from '../../components/SelectWithAddRow';
 import { dateInputValueToIso, isoToDateInputValue } from '../../utils/date';
 import { formatCents } from '../../utils/money';
-import type { Item, Sale, SaleInput } from '../../types';
+import type { Channel, Item, Sale, SaleInput } from '../../types';
 
 interface SaleFormModalProps {
   /** Pass a sale to edit it ("Modify sale"); omit to record one ("Add sale"). */
@@ -26,6 +28,11 @@ function newLine(itemId = '', quantity = '1'): LineState {
   return { key: `line-${nextKey}`, itemId, quantity };
 }
 
+/** Same format as the server's default, so the field shows what will be saved. */
+function describeLines(lines: { itemName: string; quantity: number }[]): string {
+  return lines.map((line) => `${line.itemName} x ${line.quantity}`).join(', ');
+}
+
 function linesFromSale(sale?: Sale): LineState[] {
   if (!sale || sale.items.length === 0) return [newLine()];
   return sale.items.map((item) =>
@@ -40,8 +47,17 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
   const [itemsError, setItemsError] = useState<string | null>(null);
   const itemById = useMemo(() => new Map((items ?? []).map((item) => [item.id, item])), [items]);
 
+  const [channels, setChannels] = useState<Channel[] | null>(null);
+  const [channelsError, setChannelsError] = useState<string | null>(null);
+  const [channelId, setChannelId] = useState(() => (sale?.channel ? String(sale.channel.id) : ''));
+  const [channelError, setChannelError] = useState<string | null>(null);
+
   const [date, setDate] = useState(() => (sale ? isoToDateInputValue(sale.soldAt) : ''));
-  const [tags, setTags] = useState(() => sale?.tags.join(', ') ?? '');
+  // null = follow the items ("Flower Print x 2"); a string = the user's own text.
+  // An existing sale whose description is blank or was never changed keeps following its items.
+  const [customDescription, setCustomDescription] = useState<string | null>(() =>
+    sale?.description && sale.description !== describeLines(sale.items) ? sale.description : null,
+  );
   const [lines, setLines] = useState<LineState[]>(() => linesFromSale(sale));
   const [dateError, setDateError] = useState<string | null>(null);
   const [lineErrors, setLineErrors] = useState<Record<string, string>>({});
@@ -52,6 +68,9 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
     listItems({ page: 1, pageSize: 100 })
       .then((page) => setItems(page.data))
       .catch((error: unknown) => setItemsError(getErrorMessage(error)));
+    listChannels()
+      .then(setChannels)
+      .catch((error: unknown) => setChannelsError(getErrorMessage(error)));
   }, []);
 
   function updateLine(key: string, changes: Partial<LineState>) {
@@ -80,9 +99,20 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
 
   const grandTotalCents = lines.reduce((sum, line) => sum + (lineTotalCents(line) ?? 0), 0);
 
+  const autoDescription = describeLines(
+    lines.flatMap((line) => {
+      const item = itemById.get(Number(line.itemId));
+      const quantity = Number(line.quantity);
+      return item && Number.isInteger(quantity) && quantity > 0
+        ? [{ itemName: item.name, quantity }]
+        : [];
+    }),
+  );
+
   function validate(): SaleInput | null {
     const soldAt = dateInputValueToIso(date);
     setDateError(soldAt ? null : 'Pick a date');
+    setChannelError(channelId ? null : 'Pick a channel');
 
     const errors: Record<string, string> = {};
     const parsedLines = lines.map((line) => {
@@ -95,17 +125,14 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
     });
     setLineErrors(errors);
 
-    if (!soldAt || Object.keys(errors).length > 0) return null;
+    if (!soldAt || !channelId || Object.keys(errors).length > 0) return null;
     return {
       soldAt,
-      tags: [
-        ...new Set(
-          tags
-            .split(',')
-            .map((tag) => tag.trim())
-            .filter(Boolean),
-        ),
-      ],
+      channelId: Number(channelId),
+      // Blank lets the server describe it from the items, the same text as autoDescription.
+      description: customDescription?.trim() ?? '',
+      // Channel replaced tags in this form; keep any an older sale already has.
+      tags: sale?.tags ?? [],
       items: parsedLines,
     };
   }
@@ -134,7 +161,12 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
           <button type="button" className="button button--ghost" onClick={onCancel}>
             Cancel
           </button>
-          <button type="submit" form="sale-form" className="button" disabled={submitting || !items}>
+          <button
+            type="submit"
+            form="sale-form"
+            className="button"
+            disabled={submitting || !items || !channels}
+          >
             {submitting ? 'Saving…' : 'Save'}
           </button>
         </>
@@ -163,15 +195,48 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
           </div>
         </div>
 
+        <SelectWithAddRow
+          id="sale-channel"
+          label="Channel"
+          noun="channel"
+          options={
+            channels?.map((channel) => ({ value: String(channel.id), label: channel.name })) ?? null
+          }
+          loadError={channelsError}
+          value={channelId}
+          onChange={(value) => {
+            setChannelId(value);
+            setChannelError(null);
+          }}
+          onAdd={async (name) => {
+            const channel = await createChannel(name);
+            setChannels((current) => [...(current ?? []), channel]);
+            return String(channel.id);
+          }}
+          error={channelError}
+          maxLength={40}
+          placeholder="e.g. Etsy"
+        />
+
         <div className="form-row">
-          <label htmlFor="sale-tags">Tags</label>
+          <label htmlFor="sale-description">Description</label>
           <div className="form-row__control">
             <input
-              id="sale-tags"
-              value={tags}
-              onChange={(event) => setTags(event.target.value)}
-              placeholder="Tag, Tag"
+              id="sale-description"
+              value={customDescription ?? autoDescription}
+              onChange={(event) => setCustomDescription(event.target.value)}
+              placeholder="Item x units sold"
+              maxLength={200}
             />
+            {customDescription !== null && (
+              <button
+                type="button"
+                className="link-button form-row__reset"
+                onClick={() => setCustomDescription(null)}
+              >
+                Use item names
+              </button>
+            )}
           </div>
         </div>
 

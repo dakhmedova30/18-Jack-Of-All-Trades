@@ -14,7 +14,7 @@ export interface Item {
 export type ItemInput = Pick<Item, 'name' | 'quantity' | 'unitPriceCents' | 'tags' | 'note'>;
 
 export type ItemSortField = 'id' | 'name' | 'quantity' | 'unitPriceCents';
-export type SaleSortField = 'id' | 'soldAt' | 'total' | 'tags';
+export type SaleSortField = 'id' | 'soldAt' | 'total' | 'tags' | 'channel';
 export type ExpenseSortField = 'id' | 'incurredAt' | 'total' | 'tags';
 export type SortOrder = 'asc' | 'desc';
 
@@ -70,9 +70,23 @@ export interface SaleItem {
   totalCents: number;
 }
 
+export interface Channel {
+  id: number;
+  name: string;
+}
+
+/** One choice in the expense form's Tag dropdown. Expenses store the name in `tags`. */
+export interface ExpenseTag {
+  id: number;
+  name: string;
+}
+
 export interface Sale {
   id: number;
   soldAt: string;
+  /** null only for sales recorded before channels existed. */
+  channel: Channel | null;
+  description: string;
   tags: string[];
   totalCents: number;
   items: SaleItem[];
@@ -87,6 +101,9 @@ export interface SaleLineItemInput {
 
 export interface SaleInput {
   soldAt: string;
+  channelId: number;
+  /** Leave blank and the server writes "Item x qty, ..." from the lines. */
+  description: string;
   tags: string[];
   items: SaleLineItemInput[];
 }

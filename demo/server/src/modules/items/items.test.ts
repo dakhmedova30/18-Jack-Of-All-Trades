@@ -168,7 +168,7 @@ describe.skipIf(!testDatabaseUrl)('API', () => {
       const sell = (itemId: number, quantity: number, soldAt = thisMonth) =>
         request(app)
           .post('/api/sales')
-          .send({ soldAt, items: [{ itemId, quantity }] })
+          .send({ soldAt, channelId: 1, items: [{ itemId, quantity }] })
           .expect(201);
       await sell(ids[0]!, 5);
       await sell(ids[1]!, 2);
@@ -216,6 +216,7 @@ describe.skipIf(!testDatabaseUrl)('API', () => {
         .post('/api/sales')
         .send({
           soldAt: '2026-10-12T15:00:00Z',
+          channelId: 1,
           tags: ['market'],
           items: [
             { itemId: 1, quantity: 2 },
@@ -246,12 +247,20 @@ describe.skipIf(!testDatabaseUrl)('API', () => {
 
       await request(app)
         .post('/api/sales')
-        .send({ soldAt: '2026-10-12T15:00:00Z', items: [{ itemId: 99, quantity: 1 }] })
+        .send({
+          soldAt: '2026-10-12T15:00:00Z',
+          channelId: 1,
+          items: [{ itemId: 99, quantity: 1 }],
+        })
         .expect(400);
 
       const res = await request(app)
         .post('/api/sales')
-        .send({ soldAt: '2026-10-12T15:00:00Z', items: [{ itemId: 1, quantity: 11 }] })
+        .send({
+          soldAt: '2026-10-12T15:00:00Z',
+          channelId: 1,
+          items: [{ itemId: 1, quantity: 11 }],
+        })
         .expect(400);
       expect(res.body.error.message).toMatch(/not enough stock/i);
 
@@ -265,7 +274,7 @@ describe.skipIf(!testDatabaseUrl)('API', () => {
 
       await request(app)
         .post('/api/sales')
-        .send({ soldAt: '2026-10-12T15:00:00Z', items: [{ itemId: 1, quantity: 3 }] })
+        .send({ soldAt: '2026-10-12T15:00:00Z', channelId: 1, items: [{ itemId: 1, quantity: 3 }] })
         .expect(201);
       expect((await request(app).get('/api/items/1')).body.quantity).toBe(7);
 
@@ -274,6 +283,7 @@ describe.skipIf(!testDatabaseUrl)('API', () => {
         .patch('/api/sales/1')
         .send({
           soldAt: '2026-10-13T15:00:00Z',
+          channelId: 1,
           tags: ['online'],
           items: [{ itemId: 1, quantity: 5 }],
         })
@@ -283,7 +293,7 @@ describe.skipIf(!testDatabaseUrl)('API', () => {
 
       await request(app)
         .patch('/api/sales/999')
-        .send({ soldAt: '2026-10-13T15:00:00Z', items: [{ itemId: 1, quantity: 1 }] })
+        .send({ soldAt: '2026-10-13T15:00:00Z', channelId: 1, items: [{ itemId: 1, quantity: 1 }] })
         .expect(404);
     });
 
@@ -293,11 +303,11 @@ describe.skipIf(!testDatabaseUrl)('API', () => {
 
       await request(app)
         .post('/api/sales')
-        .send({ soldAt: '2026-10-12T15:00:00Z', items: [{ itemId: 1, quantity: 4 }] })
+        .send({ soldAt: '2026-10-12T15:00:00Z', channelId: 1, items: [{ itemId: 1, quantity: 4 }] })
         .expect(201);
       await request(app)
         .post('/api/sales')
-        .send({ soldAt: '2026-10-12T15:00:00Z', items: [{ itemId: 2, quantity: 5 }] })
+        .send({ soldAt: '2026-10-12T15:00:00Z', channelId: 1, items: [{ itemId: 2, quantity: 5 }] })
         .expect(201);
 
       await request(app).delete('/api/sales/1').expect(204);
@@ -320,7 +330,7 @@ describe.skipIf(!testDatabaseUrl)('API', () => {
       const sell = (soldAt: string, quantity: number, tags: string[]) =>
         request(app)
           .post('/api/sales')
-          .send({ soldAt, tags, items: [{ itemId: item.body.id, quantity }] })
+          .send({ soldAt, channelId: 1, tags, items: [{ itemId: item.body.id, quantity }] })
           .expect(201);
       await sell('2026-03-02T00:00:00Z', 3, ['market']); // id 1, 1500
       await sell('2026-03-05T00:00:00Z', 1, []); // id 2, 500, untagged
@@ -355,7 +365,7 @@ describe.skipIf(!testDatabaseUrl)('API', () => {
       const sell = (soldAt: string, quantity: number) =>
         request(app)
           .post('/api/sales')
-          .send({ soldAt, items: [{ itemId: item.body.id, quantity }] })
+          .send({ soldAt, channelId: 1, items: [{ itemId: item.body.id, quantity }] })
           .expect(201);
       const now = new Date().toISOString();
       await sell(now, 1); // 500
@@ -377,12 +387,97 @@ describe.skipIf(!testDatabaseUrl)('API', () => {
       for (let i = 1; i <= 3; i++) {
         await request(app)
           .post('/api/sales')
-          .send({ soldAt: `2026-10-1${i}T12:00:00Z`, items: [{ itemId: 1, quantity: 1 }] });
+          .send({
+            soldAt: `2026-10-1${i}T12:00:00Z`,
+            channelId: 1,
+            items: [{ itemId: 1, quantity: 1 }],
+          });
       }
 
       const page = await request(app).get('/api/sales?page=1&pageSize=2').expect(200);
       expect(page.body).toMatchObject({ page: 1, pageSize: 2, total: 3, totalPages: 2 });
       expect(page.body.data.map((s: { id: number }) => s.id)).toEqual([3, 2]);
+    });
+
+    it('requires a real channel and defaults the description to the items', async () => {
+      await request(app).post('/api/items').send(candle); // id 1
+      await request(app).post('/api/items').send(soap); // id 2
+      const lines = [
+        { itemId: 1, quantity: 2 },
+        { itemId: 2, quantity: 1 },
+      ];
+
+      await request(app)
+        .post('/api/sales')
+        .send({ soldAt: '2026-10-12T15:00:00Z', items: lines })
+        .expect(400);
+      await request(app)
+        .post('/api/sales')
+        .send({ soldAt: '2026-10-12T15:00:00Z', channelId: 999_999, items: lines })
+        .expect(400);
+
+      const res = await request(app)
+        .post('/api/sales')
+        .send({ soldAt: '2026-10-12T15:00:00Z', channelId: 1, items: lines })
+        .expect(201);
+      expect(res.body).toMatchObject({
+        channel: { id: 1, name: 'In person' },
+        description: 'Lavender candle x 2, Oatmeal soap x 1',
+      });
+
+      const custom = await request(app)
+        .patch('/api/sales/1')
+        .send({
+          soldAt: '2026-10-12T15:00:00Z',
+          channelId: 1,
+          description: ' Gift set ',
+          items: lines,
+        })
+        .expect(200);
+      expect(custom.body.description).toBe('Gift set');
+    });
+  });
+
+  describe('/api/channels', () => {
+    it('starts with the default channels', async () => {
+      const res = await request(app).get('/api/channels').expect(200);
+      expect(res.body.slice(0, 4).map((c: { name: string }) => c.name)).toEqual([
+        'In person',
+        'Online',
+        'Commission',
+        'Misc',
+      ]);
+    });
+
+    it('adds a channel, rejecting blank and case-insensitive duplicate names', async () => {
+      // Channels aren't emptied between tests (sales reference them), so use a fresh name.
+      const name = `Etsy ${Date.now()}`;
+      const res = await request(app).post('/api/channels').send({ name }).expect(201);
+      expect(res.body).toEqual({ id: expect.any(Number), name });
+
+      const list = await request(app).get('/api/channels').expect(200);
+      expect(list.body).toContainEqual(res.body);
+
+      await request(app).post('/api/channels').send({ name: name.toUpperCase() }).expect(409);
+      await request(app).post('/api/channels').send({ name: '  ' }).expect(400);
+    });
+  });
+
+  describe('/api/expense-tags', () => {
+    it('starts with the default tags and adds new ones with a 30-character limit', async () => {
+      const res = await request(app).get('/api/expense-tags').expect(200);
+      expect(res.body.map((t: { name: string }) => t.name)).toEqual(
+        expect.arrayContaining(['market', 'rent', 'supplier', 'supplies', 'utilities']),
+      );
+
+      const name = `shipping ${Date.now()}`;
+      const created = await request(app).post('/api/expense-tags').send({ name }).expect(201);
+      expect(created.body).toEqual({ id: expect.any(Number), name });
+      await request(app).post('/api/expense-tags').send({ name: name.toUpperCase() }).expect(409);
+      await request(app)
+        .post('/api/expense-tags')
+        .send({ name: 'x'.repeat(31) })
+        .expect(400);
     });
   });
 
@@ -563,7 +658,11 @@ describe.skipIf(!testDatabaseUrl)('API', () => {
       // Sell more than the original stock, so undoing the restock would go negative.
       await request(app)
         .post('/api/sales')
-        .send({ soldAt: '2026-10-13T15:00:00Z', items: [{ itemId: 1, quantity: 12 }] })
+        .send({
+          soldAt: '2026-10-13T15:00:00Z',
+          channelId: 1,
+          items: [{ itemId: 1, quantity: 12 }],
+        })
         .expect(201); // qty 15 -> 3
 
       const res = await request(app).delete('/api/expenses/1').expect(400);

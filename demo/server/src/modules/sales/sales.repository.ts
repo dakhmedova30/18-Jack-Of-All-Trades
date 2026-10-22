@@ -13,6 +13,9 @@ export interface SaleItem {
 export interface Sale {
   id: number;
   soldAt: string;
+  /** null only for sales recorded before channels existed. */
+  channel: { id: number; name: string } | null;
+  description: string;
   tags: string[];
   /** Sum of the line items' totalCents. */
   totalCents: number;
@@ -32,6 +35,8 @@ export interface NewSaleLineItem {
 
 export interface SaleWrite {
   soldAt: string;
+  channelId: number | null;
+  description: string;
   tags: string[];
   items: NewSaleLineItem[];
 }
@@ -39,6 +44,9 @@ export interface SaleWrite {
 interface SaleRow {
   id: number;
   sold_at: Date;
+  channel_id: number | null;
+  channel_name: string | null;
+  description: string;
   tags: string[];
   created_at: Date;
   updated_at: Date;
@@ -70,6 +78,8 @@ function assembleSale(row: SaleRow, itemRows: SaleItemRow[]): Sale {
   return {
     id: row.id,
     soldAt: row.sold_at.toISOString(),
+    channel: row.channel_id === null ? null : { id: row.channel_id, name: row.channel_name ?? '' },
+    description: row.description,
     tags: row.tags,
     totalCents: items.reduce((sum, item) => sum + item.totalCents, 0),
     items,
@@ -83,6 +93,10 @@ function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
 
+/** Every sale query selects through this, so rows always carry the channel's name. */
+const SELECT_SALES = `SELECT sales.*, channels.name AS channel_name
+  FROM sales LEFT JOIN channels ON channels.id = sales.channel_id`;
+
 export interface SalePageQuery {
   search?: string;
   limit: number;
@@ -92,13 +106,15 @@ export interface SalePageQuery {
 }
 
 /** Whitelisted ORDER BY expressions; user input never reaches the SQL directly.
- *  A sale's total is the sum of its lines; tags sort by the first tag,
- *  case-insensitively. */
+ *  A sale's total is the sum of its lines; tags sort by the first tag and
+ *  channels by name, both case-insensitively. Qualified with "sales." because
+ *  the queries join channels, which also has an id. */
 const ORDER_BY_FIELD = {
-  id: 'id',
-  soldAt: 'sold_at',
+  id: 'sales.id',
+  soldAt: 'sales.sold_at',
   total: '(SELECT COALESCE(SUM(si.total_cents), 0) FROM sale_items si WHERE si.sale_id = sales.id)',
-  tags: 'lower(tags[1])',
+  tags: 'lower(sales.tags[1])',
+  channel: 'lower(channels.name)',
 } as const satisfies Record<SaleSortField, string>;
 
 export function createSaleRepository(db: Queryable) {
@@ -119,7 +135,7 @@ export function createSaleRepository(db: Queryable) {
   }
 
   async function findById(id: number): Promise<Sale | undefined> {
-    const { rows } = await db.query<SaleRow>('SELECT * FROM sales WHERE id = $1', [id]);
+    const { rows } = await db.query<SaleRow>(`${SELECT_SALES} WHERE sales.id = $1`, [id]);
     const row = rows[0];
     if (!row) return undefined;
     const itemRows = await itemRowsBySaleId([id]);
@@ -137,19 +153,23 @@ export function createSaleRepository(db: Queryable) {
     let where = '';
     if (search) {
       filterParams.push(`%${escapeLikePattern(search)}%`);
-      where = `WHERE array_to_string(tags, ' ') ILIKE $1
+      where = `WHERE array_to_string(sales.tags, ' ') ILIKE $1
+        OR sales.description ILIKE $1
+        OR channels.name ILIKE $1
         OR EXISTS (SELECT 1 FROM sale_items si WHERE si.sale_id = sales.id AND si.item_name ILIKE $1)`;
     }
 
     const countResult = await db.query<{ total: number }>(
-      `SELECT COUNT(*)::int AS total FROM sales ${where}`,
+      `SELECT COUNT(*)::int AS total
+       FROM sales LEFT JOIN channels ON channels.id = sales.channel_id ${where}`,
       filterParams,
     );
     const limitIndex = filterParams.length + 1;
     const { rows } = await db.query<SaleRow>(
-      // Untagged sales go last either way; id breaks ties so paging stays stable.
-      `SELECT * FROM sales ${where}
-       ORDER BY ${ORDER_BY_FIELD[sort]} ${order === 'desc' ? 'DESC' : 'ASC'} NULLS LAST, id DESC
+      // Untagged / channel-less sales go last either way; id breaks ties so paging stays stable.
+      `${SELECT_SALES} ${where}
+       ORDER BY ${ORDER_BY_FIELD[sort]} ${order === 'desc' ? 'DESC' : 'ASC'} NULLS LAST,
+         sales.id DESC
        LIMIT $${limitIndex} OFFSET $${limitIndex + 1}`,
       [...filterParams, limit, offset],
     );
@@ -172,9 +192,10 @@ export function createSaleRepository(db: Queryable) {
   }
 
   async function insert(input: SaleWrite): Promise<Sale> {
-    const { rows } = await db.query<SaleRow>(
-      `INSERT INTO sales (sold_at, tags) VALUES ($1, $2) RETURNING *`,
-      [input.soldAt, input.tags],
+    const { rows } = await db.query<{ id: number }>(
+      `INSERT INTO sales (sold_at, channel_id, description, tags) VALUES ($1, $2, $3, $4)
+       RETURNING id`,
+      [input.soldAt, input.channelId, input.description, input.tags],
     );
     const row = rows[0]!;
     await insertItems(row.id, input.items);
@@ -183,9 +204,11 @@ export function createSaleRepository(db: Queryable) {
 
   /** Replaces a sale's header and its entire line-item list (not a partial patch). */
   async function replace(id: number, input: SaleWrite): Promise<Sale | undefined> {
-    const { rows } = await db.query<SaleRow>(
-      `UPDATE sales SET sold_at = $1, tags = $2, updated_at = now() WHERE id = $3 RETURNING *`,
-      [input.soldAt, input.tags, id],
+    const { rows } = await db.query<{ id: number }>(
+      `UPDATE sales SET sold_at = $1, channel_id = $2, description = $3, tags = $4,
+         updated_at = now()
+       WHERE id = $5 RETURNING id`,
+      [input.soldAt, input.channelId, input.description, input.tags, id],
     );
     if (!rows[0]) return undefined;
 

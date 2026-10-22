@@ -14,8 +14,8 @@ import type { SaleService } from './sales.service.js';
  *   GET    /api/sales?page=1&pageSize=10&search=soap&sort=total&order=desc
  *   GET    /api/sales/month-summary this month's sale count, average and largest sale
  *   GET    /api/sales/:id
- *   POST   /api/sales               { soldAt, tags?, items: [{ itemId, quantity }] }
- *   PATCH  /api/sales/:id           replaces soldAt, tags and the whole item list
+ *   POST   /api/sales               { soldAt, channelId, description?, tags?, items: [...] }
+ *   PATCH  /api/sales/:id           replaces every field, including the whole item list
  *   DELETE /api/sales/:id
  *   POST   /api/sales/bulk-delete   { "ids": [1, 2, 3] }
  */

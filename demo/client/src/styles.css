@@ -259,6 +259,13 @@ code {
   cursor: pointer;
 }
 
+.table__description {
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .table__row:hover {
   background: var(--color-surface);
 }
@@ -448,6 +455,45 @@ code {
 
 .form-row:focus-within {
   border-bottom-color: var(--color-border-strong);
+}
+
+.form-row__reset {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+/* SelectWithAddRow: a dropdown, or the inline "New …" input that replaces it. */
+.select-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.select-add select,
+.select-add input {
+  font: inherit;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  min-width: 0;
+}
+
+.select-add input {
+  flex: 1;
+  min-width: 8rem;
+  text-align: left;
+}
+
+.select-add__add {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
 }
 
 .form-stack {

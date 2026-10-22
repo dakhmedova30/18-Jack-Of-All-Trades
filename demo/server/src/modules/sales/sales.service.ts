@@ -2,7 +2,13 @@ import { runInTransaction, type Db, type Queryable } from '../../db/database.js'
 import { HttpError } from '../../utils/httpError.js';
 import { buildPage, toOffset, type Paginated } from '../../utils/pagination.js';
 import { createItemRepository } from '../items/items.repository.js';
-import { createSaleRepository, type NewSaleLineItem, type Sale } from './sales.repository.js';
+import { createNamedListRepository } from '../namedLists/namedLists.repository.js';
+import {
+  createSaleRepository,
+  type NewSaleLineItem,
+  type Sale,
+  type SaleWrite,
+} from './sales.repository.js';
 import type { CreateSaleInput, ListSalesQuery, UpdateSaleInput } from './sales.schema.js';
 
 export interface SalesMonthSummary {
@@ -19,6 +25,12 @@ export interface SalesMonthSummary {
 interface SaleLineInput {
   itemId: number;
   quantity: number;
+}
+
+/** The default description: "Flower Print x 2, Keychain x 1". Fits the 200-character limit. */
+export function describeLines(lines: Pick<NewSaleLineItem, 'itemName' | 'quantity'>[]): string {
+  const text = lines.map((line) => `${line.itemName} x ${line.quantity}`).join(', ');
+  return text.length <= 200 ? text : `${text.slice(0, 199)}…`;
 }
 
 /**
@@ -76,6 +88,21 @@ export function createSaleService(db: Db) {
     return result;
   }
 
+  /** Checks the channel, sells the lines, and fills in a blank description. */
+  async function toSaleWrite(client: Queryable, input: CreateSaleInput): Promise<SaleWrite> {
+    if (!(await createNamedListRepository(client, 'channels').findById(input.channelId))) {
+      throw HttpError.badRequest(`Channel ${input.channelId} does not exist`);
+    }
+    const items = await sellLines(client, input.items);
+    return {
+      soldAt: input.soldAt,
+      channelId: input.channelId,
+      description: input.description || describeLines(items),
+      tags: input.tags,
+      items,
+    };
+  }
+
   /** Puts a sale's line-item quantities back into stock (used on edit and delete). */
   async function restoreStock(client: Queryable, sale: Sale): Promise<void> {
     const items = createItemRepository(client);
@@ -87,8 +114,7 @@ export function createSaleService(db: Db) {
   function recordSale(input: CreateSaleInput): Promise<Sale> {
     return runInTransaction(db, async (client) => {
       const sales = createSaleRepository(client);
-      const items = await sellLines(client, input.items);
-      return sales.insert({ soldAt: input.soldAt, tags: input.tags, items });
+      return sales.insert(await toSaleWrite(client, input));
     });
   }
 
@@ -99,8 +125,7 @@ export function createSaleService(db: Db) {
       if (!existing) throw HttpError.notFound('Sale', id);
 
       await restoreStock(client, existing);
-      const items = await sellLines(client, input.items);
-      const updated = await sales.replace(id, { soldAt: input.soldAt, tags: input.tags, items });
+      const updated = await sales.replace(id, await toSaleWrite(client, input));
       return updated!;
     });
   }

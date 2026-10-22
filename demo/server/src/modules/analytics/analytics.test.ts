@@ -174,6 +174,8 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
     // Two sales this month (Mar), tagged 'online' and 'market'; one last month (Feb), 'online'.
     await sales.insert({
       soldAt: '2026-03-05T00:00:00Z',
+      channelId: null,
+      description: '',
       tags: ['online'],
       items: [
         {
@@ -187,6 +189,8 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
     });
     await sales.insert({
       soldAt: '2026-03-10T00:00:00Z',
+      channelId: null,
+      description: '',
       tags: ['market'],
       items: [
         {
@@ -200,6 +204,8 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
     });
     await sales.insert({
       soldAt: '2026-02-20T00:00:00Z',
+      channelId: null,
+      description: '',
       tags: ['online'],
       items: [
         {
@@ -214,6 +220,8 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
     // Outside the 6-month window (Mar back to Oct 2025): must not affect totals or buckets.
     await sales.insert({
       soldAt: '2025-01-01T00:00:00Z',
+      channelId: null,
+      description: '',
       tags: ['online'],
       items: [
         {
@@ -317,6 +325,8 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
     for (const [tag, totalCents] of tagTotals) {
       await sales.insert({
         soldAt: '2026-03-10T00:00:00Z',
+        channelId: null,
+        description: '',
         tags: [tag],
         items: [
           {

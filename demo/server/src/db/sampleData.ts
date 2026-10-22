@@ -1,5 +1,6 @@
 import { createExpenseService } from '../modules/expenses/expenses.service.js';
 import { createItemRepository } from '../modules/items/items.repository.js';
+import { createNamedListRepository } from '../modules/namedLists/namedLists.repository.js';
 import { createSaleService } from '../modules/sales/sales.service.js';
 import { runInTransaction, type Db } from './database.js';
 
@@ -253,10 +254,14 @@ async function seedSampleTransactions(
 ): Promise<{ sales: number; expenses: number }> {
   const sales = createSaleService(db);
   const expenses = createExpenseService(db);
+  // Rotate through the channels so the sample sales aren't all in one.
+  const channels = await createNamedListRepository(db, 'channels').findAll();
 
-  for (const sale of SAMPLE_SALES) {
+  for (const [index, sale] of SAMPLE_SALES.entries()) {
     await sales.recordSale({
       soldAt: monthsAgoIso(sale.monthsAgo, sale.day),
+      channelId: channels[index % channels.length]!.id,
+      description: '',
       tags: sale.tags,
       items: sale.lines.map(([itemRef, quantity]) => ({ itemId: itemIds[itemRef - 1]!, quantity })),
     });

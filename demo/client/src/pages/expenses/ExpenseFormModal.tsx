@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { createExpenseTag, listExpenseTags } from '../../api/expenseTags';
 import { listItems } from '../../api/items';
 import { getErrorMessage } from '../../api/http';
 import { Modal } from '../../components/Modal';
 import { PlusIcon, TrashIcon } from '../../components/icons';
+import { SelectWithAddRow } from '../../components/SelectWithAddRow';
 import { dateInputValueToIso, isoToDateInputValue } from '../../utils/date';
 import { centsToInputValue, formatCents, parseDollarsToCents } from '../../utils/money';
 import type { Expense, ExpenseInput, Item } from '../../types';
@@ -49,7 +51,12 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
   const itemById = useMemo(() => new Map((items ?? []).map((item) => [item.id, item])), [items]);
 
   const [date, setDate] = useState(() => (expense ? isoToDateInputValue(expense.incurredAt) : ''));
-  const [tags, setTags] = useState(() => expense?.tags.join(', ') ?? '');
+  // The dropdown's choices, by name; null while loading.
+  const [tagNames, setTagNames] = useState<string[] | null>(null);
+  const [tagsError, setTagsError] = useState<string | null>(null);
+  // The first tag is the one the dropdown edits (and the one the charts group by).
+  const [tag, setTag] = useState(() => expense?.tags[0] ?? '');
+  const [tagError, setTagError] = useState<string | null>(null);
   const [lines, setLines] = useState<LineState[]>(() => linesFromExpense(expense));
   const [dateError, setDateError] = useState<string | null>(null);
   const [lineErrors, setLineErrors] = useState<Record<string, string>>({});
@@ -60,7 +67,13 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
     listItems({ page: 1, pageSize: 100 })
       .then((page) => setItems(page.data))
       .catch((error: unknown) => setItemsError(getErrorMessage(error)));
+    listExpenseTags()
+      .then((tags) => setTagNames(tags.map((entry) => entry.name)))
+      .catch((error: unknown) => setTagsError(getErrorMessage(error)));
   }, []);
+
+  // An older expense's tag may not be in the list; offer it so the dropdown can show it.
+  const tagOptions = tagNames && tag && !tagNames.includes(tag) ? [...tagNames, tag] : tagNames;
 
   function updateLine(key: string, changes: Partial<LineState>) {
     setLines((current) =>
@@ -91,6 +104,7 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
   function validate(): ExpenseInput | null {
     const incurredAt = dateInputValueToIso(date);
     setDateError(incurredAt ? null : 'Pick a date');
+    setTagError(tag ? null : 'Pick a tag');
 
     const errors: Record<string, string> = {};
     const parsedLines = lines.map((line) => {
@@ -115,17 +129,11 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
     });
     setLineErrors(errors);
 
-    if (!incurredAt || Object.keys(errors).length > 0) return null;
+    if (!incurredAt || !tag || Object.keys(errors).length > 0) return null;
     return {
       incurredAt,
-      tags: [
-        ...new Set(
-          tags
-            .split(',')
-            .map((tag) => tag.trim())
-            .filter(Boolean),
-        ),
-      ],
+      // The chosen tag first; keep any extra tags an older expense already has.
+      tags: [...new Set([tag, ...(expense?.tags.slice(1) ?? [])])],
       items: parsedLines,
     };
   }
@@ -158,7 +166,7 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
             type="submit"
             form="expense-form"
             className="button"
-            disabled={submitting || !items}
+            disabled={submitting || !items || !tagNames}
           >
             {submitting ? 'Saving…' : 'Save'}
           </button>
@@ -188,17 +196,26 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
           </div>
         </div>
 
-        <div className="form-row">
-          <label htmlFor="expense-tags">Tags</label>
-          <div className="form-row__control">
-            <input
-              id="expense-tags"
-              value={tags}
-              onChange={(event) => setTags(event.target.value)}
-              placeholder="Tag, Tag"
-            />
-          </div>
-        </div>
+        <SelectWithAddRow
+          id="expense-tag"
+          label="Tag"
+          noun="tag"
+          options={tagOptions?.map((name) => ({ value: name, label: name })) ?? null}
+          loadError={tagsError}
+          value={tag}
+          onChange={(value) => {
+            setTag(value);
+            setTagError(null);
+          }}
+          onAdd={async (name) => {
+            const created = await createExpenseTag(name);
+            setTagNames((current) => [...(current ?? []), created.name]);
+            return created.name;
+          }}
+          error={tagError}
+          maxLength={30}
+          placeholder="e.g. shipping"
+        />
 
         <div className="sale-lines">
           {itemsError && <p className="form-error">Could not load items: {itemsError}</p>}
