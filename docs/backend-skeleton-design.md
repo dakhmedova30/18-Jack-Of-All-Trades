@@ -54,7 +54,7 @@ Work is split **by user story**, as the D2 handout recommends: each story's team
 
 | Part | Work | Owner |
 | --- | --- | --- |
-| Backend | `expenses` + `expense_items`; list, get, create, replace, delete, bulk delete, `month-breakdown`; restock rules | *Unassigned* (Hans built the TypeScript version) |
+| Backend | `expense_tags`, `expenses` + `expense_items`; list, get, create, replace, delete, bulk delete, `month-breakdown`; restock rules; `/api/expense-tags` | Allie (Hans built the TypeScript version) |
 | Frontend | Rework against the contract | *Unassigned* |
 
 ### Shared finishing work, target Oct 23
@@ -184,7 +184,7 @@ Flyway runs the files in `backend/src/main/resources/db/migration/` once each, i
 | `V20261021_1__create_businesses_and_items.sql` | `businesses`, `items` | Jinuo (skeleton); Diana reviews `items` |
 | `V20261021_2__create_spring_session.sql` | `spring_session`, `spring_session_attributes`: copied verbatim from `schema-postgresql.sql` inside the Spring Session JDBC jar, so it matches the installed version | Jinuo (skeleton) |
 | `V20261022_1__create_sales.sql` | `channels`, `sales`, `sale_items` | Jinuo |
-| `V20261022_2__create_expenses.sql` | `expenses`, `expense_items` | Expenses owner |
+| `V20261022_2__create_expenses.sql` | `expense_tags`, `expenses`, `expense_items` | Allie |
 
 ### Tables
 
@@ -245,10 +245,19 @@ CREATE TABLE sale_items (
 CREATE INDEX idx_sale_items_sale_id ON sale_items (sale_id);
 CREATE INDEX idx_sale_items_item_id ON sale_items (item_id);
 
+CREATE TABLE expense_tags (                            -- the expense form's Tag choices; per business
+  id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  business_id INTEGER     NOT NULL REFERENCES businesses (id) ON DELETE CASCADE,
+  name        TEXT        NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX idx_expense_tags_business_name ON expense_tags (business_id, lower(name));
+
 CREATE TABLE expenses (                                -- a supplier order or a bill
   id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   business_id INTEGER     NOT NULL REFERENCES businesses (id) ON DELETE CASCADE,
   incurred_at TIMESTAMPTZ NOT NULL,
+  description TEXT        NOT NULL DEFAULT '',
   tags        TEXT[]      NOT NULL DEFAULT '{}',
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()

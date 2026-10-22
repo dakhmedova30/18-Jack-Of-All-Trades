@@ -76,6 +76,8 @@ src/main/java/ca/jackofalltrades/
   items/     inventory CRUD, insights and low-stock (the pattern to copy); writes lock the items they change
   channels/  sales channels; new businesses get four starter channels
   sales/     sales with stock checks; writes lock the sale, then its items in id order
+  expensetags/ the expense form's tag choices; new businesses get five starter tags
+  expenses/  expenses whose item lines restock inventory; writes lock the expense, then its items in id order
   common/    api/ (error format, pagination, shared validation), security/, health/, web/ (React fallback)
   seed/      demo-profile data
 src/main/resources/db/migration/   Flyway SQL migrations

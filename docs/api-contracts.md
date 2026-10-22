@@ -5,10 +5,10 @@ The JSON contract between the React client and the backend. It documents **what 
 | Branch | Adds | Merged into `claude-demo`? |
 | --- | --- | --- |
 | `claude-demo` | Items, Sales, Expenses, Analytics `summary` | — (base) |
-| `implement-user-login` | Accounts, sessions, all data scoped by `business_id`; since Oct 22 it also includes `merge-ui-mods` and `Minor-UI-updates`, which add sale **channels** (`/api/channels`) and **descriptions** | Not yet |
+| `implement-user-login` | Accounts, sessions, all data scoped by `business_id`; since Oct 22 it also includes `merge-ui-mods` and `Minor-UI-updates`, which add sale **channels** (`/api/channels`), **expense tags** (`/api/expense-tags`) and sale and expense **descriptions** | Not yet |
 | `merge-ui-mods` | Sorting, `insights`, `low-stock`, `month-summary`, `month-breakdown`, Analytics `inventory` | Not yet |
 
-Each section notes its source branch. **Expenses (§5) don't yet include the Oct 22 changes** (`/api/expense-tags`, expense `description`); that update belongs with US5. Gaps the D2 user stories still need are listed in §8, and a known merge risk is in §9. Source files: `demo/server/src/modules/*/…routes.ts` and `demo/client/src/types.ts`.
+Each section notes its source branch. Gaps the D2 user stories still need are listed in §8, and a known merge risk is in §9. Source files: `demo/server/src/modules/*/…routes.ts` and `demo/client/src/types.ts`.
 
 ## 1. Rules for every endpoint
 
@@ -48,7 +48,7 @@ Every error response has this shape:
 | `400` | Invalid input, malformed JSON, not enough stock, referenced item doesn't exist, email already registered |
 | `401` | Not logged in, or incorrect email or password |
 | `404` | Resource or route not found (including another business's id) |
-| `409` | A channel with that name already exists (§4.1) |
+| `409` | A channel (§4.1) or expense tag (§5.1) with that name already exists |
 | `503` | Database unavailable |
 | `500` | Unexpected error (details are logged, never sent) |
 
@@ -82,7 +82,7 @@ One account is one business. Login sets a `jack_session` cookie that the browser
 | `email` | Required; valid address; ≤ 255 characters; trimmed and lowercased |
 | `password` | Register: 8–200 characters. Login: 1–200 characters |
 
-**New businesses** start with four channels (§4.1): `In person`, `Online`, `Commission`, `Misc`.
+**New businesses** start with four channels (§4.1): `In person`, `Online`, `Commission`, `Misc`; and five expense tags (§5.1): `supplier`, `supplies`, `rent`, `utilities`, `market`.
 
 **Session:** stored in the database (`sessions` table) and valid for **30 days**. The cookie is `HttpOnly`, `SameSite=Lax`, and `Secure` over HTTPS. There is no separate CSRF token; `SameSite=Lax` keeps other sites from sending requests with the cookie.
 
@@ -222,15 +222,18 @@ Deleting an item doesn't change past sales or expenses: their lines keep the ite
 
 ## 5. Expenses: `/api/expenses`
 
-*Source: `claude-demo`; sorting and `month-breakdown` from `merge-ui-mods`.*
+*Source: `claude-demo`; sorting and `month-breakdown` from `merge-ui-mods`; description and expense tags from `implement-user-login` (Oct 22).*
 
-Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `month-summary`. `sort` is `incurredAt` (default), `id`, `total` or `tags`; `order` is `desc` (default) or `asc`.
+Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `month-summary`.
+
+- **List:** `search` matches tags, the description, or line names (item names and plain-cost descriptions). `sort` is `incurredAt` (default), `id`, `total` or `tags` (first tag, ignoring case); `order` is `desc` (default) or `asc`. Untagged expenses go last either way.
 
 ```json
 // Expense
 {
   "id": 5,
   "incurredAt": "2026-10-10T12:00:00.000Z",
+  "description": "Flower Print x 200, Shipping x 1",
   "tags": ["supplies"],
   "totalCents": 17500,
   "items": [
@@ -244,6 +247,7 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
 // ExpenseInput
 {
   "incurredAt": "2026-10-10T08:00:00-04:00",
+  "description": "",
   "tags": ["supplies"],
   "items": [
     { "itemId": 7, "quantity": 200, "unitCostCents": 75 },
@@ -262,17 +266,39 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
 | `ExpenseInput` field | Rules |
 | --- | --- |
 | `incurredAt` | Required; ISO-8601 timestamp with an offset |
-| `tags` | As for items; default `[]` |
+| `description` | Optional; ≤ 200 characters, trimmed; default `""`. Blank → the server writes it from the lines: `"Flower Print x 200, Shipping x 1"` (cut to 200 characters with `…`) |
+| `tags` | As for items; default `[]`. The form offers the business's expense tags (§5.1), but any tag is accepted |
 | `items` | 1–50 lines |
 | line `itemId` | One of your items (**restocks** it), or `null`/omitted for a plain cost |
-| line `description` | Required when `itemId` is `null`; ≤ 120 characters |
+| line `description` | Required when `itemId` is `null` (`Pick an item or enter a description`, on `items.N.description`); ≤ 120 characters, trimmed. Ignored when `itemId` is set |
 | line `quantity` | ≥ 1 |
-| line `unitCostCents` | ≥ 0 |
+| line `unitCostCents` | ≥ 0 (`Cost cannot be negative`) |
 
 **Behavior:**
-- A restock line increases the item's stock.
-- Editing or deleting an expense undoes its restocks first, and is rejected with `400` if that stock has already been sold.
-- `topRestockItems` lists up to 5 items, most spent first.
+- A restock line increases the item's stock and copies the item's current name into `itemName`; a plain-cost line's `itemName` is its `description`. Unlike sales, the cost is whatever the client sends, not the item's price.
+- An `itemId` that isn't one of yours → `400 Item 7 does not exist`, and nothing is saved.
+- `totalCents` (line and expense) is calculated by the server.
+- Editing or deleting an expense undoes its restocks first. If that stock has since been sold → `400 Can't undo the restock of "Flower Print": only 3 in stock, need to remove 10 (some may have already been sold)`, and nothing changes. Lines whose item was deleted are skipped.
+- `bulk-delete` skips ids that don't exist or aren't yours; `deleted` counts only the expenses actually deleted. If any one of them can't be undone, none are deleted.
+- `month-breakdown`: `restockCents` sums lines with an item, `runningCents` lines without one (a restock whose item was deleted counts as running). `topRestockItems` lists up to 5 items, most spent first, ties by name.
+
+### 5.1 Expense tags: `/api/expense-tags`
+
+*Source: `implement-user-login` (Oct 22).* The choices in the expense form's Tag dropdown. Each business has its own list and can add to it. An expense still stores its tags as strings in `tags`, so search and Analytics don't depend on this list.
+
+| Method | Path | Request body | Success | Errors |
+| --- | --- | --- | --- | --- |
+| `GET` | `/api/expense-tags` | — | `200` `ExpenseTag[]`, oldest first (not paginated) | — |
+| `POST` | `/api/expense-tags` | `{ "name": "shipping" }` | `201` `ExpenseTag` | `400` invalid name; `409 Tag "shipping" already exists` |
+
+```json
+// ExpenseTag
+{ "id": 6, "name": "shipping" }
+```
+
+- `name`: required; 1–30 characters (the same limit as any tag), trimmed. Names are unique per business, **ignoring case** (`Rent` conflicts with `rent`).
+- New businesses start with `supplier`, `supplies`, `rent`, `utilities` and `market`.
+- Expense tags can't be renamed or deleted yet.
 
 ## 6. Analytics: `/api/analytics` (US3)
 
