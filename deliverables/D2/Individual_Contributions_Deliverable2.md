@@ -14,7 +14,7 @@ Precise description of contributions made
 - Analytics: reworked analytics page to have 4 graphs: Revenue Overview, Expenses Overview, Revenue & Expense Breakdown, Inventory Overview, added month filter for Revenue & Expense Breakdown graph,
 moved data strip (previously vertical strip to the right of Revenue Overview) to horizontal strip above graphs
 
----
+-----
 
 Kimberly Prijadi
 > Helped with UI/UX and implemented stylistic decisions onto the app.
@@ -25,7 +25,7 @@ Kimberly Prijadi
   - Collapsible sidebar (with the sidebar itself separated into its own component)
   - Have it so the main content doesn’t scroll with the sidebar
 
-----
+-----
 
 Hans Santiago - Built the initial demo, migrated online, and built the login system.
 
@@ -35,3 +35,14 @@ Precise description:
 - Webapp: deployed the application to Render
 - Login: implemented user authentication registration, login, logout, and session-cookie-based auth using Node’s built-in password hashing.
 - Security: scoped all data (inventory, sales, expenses, analytics) so each business only sees its own records; every protected route requires a valid session, returning 401 otherwise
+
+-----
+
+Allie Huynh - Added expenses page, and modified sales and expenses layout 
+
+Precise description: 
+- Expenses and sales layout:
+    - Reflected these changes through code
+    - Helped with stylistic choices of sales and expenses' "add" and "modify" pop-up window to improve readability and clarity
+- Implemented the expenses page on the backend side
+- Updated API contract to reflect these changes
