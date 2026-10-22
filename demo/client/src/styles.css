@@ -1276,3 +1276,30 @@ code {
   box-shadow: 0 1px 3px rgb(45 6 6 / 0.08);
   width: stretch;
 }
+
+.money-split {
+  padding: 0;
+}
+
+.money-split__row, .low-stock__row {
+  list-style-type: none;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.glance__item, .stock-value {
+  display: flex;
+  justify-content: space-between;
+}
+
+.glance__item dt {
+  font-weight: 600;
+}
+
+.glance__item .dd-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}

@@ -44,10 +44,13 @@ export function MonthGlancePanel({ data, error, loading, reload }: MonthGlancePa
           </div>
           <div className="glance__item">
             <dt>Largest sale</dt>
-            <dd>{data.largestSale ? formatCents(data.largestSale.totalCents) : '—'}</dd>
-            {data.largestSale && (
-              <span className="muted glance__note">on {formatDate(data.largestSale.soldAt)}</span>
-            )}
+            <dd className="dd-item">
+              {data.largestSale ? formatCents(data.largestSale.totalCents) : '—'}
+              {data.largestSale && (
+                <span className="muted glance__note">on {formatDate(data.largestSale.soldAt)}</span>
+              )}
+            </dd>
+            
           </div>
         </dl>
       )}
