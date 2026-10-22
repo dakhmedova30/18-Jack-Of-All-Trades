@@ -1,6 +1,10 @@
 package ca.jackofalltrades.items;
 
+import jakarta.persistence.LockModeType;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.repository.Repository;
 
 /**
@@ -11,4 +15,11 @@ import org.springframework.data.repository.Repository;
 public interface ItemRepository extends Repository<Item, Integer> {
 
     Optional<Item> findByIdAndBusinessId(Integer id, Integer businessId);
+
+    /**
+     * Locks the rows ({@code SELECT … FOR UPDATE}) until the transaction ends, in id order, so
+     * concurrent stock changes wait for each other and can't deadlock. Used by sales and expenses.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<Item> findLockedByIdInAndBusinessIdOrderByIdAsc(Collection<Integer> ids, Integer businessId);
 }

@@ -88,4 +88,9 @@ public class Item {
     public Instant getUpdatedAt() {
         return updatedAt;
     }
+
+    /** Changes stock by {@code delta} (negative when selling). Callers check stock first. */
+    public void adjustQuantity(int delta) {
+        quantity = Math.addExact(quantity, delta);
+    }
 }
