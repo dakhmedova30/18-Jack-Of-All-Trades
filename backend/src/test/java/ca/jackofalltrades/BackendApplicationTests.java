@@ -1,12 +1,9 @@
 package ca.jackofalltrades;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 
-@Import(TestcontainersConfiguration.class)
-@SpringBootTest
-class BackendApplicationTests {
+/** Shares PostgresTestBase's context, so the test run starts only one Postgres container. */
+class BackendApplicationTests extends PostgresTestBase {
 
 	@Test
 	void contextLoads() {
