@@ -74,7 +74,9 @@ Render builds the same image from the root `render.yaml`.
 src/main/java/ca/jackofalltrades/
   auth/      register, login, logout, me; Business entity
   items/     item read endpoints (the pattern to copy)
-  common/    api/ (error format, pagination), security/, health/, web/ (React fallback)
+  channels/  sales channels; new businesses get four starter channels
+  sales/     sales with stock checks; writes lock the sale, then its items in id order
+  common/    api/ (error format, pagination, shared validation), security/, health/, web/ (React fallback)
   seed/      demo-profile data
 src/main/resources/db/migration/   Flyway SQL migrations
 src/test/java/.../PostgresTestBase  base class for integration tests
