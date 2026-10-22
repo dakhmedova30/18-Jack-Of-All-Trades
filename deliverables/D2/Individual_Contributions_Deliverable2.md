@@ -14,3 +14,15 @@ Precise description of contributions made
 - Analytics: reworked analytics page to have 4 graphs: Revenue Overview, Expenses Overview, Revenue & Expense Breakdown, Inventory Overview, added month filter for Revenue & Expense Breakdown graph,
 moved data strip (previously vertical strip to the right of Revenue Overview) to horizontal strip above graphs
 
+---
+
+Kimberly Prijadi
+> Helped with UI/UX and implemented stylistic decisions onto the app.
+- Designed the layout for the analytics dashboard (that wasn’t drawn out yet in D1)
+- Decided and implemented the color and font combinations to give the dashboard a more unique look, while also keeping in mind color contrast.
+- Further UI changes:
+  - Updated the appearances of specific card elements on Sales, Inventory, and Expenses tabs to make the information more readable.
+  - Collapsible sidebar (with the sidebar itself separated into its own component)
+  - Have it so the main content doesn’t scroll with the sidebar
+
+
