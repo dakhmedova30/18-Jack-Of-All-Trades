@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -53,6 +54,15 @@ public class Item {
         // for JPA
     }
 
+    Item(Integer businessId, String name, int quantity, int unitPriceCents, List<String> tags, String note) {
+        this.businessId = businessId;
+        this.name = name;
+        this.quantity = quantity;
+        this.unitPriceCents = unitPriceCents;
+        this.tags = new ArrayList<>(tags);
+        this.note = note;
+    }
+
     public Integer getId() {
         return id;
     }
@@ -87,6 +97,27 @@ public class Item {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    void setName(String name) {
+        this.name = name;
+    }
+
+    /** Sets stock directly (PATCH). Sales and expenses use {@link #adjustQuantity} instead. */
+    void setQuantity(int quantity) {
+        this.quantity = quantity;
+    }
+
+    void setUnitPriceCents(int unitPriceCents) {
+        this.unitPriceCents = unitPriceCents;
+    }
+
+    void setTags(List<String> tags) {
+        this.tags = new ArrayList<>(tags);
+    }
+
+    void setNote(String note) {
+        this.note = note;
     }
 
     /** Changes stock by {@code delta} (negative when selling). Callers check stock first. */

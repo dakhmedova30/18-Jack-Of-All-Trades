@@ -14,7 +14,16 @@ import org.springframework.data.repository.Repository;
  */
 public interface ItemRepository extends Repository<Item, Integer> {
 
+    /** Flushes so the returned item has its id and timestamps. */
+    Item saveAndFlush(Item item);
+
+    void delete(Item item);
+
     Optional<Item> findByIdAndBusinessId(Integer id, Integer businessId);
+
+    /** Locks the row like the method below, so a PATCH or delete waits for a sale in progress. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<Item> findLockedByIdAndBusinessId(Integer id, Integer businessId);
 
     /**
      * Locks the rows ({@code SELECT … FOR UPDATE}) until the transaction ends, in id order, so
