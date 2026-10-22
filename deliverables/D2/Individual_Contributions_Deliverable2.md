@@ -3,9 +3,10 @@ One-line description of their role in this deliverable
 Precise description of contributions made
 
 
-Minh Tran
-Designing UI/UX and implementing various components on all pages.
-Added/modified items on Home, Inventory, Sales, Expenses, Analytics pages. 
+1. Minh Tran
+2. Designing UI/UX and implementing various components on all pages.
+3. Precise description:
+- Added/modified items on Home, Inventory, Sales, Expenses, Analytics pages. 
 - Home: implemented horizontal information strip at the top (Revenue, Expenses, Net profit, Low stock), implemented Recent Sales table at the bottom
 - Inventory: implemented sorting entries (by ID, Name, Qty, Unit price), changed the maximum # of shown entries to 15, added 'Stock value' and 'Low stock' cards at the bottom
 - Sales: implemented sorting entries (by ID, Date, Total, Channel), changed the maximum # of shown entries to 15, added 'This month at a glance' and 'Best sellers' cards at the bottom
