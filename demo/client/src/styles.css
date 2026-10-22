@@ -2,8 +2,8 @@
 :root {
   --color-bg: linear-gradient(rgba(251, 245, 240, 1) 0%, rgba(255, 254, 254, 1) 100%);
   --color-bg-solid: #fbf7f3;
-  --color-surface: #FCF9F6;
-  --color-surface-alt: #F0EDE0;
+  --color-surface: #fcf9f6;
+  --color-surface-alt: #f0ede0;
   --color-border: #e3d6d0;
   /* Chart card outlines: dark enough to read as a clear edge. */
   --color-border-chart: #a89a94;
@@ -13,7 +13,7 @@
   --color-sidebar: #2d0606;
   --color-sidebar-text: #f6eee6;
   --color-primary: #4a1414;
-  --color-primary-text: #F4EFE5;
+  --color-primary-text: #f4efe5;
   --color-accent: #6b1111;
   --color-accent-text: #fbeee8;
   --color-search: transparent;
@@ -44,7 +44,12 @@ body {
   background: var(--color-bg);
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: 'Libre Caslon Text', serif;
   font-weight: 500;
   font-style: normal;
@@ -118,8 +123,23 @@ code {
 }
 
 /* Pinned to the bottom of the sidebar, under the nav. */
-.sidebar__logout {
+.sidebar__account {
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebar__account-name {
+  padding: 0 0.65rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar__logout {
   width: 100%;
   background: none;
   font: inherit;
@@ -586,6 +606,82 @@ code {
 .form-error {
   color: var(--color-danger);
   margin: 0.75rem 0 0;
+}
+
+/* ---------- Auth (login / register) ---------- */
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: var(--color-bg);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.auth-card__logo {
+  align-self: flex-start;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.7rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+}
+
+.auth-card h1 {
+  font-size: 1.3rem;
+  margin: 0;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.auth-field input {
+  font: inherit;
+  font-weight: 400;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-bg-solid);
+  color: var(--color-text);
+}
+
+.auth-field input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.auth-switch {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+.auth-switch a {
+  color: var(--color-primary);
+}
+
+.auth-loading {
+  padding: 2rem;
 }
 
 /* ---------- Sale line items ---------- */
@@ -1285,9 +1381,20 @@ code {
   }
 
   /* In the phone top bar, sit at the far end instead of the bottom. */
-  .sidebar__logout {
+  .sidebar__account {
     margin-top: 0;
     margin-left: auto;
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  /* No room for the business name in a horizontal top bar; the logout icon stays. */
+  .sidebar__account-name {
+    display: none;
+  }
+
+  .sidebar__logout {
     width: auto;
     flex-shrink: 0;
   }
@@ -1356,9 +1463,9 @@ code {
 }
 
 .panel-row {
-    display: flex;
-    gap: 0.75rem;
-    width: 100%;
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
 }
 
 .panel-row .card {
@@ -1372,7 +1479,8 @@ code {
   padding: 0;
 }
 
-.money-split__row, .low-stock__row {
+.money-split__row,
+.low-stock__row {
   list-style-type: none;
   display: flex;
   flex-direction: row;
@@ -1380,7 +1488,8 @@ code {
   align-items: center;
 }
 
-.glance__item, .stock-value {
+.glance__item,
+.stock-value {
   display: flex;
   justify-content: space-between;
 }

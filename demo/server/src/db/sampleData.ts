@@ -3,6 +3,8 @@ import { createItemRepository } from '../modules/items/items.repository.js';
 import { createNamedListRepository } from '../modules/namedLists/namedLists.repository.js';
 import { createSaleService } from '../modules/sales/sales.service.js';
 import { runInTransaction, type Db } from './database.js';
+import { ensureDemoBusiness } from './demoBusiness.js';
+import { seedStarterNamedLists } from './starterNamedLists.js';
 
 const SAMPLE_ITEMS: [name: string, quantity: number, priceCents: number, tags: string[]][] = [
   ['Lavender soy candle', 40, 1800, ['candles', 'bestseller']], // 1
@@ -250,15 +252,16 @@ function isItemLine(
  */
 async function seedSampleTransactions(
   db: Db,
+  businessId: number,
   itemIds: number[],
 ): Promise<{ sales: number; expenses: number }> {
   const sales = createSaleService(db);
   const expenses = createExpenseService(db);
   // Rotate through the channels so the sample sales aren't all in one.
-  const channels = await createNamedListRepository(db, 'channels').findAll();
+  const channels = await createNamedListRepository(db, 'channels').findAll(businessId);
 
   for (const [index, sale] of SAMPLE_SALES.entries()) {
-    await sales.recordSale({
+    await sales.recordSale(businessId, {
       soldAt: monthsAgoIso(sale.monthsAgo, sale.day),
       channelId: channels[index % channels.length]!.id,
       description: '',
@@ -272,7 +275,7 @@ async function seedSampleTransactions(
       expense.daysAgo !== undefined
         ? daysAgoIso(expense.daysAgo)
         : monthsAgoIso(expense.monthsAgo!, expense.day!);
-    await expenses.recordExpense({
+    await expenses.recordExpense(businessId, {
       incurredAt,
       description: '',
       tags: expense.tags,
@@ -299,28 +302,53 @@ async function seedSampleTransactions(
 
 /**
  * Inserts the sample inventory, plus a spread of sample sales and expenses for
- * the demo (and so the Analytics dashboard has real data to show). Without
- * `force` it only seeds an empty database; with `force` it wipes everything first.
+ * the demo (and so the Analytics dashboard has real data to show), all owned by
+ * the one "Demo Business" account (see demoBusiness.ts). Without `force` it
+ * only seeds if that business has no items yet; with `force` it wipes only
+ * that business's own rows first — never another registered business's data.
  */
 export async function seedSampleItems(db: Db, { force = false } = {}): Promise<SeedResult> {
-  const { rows } = await db.query<{ count: number }>('SELECT COUNT(*)::int AS count FROM items');
+  const businessId = await ensureDemoBusiness(db);
+  await seedStarterNamedLists(db, businessId);
+
+  const { rows } = await db.query<{ count: number }>(
+    'SELECT COUNT(*)::int AS count FROM items WHERE business_id = $1',
+    [businessId],
+  );
   const existing = rows[0]?.count ?? 0;
   if (existing > 0 && !force) return { skipped: true, existing };
 
   if (force) {
-    await db.query('TRUNCATE expense_items, expenses, sale_items, sales, items RESTART IDENTITY');
+    // Parameterized queries can't be multi-statement, so these run one at a time.
+    await db.query(
+      'DELETE FROM expense_items WHERE expense_id IN (SELECT id FROM expenses WHERE business_id = $1)',
+      [businessId],
+    );
+    await db.query('DELETE FROM expenses WHERE business_id = $1', [businessId]);
+    await db.query(
+      'DELETE FROM sale_items WHERE sale_id IN (SELECT id FROM sales WHERE business_id = $1)',
+      [businessId],
+    );
+    await db.query('DELETE FROM sales WHERE business_id = $1', [businessId]);
+    await db.query('DELETE FROM items WHERE business_id = $1', [businessId]);
   }
 
   const itemIds = await runInTransaction(db, async (client) => {
     const items = createItemRepository(client);
     const ids: number[] = [];
     for (const [name, quantity, unitPriceCents, tags] of SAMPLE_ITEMS) {
-      const item = await items.insert({ name, quantity, unitPriceCents, tags, note: '' });
+      const item = await items.insert(businessId, {
+        name,
+        quantity,
+        unitPriceCents,
+        tags,
+        note: '',
+      });
       ids.push(item.id);
     }
     return ids;
   });
 
-  const { sales, expenses } = await seedSampleTransactions(db, itemIds);
+  const { sales, expenses } = await seedSampleTransactions(db, businessId, itemIds);
   return { seeded: SAMPLE_ITEMS.length, sales, expenses };
 }

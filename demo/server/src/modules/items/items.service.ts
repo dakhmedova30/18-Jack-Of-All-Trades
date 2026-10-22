@@ -28,16 +28,13 @@ export interface InventoryInsights {
   bestSellers: { id: number; name: string; unitsSold: number; revenueCents: number }[];
 }
 
-/** Business rules for inventory. No HTTP or SQL details in here. */
+/** Business rules for inventory. No HTTP or SQL details in here. Every call is scoped to one business. */
 export function createItemService(repository: ItemRepository) {
-  async function listItems({
-    page,
-    pageSize,
-    search,
-    sort,
-    order,
-  }: ListItemsQuery): Promise<Paginated<Item>> {
-    const { items, total } = await repository.findPage({
+  async function listItems(
+    businessId: number,
+    { page, pageSize, search, sort, order }: ListItemsQuery,
+  ): Promise<Paginated<Item>> {
+    const { items, total } = await repository.findPage(businessId, {
       search: search || undefined,
       sort,
       order,
@@ -47,44 +44,48 @@ export function createItemService(repository: ItemRepository) {
     return buildPage(items, page, pageSize, total);
   }
 
-  async function getItem(id: number): Promise<Item> {
-    const item = await repository.findById(id);
+  async function getItem(businessId: number, id: number): Promise<Item> {
+    const item = await repository.findById(businessId, id);
     if (!item) throw HttpError.notFound('Item', id);
     return item;
   }
 
-  function createItem(input: CreateItemInput): Promise<Item> {
-    return repository.insert(input);
+  function createItem(businessId: number, input: CreateItemInput): Promise<Item> {
+    return repository.insert(businessId, input);
   }
 
-  async function updateItem(id: number, changes: UpdateItemInput): Promise<Item> {
-    const item = await repository.update(id, changes);
+  async function updateItem(
+    businessId: number,
+    id: number,
+    changes: UpdateItemInput,
+  ): Promise<Item> {
+    const item = await repository.update(businessId, id, changes);
     if (!item) throw HttpError.notFound('Item', id);
     return item;
   }
 
-  async function deleteItem(id: number): Promise<void> {
-    if (!(await repository.remove(id))) throw HttpError.notFound('Item', id);
+  async function deleteItem(businessId: number, id: number): Promise<void> {
+    if (!(await repository.remove(businessId, id))) throw HttpError.notFound('Item', id);
   }
 
-  async function bulkDeleteItems(ids: number[]): Promise<{ deleted: number }> {
-    return { deleted: await repository.removeMany([...new Set(ids)]) };
+  async function bulkDeleteItems(businessId: number, ids: number[]): Promise<{ deleted: number }> {
+    return { deleted: await repository.removeMany(businessId, [...new Set(ids)]) };
   }
 
   /** `limit` defaults to 5 for the home page tile; the Inventory page asks for more. */
-  async function getLowStock(limit = 5): Promise<LowStockSummary> {
-    const { count, items } = await repository.findLowStock(LOW_STOCK_THRESHOLD, limit);
+  async function getLowStock(businessId: number, limit = 5): Promise<LowStockSummary> {
+    const { count, items } = await repository.findLowStock(businessId, LOW_STOCK_THRESHOLD, limit);
     return { count, threshold: LOW_STOCK_THRESHOLD, items };
   }
 
   /** Stock value and this month's best sellers, for the Inventory page. */
-  async function getInsights(now = new Date()): Promise<InventoryInsights> {
+  async function getInsights(businessId: number, now = new Date()): Promise<InventoryInsights> {
     // UTC calendar month, matching how Analytics buckets dates.
     const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
     const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
     const [totals, bestSellers] = await Promise.all([
-      repository.stockTotals(),
-      repository.bestSellers(periodStart, periodEnd, BEST_SELLERS_LIMIT),
+      repository.stockTotals(businessId),
+      repository.bestSellers(businessId, periodStart, periodEnd, BEST_SELLERS_LIMIT),
     ]);
     return {
       stockValueCents: totals.valueCents,

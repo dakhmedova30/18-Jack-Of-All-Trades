@@ -1,5 +1,12 @@
 // Mirrors the API response shapes in server/src/modules/*.
 
+export interface Business {
+  id: number;
+  name: string;
+  email: string;
+  createdAt: string;
+}
+
 export interface Item {
   id: number;
   name: string;

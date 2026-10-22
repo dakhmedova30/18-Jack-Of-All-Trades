@@ -7,8 +7,8 @@ services:
     name: jack-of-all-trades
     runtime: node
     plan: free
-    buildCommand: npm ci && npm run build
-    startCommand: npm start
+    buildCommand: cd demo && npm ci && npm run build
+    startCommand: cd demo && npm start
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:

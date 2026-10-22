@@ -50,7 +50,6 @@ export function MonthGlancePanel({ data, error, loading, reload }: MonthGlancePa
                 <span className="muted glance__note">on {formatDate(data.largestSale.soldAt)}</span>
               )}
             </dd>
-            
           </div>
         </dl>
       )}

@@ -161,15 +161,15 @@ export interface GetSummaryOptions {
 export function createAnalyticsService(db: Db) {
   const repository = createAnalyticsRepository(db);
 
-  async function getSummary({
-    now = new Date(),
-    range = DEFAULT_ANALYTICS_RANGE,
-  }: GetSummaryOptions = {}): Promise<AnalyticsSummary> {
+  async function getSummary(
+    businessId: number,
+    { now = new Date(), range = DEFAULT_ANALYTICS_RANGE }: GetSummaryOptions = {},
+  ): Promise<AnalyticsSummary> {
     const { granularity, buckets } = summaryWindowFor(range, now);
 
     const [revenueLines, expenseLines] = await Promise.all([
-      repository.revenueLines(buckets[0]!.start),
-      repository.expenseLines(buckets[0]!.start),
+      repository.revenueLines(businessId, buckets[0]!.start),
+      repository.expenseLines(businessId, buckets[0]!.start),
     ]);
 
     // Revenue and the sales-by-tag donut share one top-tag selection, so a tag
@@ -203,8 +203,8 @@ export function createAnalyticsService(db: Db) {
   }
 
   /** Current stock by tag for the Inventory Overview chart. Not affected by "Show by". */
-  async function getInventoryByTag(): Promise<InventoryByTag> {
-    const rows = await repository.stockByTag();
+  async function getInventoryByTag(businessId: number): Promise<InventoryByTag> {
+    const rows = await repository.stockByTag(businessId);
     const kept = rows.slice(0, MAX_INVENTORY_TAGS);
     const folded = rows.slice(MAX_INVENTORY_TAGS);
 

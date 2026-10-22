@@ -1,8 +1,8 @@
 import '../../env.js';
-import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../app.js';
 import { connectDatabase, type Db } from '../../db/database.js';
+import { createAuthedAgent, createTestBusiness } from '../../test/authHelpers.js';
 import { createExpenseRepository } from '../expenses/expenses.repository.js';
 import { createItemRepository } from '../items/items.repository.js';
 import { createSaleRepository } from '../sales/sales.repository.js';
@@ -138,13 +138,18 @@ describe('topTags / buildTagSeries (pure, no database)', () => {
 
 describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
   let db: Db;
+  let businessId: number;
 
   beforeAll(async () => {
     db = await connectDatabase({ connectionString: testDatabaseUrl! });
   });
 
   beforeEach(async () => {
-    await db.query('TRUNCATE expense_items, expenses, sale_items, sales, items RESTART IDENTITY');
+    await db.query(
+      `TRUNCATE expense_items, expenses, sale_items, sales, channels, expense_tags, items,
+        sessions, businesses RESTART IDENTITY CASCADE`,
+    );
+    businessId = await createTestBusiness(db);
   });
 
   afterAll(async () => {
@@ -156,14 +161,14 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
     const sales = createSaleRepository(db);
     const expenses = createExpenseRepository(db);
 
-    const candle = await items.insert({
+    const candle = await items.insert(businessId, {
       name: 'Candle',
       quantity: 100,
       unitPriceCents: 1800,
       tags: [],
       note: '',
     });
-    const soap = await items.insert({
+    const soap = await items.insert(businessId, {
       name: 'Soap',
       quantity: 100,
       unitPriceCents: 700,
@@ -172,7 +177,7 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
     });
 
     // Two sales this month (Mar), tagged 'online' and 'market'; one last month (Feb), 'online'.
-    await sales.insert({
+    await sales.insert(businessId, {
       soldAt: '2026-03-05T00:00:00Z',
       channelId: null,
       description: '',
@@ -187,7 +192,7 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
         },
       ],
     });
-    await sales.insert({
+    await sales.insert(businessId, {
       soldAt: '2026-03-10T00:00:00Z',
       channelId: null,
       description: '',
@@ -202,7 +207,7 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
         },
       ],
     });
-    await sales.insert({
+    await sales.insert(businessId, {
       soldAt: '2026-02-20T00:00:00Z',
       channelId: null,
       description: '',
@@ -218,7 +223,7 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
       ],
     });
     // Outside the 6-month window (Mar back to Oct 2025): must not affect totals or buckets.
-    await sales.insert({
+    await sales.insert(businessId, {
       soldAt: '2025-01-01T00:00:00Z',
       channelId: null,
       description: '',
@@ -236,7 +241,7 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
 
     // Both restock expenses fall within the default 12-month window (Apr 2025 -
     // Mar 2026), so both count toward totalExpensesCents.
-    await expenses.insert({
+    await expenses.insert(businessId, {
       incurredAt: '2026-03-14T00:00:00Z',
       description: '',
       tags: ['supplier'],
@@ -250,7 +255,7 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
         },
       ],
     });
-    await expenses.insert({
+    await expenses.insert(businessId, {
       incurredAt: '2026-01-01T00:00:00Z',
       description: '',
       tags: ['supplier'],
@@ -260,7 +265,7 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
     });
 
     const service = createAnalyticsService(db);
-    const summary = await service.getSummary({ now: NOW });
+    const summary = await service.getSummary(businessId, { now: NOW });
 
     // Totals are scoped to the (default, 12-month) range, so the 2025-01 sale
     // is excluded: 3600 + 2100 + 1800, not + 90000.
@@ -317,7 +322,7 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
       ['d', 200],
       ['e', 100],
     ];
-    const item = await items.insert({
+    const item = await items.insert(businessId, {
       name: 'Widget',
       quantity: 100,
       unitPriceCents: 100,
@@ -325,7 +330,7 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
       note: '',
     });
     for (const [tag, totalCents] of tagTotals) {
-      await sales.insert({
+      await sales.insert(businessId, {
         soldAt: '2026-03-10T00:00:00Z',
         channelId: null,
         description: '',
@@ -342,7 +347,7 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
       });
     }
 
-    const summary = await createAnalyticsService(db).getSummary({ now: NOW });
+    const summary = await createAnalyticsService(db).getSummary(businessId, { now: NOW });
     const labels = summary.salesByTag.map((s) => s.label).sort();
     expect(labels).toEqual(['Other', 'a', 'b', 'c'].sort()); // top 3 (a,b,c) + Other (d+e=300)
     expect(summary.salesByTag.find((s) => s.label === 'Other')!.valueCents).toBe(300);
@@ -354,7 +359,7 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
     // 9 tags with quantities 90, 80, ... 10, plus an untagged item and a second
     // 'tag-0' item to check summing and that only the first tag counts.
     for (let i = 0; i < 9; i++) {
-      await items.insert({
+      await items.insert(businessId, {
         name: `Item ${i}`,
         quantity: 90 - i * 10,
         unitPriceCents: 100,
@@ -362,18 +367,24 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
         note: '',
       });
     }
-    await items.insert({
+    await items.insert(businessId, {
       name: 'Extra',
       quantity: 5,
       unitPriceCents: 100,
       tags: ['tag-0'],
       note: '',
     });
-    await items.insert({ name: 'Loose', quantity: 1, unitPriceCents: 100, tags: [], note: '' });
+    await items.insert(businessId, {
+      name: 'Loose',
+      quantity: 1,
+      unitPriceCents: 100,
+      tags: [],
+      note: '',
+    });
 
-    const res = await request(createApp(db)).get('/api/analytics/inventory').expect(200);
+    const result = await createAnalyticsService(db).getInventoryByTag(businessId);
 
-    expect(res.body.byTag.map((t: { label: string }) => t.label)).toEqual([
+    expect(result.byTag.map((t) => t.label)).toEqual([
       'tag-0',
       'tag-1',
       'tag-2',
@@ -383,16 +394,23 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
       'tag-6',
       'Other',
     ]);
-    expect(res.body.byTag[0]).toEqual({ label: 'tag-0', quantity: 95, itemCount: 2 });
+    expect(result.byTag[0]).toEqual({ label: 'tag-0', quantity: 95, itemCount: 2 });
     // tag-7 (20) + tag-8 (10) + Untagged (1)
-    expect(res.body.byTag.at(-1)).toEqual({ label: 'Other', quantity: 31, itemCount: 3 });
-    expect(res.body.totalQuantity).toBe(450 + 5 + 1);
-    expect(res.body.totalItems).toBe(11);
+    expect(result.byTag.at(-1)).toEqual({ label: 'Other', quantity: 31, itemCount: 3 });
+    expect(result.totalQuantity).toBe(450 + 5 + 1);
+    expect(result.totalItems).toBe(11);
+  });
+
+  it('the HTTP route for inventory-by-tag returns an empty snapshot for a business with no items', async () => {
+    const agent = await createAuthedAgent(createApp(db));
+    const res = await agent.get('/api/analytics/inventory').expect(200);
+    expect(res.body).toMatchObject({ byTag: [], totalQuantity: 0, totalItems: 0 });
   });
 
   it('reports the API route with the expected shape, defaulting to the 12-month range', async () => {
     const app = createApp(db);
-    const res = await request(app).get('/api/analytics/summary').expect(200);
+    const agent = await createAuthedAgent(app);
+    const res = await agent.get('/api/analytics/summary').expect(200);
 
     expect(res.body).toMatchObject({
       totalRevenueCents: expect.any(Number),
@@ -411,25 +429,24 @@ describe.skipIf(!testDatabaseUrl)('analytics service (real database)', () => {
 
   it('honors the `range` query param (the "Show by" filter, shared by every chart) and rejects unknown values', async () => {
     const app = createApp(db);
+    const agent = await createAuthedAgent(app);
 
     // Date-independent, so these are safe to assert exactly against real "now".
-    const week = await request(app).get('/api/analytics/summary?range=week').expect(200);
+    const week = await agent.get('/api/analytics/summary?range=week').expect(200);
     expect(week.body).toMatchObject({ range: 'week', granularity: 'day' });
     expect(week.body.buckets).toHaveLength(7);
 
-    const twelveMonths = await request(app)
-      .get('/api/analytics/summary?range=12months')
-      .expect(200);
+    const twelveMonths = await agent.get('/api/analytics/summary?range=12months').expect(200);
     expect(twelveMonths.body).toMatchObject({ range: '12months', granularity: 'month' });
     expect(twelveMonths.body.buckets).toHaveLength(12);
 
-    const month = await request(app).get('/api/analytics/summary?range=month').expect(200);
+    const month = await agent.get('/api/analytics/summary?range=month').expect(200);
     expect(month.body).toMatchObject({ range: 'month', granularity: 'day' });
 
-    const ytd = await request(app).get('/api/analytics/summary?range=ytd').expect(200);
+    const ytd = await agent.get('/api/analytics/summary?range=ytd').expect(200);
     expect(ytd.body).toMatchObject({ range: 'ytd', granularity: 'month' });
     expect(ytd.body.buckets.length).toBeLessThanOrEqual(12);
 
-    await request(app).get('/api/analytics/summary?range=quarter').expect(400);
+    await agent.get('/api/analytics/summary?range=quarter').expect(400);
   });
 });

@@ -11,17 +11,17 @@ export function AppLayout() {
         <Sidebar onClose={() => setSidebarOpen(false)} />
       ) : (
         <div className="sidebar-show-container">
-            <button
+          <button
             type="button"
             className="sidebar-show"
             onClick={() => setSidebarOpen(true)}
             aria-label="Show sidebar"
             aria-controls="main-sidebar"
             aria-expanded={false}
-            >
-              ☰
-            </button>
-          </div>
+          >
+            ☰
+          </button>
+        </div>
       )}
       <main className="content">
         <Outlet />
