@@ -5,10 +5,10 @@ The JSON contract between the React client and the backend. It documents **what 
 | Branch | Adds | Merged into `claude-demo`? |
 | --- | --- | --- |
 | `claude-demo` | Items, Sales, Expenses, Analytics `summary` | — (base) |
-| `implement-user-login` | Accounts, sessions, all data scoped by `business_id` | Not yet |
+| `implement-user-login` | Accounts, sessions, all data scoped by `business_id`; since Oct 22 it also includes `merge-ui-mods` and `Minor-UI-updates`, which add sale **channels** (`/api/channels`) and **descriptions** | Not yet |
 | `merge-ui-mods` | Sorting, `insights`, `low-stock`, `month-summary`, `month-breakdown`, Analytics `inventory` | Not yet |
 
-Each section notes its source branch. Gaps the D2 user stories still need are listed in §8, and a known merge risk is in §9. Source files: `demo/server/src/modules/*/…routes.ts` and `demo/client/src/types.ts`.
+Each section notes its source branch. **Expenses (§5) don't yet include the Oct 22 changes** (`/api/expense-tags`, expense `description`); that update belongs with US5. Gaps the D2 user stories still need are listed in §8, and a known merge risk is in §9. Source files: `demo/server/src/modules/*/…routes.ts` and `demo/client/src/types.ts`.
 
 ## 1. Rules for every endpoint
 
@@ -48,6 +48,7 @@ Every error response has this shape:
 | `400` | Invalid input, malformed JSON, not enough stock, referenced item doesn't exist, email already registered |
 | `401` | Not logged in, or incorrect email or password |
 | `404` | Resource or route not found (including another business's id) |
+| `409` | A channel with that name already exists (§4.1) |
 | `503` | Database unavailable |
 | `500` | Unexpected error (details are logged, never sent) |
 
@@ -80,6 +81,8 @@ One account is one business. Login sets a `jack_session` cookie that the browser
 | `name` | Business name; required; 1–120 characters, trimmed |
 | `email` | Required; valid address; ≤ 255 characters; trimmed and lowercased |
 | `password` | Register: 8–200 characters. Login: 1–200 characters |
+
+**New businesses** start with four channels (§4.1): `In person`, `Online`, `Commission`, `Misc`.
 
 **Session:** stored in the database (`sessions` table) and valid for **30 days**. The cookie is `HttpOnly`, `SameSite=Lax`, and `Secure` over HTTPS. There is no separate CSRF token; `SameSite=Lax` keeps other sites from sending requests with the cookie.
 
@@ -139,7 +142,7 @@ Deleting an item doesn't change past sales or expenses: their lines keep the ite
 
 ## 4. Sales: `/api/sales` (US1)
 
-*Source: `claude-demo`; sorting and `month-summary` from `merge-ui-mods`.*
+*Source: `claude-demo`; sorting and `month-summary` from `merge-ui-mods`; channel and description from `implement-user-login` (Oct 22).*
 
 | Method | Path | Request body | Success |
 | --- | --- | --- | --- |
@@ -151,13 +154,15 @@ Deleting an item doesn't change past sales or expenses: their lines keep the ite
 | `DELETE` | `/api/sales/{id}` | — | `204` |
 | `POST` | `/api/sales/bulk-delete` | `{ "ids": [1, 2] }` (1–100 ids) | `200` `{ "deleted": 2 }` |
 
-- **List:** `search` matches tags or item names on the sale's lines. `sort` is `soldAt` (default), `id`, `total` or `tags`; `order` is `desc` (default) or `asc`.
+- **List:** `search` matches tags, the description, the channel's name, or item names on the sale's lines. `sort` is `soldAt` (default), `id`, `total`, `tags` (first tag) or `channel` (channel name); `order` is `desc` (default) or `asc`. Sorting by `tags` or `channel` ignores case; untagged sales go last either way.
 
 ```json
 // Sale
 {
   "id": 42,
   "soldAt": "2026-10-18T19:30:00.000Z",
+  "channel": { "id": 1, "name": "In person" },
+  "description": "Flower Print x 2, Flower Keychain x 1",
   "tags": ["market"],
   "totalCents": 3500,
   "items": [
@@ -169,7 +174,7 @@ Deleting an item doesn't change past sales or expenses: their lines keep the ite
 }
 
 // SaleInput
-{ "soldAt": "2026-10-18T15:30:00-04:00", "tags": ["market"], "items": [{ "itemId": 7, "quantity": 2 }, { "itemId": 9, "quantity": 1 }] }
+{ "soldAt": "2026-10-18T15:30:00-04:00", "channelId": 1, "description": "", "tags": ["market"], "items": [{ "itemId": 7, "quantity": 2 }, { "itemId": 9, "quantity": 1 }] }
 
 // SalesMonthSummary
 {
@@ -182,15 +187,38 @@ Deleting an item doesn't change past sales or expenses: their lines keep the ite
 | `SaleInput` field | Rules |
 | --- | --- |
 | `soldAt` | Required; ISO-8601 timestamp with an offset |
+| `channelId` | Required; one of your channels (§4.1) |
+| `description` | Optional; ≤ 200 characters, trimmed; default `""`. Blank → the server writes it from the lines: `"Flower Print x 2, Flower Keychain x 1"` (cut to 200 characters with `…`) |
 | `tags` | As for items; default `[]` |
 | `items` | 1–50 lines; each `itemId` must be one of your items; `quantity` ≥ 1 |
 
 **Behavior:**
+- A `channelId` that isn't one of yours → `400 Channel 3 does not exist`. It's checked before the lines.
+- An `itemId` that isn't one of yours → `400 Item 7 does not exist`.
 - Each line's price is the item's **current** `unitPriceCents`, copied into the sale. Later price changes don't affect past sales.
 - `totalCents` (line and sale) is calculated by the server.
 - Recording a sale decreases stock; editing restores the old lines and applies the new ones; deleting restores stock.
 - Not enough stock → `400 Not enough stock for "Flower Print" (have 1, need 2)`, and nothing is saved.
 - `largestSale` is `null` in a month with no sales; `averageSaleCents` is then `0`.
+- `bulk-delete` skips ids that don't exist or aren't yours; `deleted` counts only the sales actually deleted.
+
+### 4.1 Channels: `/api/channels` (US1)
+
+*Source: `implement-user-login` (Oct 22).* Where a sale happened. Each business has its own list and can add to it.
+
+| Method | Path | Request body | Success | Errors |
+| --- | --- | --- | --- | --- |
+| `GET` | `/api/channels` | — | `200` `Channel[]`, oldest first (not paginated) | — |
+| `POST` | `/api/channels` | `{ "name": "Etsy" }` | `201` `Channel` | `400` invalid name; `409 Channel "Etsy" already exists` |
+
+```json
+// Channel
+{ "id": 5, "name": "Etsy" }
+```
+
+- `name`: required; 1–40 characters, trimmed. Names are unique per business, **ignoring case** (`etsy` conflicts with `Etsy`).
+- New businesses start with `In person`, `Online`, `Commission` and `Misc`.
+- Channels can't be renamed or deleted yet.
 
 ## 5. Expenses: `/api/expenses`
 
@@ -312,10 +340,11 @@ What the D2 user stories ask for that no branch implements:
 
 | Story | Missing | Suggested addition |
 | --- | --- | --- |
-| **US1:** "log a sale with an amount, date, product, and **sales channel**" | No `channel` on sales | Required `channel` on `Sale` and `SaleInput` (e.g. `IN_PERSON`, `ONLINE`, `COMMISSION`, `MISC`), and a `channel` list filter |
 | **US3:** "charts showcasing the **number of sales** over time, and number of sales **per item**" | `summary` charts revenue **dollars** by **tag**; there's no sales count over time and no per-item breakdown. `bestSellers` only covers the current month's top 3. | Add sale counts to the time series, and a per-item breakdown for the selected range |
 | — | Days and months use UTC, so evening sales in Toronto count toward the next day | Optional: bucket by `America/Toronto` |
 
 ## 9. Merge note
 
 `merge-ui-mods` was written before login existed, so its new endpoints (`/items/insights`, `/items/low-stock`, `/sales/month-summary`, `/expenses/month-breakdown`, `/analytics/inventory`) don't filter by business. **Whoever merges second must add `business_id` scoping to those queries**, or they will return every business's data.
+
+**Resolved (Oct 22):** `implement-user-login` merged `merge-ui-mods` and scopes all of these by business.

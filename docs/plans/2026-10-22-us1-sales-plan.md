@@ -1,12 +1,12 @@
 # Implementation Plan: US1 Sales (Java backend)
 
 **For:** Claude (or a teammate) building the Sales module task by task.
-**Specs:** [`../api-contracts.md`](../api-contracts.md) §1 and §4 (what the API must do) and [`../backend-skeleton-design.md`](../backend-skeleton-design.md) §4–§5 (tables and stock rules). Reference implementation: `demo/server/src/modules/sales` on `claude-demo`, plus sorting and `month-summary` from `origin/merge-ui-mods`.
+**Specs:** [`../api-contracts.md`](../api-contracts.md) §1, §4 and §4.1 (what the API must do) and [`../backend-skeleton-design.md`](../backend-skeleton-design.md) §4–§5 (tables and stock rules). Reference implementation: `demo/server/src/modules/sales` and `namedLists` on `origin/implement-user-login` (which includes `merge-ui-mods`).
 **Branch:** a new branch off `backend-conversion` (e.g. `us1-sales`) · **Owner:** Jinuo · **Target:** Oct 22–23 (D2 is due Oct 23)
 
 ## Goal
 
-All seven endpoints in contract §4 behave **exactly as the contract says**, scoped to the logged-in business, with stock kept correct even when two requests sell the same item at the same time:
+All seven sales endpoints in contract §4 and the two channel endpoints in §4.1 behave **exactly as the contract says**, scoped to the logged-in business, with stock kept correct even when two requests sell the same item at the same time:
 
 | Method | Path |
 | --- | --- |
@@ -17,6 +17,7 @@ All seven endpoints in contract §4 behave **exactly as the contract says**, sco
 | `PATCH` | `/api/sales/{id}` (replaces the whole sale) |
 | `DELETE` | `/api/sales/{id}` |
 | `POST` | `/api/sales/bulk-delete` |
+| `GET`, `POST` | `/api/channels` |
 
 ## Rules for whoever executes this plan
 
@@ -29,7 +30,8 @@ The skeleton plan's rules all apply: the contract is the spec; build only what's
 
 ## Out of scope
 
-- **Sales channel (Q23):** not in the contract. Add it only if the team decides it and updates the contract first (see "If Q23 is decided" at the end).
+- **Renaming or deleting channels:** not in the demo or the contract.
+- **`/api/expense-tags` and expense descriptions:** US5.
 - **Demo sample sales in the seeder:** unassigned in the design doc.
 - **Item create/update/delete, `insights`, `low-stock`:** US2. (`insights` reads `sale_items`, so US2 needs Task 1's migration.)
 
@@ -252,21 +254,27 @@ These tests use the real clock, so they could fail only if run across midnight a
 
 ---
 
-## If Q23 (sales channel) is decided
+## Decisions made on Oct 22 (Q23)
 
-Do this only after the contract is updated. Add a migration `V2026xxxx_n__add_sale_channel.sql`:
+The newest demo (`implement-user-login`) added sale channels and descriptions after this plan was first written. Jinuo decided:
 
-```sql
-ALTER TABLE sales ADD COLUMN channel TEXT NOT NULL DEFAULT 'IN_PERSON'
-  CHECK (channel IN ('IN_PERSON','ONLINE','COMMISSION','MISC'))
-```
+- **Follow the latest demo:**
+  - a required `channelId`;
+  - `channel: {id, name}` in responses;
+  - an optional `description`, auto-filled from the lines;
+  - `sort=channel`;
+  - search also matches the description and the channel name.
+- **Update the contract first** (§4 and new §4.1), in its own commit.
+- **Duplicate channel name** → `409 Channel "Etsy" already exists`, compared ignoring case.
+- **Starter channels** (`In person`, `Online`, `Commission`, `Misc`) are created on register.
 
-Then:
-- add `channel` to `Sale`, `SaleInput` (as an enum, so a bad value gets a validation error) and `SaleResponse`;
-- add an optional `channel` filter to the list query;
-- add tests for the default, a filter, and an invalid value.
-
-This is about an hour of work, and nothing else in this plan changes.
+What that adds to the tasks below:
+- **Task 1:** the migration also creates `channels`, with a unique index on `(business_id, lower(name))`. `sales` gets `channel_id NOT NULL` and `description`.
+- **Task 3b, before Task 4:**
+  - the `channels` package (entity, repository, service, controller) with tests;
+  - `AuthService.register` creates the starter channels;
+  - existing businesses, such as the local demo business, get them from the migration's backfill `INSERT`.
+- **Tasks 4–6:** the channel and description fields. The channel is checked before the lines, and a blank description becomes `"Name x qty, …"`, cut to 200 characters.
 
 ## Definition of done
 

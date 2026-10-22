@@ -73,7 +73,6 @@ Reply in Discord with the ID, e.g. "Q23: agree".
 | # | Question | Recommendation | Confirm |
 | --- | --- | --- | --- |
 | Q22 | Which owners are current per story: the Oct 5 split or the Oct 12 meeting? | Confirm before starting | Team |
-| Q23 | US1 requires a **sales channel**, and the contract has none (contract §8). Add it for D2? | Yes: a required `channel` (`IN_PERSON`, `ONLINE`, `COMMISSION`, `MISC`) on `Sale`/`SaleInput` plus a list filter. It's one column and one dropdown, and US1 is incomplete without it. | Team, Minh |
 | Q24 | US3 asks for the **number of sales** over time and **per item**; `summary` returns revenue dollars by tag (contract §8). Add them for D2? | Yes, as extra fields on `summary` (a `salesCount` series and a `byItem` list for the range), so existing charts are unaffected | Aidan, Kimberly |
 | Q13 | Who creates Neon and Render? | Jinuo creates both and invites the team | Team |
 | Q12 | Will `claude-demo` / `backend-conversion` be merged into `main`? | Yes, after D2 | Hans |
@@ -184,7 +183,7 @@ Flyway runs the files in `backend/src/main/resources/db/migration/` once each, i
 | --- | --- | --- |
 | `V20261021_1__create_businesses_and_items.sql` | `businesses`, `items` | Jinuo (skeleton); Diana reviews `items` |
 | `V20261021_2__create_spring_session.sql` | `spring_session`, `spring_session_attributes`: copied verbatim from `schema-postgresql.sql` inside the Spring Session JDBC jar, so it matches the installed version | Jinuo (skeleton) |
-| `V20261022_1__create_sales.sql` | `sales`, `sale_items` | Jinuo |
+| `V20261022_1__create_sales.sql` | `channels`, `sales`, `sale_items` | Jinuo |
 | `V20261022_2__create_expenses.sql` | `expenses`, `expense_items` | Expenses owner |
 
 ### Tables
@@ -213,10 +212,20 @@ CREATE TABLE items (
 CREATE INDEX idx_items_business_id ON items (business_id);
 CREATE INDEX idx_items_name ON items (name);
 
+CREATE TABLE channels (                                -- where a sale happened; per business
+  id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  business_id INTEGER     NOT NULL REFERENCES businesses (id) ON DELETE CASCADE,
+  name        TEXT        NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX idx_channels_business_name ON channels (business_id, lower(name));
+
 CREATE TABLE sales (                                   -- one checkout; lines in sale_items
   id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   business_id INTEGER     NOT NULL REFERENCES businesses (id) ON DELETE CASCADE,
   sold_at     TIMESTAMPTZ NOT NULL,
+  channel_id  INTEGER     NOT NULL REFERENCES channels (id),
+  description TEXT        NOT NULL DEFAULT '',
   tags        TEXT[]      NOT NULL DEFAULT '{}',
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -361,8 +370,9 @@ The skeleton is **done** when a teammate can clone the repo and, in two commands
 | Q16 | Expenses in D2 | Full Expenses with restocking |
 | Q17 | Time zone | UTC, as the demo (contract §8 lists Toronto time as an optional fix) |
 | Q18 | Backend for the D2 demo | Java |
-| Q19 | Stock concurrency | Check, then update, with `CHECK (quantity >= 0)` as the guarantee |
+| Q19 | Stock concurrency | Lock the sale, then its items in id order (`SELECT … FOR UPDATE`), then check and update; `CHECK (quantity >= 0)` stays as a backstop. Changed Oct 22 (US1 plan): without the locks, deleting the same sale twice at once restores its stock twice |
 | Q20 | Demo data | Java seeder under the `demo` profile |
+| Q23 | Sales channel (US1) | Match `implement-user-login`: a required `channelId` from the business's own channel list (`/api/channels`), four starter channels per new business, duplicate name → `409`. Sales also get a `description`. Decided Oct 22 |
 | Q21 | How login works | Session cookie `jack_session` (30 days), sessions in Postgres, no CSRF token (`SameSite=Lax`) |
 | Q25 | API design | The contract matches the TypeScript demo as merged; the frontend reworks against it (2026-10-21) |
 
