@@ -91,7 +91,7 @@ If Q23 or Q24 are accepted, the contract is updated first, then both sides imple
 | Framework | **Spring Boot 4.x** (latest stable from start.spring.io) | Matches `planning.md` |
 | Build | **Maven** wrapper (`mvnw`, `mvnw.cmd`) | No Maven install needed; everyone uses the same version |
 | Database | **PostgreSQL 17**; **Neon** (hosted), **Docker Compose** (local) | Same database everywhere; Neon's free tier doesn't expire |
-| Data access | **Spring Data JPA**; native SQL for analytics and summaries | JPA removes CRUD boilerplate; summaries need `GROUP BY` |
+| Data access | **Spring Data JPA** for single-row reads and writes; plain SQL (`JdbcClient`) for list, search and summary queries | JPA removes CRUD boilerplate; list search matches Postgres arrays (tags) and summaries need `GROUP BY` |
 | Schema changes | **Flyway** migrations | Versioned SQL, run once each, in order, on startup |
 | Validation | **Jakarta Bean Validation** | Annotations replace the demo's Zod schemas |
 | Login | **Spring Security** + **Spring Session JDBC** | Session cookie; sessions stored in Postgres (§3) |
@@ -112,7 +112,7 @@ backend/
       api/        ApiError, GlobalExceptionHandler, NotFoundException, BadRequestException, Paginated, PageQuery
       security/   SecurityConfig, CurrentBusiness, BusinessPrincipal
       health/     HealthController
-      web/        SpaForwardingController
+      web/        SpaResourceConfig
     auth/         Business, BusinessRepository, AuthController, AuthService      contract §2
     items/        Item, ItemRepository, ItemService, ItemController              contract §3
     sales/        Sale, SaleItem, …                                              contract §4
@@ -158,7 +158,8 @@ Postgres constraint errors map as in the demo's `errorHandler.ts`: foreign key, 
 Contract §2 defines the endpoints. In Spring:
 
 - **One account = one business.** The `businesses` table holds the name, email and password hash; there are no separate user accounts.
-- **Sessions:** Spring Security with **Spring Session JDBC**, so sessions live in Postgres and survive redeploys. The cookie is named **`jack_session`**, is `HttpOnly`, `SameSite=Lax`, and `Secure` on Render, and lasts **30 days**. Register and login create a new session (protecting against session fixation); logout invalidates it and clears the cookie.
+- **Sessions:** Spring Security with **Spring Session JDBC**, so sessions live in Postgres and survive redeploys. The cookie is named **`jack_session`**, is `HttpOnly`, `SameSite=Lax`, and `Secure` on Render, with a 30-day max-age. Sessions expire after **30 days without activity** (the demo uses 30 days from login; this difference is deliberate and invisible to the frontend). Register and login save the login into the session explicitly and rotate the session id (protecting against session fixation); logout invalidates the session, which clears the cookie.
+- **Behind Render's proxy:** `server.forward-headers-strategy: framework`, so Spring sees HTTPS and marks the cookie `Secure`.
 - **CSRF protection is disabled,** as in the demo: `SameSite=Lax` already keeps other sites from sending requests with the cookie, and the contract has no CSRF header.
 - **Passwords:** hashed with Spring Security's `BCryptPasswordEncoder`. (The demo uses scrypt, but no hashes are carried over because the Java backend starts with a fresh database.) Register accepts 8–200 characters; BCrypt only reads the first 72 bytes, which is acceptable.
 - **Protected routes:** everything under `/api` except `/api/health` and `/api/auth/**`.
@@ -182,7 +183,7 @@ Flyway runs the files in `backend/src/main/resources/db/migration/` once each, i
 | File | Tables | Owner |
 | --- | --- | --- |
 | `V20261021_1__create_businesses_and_items.sql` | `businesses`, `items` | Jinuo (skeleton); Diana reviews `items` |
-| `V20261021_2__create_spring_session.sql` | `spring_session`, `spring_session_attributes` (Spring Session's PostgreSQL schema) | Jinuo (skeleton) |
+| `V20261021_2__create_spring_session.sql` | `spring_session`, `spring_session_attributes`: copied verbatim from `schema-postgresql.sql` inside the Spring Session JDBC jar, so it matches the installed version | Jinuo (skeleton) |
 | `V20261022_1__create_sales.sql` | `sales`, `sale_items` | Jinuo |
 | `V20261022_2__create_expenses.sql` | `expenses`, `expense_items` | Expenses owner |
 
@@ -324,13 +325,13 @@ The demo's `analytics.test.ts` and `items.test.ts` cover these edge cases (empty
   2. Build the jar, with the client copied into `static/`.
   3. Run on `eclipse-temurin:25-jre`.
 
-  `SpaForwardingController` sends non-`/api` paths without a file extension (e.g. `/inventory`) to `index.html`. The root `render.yaml` (moved there on `implement-user-login`) changes from `runtime: node` to `runtime: docker` with `dockerfilePath: backend/Dockerfile`, and its environment variables become the ones above.
+  `SpaResourceConfig` serves the React files and falls back to `index.html` for any non-`/api` path that isn't a file (e.g. `/inventory`), so React Router handles it; unknown `/api` paths still get the JSON `404`. A root `render.yaml` uses `runtime: docker` with `dockerfilePath: ./backend/Dockerfile` and the environment variables above. (`implement-user-login` also moves the Node blueprint to the root, so expect a small conflict in `render.yaml` when it merges; the Docker version wins.)
 
 ## 7. Skeleton build order (Jinuo)
 
 The skeleton is **done** when a teammate can clone the repo and, in two commands, run a backend where register, login, `/me` and `GET /api/items` behave exactly as the contract says, scoped to the logged-in business; and the same build runs on Render against Neon.
 
-1. Generate the project; add the wrapper, `compose.yaml` and `application.yml`. The app starts and connects.
+1. Generate the project from start.spring.io (keep its generated `pom.xml` and `TestcontainersConfiguration`); add `compose.yaml` and `application.yml`. The app starts and connects.
 2. Migrations: `businesses` + `items`, Spring Session tables.
 3. `common/api`: `ApiError`, `GlobalExceptionHandler` with every mapping in §2, `Paginated`, `PageQuery`.
 4. `common/security` + `auth/`: `SecurityConfig` (session cookie `jack_session`, 30 days, CSRF off, JSON `401`), `CurrentBusiness`, register, login, logout, me.
@@ -338,7 +339,7 @@ The skeleton is **done** when a teammate can clone the repo and, in two commands
 6. `items/`: entity, business-scoped repository, list and get, as the pattern for Diana.
 7. `PostgresTestBase` with the login helper; tests for auth, items, `401`, another business's `404`, and the error format.
 8. `DemoDataSeeder` creating the demo business.
-9. Dockerfile, SPA forwarding, `render.yaml`; deploy to Render with Neon.
+9. Dockerfile, `SpaResourceConfig`, root `render.yaml`; deploy to Render with Neon.
 10. `backend/README.md`; open a PR for review.
 
 ---
