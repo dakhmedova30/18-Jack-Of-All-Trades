@@ -28,6 +28,7 @@ Kimberly Prijadi
 ----
 
 Hans Santiago - Built the initial demo, migrated online, and built the login system.
+
 Precise description: 
 - Demo: built the initial demo based on the team’s frontend/UI work.
 - Database: migrated from local Postgres to a hosted Neon Postgres instance
