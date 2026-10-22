@@ -25,4 +25,12 @@ Kimberly Prijadi
   - Collapsible sidebar (with the sidebar itself separated into its own component)
   - Have it so the main content doesn’t scroll with the sidebar
 
+----
 
+Hans Santiago - Built the initial demo, migrated online, and built the login system.
+Precise description: 
+- Demo: built the initial demo based on the team’s frontend/UI work.
+- Database: migrated from local Postgres to a hosted Neon Postgres instance
+- Webapp: deployed the application to Render
+- Login: implemented user authentication registration, login, logout, and session-cookie-based auth using Node’s built-in password hashing.
+- Security: added user data isolation, and every protected route requires a valid session, returning 401 otherwise
