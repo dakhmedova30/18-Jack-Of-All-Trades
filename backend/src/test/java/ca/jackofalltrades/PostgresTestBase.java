@@ -1,9 +1,11 @@
 package ca.jackofalltrades;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.http.Cookie;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +51,14 @@ public abstract class PostgresTestBase {
                 .andExpect(status().isCreated())
                 .andReturn();
         return sessionCookie(result);
+    }
+
+    /** The id of the business a cookie belongs to, for inserting test data directly. */
+    protected int businessId(Cookie cookie) throws Exception {
+        String body = mockMvc.perform(get("/api/auth/me").cookie(cookie))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return JsonPath.read(body, "$.id");
     }
 
     /** The jack_session cookie set by a response (Spring Session writes it as a raw Set-Cookie header). */
