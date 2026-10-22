@@ -76,7 +76,7 @@ Open http://localhost:5173. In development the Vite dev server forwards `/api/*`
 | ------------------- | -------------------------------------------------------------------- |
 | `npm run dev`       | Runs API and web app together with hot reload                        |
 | `npm run seed`      | Seeds an empty database (`npm run seed -- --force` wipes and reseeds) |
-| `npm test`          | Runs the API tests against `TEST_DATABASE_URL` (skipped if unset)    |
+| `npm test`          | Runs API tests (skipped if `TEST_DATABASE_URL` is unset) and frontend tests |
 | `npm run typecheck` | Type-checks client and server                                        |
 | `npm run lint`      | Runs ESLint                                                          |
 | `npm run format`    | Formats everything with Prettier                                     |

@@ -16,7 +16,7 @@
     "build": "npm run build -w server && npm run build -w client",
     "start": "npm run start -w server",
     "seed": "npm run seed -w server --",
-    "test": "npm run test -w server",
+    "test": "npm run test -w server && npm run test -w client",
     "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
     "lint": "eslint .",
     "format": "prettier --write .",
