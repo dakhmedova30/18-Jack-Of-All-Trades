@@ -1,5 +1,6 @@
 package ca.jackofalltrades.items;
 
+import ca.jackofalltrades.common.api.LikePatterns;
 import ca.jackofalltrades.common.api.Paginated;
 import java.sql.Array;
 import java.sql.ResultSet;
@@ -45,7 +46,7 @@ public class ItemQueries {
         params.put("businessId", businessId);
         String where = "WHERE business_id = :businessId";
         if (search != null) {
-            params.put("pattern", "%" + escapeLikePattern(search) + "%");
+            params.put("pattern", LikePatterns.contains(search));
             where += " AND (name ILIKE :pattern OR array_to_string(tags, ' ') ILIKE :pattern)";
         }
 
@@ -65,11 +66,6 @@ public class ItemQueries {
                 .list();
 
         return Paginated.of(data, page, pageSize, total);
-    }
-
-    /** Escapes LIKE wildcards so a search for "%" or "_" matches those characters literally. */
-    static String escapeLikePattern(String value) {
-        return value.replaceAll("([\\\\%_])", "\\\\$1");
     }
 
     private static ItemResponse mapRow(ResultSet rs, int rowNum) throws SQLException {
