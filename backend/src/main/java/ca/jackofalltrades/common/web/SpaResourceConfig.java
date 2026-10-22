@@ -25,8 +25,9 @@ public class SpaResourceConfig implements WebMvcConfigurer {
                     @Override
                     protected Resource getResource(String resourcePath, Resource location) throws IOException {
                         if (!resourcePath.isEmpty()) {
-                            Resource requested = location.createRelative(resourcePath);
-                            if (requested.exists() && requested.isReadable()) {
+                            // super also checks that the file is inside the static folder.
+                            Resource requested = super.getResource(resourcePath, location);
+                            if (requested != null) {
                                 return requested;
                             }
                             if (resourcePath.startsWith("api/") || resourcePath.contains(".")) {
