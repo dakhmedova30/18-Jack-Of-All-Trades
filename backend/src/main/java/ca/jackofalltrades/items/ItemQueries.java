@@ -5,7 +5,9 @@ import ca.jackofalltrades.common.api.Paginated;
 import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,8 +16,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 /**
- * The items list in plain SQL: search matches tags (a Postgres array), which JPA queries
- * can't express. Ported from the demo's items.repository.ts.
+ * The items list, insights and low-stock in plain SQL: search matches tags (a Postgres array),
+ * which JPA queries can't express. Ported from the demo's items.repository.ts.
  */
 @Component
 public class ItemQueries {
@@ -66,6 +68,62 @@ public class ItemQueries {
                 .list();
 
         return Paginated.of(data, page, pageSize, total);
+    }
+
+    /** Stock value at selling price and total units, as {@code [valueCents, units]}. */
+    public long[] stockTotals(int businessId) {
+        return jdbcClient.sql("""
+                        SELECT COALESCE(SUM(quantity::bigint * unit_price_cents), 0),
+                               COALESCE(SUM(quantity::bigint), 0)
+                        FROM items WHERE business_id = :businessId
+                        """)
+                .param("businessId", businessId)
+                .query((rs, rowNum) -> new long[] {rs.getLong(1), rs.getLong(2)})
+                .single();
+    }
+
+    /**
+     * The {@code limit} items with the most units sold in {@code [from, to)}, most first, from the
+     * demo's bestSellers. Only lines still linked to an item count: a deleted item has no place here.
+     */
+    public List<InventoryInsights.BestSeller> bestSellers(int businessId, Instant from, Instant to, int limit) {
+        return jdbcClient.sql("""
+                        SELECT i.id, i.name, SUM(si.quantity::bigint) AS units_sold,
+                               SUM(si.total_cents::bigint) AS revenue_cents
+                        FROM sale_items si
+                        JOIN sales s ON s.id = si.sale_id
+                        JOIN items i ON i.id = si.item_id
+                        WHERE s.business_id = :businessId AND s.sold_at >= :from AND s.sold_at < :to
+                        GROUP BY i.id, i.name
+                        ORDER BY units_sold DESC, revenue_cents DESC, i.name ASC
+                        LIMIT :limit
+                        """)
+                .param("businessId", businessId)
+                .param("from", OffsetDateTime.ofInstant(from, ZoneOffset.UTC))
+                .param("to", OffsetDateTime.ofInstant(to, ZoneOffset.UTC))
+                .param("limit", limit)
+                .query((rs, rowNum) -> new InventoryInsights.BestSeller(
+                        rs.getInt("id"), rs.getString("name"), rs.getLong("units_sold"), rs.getLong("revenue_cents")))
+                .list();
+    }
+
+    /** How many items have at most {@code threshold} left, plus the {@code limit} lowest, lowest first. */
+    public LowStock lowStock(int businessId, int threshold, int limit) {
+        Map<String, Object> params = Map.of("businessId", businessId, "threshold", threshold, "limit", limit);
+        long count = jdbcClient.sql("SELECT COUNT(*) FROM items WHERE business_id = :businessId AND quantity <= :threshold")
+                .params(params)
+                .query(Long.class)
+                .single();
+        List<LowStock.LowItem> items = jdbcClient.sql("""
+                        SELECT id, name, quantity FROM items
+                        WHERE business_id = :businessId AND quantity <= :threshold
+                        ORDER BY quantity ASC, name ASC, id ASC
+                        LIMIT :limit
+                        """)
+                .params(params)
+                .query((rs, rowNum) -> new LowStock.LowItem(rs.getInt("id"), rs.getString("name"), rs.getInt("quantity")))
+                .list();
+        return new LowStock(count, threshold, items);
     }
 
     private static ItemResponse mapRow(ResultSet rs, int rowNum) throws SQLException {

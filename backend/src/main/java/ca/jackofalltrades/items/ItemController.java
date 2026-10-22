@@ -56,6 +56,20 @@ public class ItemController {
         return itemService.list(trimmed == null || trimmed.isEmpty() ? null : trimmed, sort, order, page, pageSize);
     }
 
+    /** Literal paths, so Spring matches them before {@code /{id}}; they are never parsed as ids. */
+    @GetMapping("/insights")
+    public InventoryInsights insights() {
+        return itemService.insights();
+    }
+
+    @GetMapping("/low-stock")
+    public LowStock lowStock(
+            @RequestParam(defaultValue = "5")
+            @Min(value = 1, message = "Must be at least 1")
+            @Max(value = 100, message = "Must be at most 100") int limit) {
+        return itemService.lowStock(limit);
+    }
+
     @GetMapping("/{id}")
     public ItemResponse get(@PathVariable String id) {
         return itemService.get(Ids.parse(id, "item id"));

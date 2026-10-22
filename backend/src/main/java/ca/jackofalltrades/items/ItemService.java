@@ -4,6 +4,9 @@ import ca.jackofalltrades.common.api.BadRequestException;
 import ca.jackofalltrades.common.api.NotFoundException;
 import ca.jackofalltrades.common.api.Paginated;
 import ca.jackofalltrades.common.security.CurrentBusiness;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.LinkedHashSet;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -15,6 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class ItemService {
+
+    /** An item is "low stock" at or below this quantity (contract §3). */
+    static final int LOW_STOCK_THRESHOLD = 5;
+
+    static final int BEST_SELLERS_LIMIT = 3;
 
     private final ItemRepository items;
     private final ItemQueries queries;
@@ -36,6 +44,23 @@ public class ItemService {
         return items.findByIdAndBusinessId(id, currentBusiness.id())
                 .map(ItemResponse::from)
                 .orElseThrow(() -> new NotFoundException("Item", id));
+    }
+
+    /** Stock value, plus this UTC month's best sellers, as the demo and Analytics use. */
+    @Transactional(readOnly = true)
+    public InventoryInsights insights() {
+        LocalDate firstOfMonth = LocalDate.now(ZoneOffset.UTC).withDayOfMonth(1);
+        Instant start = firstOfMonth.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant end = firstOfMonth.plusMonths(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        Integer businessId = currentBusiness.id();
+        long[] totals = queries.stockTotals(businessId);
+        return new InventoryInsights(totals[0], totals[1], start, end,
+                queries.bestSellers(businessId, start, end, BEST_SELLERS_LIMIT));
+    }
+
+    @Transactional(readOnly = true)
+    public LowStock lowStock(int limit) {
+        return queries.lowStock(currentBusiness.id(), LOW_STOCK_THRESHOLD, limit);
     }
 
     @Transactional
