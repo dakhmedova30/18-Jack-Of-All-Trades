@@ -1,0 +1,20 @@
+server:
+  port: ${PORT:4000}
+  forward-headers-strategy: framework     # Render's proxy terminates HTTPS
+spring:
+  application:
+    name: backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/jack}
+    username: ${SPRING_DATASOURCE_USERNAME:jack}
+    password: ${SPRING_DATASOURCE_PASSWORD:jack}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate                  # only Flyway changes the schema
+  flyway:
+    out-of-order: true
+  session:
+    timeout: 30d
+    jdbc:
+      initialize-schema: never            # the Flyway migration creates the tables
