@@ -78,6 +78,7 @@ src/main/java/ca/jackofalltrades/
   sales/     sales with stock checks; writes lock the sale, then its items in id order
   expensetags/ the expense form's tag choices; new businesses get five starter tags
   expenses/  expenses whose item lines restock inventory; writes lock the expense, then its items in id order
+  analytics/ dashboard summary and inventory by tag; read-only queries over sales, expenses and items
   common/    api/ (error format, pagination, shared validation), security/, health/, web/ (React fallback)
   seed/      demo-profile data
 src/main/resources/db/migration/   Flyway SQL migrations
