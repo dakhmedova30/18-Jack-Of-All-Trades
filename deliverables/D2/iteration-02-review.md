@@ -19,8 +19,20 @@ List **process-related** (i.e. team organization and how you work) decisions and
  * 2 - 4 important decisions, processes, actions, or anything else that worked well for you, ordered from most to least important.
  * Give a supporting argument about what makes you think that way.
  * Feel free to refer/link to process artifact(s).
+
+1. Designing UI/UX in Figma before implementation
+<img width="994" height="578" alt="image" src="https://github.com/user-attachments/assets/cab05986-c8b3-4da1-9e02-b9c666139203" />
+
+Designing the UI/UX in Figma before writing code worked extremely well for us, because it gave the whole team one shared picture of the finished app. Everyone building different pages (Home, Inventory, Sales, Expenses, Analytics) followed the same layout patterns (toolbar, data table, summary cards) so the pages stayed consistent without constant coordination. Changes were also cheap because rearranging components on Figma takes minimal time compared to rewriting the code for the pages, so team members can quickly get a visual representation of their suggestions for feedback.
    
- * 
+2. Clear Task Ownership
+<img width="1474" height="412" alt="image" src="https://github.com/user-attachments/assets/9cc3c180-25a3-4df9-85ad-06bd56320c34" />
+
+Giving each team member clearly defined ownership of a feature or area worked well for us. For example, one person would implement login and authentication, while another would work on theme and styling. Since it was always clear who was responsible for what, we avoided duplicated work and the confusion of multiple people changing the same thing. Additionally, this let people work in parallel on their own feature branches without waiting on a teammate to push code first, which allowed constant progress. 
+
+3. Communications & Meeting
+
+Regular communication (through Discord) and meetings also worked well for us. In addition to the weekly tutorial, our team have a meeting online on Mondays, and this gave us a fixed time to check in. Every meeting, we went over what everyone did, what they were working on and what (if any) issues they were dealing with, which served as a refresher on our tasks. It also let us set clear expectations and deadlines so everyone knew what was expected of them (in our meeting on Monday 19th October, we made it clear that frontend and UI had to be done for Demo day on the 22nd). 
 
 #### Q2. What did not work well
 
