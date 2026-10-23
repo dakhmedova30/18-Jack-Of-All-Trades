@@ -1,7 +1,8 @@
-Name of the student
-One-line description of their role in this deliverable
-Precise description of contributions made
+- Name of the student
+- One-line description of their role in this deliverable
+- Precise description of contributions made
 
+-----
 
 1. Minh Tran
 2. Designing UI/UX and implementing various components on all pages.
