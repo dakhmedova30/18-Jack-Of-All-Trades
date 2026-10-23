@@ -325,7 +325,7 @@ The demo's `analytics.test.ts` and `items.test.ts` cover these edge cases (empty
   2. Build the jar, with the client copied into `static/`.
   3. Run on `eclipse-temurin:25-jre`.
 
-  `SpaResourceConfig` serves the React files and falls back to `index.html` for any non-`/api` path that isn't a file (e.g. `/inventory`), so React Router handles it; unknown `/api` paths still get the JSON `404`. A root `render.yaml` uses `runtime: docker` with `dockerfilePath: ./backend/Dockerfile` and the environment variables above. (`implement-user-login` also moves the Node blueprint to the root, so expect a small conflict in `render.yaml` when it merges; the Docker version wins.)
+  `SpaResourceConfig` serves the React files and falls back to `index.html` for any non-`/api` path that isn't a file (e.g. `/inventory`), so React Router handles it; unknown `/api` paths still get the JSON `404`. `backend/render.yaml` is the Java blueprint (`runtime: docker`, `dockerfilePath: ./backend/Dockerfile`, the environment variables above). The root `render.yaml` stays the Node demo's blueprint, which runs the live deployment; to switch to Java, point a Render service (with an empty database) at `backend/render.yaml`.
 
 ## 7. Skeleton build order (Jinuo)
 
