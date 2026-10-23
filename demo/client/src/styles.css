@@ -1,0 +1,1534 @@
+/* Design tokens — matches the maroon/cream Figma wireframe. Change colours here only. */
+:root {
+  --color-bg: linear-gradient(rgba(251, 245, 240, 1) 0%, rgba(255, 254, 254, 1) 100%);
+  --color-bg-solid: #fbf7f3;
+  --color-surface: #fcf9f6;
+  --color-surface-alt: #f0ede0;
+  --color-border: #e3d6d0;
+  /* Chart card outlines: dark enough to read as a clear edge. */
+  --color-border-chart: #a89a94;
+  --color-border-strong: #3a0d0d;
+  --color-text: #2a0a0a;
+  --color-muted: #7a6a66;
+  --color-sidebar: #2d0606;
+  --color-sidebar-text: #f6eee6;
+  --color-primary: #4a1414;
+  --color-primary-text: #f4efe5;
+  --color-accent: #6b1111;
+  --color-accent-text: #fbeee8;
+  --color-search: transparent;
+  --color-danger: #b42318;
+  --color-danger-bg: #fdecea;
+  --radius: 6px;
+  --sidebar-width: 220px;
+  --sidebar-mini-width: 65px;
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  color: var(--color-text);
+  background: var(--color-bg);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Libre Caslon Text', serif;
+  font-weight: 500;
+  font-style: normal;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0 0 0.25rem;
+}
+
+h2 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+code {
+  background: var(--color-surface);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+
+.muted {
+  color: var(--color-muted);
+}
+
+/* ---------- Layout ---------- */
+
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  height: 100vh;
+}
+
+.sidebar {
+  background: var(--color-sidebar);
+  color: var(--color-sidebar-text);
+  padding: 1.25rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.sidebar__logo {
+  border: 1px solid var(--color-sidebar-text);
+  border-radius: var(--radius);
+  padding: 0.6rem;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: inherit;
+  text-decoration: none;
+}
+
+.sidebar__link:hover {
+  background: rgb(255 255 255 / 0.08);
+}
+
+/* Pinned to the bottom of the sidebar, under the nav. */
+.sidebar__account {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebar__account-name {
+  padding: 0 0.65rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar__logout {
+  width: 100%;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar__link.is-active {
+  border-color: var(--color-sidebar-text);
+}
+
+.sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar__toggle,
+.sidebar-show {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.sidebar-show {
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-show-container {
+  padding: 15px;
+  height: 100%;
+  background: var(--color-sidebar);
+  width: var(--sidebar-mini-width);
+}
+
+.sidebar-show-container button {
+  color: var(--color-sidebar-text);
+}
+
+.sidebar__toggle {
+  color: var(--color-surface);
+}
+
+.app--sidebar-hidden {
+  grid-template-columns: var(--sidebar-mini-width) 1fr;
+}
+
+.content {
+  padding: 1.5rem 2rem;
+  min-width: 0;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: -webkit-fill-available;
+  height: fit-content;
+  padding: 40px;
+}
+
+/* ---------- Toolbar ---------- */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.toolbar__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.search-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--color-search);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  width: min(320px, 100%);
+}
+
+.search:focus-within {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.search input {
+  border: none;
+  background: transparent;
+  outline: none;
+  flex: 1;
+  font: inherit;
+  color: inherit;
+}
+
+/* ---------- Buttons ---------- */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius);
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.button--secondary {
+  background: #5e2222;
+  border-color: #5e2222;
+}
+
+.button--ghost {
+  background: transparent;
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+}
+
+.button--danger {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.icon-button {
+  display: inline-flex;
+  padding: 0.3rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  background: var(--color-surface-alt);
+}
+
+.link-button {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  text-decoration: underline;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* ---------- Table ---------- */
+
+.table-wrap {
+  overflow-x: auto;
+  transition: opacity 0.15s;
+}
+
+.table-wrap.is-loading {
+  opacity: 0.55;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  font-family: 'Libre Caslon Text', serif;
+  font-weight: 500;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--color-border-strong);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.table__row {
+  cursor: pointer;
+}
+
+.table__row:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.table__description {
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table__row:hover {
+  background: var(--color-surface-alt);
+}
+
+.table .numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.table__check {
+  width: 2rem;
+}
+
+.table__action {
+  width: 4.5rem;
+  text-align: center !important;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tag {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  font-size: 0.75rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 4px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--color-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.empty-state p {
+  margin: 0;
+}
+
+/* ---------- Pagination ---------- */
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.pagination__page {
+  min-width: 2rem;
+  height: 2rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pagination__page:hover:not(:disabled) {
+  border-color: var(--color-border);
+}
+
+.pagination__page.is-current {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.pagination__page:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.pagination__gap {
+  padding: 0 0.25rem;
+  color: var(--color-muted);
+}
+
+/* ---------- Modal ---------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(45 6 6 / 0.3);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 10;
+}
+
+.modal {
+  background: var(--color-surface);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgb(45 6 6 / 0.2);
+  width: 100%;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal--medium {
+  max-width: 480px;
+}
+
+.modal--small {
+  max-width: 360px;
+}
+
+.modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.1rem 1.25rem 0.6rem;
+  border-bottom: 1px solid var(--color-border-strong);
+  margin: 0 1.25rem;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.modal__body {
+  padding: 1rem 1.25rem;
+}
+
+.modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0 1.25rem 1.25rem;
+}
+
+/* ---------- Forms ---------- */
+
+.item-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 8.5rem 1fr;
+  align-items: start;
+  gap: 0.75rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.form-row label {
+  font-weight: 600;
+  padding-top: 0.15rem;
+}
+
+.form-row__static {
+  text-align: right;
+  color: var(--color-muted);
+}
+
+.form-row__control {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.form-row input {
+  width: 100%;
+  border: none;
+  text-align: right;
+  font: inherit;
+  color: inherit;
+  padding: 0.15rem 0;
+  outline: none;
+  background: transparent;
+}
+
+.form-row input::placeholder,
+.form-stack textarea::placeholder {
+  color: #bfaea8;
+}
+
+.form-row:focus-within {
+  border-bottom-color: var(--color-border-strong);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.form-row__reset {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+/* SelectWithAddRow: a dropdown, or the inline "New …" input that replaces it. */
+.select-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.select-add select,
+.select-add input {
+  font: inherit;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  min-width: 0;
+}
+
+.select-add input {
+  flex: 1;
+  min-width: 8rem;
+  text-align: left;
+}
+
+.select-add__add {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.9rem;
+}
+
+.form-stack label {
+  font-size: 0.85rem;
+}
+
+.form-stack textarea {
+  border: 1px solid var(--color-border-strong);
+  border-radius: 2px;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  padding: 0.5rem;
+  resize: vertical;
+}
+
+[aria-invalid='true'] {
+  color: var(--color-danger);
+}
+
+.field-error {
+  color: var(--color-danger);
+  font-size: 0.8rem;
+}
+
+.form-error {
+  color: var(--color-danger);
+  margin: 0.75rem 0 0;
+}
+
+/* ---------- Auth (login / register) ---------- */
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: var(--color-bg);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.auth-card__logo {
+  align-self: flex-start;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.7rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+}
+
+.auth-card h1 {
+  font-size: 1.3rem;
+  margin: 0;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.auth-field input {
+  font: inherit;
+  font-weight: 400;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-bg-solid);
+  color: var(--color-text);
+}
+
+.auth-field input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.auth-switch {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+.auth-switch a {
+  color: var(--color-primary);
+}
+
+.auth-loading {
+  padding: 2rem;
+}
+
+/* ---------- Sale line items ---------- */
+
+.sale-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-top: 0.9rem;
+}
+
+.sale-line {
+  display: grid;
+  grid-template-columns: 1.25rem 1fr 4.5rem 6rem auto;
+  gap: 0.6rem;
+  align-items: end;
+}
+
+.sale-line__index {
+  padding-bottom: 0.45rem;
+  color: var(--color-muted);
+}
+
+.sale-line__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.sale-line__field label {
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+.sale-line__field select,
+.sale-line__field input {
+  font: inherit;
+  color: inherit;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  min-width: 0;
+}
+
+.sale-line__field--qty input {
+  text-align: right;
+}
+
+.sale-line__field--total span {
+  display: block;
+  padding: 0.3rem 0;
+  font-weight: 600;
+  text-align: right;
+  color: var(--color-accent);
+}
+
+.sale-line__error {
+  grid-column: 1 / -1;
+  margin-top: -0.3rem;
+  color: var(--color-danger);
+  font-size: 0.8rem;
+}
+
+.sale-lines__add {
+  align-self: flex-start;
+}
+
+/* Expenses reuse .sale-line__field etc., just with two extra columns
+   (Description, Unit cost) since a line can restock an item or be free-text. */
+.expense-line {
+  display: grid;
+  grid-template-columns: 1.25rem 1.3fr 1.3fr 4rem 5.5rem 6rem auto;
+  gap: 0.6rem;
+  align-items: end;
+}
+
+.expense-line .sale-line__field input:disabled {
+  color: var(--color-muted);
+  background: var(--color-surface-alt);
+}
+
+.sale-total {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.5rem 0.5rem;
+  background: #f5e9e4;
+  border-top: 2px solid var(--color-border-strong);
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+/* The date/channel/ID rows follow the total in the sale and expense forms. */
+.sale-total + .form-row {
+  margin-top: 1rem;
+}
+
+.banner {
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius);
+}
+
+.banner--error {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+/* ---------- Inventory: table, stat, panels ---------- */
+
+.inventory-stat {
+  align-self: flex-start;
+  min-width: 260px;
+}
+
+/* About 15 rows tall, then the table scrolls inside itself with the header pinned. */
+.inventory-table {
+  max-height: calc(15 * 2.6rem + 2.8rem);
+  overflow-y: auto;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.inventory-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-bg-solid);
+}
+
+/* Sortable column headers look like the plain ones, plus a direction arrow. */
+.sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sort-button__arrow {
+  font-size: 0.7rem;
+  color: var(--color-muted);
+}
+
+.sort-button.is-active .sort-button__arrow {
+  color: var(--color-text);
+}
+
+.inventory-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.best-sellers__rank {
+  display: inline-block;
+  width: 1.5rem;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .inventory-panels {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Inventory: low stock panel ---------- */
+
+.low-stock {
+  gap: 0.6rem;
+}
+
+.low-stock__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* Fixed height with its own scrollbar, so a long list doesn't push the page down. */
+.low-stock__list {
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.low-stock__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.low-stock__row:last-child {
+  border-bottom: none;
+}
+
+.low-stock__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.low-stock__qty {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+}
+
+.low-stock__qty.is-out {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+/* ---------- Home ---------- */
+
+.home-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.home-kpis__error {
+  margin-top: 1rem;
+}
+
+.home-recent {
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+}
+
+.home-recent__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.home-recent__link {
+  color: var(--color-accent);
+  font-size: 0.85rem;
+}
+
+.home-recent__date {
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+
+.home-recent__items {
+  /* One line per sale on desktop; long item names get cut with an ellipsis. */
+  max-width: 0;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-recent__amount {
+  white-space: nowrap;
+  color: #1a7f4b;
+  font-weight: 600;
+}
+
+.stat-card__detail {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+
+.home-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.home-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1.5rem 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: 0 2px 8px rgb(45 6 6 / 0.06);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 0.15s,
+    transform 0.1s;
+}
+
+.home-card:hover {
+  border-color: var(--color-border-strong);
+  transform: translateY(-2px);
+}
+
+.home-card__title {
+  font-size: 1.6rem;
+  margin: 0;
+}
+
+.home-card__preview {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  /* Same height on every card, whatever its preview holds, so the row lines up. */
+  height: 130px;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.home-card__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+}
+
+.home-card__caption {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.home-card__message {
+  margin: 0;
+  text-align: center;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.home-card__number {
+  margin: 0;
+  text-align: center;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.home-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+}
+
+.home-bars__row {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.home-bars__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-bars__track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--color-surface-alt);
+  overflow: hidden;
+}
+
+.home-bars__fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.home-bars__value {
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-legend {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+
+.home-legend__swatch {
+  display: inline-block;
+  width: 10px;
+  height: 3px;
+  margin-right: 0.35rem;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+/* ---------- Shared card (Analytics panels reuse this) ---------- */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  color: inherit;
+}
+
+/* ---------- Analytics ---------- */
+
+.analytics-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+/* Each chart row is two equal columns; minmax(0, 1fr) lets SVGs shrink instead of overflowing. */
+.analytics-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.analytics-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: var(--color-surface);
+  border-color: var(--color-border-chart);
+  box-shadow: 0 1px 3px rgb(45 6 6 / 0.08);
+}
+
+.analytics-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/*
+ * All four chart cards share one height, sized so both rows fit on screen
+ * under the header and stat cards (~280px of the viewport, measured at
+ * desktop widths). Each chart then grows/shrinks to fill whatever its card has
+ * left after the title, legend and insight line, which is what keeps the four
+ * cards equal even though their extras differ. The min-height stops short
+ * windows from crushing the charts; they scroll instead.
+ */
+.analytics-row .analytics-card {
+  height: max(260px, calc((100vh - 280px) / 2));
+}
+
+.analytics-card > .viz,
+.analytics-donuts {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* Sales and Expenses donuts side by side, splitting the card's chart space. */
+.analytics-donuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.analytics-donut-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-height: 0;
+}
+
+.analytics-donut-panel__title {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.analytics-donut-panel .analytics-donut {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.analytics-donut .viz {
+  width: auto;
+  height: 100%;
+  max-width: 65%;
+}
+
+.analytics-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* Under a line chart the legend runs in one row, leaving the height to the chart. */
+.analytics-card__footer .viz-legend {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.3rem 1rem;
+}
+
+.analytics-select {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  padding-top: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.analytics-select select {
+  font: inherit;
+  color: inherit;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+  background: var(--color-surface);
+}
+
+.analytics-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 1rem 1.1rem;
+  border-radius: 10px;
+  flex: 1;
+  justify-content: center;
+}
+
+/* Net profit style: deep red with cream text, as in the wireframe. */
+.stat-card--positive {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.stat-card--positive .stat-card__label,
+.stat-card--positive .stat-card__detail {
+  color: var(--color-accent-text);
+  opacity: 0.85;
+}
+
+/* Revenue / expenses style: warm beige with maroon text. */
+.stat-card--neutral {
+  background: var(--color-surface-alt);
+  color: var(--color-accent);
+}
+
+.stat-card--negative {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.stat-card__label {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.stat-card__value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.analytics-donut {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.analytics-insight {
+  margin: 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+/* ---------- SVG charts ---------- */
+
+.viz {
+  width: 100%;
+  height: auto;
+}
+
+.viz-grid {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.viz-axis {
+  stroke: var(--color-accent);
+  stroke-width: 1;
+}
+
+.viz-label {
+  fill: var(--color-muted);
+  font-size: 10px;
+}
+
+/* Bar-chart category and value labels are read, not just glanced at. */
+.viz-label--bar {
+  fill: var(--color-text);
+  font-size: 12px;
+}
+
+.viz-donut-label {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.viz-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+.viz-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.viz-legend__swatch {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 2px;
+  flex: none;
+}
+
+/* ---------- Small screens ---------- */
+
+@media (max-width: 720px) {
+  .app {
+    grid-template-columns: 1fr;
+  }
+
+  .content {
+    flex-direction: column;
+  }
+
+  .app--sidebar-hidden {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+  }
+
+  .sidebar__nav {
+    flex-direction: row;
+  }
+
+  .sidebar-show-container {
+    width: 100%;
+  }
+
+  /* In the phone top bar, sit at the far end instead of the bottom. */
+  .sidebar__account {
+    margin-top: 0;
+    margin-left: auto;
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  /* No room for the business name in a horizontal top bar; the logout icon stays. */
+  .sidebar__account-name {
+    display: none;
+  }
+
+  .sidebar__logout {
+    width: auto;
+    flex-shrink: 0;
+  }
+
+  .content {
+    padding: 1rem;
+  }
+
+  .analytics-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .analytics-row,
+  .analytics-stats {
+    grid-template-columns: 1fr;
+  }
+
+  /* Stacked one per row on phones, so natural heights are fine again. */
+  .analytics-row .analytics-card {
+    height: auto;
+  }
+
+  .analytics-card > .viz,
+  .analytics-donuts,
+  .analytics-donut-panel .analytics-donut {
+    flex: none;
+  }
+
+  .analytics-donuts {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-donut .viz {
+    width: 160px;
+    height: auto;
+  }
+
+  /* The sale/expense line grids are too narrow-column for the modal's mobile
+     width; stack each field full-width instead of squeezing them side by side. */
+  .sale-line,
+  .expense-line {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .sale-line__index {
+    padding-bottom: 0;
+  }
+
+  .sale-line__field--total span {
+    text-align: left;
+  }
+}
+
+/* --- SORT LATER --- */
+
+.content {
+  height: 100%;
+  overflow-y: scroll;
+  display: flex;
+  flex-direction: row;
+  padding: 0;
+}
+
+.panel-row {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.panel-row .card {
+  background: var(--color-surface);
+  border-color: var(--color-border-chart);
+  box-shadow: 0 1px 3px rgb(45 6 6 / 0.08);
+  width: 50%;
+}
+
+.money-split {
+  padding: 0;
+}
+
+.money-split__row,
+.low-stock__row {
+  list-style-type: none;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.glance__item {
+  display: flex;
+  justify-content: space-between;
+}
+
+.glance__item dt {
+  font-weight: 600;
+}
+
+.glance__item .dd-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.stock-value {
+  /* re-add css from other */
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0.6rem;
+}
+
+.stock-value__amount {
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

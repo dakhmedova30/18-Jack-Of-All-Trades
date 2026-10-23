@@ -1,0 +1,5 @@
+# Keep LF line endings in the repo and on every OS, so Prettier's check passes on Windows too.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
