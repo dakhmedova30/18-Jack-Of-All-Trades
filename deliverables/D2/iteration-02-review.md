@@ -46,8 +46,6 @@ Briefly explain how you integrated the previously developed individuals componen
 ## Product - Review
 
 #### Q4. How was your product demo?
- * How did you prepare your demo?
- * What did you manage to demo to your partner?
- * Did your partner accept the features? And were there change requests?
- * What were your learnings through this process? This can be either from a process and/or product perspective.
- * *This section will be marked very leniently so keep it brief and just make sure the points are addressed*
+For our demo, we presented the MVP based on our individual roles. We demoed the basic features planned in D1: the sales, inventory, expenses, and analytics pages. The demo also included a login page and a more fleshed-out interface. We received suggestions on how information is laid out and on appearance, and we plan to expand the MVP to include more detailed analytics features.
+
+From a product perspective, we learnt the importance of information delivery, from how text is shown on screen to where components are placed.
