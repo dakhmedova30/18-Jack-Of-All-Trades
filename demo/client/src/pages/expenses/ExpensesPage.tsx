@@ -141,6 +141,7 @@ export function ExpensesPage() {
 
   return (
     <section className="page">
+      <h1>Expenses</h1>
       <div className="toolbar">
         <div className="toolbar__actions">
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
@@ -155,19 +156,23 @@ export function ExpensesPage() {
             Bulk delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
           </button>
         </div>
-        <label className="search">
-          <input
-            type="search"
-            placeholder="Search"
-            value={searchInput}
-            onChange={(event) => {
-              setSearchInput(event.target.value);
-              setPage(1);
-            }}
-            aria-label="Search expenses by tag or item"
-          />
-          <SearchIcon />
-        </label>
+        <div className="search-field">
+          <label htmlFor="expenses-search">Search</label>
+          <div className="search">
+            <input
+              id="expenses-search"
+              type="search"
+              placeholder="Search"
+              value={searchInput}
+              onChange={(event) => {
+                setSearchInput(event.target.value);
+                setPage(1);
+              }}
+              aria-label="Search expenses by tag or item"
+            />
+            <SearchIcon />
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -225,7 +230,16 @@ export function ExpensesPage() {
               <tr
                 key={expense.id}
                 className="table__row"
+                tabIndex={0}
+                aria-label={`Edit expense ${expense.id}`}
                 onClick={() => setFormState({ mode: 'edit', expense })}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget) return;
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setFormState({ mode: 'edit', expense });
+                  }
+                }}
               >
                 <td className="table__check" onClick={(event) => event.stopPropagation()}>
                   <input

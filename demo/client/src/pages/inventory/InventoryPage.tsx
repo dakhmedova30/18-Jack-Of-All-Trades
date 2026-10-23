@@ -124,6 +124,7 @@ export function InventoryPage() {
 
   return (
     <section className="page">
+      <h1>Inventory</h1>
       <div className="toolbar">
         <div className="toolbar__actions">
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
@@ -138,19 +139,23 @@ export function InventoryPage() {
             Bulk delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
           </button>
         </div>
-        <label className="search">
-          <input
-            type="search"
-            placeholder="Search"
-            value={searchInput}
-            onChange={(event) => {
-              setSearchInput(event.target.value);
-              setPage(1);
-            }}
-            aria-label="Search items by name or tag"
-          />
-          <SearchIcon />
-        </label>
+        <div className="search-field">
+          <label htmlFor="inventory-search">Search</label>
+          <div className="search">
+            <input
+              id="inventory-search"
+              type="search"
+              placeholder="Search"
+              value={searchInput}
+              onChange={(event) => {
+                setSearchInput(event.target.value);
+                setPage(1);
+              }}
+              aria-label="Search items by name or tag"
+            />
+            <SearchIcon />
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -206,7 +211,16 @@ export function InventoryPage() {
               <tr
                 key={item.id}
                 className="table__row"
+                tabIndex={0}
+                aria-label={`Edit ${item.name}`}
                 onClick={() => setFormState({ mode: 'edit', item })}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget) return;
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setFormState({ mode: 'edit', item });
+                  }
+                }}
               >
                 <td className="table__check" onClick={(event) => event.stopPropagation()}>
                   <input

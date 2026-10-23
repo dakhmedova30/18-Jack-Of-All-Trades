@@ -117,6 +117,7 @@ export function SalesPage() {
 
   return (
     <section className="page">
+      <h1>Sales</h1>
       <div className="toolbar">
         <div className="toolbar__actions">
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
@@ -131,19 +132,23 @@ export function SalesPage() {
             Bulk delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
           </button>
         </div>
-        <label className="search">
-          <input
-            type="search"
-            placeholder="Search"
-            value={searchInput}
-            onChange={(event) => {
-              setSearchInput(event.target.value);
-              setPage(1);
-            }}
-            aria-label="Search sales by description, channel or item"
-          />
-          <SearchIcon />
-        </label>
+        <div className="search-field">
+          <label htmlFor="sales-search">Search</label>
+          <div className="search">
+            <input
+              id="sales-search"
+              type="search"
+              placeholder="Search"
+              value={searchInput}
+              onChange={(event) => {
+                setSearchInput(event.target.value);
+                setPage(1);
+              }}
+              aria-label="Search sales by description, channel or item"
+            />
+            <SearchIcon />
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -199,7 +204,16 @@ export function SalesPage() {
               <tr
                 key={sale.id}
                 className="table__row"
+                tabIndex={0}
+                aria-label={`Edit sale ${sale.id}`}
                 onClick={() => setFormState({ mode: 'edit', sale })}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget) return;
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setFormState({ mode: 'edit', sale });
+                  }
+                }}
               >
                 <td className="table__check" onClick={(event) => event.stopPropagation()}>
                   <input

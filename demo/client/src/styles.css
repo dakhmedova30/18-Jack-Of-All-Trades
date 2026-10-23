@@ -218,6 +218,14 @@ code {
   gap: 0.5rem;
 }
 
+.search-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 .search {
   display: flex;
   align-items: center;
@@ -227,6 +235,11 @@ code {
   border-radius: 999px;
   padding: 0.4rem 0.9rem;
   width: min(320px, 100%);
+}
+
+.search:focus-within {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
 }
 
 .search input {
@@ -332,6 +345,11 @@ code {
 
 .table__row {
   cursor: pointer;
+}
+
+.table__row:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 .table__description {
@@ -532,6 +550,9 @@ code {
 
 .form-row:focus-within {
   border-bottom-color: var(--color-border-strong);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .form-row__reset {
@@ -1360,7 +1381,7 @@ code {
   }
 
   .sidebar {
-    /* flex-direction: row; */
+    flex-direction: row;
     align-items: center;
     gap: 1rem;
     padding: 0.75rem 1rem;
@@ -1368,12 +1389,7 @@ code {
   }
 
   .sidebar__nav {
-    /* flex-direction: row; */
-    width: 100%;
-  }
-
-  .sidebar__header {
-    width: 100%;
+    flex-direction: row;
   }
 
   .sidebar-show-container {
@@ -1503,7 +1519,8 @@ code {
   align-items: flex-end;
 }
 
-.stock-value { /* re-add css from other */
+.stock-value {
+  /* re-add css from other */
   display: flex;
   flex-direction: column;
   gap: 0.25rem;

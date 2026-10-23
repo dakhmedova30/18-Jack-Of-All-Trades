@@ -7,6 +7,7 @@ import { RegisterPage } from './pages/auth/RegisterPage';
 import { ExpensesPage } from './pages/expenses/ExpensesPage';
 import { HomePage } from './pages/HomePage';
 import { InventoryPage } from './pages/inventory/InventoryPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 import { SalesPage } from './pages/sales/SalesPage';
 
 /** Everything in here needs a logged-in business; sends anonymous visitors to /login. */
@@ -41,10 +42,11 @@ export function App() {
           <Route path="sales" element={<SalesPage />} />
           <Route path="expenses" element={<ExpensesPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
+          {/* Any other path: a real 404 if logged in; RequireAuth sends anonymous
+              visitors to /login before this ever renders. */}
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>
-
-      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
