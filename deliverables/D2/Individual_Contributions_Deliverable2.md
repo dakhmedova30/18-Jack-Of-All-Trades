@@ -71,3 +71,16 @@ Precise description:
 - Integration: prepared and opened a series of stacked PRs to bring all backend features into the frontend branch, and checked that every API call the frontend makes works with the Java backend.
 - Testing and fixes: wrote integration tests for my features, reviewed and tested the Expenses backend for a teammate who couldn't run the tests locally, and fixed a bug where prices and quantities silently dropped decimals.
 - Team support: wrote implementation plans and a backend README guide that teammates used to build Inventory and Expenses.
+
+-----
+
+Diana Akhmedova
+> Frontend Testing, Database Architecture, and UI/UX Design
+
+Precise description:
+- Frontend Testing: Implemented frontend tests covering the main user flows, including user registration and login, protected-page access, logout, inventory item creation, and sales and expense submissions.
+    - Added tests for analytics time-range changes and date and money utility functions, including invalid inputs.
+    - UI tests use mocked API responses, allowing them to run independently without a database connection.
+- Database Architecture: Designed the database architecture flow, including the structure and relationships between tables to support the application's core features, such as inventory management, sales tracking, expense tracking, and analytics.
+- Figma Prototype: Expanded the existing Figma prototype with more detailed designs, refining page layouts, interface components, and feature representations to better guide frontend development and maintain UI/UX consistency.
+    - Added precise components that mirror the elements business owners want to keep track of for better organization and analytics reviews.
