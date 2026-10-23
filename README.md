@@ -300,19 +300,18 @@ SOFTWARE.
 
 ## Deployed URL / Access Instructions
 
-* **Java backend (primary, D2 demo):** https://jack-of-all-trades-java.onrender.com
-* **Node backend (fallback, not actively developed further):** https://one8-jack-of-all-trades.onrender.com
+**https://jack-of-all-trades-java.onrender.com**
 
-Both serve the same React app and the same login screen. Log in with:
+Log in with:
 
 ```
 email:    demo@jackofalltrades.test
 password: ChangeMe123!
 ```
 
-...or click "Register" on either site to create your own business account — every dashboard only ever shows your own business's data, on whichever backend you registered with (the two don't share accounts).
+...or click "Register" to create your own business account — every dashboard only ever shows your own business's data.
 
-Both run on Render's free tier, so an idle instance spins down and the first request after a while takes **30–60+ seconds** to wake back up — this is expected, not a bug; just wait for the login page to load.
+This runs on Render's free tier, so an idle instance spins down and the first request after a while takes **30–60+ seconds** to wake back up — this is expected, not a bug; just wait for the login page to load.
 
 ### Screenshots
 
