@@ -58,3 +58,14 @@ Inventory: added creating, editing, deleting and bulk deleting items, checked ag
 Insights: added total stock value, this month's top 3 best sellers, and a list of items with 5 or fewer left.
 Security: each business only sees its own items, and editing stock can't overwrite a sale saved at the same moment.
 Testing: wrote integration tests for all new endpoints.
+
+-----
+
+Jinuo Tao: Designed and built the foundation of the Java backend, and implemented the US1 Sales backend.
+
+Precise description:
+- Backend architecture: designed the Java Spring Boot backend and wrote the design doc and API contract that the frontend and backend build against.
+- Backend skeleton: built the base every backend feature runs on: database setup, register/login/logout, each business's data kept private, and error handling that matches the contract.
+- US1 Sales: implemented recording, editing, deleting, searching and sorting sales, sales channels, and a monthly summary, with stock kept correct when sales are recorded, edited or deleted.
+- Testing and fixes: wrote integration tests for all of the above, and fixed a bug where prices and quantities silently dropped decimals.
+- Team support: wrote implementation plans and a backend README guide that teammates used to build Inventory and Expenses.
