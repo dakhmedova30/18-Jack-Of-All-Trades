@@ -32,8 +32,7 @@ Giving each team member clearly defined ownership of a feature or area worked we
 
 3. Communications & Meeting
 
-Regular communication (through Discord) and meetings also worked well for us. In addition to the weekly tutorial, our team have a meeting online on Mondays, and this gave us a fixed time to check in. Every meeting, we went over what everyone did, what they were working on and what (if any) issues they were dealing with, which served as a refresher on our tasks. It also let us set clear expectations and deadlines so everyone knew what was expected of them (in our meeting on Monday 19th October, we made it clear that frontend and UI had to be done for Demo day on the 22nd). 
-
+Regular communication (through Discord) and meetings also worked well for us. In addition to the weekly tutorial, our team have a meeting online on Mondays, and this gave us a fixed time to check in. Every meeting, we went over what everyone did, what they were working on and what (if any) issues they were dealing with, which served as a refresher on our tasks. Our group chat also let us set clear expectations and deadlines so everyone knew what was expected of them (in our meeting on Monday 19th October, we made it clear that frontend and UI had to be done for Demo day on the 22nd). 
 #### Q2. What did not work well
 
 List **process-related** (i.e. team organization and how you work) decisions and actions that did not work well.
