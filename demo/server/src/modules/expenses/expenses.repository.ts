@@ -1,4 +1,5 @@
 import type { Queryable } from '../../db/database.js';
+import type { ExpenseSortField } from './expenses.schema.js';
 
 export interface ExpenseItem {
   id: number;
@@ -12,6 +13,7 @@ export interface ExpenseItem {
 export interface Expense {
   id: number;
   incurredAt: string;
+  description: string;
   tags: string[];
   /** Sum of the line items' totalCents. */
   totalCents: number;
@@ -31,6 +33,7 @@ export interface NewExpenseLineItem {
 
 export interface ExpenseWrite {
   incurredAt: string;
+  description: string;
   tags: string[];
   items: NewExpenseLineItem[];
 }
@@ -38,6 +41,7 @@ export interface ExpenseWrite {
 interface ExpenseRow {
   id: number;
   incurred_at: Date;
+  description: string;
   tags: string[];
   created_at: Date;
   updated_at: Date;
@@ -69,6 +73,7 @@ function assembleExpense(row: ExpenseRow, itemRows: ExpenseItemRow[]): Expense {
   return {
     id: row.id,
     incurredAt: row.incurred_at.toISOString(),
+    description: row.description,
     tags: row.tags,
     totalCents: items.reduce((sum, item) => sum + item.totalCents, 0),
     items,
@@ -86,7 +91,20 @@ export interface ExpensePageQuery {
   search?: string;
   limit: number;
   offset: number;
+  sort?: ExpenseSortField;
+  order?: 'asc' | 'desc';
 }
+
+/** Whitelisted ORDER BY expressions; user input never reaches the SQL directly.
+ *  An expense's total is the sum of its lines; tags sort by the first tag,
+ *  case-insensitively. Same rules as the sales list. */
+const ORDER_BY_FIELD = {
+  id: 'id',
+  incurredAt: 'incurred_at',
+  total:
+    '(SELECT COALESCE(SUM(ei.total_cents), 0) FROM expense_items ei WHERE ei.expense_id = expenses.id)',
+  tags: 'lower(tags[1])',
+} as const satisfies Record<ExpenseSortField, string>;
 
 export function createExpenseRepository(db: Queryable) {
   async function itemRowsByExpenseId(expenseIds: number[]): Promise<Map<number, ExpenseItemRow[]>> {
@@ -105,32 +123,41 @@ export function createExpenseRepository(db: Queryable) {
     return byExpense;
   }
 
-  async function findById(id: number): Promise<Expense | undefined> {
-    const { rows } = await db.query<ExpenseRow>('SELECT * FROM expenses WHERE id = $1', [id]);
+  async function findById(businessId: number, id: number): Promise<Expense | undefined> {
+    const { rows } = await db.query<ExpenseRow>(
+      'SELECT * FROM expenses WHERE id = $1 AND business_id = $2',
+      [id, businessId],
+    );
     const row = rows[0];
     if (!row) return undefined;
     const itemRows = await itemRowsByExpenseId([id]);
     return assembleExpense(row, itemRows.get(id) ?? []);
   }
 
-  async function findPage({ search, limit, offset }: ExpensePageQuery) {
-    const filterParams: string[] = [];
-    let where = '';
+  async function findPage(
+    businessId: number,
+    { search, limit, offset, sort = 'incurredAt', order = 'desc' }: ExpensePageQuery,
+  ) {
+    const params: unknown[] = [businessId];
+    let where = 'WHERE business_id = $1';
     if (search) {
-      filterParams.push(`%${escapeLikePattern(search)}%`);
-      where = `WHERE array_to_string(tags, ' ') ILIKE $1
-        OR EXISTS (SELECT 1 FROM expense_items ei WHERE ei.expense_id = expenses.id AND ei.item_name ILIKE $1)`;
+      params.push(`%${escapeLikePattern(search)}%`);
+      where += ` AND (array_to_string(tags, ' ') ILIKE $${params.length}
+        OR description ILIKE $${params.length}
+        OR EXISTS (SELECT 1 FROM expense_items ei WHERE ei.expense_id = expenses.id AND ei.item_name ILIKE $${params.length}))`;
     }
 
     const countResult = await db.query<{ total: number }>(
       `SELECT COUNT(*)::int AS total FROM expenses ${where}`,
-      filterParams,
+      params,
     );
-    const limitIndex = filterParams.length + 1;
+    const limitIndex = params.length + 1;
     const { rows } = await db.query<ExpenseRow>(
+      // Untagged expenses go last either way; id breaks ties so paging stays stable.
       `SELECT * FROM expenses ${where}
-       ORDER BY incurred_at DESC, id DESC LIMIT $${limitIndex} OFFSET $${limitIndex + 1}`,
-      [...filterParams, limit, offset],
+       ORDER BY ${ORDER_BY_FIELD[sort]} ${order === 'desc' ? 'DESC' : 'ASC'} NULLS LAST, id DESC
+       LIMIT $${limitIndex} OFFSET $${limitIndex + 1}`,
+      [...params, limit, offset],
     );
 
     const itemRows = await itemRowsByExpenseId(rows.map((row) => row.id));
@@ -150,35 +177,95 @@ export function createExpenseRepository(db: Queryable) {
     }
   }
 
-  async function insert(input: ExpenseWrite): Promise<Expense> {
+  async function insert(businessId: number, input: ExpenseWrite): Promise<Expense> {
     const { rows } = await db.query<ExpenseRow>(
-      `INSERT INTO expenses (incurred_at, tags) VALUES ($1, $2) RETURNING *`,
-      [input.incurredAt, input.tags],
+      `INSERT INTO expenses (business_id, incurred_at, description, tags) VALUES ($1, $2, $3, $4) RETURNING *`,
+      [businessId, input.incurredAt, input.description, input.tags],
     );
     const row = rows[0]!;
     await insertItems(row.id, input.items);
-    return (await findById(row.id))!;
+    return (await findById(businessId, row.id))!;
   }
 
   /** Replaces an expense's header and its entire line-item list (not a partial patch). */
-  async function replace(id: number, input: ExpenseWrite): Promise<Expense | undefined> {
+  async function replace(
+    businessId: number,
+    id: number,
+    input: ExpenseWrite,
+  ): Promise<Expense | undefined> {
     const { rows } = await db.query<ExpenseRow>(
-      `UPDATE expenses SET incurred_at = $1, tags = $2, updated_at = now() WHERE id = $3 RETURNING *`,
-      [input.incurredAt, input.tags, id],
+      `UPDATE expenses SET incurred_at = $1, description = $2, tags = $3, updated_at = now()
+       WHERE id = $4 AND business_id = $5 RETURNING *`,
+      [input.incurredAt, input.description, input.tags, id, businessId],
     );
     if (!rows[0]) return undefined;
 
     await db.query('DELETE FROM expense_items WHERE expense_id = $1', [id]);
     await insertItems(id, input.items);
-    return findById(id);
+    return findById(businessId, id);
   }
 
-  async function remove(id: number): Promise<boolean> {
-    const result = await db.query('DELETE FROM expenses WHERE id = $1', [id]);
+  async function remove(businessId: number, id: number): Promise<boolean> {
+    const result = await db.query('DELETE FROM expenses WHERE id = $1 AND business_id = $2', [
+      id,
+      businessId,
+    ]);
     return (result.rowCount ?? 0) > 0;
   }
 
-  return { findById, findPage, insert, replace, remove };
+  /**
+   * Spending in [from, to) split by line kind, for this business: lines
+   * linked to an inventory item are restocks, free-text lines (rent, fees,
+   * ...) are running costs.
+   */
+  async function spendingByKind(businessId: number, from: Date, to: Date) {
+    const { rows } = await db.query<{ restock_cents: string; running_cents: string }>(
+      `SELECT COALESCE(SUM(ei.total_cents) FILTER (WHERE ei.item_id IS NOT NULL), 0) AS restock_cents,
+              COALESCE(SUM(ei.total_cents) FILTER (WHERE ei.item_id IS NULL), 0) AS running_cents
+       FROM expenses e
+       JOIN expense_items ei ON ei.expense_id = e.id
+       WHERE e.business_id = $1 AND e.incurred_at >= $2 AND e.incurred_at < $3`,
+      [businessId, from.toISOString(), to.toISOString()],
+    );
+    return {
+      restockCents: Number(rows[0]!.restock_cents),
+      runningCents: Number(rows[0]!.running_cents),
+    };
+  }
+
+  /**
+   * The `limit` inventory items with the most restock spending in [from, to),
+   * most first, for this business. Only lines still linked to an item count
+   * (see spendingByKind).
+   */
+  async function topRestockItems(businessId: number, from: Date, to: Date, limit: number) {
+    const { rows } = await db.query<{
+      id: number;
+      name: string;
+      units: number;
+      spent_cents: number;
+    }>(
+      `SELECT i.id, i.name,
+              SUM(ei.quantity)::int AS units,
+              SUM(ei.total_cents)::int AS spent_cents
+       FROM expense_items ei
+       JOIN expenses e ON e.id = ei.expense_id
+       JOIN items i ON i.id = ei.item_id
+       WHERE e.business_id = $1 AND e.incurred_at >= $2 AND e.incurred_at < $3
+       GROUP BY i.id, i.name
+       ORDER BY spent_cents DESC, i.name ASC
+       LIMIT $4`,
+      [businessId, from.toISOString(), to.toISOString(), limit],
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      units: row.units,
+      spentCents: row.spent_cents,
+    }));
+  }
+
+  return { findById, findPage, insert, replace, remove, spendingByKind, topRestockItems };
 }
 
 export type ExpenseRepository = ReturnType<typeof createExpenseRepository>;

@@ -66,7 +66,7 @@ docker build -f backend/Dockerfile -t jack .
 docker run --rm -p 4000:4000 -e SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:5433/jack jack
 ```
 
-Render builds the same image from the root `render.yaml`.
+`backend/render.yaml` is the Render blueprint for this image. It's kept out of the repo root, whose `render.yaml` still deploys the Node demo; the Java service needs its own, empty database.
 
 ## Layout
 

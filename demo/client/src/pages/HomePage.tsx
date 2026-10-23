@@ -1,85 +1,231 @@
 import { Link } from 'react-router-dom';
-import { HomeLayout } from '../components/HomeLayout';
+import { useAnalyticsSummary } from '../hooks/useAnalyticsSummary';
+import { useItemCount } from '../hooks/useItemCount';
+import { useLowStock } from '../hooks/useLowStock';
+import { useRecentSales } from '../hooks/useRecentSales';
+import type { AnalyticsSummary, LowStock, Sale } from '../types';
+import { formatDate } from '../utils/date';
+import { formatCents } from '../utils/money';
+import {
+  AnalyticsPreview,
+  ExpensesPreview,
+  InventoryPreview,
+  SalesPreview,
+  type PreviewState,
+} from './HomeCardPreviews';
 
-const DASHBOARDS = [
-  { to: '/sales', title: 'Sales', graphic: 'table' },
-  { to: '/inventory', title: 'Inventory', graphic: 'table' },
-  { to: '/expenses', title: 'Expenses', graphic: 'table' },
-  { to: '/analytics', title: 'Analytics', graphic: 'chart' },
-] as const;
+type SummaryResult = ReturnType<typeof useAnalyticsSummary>;
+
+/** Keeps showing the last data while a reload is in flight, like the KPI strip does. */
+function toPreviewState<T>(data: T | undefined, error: string | undefined): PreviewState<T> {
+  if (data !== undefined) return { status: 'ready', data };
+  return error ? { status: 'error' } : { status: 'loading' };
+}
 
 export function HomePage() {
+  // One month-summary request feeds both the KPI strip and the card previews.
+  const summary = useAnalyticsSummary('month');
+  const itemCount = useItemCount();
+  const summaryState: PreviewState<AnalyticsSummary> = toPreviewState(summary.data, summary.error);
+
+  const dashboards = [
+    { to: '/sales', title: 'Sales', preview: <SalesPreview summary={summaryState} /> },
+    {
+      to: '/inventory',
+      title: 'Inventory',
+      preview: <InventoryPreview itemCount={toPreviewState(itemCount.count, itemCount.error)} />,
+    },
+    { to: '/expenses', title: 'Expenses', preview: <ExpensesPreview summary={summaryState} /> },
+    { to: '/analytics', title: 'Analytics', preview: <AnalyticsPreview summary={summaryState} /> },
+  ];
+
   return (
-    <HomeLayout>
-      <section className="page home">
-        <h1>Welcome back</h1>
-        <p className="muted">Pick a dashboard to get started.</p>
-        <div className="home-cards">
-          {DASHBOARDS.map(({ to, title, graphic }) => (
-            <Link key={to} to={to} className="home-card">
-              <h2 className="home-card__title">{title}</h2>
-              <div className="home-card__preview">
-                {graphic === 'table' ? <TablePreview /> : <ChartPreview />}
-              </div>
-            </Link>
-          ))}
+    <section className="page home">
+      <h1>Welcome back</h1>
+      <p className="muted">Pick a dashboard to get started.</p>
+      <KpiStrip summary={summary} />
+      <div className="home-cards">
+        {dashboards.map(({ to, title, preview }) => (
+          <Link key={to} to={to} className="home-card">
+            <h2 className="home-card__title">{title}</h2>
+            {preview}
+          </Link>
+        ))}
+      </div>
+      <RecentSales />
+    </section>
+  );
+}
+
+const RECENT_SALES_COUNT = 5;
+const ITEMS_NAMED_PER_SALE = 2;
+
+/** "Ceramic planter ×2, Soap ×1 +1 more": the first few line items, the rest counted. */
+function describeSaleItems(sale: Sale): string {
+  const named = sale.items
+    .slice(0, ITEMS_NAMED_PER_SALE)
+    .map((item) => `${item.itemName} ×${item.quantity}`)
+    .join(', ');
+  const remaining = sale.items.length - ITEMS_NAMED_PER_SALE;
+  return remaining > 0 ? `${named} +${remaining} more` : named;
+}
+
+/** The latest sales by sale date. Display only: rows don't open the sale. */
+function RecentSales() {
+  const { sales, error, loading, reload } = useRecentSales(RECENT_SALES_COUNT);
+
+  return (
+    <div className="card home-recent">
+      <div className="home-recent__header">
+        <h2>Recent sales</h2>
+        <Link to="/sales" className="home-recent__link">
+          View all sales →
+        </Link>
+      </div>
+      {error ? (
+        <div className="banner banner--error" role="alert">
+          Couldn't load recent sales: {error}{' '}
+          <button type="button" className="link-button" onClick={reload}>
+            Retry
+          </button>
         </div>
-      </section>
-    </HomeLayout>
+      ) : !sales ? (
+        <p className="empty-state">{loading ? 'Loading recent sales…' : 'No data.'}</p>
+      ) : sales.length === 0 ? (
+        <p className="empty-state">No sales recorded yet.</p>
+      ) : (
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Items</th>
+                <th className="numeric">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sales.map((sale) => (
+                <tr key={sale.id}>
+                  <td className="home-recent__date">{formatDate(sale.soldAt)}</td>
+                  <td className="home-recent__items">{describeSaleItems(sale)}</td>
+                  <td className="numeric home-recent__amount">+{formatCents(sale.totalCents)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
 
-/** Decorative stand-in for a toolbar + search + table dashboard (Sales, Inventory). */
-function TablePreview() {
+/**
+ * Month-to-date Revenue / Expenses / Net Profit, from the Analytics summary's
+ * "month" range, plus a Low stock warning. No vs-last-month comparison yet:
+ * the summary has no matching prior window, and comparing part of this month
+ * to all of last month would make every tile look worse until the month ends.
+ * The two requests load independently, so one failing still leaves the
+ * other's tiles showing.
+ */
+function KpiStrip({ summary }: { summary: SummaryResult }) {
+  const lowStock = useLowStock();
+
+  const data = summary.data;
+  const moneyPlaceholder = summary.loading && !data ? '…' : '—';
+  const revenue = data?.totalRevenueCents;
+  const netProfit = data?.netProfitCents;
+  const margin =
+    revenue !== undefined && netProfit !== undefined && revenue > 0
+      ? `${Math.round((netProfit / revenue) * 100)}% margin`
+      : undefined;
+
   return (
-    <svg viewBox="0 0 240 140" role="presentation" aria-hidden="true" className="home-card__svg">
-      <rect x="10" y="10" width="38" height="14" rx="4" fill="var(--color-primary)" />
-      <rect x="52" y="10" width="52" height="14" rx="4" fill="#4a4a4a" />
-      <rect x="168" y="10" width="62" height="14" rx="7" fill="var(--color-search)" />
-      <line
-        x1="10"
-        y1="36"
-        x2="230"
-        y2="36"
-        stroke="var(--color-border-strong)"
-        strokeWidth="1.5"
-      />
-      {[48, 64, 80, 96, 112].map((y, i) => (
-        <g key={y}>
-          <rect
-            x="10"
-            y={y}
-            width={i % 2 === 0 ? 150 : 110}
-            height="6"
-            rx="3"
-            fill="var(--color-border)"
-          />
-          <rect x="214" y={y} width="16" height="6" rx="3" fill="var(--color-border)" />
-        </g>
-      ))}
-    </svg>
+    <>
+      {summary.error && (
+        <KpiError
+          message={`Couldn't load this month's numbers: ${summary.error}`}
+          onRetry={summary.reload}
+        />
+      )}
+      {lowStock.error && (
+        <KpiError
+          message={`Couldn't load low stock: ${lowStock.error}`}
+          onRetry={lowStock.reload}
+        />
+      )}
+      <div className="home-kpis" aria-busy={summary.loading || lowStock.loading}>
+        <KpiTile
+          label="Revenue · this month"
+          value={revenue !== undefined ? formatCents(revenue) : moneyPlaceholder}
+          tone="neutral"
+        />
+        <KpiTile
+          label="Expenses · this month"
+          value={data ? formatCents(data.totalExpensesCents) : moneyPlaceholder}
+          tone="neutral"
+        />
+        <KpiTile
+          label="Net Profit · this month"
+          value={netProfit !== undefined ? formatCents(netProfit) : moneyPlaceholder}
+          tone={netProfit === undefined ? 'neutral' : netProfit >= 0 ? 'positive' : 'negative'}
+          detail={margin}
+        />
+        <LowStockTile data={lowStock.data} loading={lowStock.loading} />
+      </div>
+    </>
   );
 }
 
-/** Decorative stand-in for the Analytics dashboard (chart + stat tiles). */
-function ChartPreview() {
-  return (
-    <svg viewBox="0 0 240 140" role="presentation" aria-hidden="true" className="home-card__svg">
-      <rect x="10" y="10" width="150" height="120" rx="6" fill="var(--color-surface)" />
-      <polyline
-        points="22,96 50,60 78,84 106,48 134,70 150,38"
-        fill="none"
-        stroke="#2a78d6"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+function LowStockTile({ data, loading }: { data?: LowStock; loading: boolean }) {
+  if (!data) {
+    return <KpiTile label="Low stock" value={loading ? '…' : '—'} tone="neutral" />;
+  }
+  if (data.count === 0) {
+    return (
+      <KpiTile
+        label="Low stock"
+        value="0 items"
+        tone="neutral"
+        detail={`Nothing at ${data.threshold} or below`}
       />
-      {[22, 50, 78, 106, 134, 150].map((x, i) => (
-        <circle key={x} cx={x} cy={[96, 60, 84, 48, 70, 38][i]} r="3" fill="#2a78d6" />
-      ))}
-      <rect x="168" y="10" width="62" height="34" rx="5" fill="#dcefdc" />
-      <rect x="168" y="50" width="62" height="34" rx="5" fill="var(--color-search)" />
-      <rect x="168" y="90" width="62" height="34" rx="5" fill="var(--color-search)" />
-    </svg>
+    );
+  }
+  // "Candle (2), Soap (4)…": the ellipsis only when more items are low than are named.
+  const names = data.items.map((item) => `${item.name} (${item.quantity})`).join(', ');
+  return (
+    <KpiTile
+      label={`Low stock · ${data.threshold} or below`}
+      value={`${data.count} ${data.count === 1 ? 'item' : 'items'}`}
+      tone="negative"
+      detail={data.count > data.items.length ? `${names}…` : names}
+    />
+  );
+}
+
+function KpiError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="banner banner--error home-kpis__error" role="alert">
+      {message}{' '}
+      <button type="button" className="link-button" onClick={onRetry}>
+        Retry
+      </button>
+    </div>
+  );
+}
+
+interface KpiTileProps {
+  label: string;
+  value: string;
+  tone: 'positive' | 'negative' | 'neutral';
+  detail?: string;
+}
+
+function KpiTile({ label, value, tone, detail }: KpiTileProps) {
+  return (
+    <div className={`stat-card stat-card--${tone}`}>
+      <span className="stat-card__label">{label}</span>
+      <span className="stat-card__value">{value}</span>
+      {detail && <span className="stat-card__detail">{detail}</span>}
+    </div>
   );
 }

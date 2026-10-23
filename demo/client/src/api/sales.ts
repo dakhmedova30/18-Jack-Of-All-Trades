@@ -1,16 +1,39 @@
-import type { Paginated, Sale, SaleInput } from '../types';
+import type {
+  Paginated,
+  Sale,
+  SaleInput,
+  SaleSortField,
+  SalesMonthSummary,
+  SortOrder,
+} from '../types';
 import { apiRequest } from './http';
 
 export interface ListSalesParams {
   page: number;
   pageSize: number;
   search?: string;
+  /** Server default: newest sale first. */
+  sort?: SaleSortField;
+  order?: SortOrder;
 }
 
-export function listSales({ page, pageSize, search }: ListSalesParams): Promise<Paginated<Sale>> {
+export function listSales({
+  page,
+  pageSize,
+  search,
+  sort,
+  order,
+}: ListSalesParams): Promise<Paginated<Sale>> {
   const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (search) query.set('search', search);
+  if (sort) query.set('sort', sort);
+  if (order) query.set('order', order);
   return apiRequest(`/sales?${query}`);
+}
+
+/** This month's sale count, average sale and largest sale. */
+export function getSalesMonthSummary(): Promise<SalesMonthSummary> {
+  return apiRequest('/sales/month-summary');
 }
 
 export function createSale(input: SaleInput): Promise<Sale> {

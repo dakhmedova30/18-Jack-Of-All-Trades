@@ -1,6 +1,6 @@
 import { createApp } from './app.js';
 import { loadConfig } from './config.js';
-import { connectDatabase } from './db/database.js';
+import { connectDatabase, describeConnectionTarget } from './db/database.js';
 import { seedSampleItems } from './db/sampleData.js';
 
 async function main(): Promise<void> {
@@ -9,7 +9,7 @@ async function main(): Promise<void> {
     connectionString: config.databaseUrl,
     ssl: config.databaseSsl,
   });
-  console.log('Connected to Postgres');
+  console.log(`Connected to Postgres: ${describeConnectionTarget(config.databaseUrl)}`);
 
   if (config.seedIfEmpty) {
     const result = await seedSampleItems(db);
