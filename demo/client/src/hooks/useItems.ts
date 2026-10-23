@@ -13,16 +13,16 @@ interface ItemsResult {
  * Loads one page of items. While a new page loads, the previous data stays on
  * screen (no flicker) and `loading` is true. Call `reload()` after a mutation.
  */
-export function useItems({ page, pageSize, search }: ListItemsParams) {
+export function useItems({ page, pageSize, search, sort, order }: ListItemsParams) {
   const [reloadToken, setReloadToken] = useState(0);
   const [result, setResult] = useState<ItemsResult | null>(null);
   const [lastData, setLastData] = useState<Paginated<Item> | undefined>(undefined);
 
-  const requestKey = JSON.stringify([page, pageSize, search, reloadToken]);
+  const requestKey = JSON.stringify([page, pageSize, search, sort, order, reloadToken]);
 
   useEffect(() => {
     let cancelled = false;
-    listItems({ page, pageSize, search })
+    listItems({ page, pageSize, search, sort, order })
       .then((data) => {
         if (cancelled) return;
         setResult({ key: requestKey, data });
@@ -34,7 +34,7 @@ export function useItems({ page, pageSize, search }: ListItemsParams) {
     return () => {
       cancelled = true;
     };
-  }, [requestKey, page, pageSize, search]);
+  }, [requestKey, page, pageSize, search, sort, order]);
 
   const reload = useCallback(() => setReloadToken((token) => token + 1), []);
   const isCurrent = result?.key === requestKey;

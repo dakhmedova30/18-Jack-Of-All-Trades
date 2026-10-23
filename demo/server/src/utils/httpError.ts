@@ -20,4 +20,8 @@ export class HttpError extends Error {
   static notFound(resource: string, id: number | string): HttpError {
     return new HttpError(404, `${resource} ${id} not found`);
   }
+
+  static unauthorized(message: string): HttpError {
+    return new HttpError(401, message);
+  }
 }

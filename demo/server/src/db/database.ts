@@ -29,6 +29,20 @@ function inferSslMode(url: URL): SslMode {
   return LOCAL_HOSTS.has(url.hostname) ? 'disable' : 'require';
 }
 
+/**
+ * Host and local/online label for a DATABASE_URL, safe to log (never includes
+ * the username or password). Lets `npm run dev`/`npm start` state plainly which
+ * database they're talking to, instead of leaving that to whoever reads .env.
+ */
+export function describeConnectionTarget(connectionString: string): string {
+  try {
+    const { hostname } = new URL(connectionString);
+    return `${hostname} (${LOCAL_HOSTS.has(hostname) ? 'local' : 'online'})`;
+  } catch {
+    return 'unknown host';
+  }
+}
+
 function toPoolConfig({ connectionString, ssl }: DatabaseOptions): pg.PoolConfig {
   let url: URL;
   try {

@@ -10,6 +10,9 @@ const saleLineItemSchema = z.object({
 
 const saleFields = {
   soldAt: z.iso.datetime({ offset: true }),
+  channelId: z.number().int().positive().max(MAX_INT),
+  // Blank means "describe it from the items" (see utils/describeLines).
+  description: z.string().trim().max(200).default(''),
   tags: z
     .array(tagSchema)
     .max(10, 'At most 10 tags')
@@ -29,8 +32,14 @@ export const createSaleSchema = z.object(saleFieldsWithTagsDefault);
 // so, unlike items, soldAt and items are required; only tags defaults.
 export const updateSaleSchema = z.object(saleFieldsWithTagsDefault);
 
+export const SALE_SORT_FIELDS = ['id', 'soldAt', 'total', 'tags', 'channel'] as const;
+export type SaleSortField = (typeof SALE_SORT_FIELDS)[number];
+
 export const listSalesQuerySchema = paginationQuerySchema.extend({
   search: z.string().trim().max(100).optional(),
+  /** Defaults to newest sale first, the order the list always had. */
+  sort: z.enum(SALE_SORT_FIELDS).default('soldAt'),
+  order: z.enum(['asc', 'desc']).default('desc'),
 });
 
 export const bulkDeleteSalesSchema = z.object({

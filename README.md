@@ -17,7 +17,7 @@
 ​
 ## Instructions
 
- * Business Owners: Register a business account.
+ * Business Owners: Register a business account (name, email, password) and log in. Every dashboard below requires being logged in, and only ever shows your own business's data.
      * Bookkeeping Dashboard: Click "Add" to record a sale (one transaction). Set a date and tags, then add one or more line items (an inventory item + quantity each); the line and sale totals are computed from the item's price. Recording, editing or deleting a sale keeps inventory stock in sync automatically.
      * Inventory Dashboard: Click the "Add Item" button to add an item, set prices, and set stock count.
      * Expenses Dashboard: Click "Add" to record an expense. Set a date and tags, then add one or more lines; each line either restocks an inventory item (pick it, and its stock goes up by the quantity) or is a free-text cost like "Rent" with no stock effect. Recording, editing or deleting an expense keeps inventory stock in sync automatically.
@@ -58,6 +58,16 @@ npm run dev                            # API on :4000, web app on http://localho
 
 Tables are created automatically the first time the server connects. `server/.env` is git-ignored: never commit database passwords.
 
+The app requires a login. Register your own business account on first run,
+or — on a database that already had demo data before accounts existed (or was
+seeded with `npm run seed`) — log in as the account that data was
+automatically assigned to:
+
+```
+email:    demo@jackofalltrades.test
+password: ChangeMe123!
+```
+
 Open http://localhost:5173. In development the Vite dev server forwards `/api/*` to the API. In production, Express serves the built React app and the API from one URL.
 
 ### Scripts (run from the repo root)
@@ -76,17 +86,18 @@ Open http://localhost:5173. In development the Vite dev server forwards `/api/*`
 ### Project structure
 
 ```
-client/                      React app (UI + frontend teams)
-  src/api/                   fetch wrappers, one file per resource
-  src/components/            shared UI: layout, modal, pagination, icons
-  src/hooks/                 data-loading hooks (useItems)
-  src/pages/                 one folder per dashboard
-  src/styles.css             design tokens + styles from the Figma wireframe
-server/                      Express API (backend team)
-  src/modules/<feature>/     routes -> service -> repository, plus zod schema + tests
-  src/db/                    Postgres connection, schema, sample data, seed script
-  src/middleware/            shared error handling
-render.yaml                  Render deployment config
+demo/
+  client/                    React app (UI + frontend teams)
+    src/api/                 fetch wrappers, one file per resource
+    src/components/          shared UI: layout, modal, pagination, icons
+    src/hooks/                data-loading hooks (useItems)
+    src/pages/                one folder per dashboard
+    src/styles.css            design tokens + styles from the Figma wireframe
+  server/                    Express API (backend team)
+    src/modules/<feature>/   routes -> service -> repository, plus zod schema + tests
+    src/db/                   Postgres connection, schema, sample data, seed script
+    src/middleware/           shared error handling
+render.yaml                  Render deployment config (repo root, not inside demo/)
 ```
 
 Each backend feature follows the same layers: **routes** handle HTTP only, **services** hold business rules, **repositories** hold all SQL. New features (analytics, profiles, customers) should copy `server/src/modules/items`.
@@ -95,9 +106,19 @@ Each backend feature follows the same layers: **routes** handle HTTP only, **ser
 
 All error responses share one shape: `{ "error": { "message": string, "details"?: [{ "field", "message" }] } }`. Money is always sent as integer cents.
 
+Every route except `/api/health` and `/api/auth/*` requires a logged-in session
+(a cookie set by register/login) and returns 401 without one. Items, sales,
+expenses, channels, expense tags and analytics are all scoped to the logged-in
+business: one business can never see or modify another's data, even by
+guessing an id in the URL.
+
 | Method | Endpoint                 | Description                                |
 | ------ | ------------------------ | ------------------------------------------ |
 | GET    | `/api/health`            | Health check (also checks the database)    |
+| POST   | `/api/auth/register`     | Create a business account, logs you in     |
+| POST   | `/api/auth/login`        | Log in (`{ email, password }`)             |
+| POST   | `/api/auth/logout`       | Log out                                    |
+| GET    | `/api/auth/me`           | The logged-in business, or 401             |
 | GET    | `/api/items`             | List items (`page`, `pageSize`, `search`)  |
 | GET    | `/api/items/:id`         | Get one item                               |
 | POST   | `/api/items`             | Create item                                |
