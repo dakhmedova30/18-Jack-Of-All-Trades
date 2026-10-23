@@ -1,5 +1,5 @@
 import { loadConfig } from '../config.js';
-import { connectDatabase } from './database.js';
+import { connectDatabase, describeConnectionTarget } from './database.js';
 import { seedSampleItems } from './sampleData.js';
 
 /**
@@ -9,6 +9,7 @@ import { seedSampleItems } from './sampleData.js';
  */
 async function main(): Promise<void> {
   const config = loadConfig();
+  console.log(`Seeding: ${describeConnectionTarget(config.databaseUrl)}`);
   const db = await connectDatabase({
     connectionString: config.databaseUrl,
     ssl: config.databaseSsl,

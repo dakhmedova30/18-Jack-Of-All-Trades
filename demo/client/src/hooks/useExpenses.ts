@@ -13,16 +13,16 @@ interface ExpensesResult {
  * Loads one page of expenses. While a new page loads, the previous data stays
  * on screen (no flicker) and `loading` is true. Call `reload()` after a mutation.
  */
-export function useExpenses({ page, pageSize, search }: ListExpensesParams) {
+export function useExpenses({ page, pageSize, search, sort, order }: ListExpensesParams) {
   const [reloadToken, setReloadToken] = useState(0);
   const [result, setResult] = useState<ExpensesResult | null>(null);
   const [lastData, setLastData] = useState<Paginated<Expense> | undefined>(undefined);
 
-  const requestKey = JSON.stringify([page, pageSize, search, reloadToken]);
+  const requestKey = JSON.stringify([page, pageSize, search, sort, order, reloadToken]);
 
   useEffect(() => {
     let cancelled = false;
-    listExpenses({ page, pageSize, search })
+    listExpenses({ page, pageSize, search, sort, order })
       .then((data) => {
         if (cancelled) return;
         setResult({ key: requestKey, data });
@@ -34,7 +34,7 @@ export function useExpenses({ page, pageSize, search }: ListExpensesParams) {
     return () => {
       cancelled = true;
     };
-  }, [requestKey, page, pageSize, search]);
+  }, [requestKey, page, pageSize, search, sort, order]);
 
   const reload = useCallback(() => setReloadToken((token) => token + 1), []);
   const isCurrent = result?.key === requestKey;

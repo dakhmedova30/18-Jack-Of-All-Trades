@@ -37,8 +37,19 @@ export const updateItemSchema = z
     message: 'Provide at least one field to update',
   });
 
+export const ITEM_SORT_FIELDS = ['id', 'name', 'quantity', 'unitPriceCents'] as const;
+export type ItemSortField = (typeof ITEM_SORT_FIELDS)[number];
+
 export const listItemsQuerySchema = paginationQuerySchema.extend({
   search: z.string().trim().max(100).optional(),
+  /** Column to sort by; defaults to id ascending, the order the list always had. */
+  sort: z.enum(ITEM_SORT_FIELDS).default('id'),
+  order: z.enum(['asc', 'desc']).default('asc'),
+});
+
+export const lowStockQuerySchema = z.object({
+  /** How many of the lowest items to list (the count always covers all of them). */
+  limit: z.coerce.number().int().min(1).max(100).default(5),
 });
 
 export const bulkDeleteSchema = z.object({
