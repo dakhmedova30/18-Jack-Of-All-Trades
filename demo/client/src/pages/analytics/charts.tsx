@@ -30,9 +30,25 @@ interface LineChartProps {
   width?: number;
   height?: number;
   ariaLabel: string;
+  /** Formats values for the y-axis labels and hover text (e.g. cents -> "$1.2K").
+   *  When given, the chart draws a labelled y-axis on round tick values. */
+  formatValue?: (value: number) => string;
+  /** Exact format for hover text; falls back to `formatValue`. */
+  formatTooltip?: (value: number) => string;
 }
 
 const PADDING = { top: 16, right: 16, bottom: 28, left: 36 };
+/** Extra room on the left for y-axis labels like "$12.5K". */
+const Y_AXIS_LEFT = 56;
+const Y_TICKS = 4;
+
+/** Rounds `max / ticks` up to a 1/2/2.5/5 x 10^n step, so axis labels are round numbers. */
+function niceStep(max: number, ticks: number): number {
+  const raw = max / ticks;
+  const magnitude = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].find((m) => m * magnitude >= raw) ?? 10;
+  return step * magnitude;
+}
 
 export function LineChart({
   categories,
@@ -40,29 +56,51 @@ export function LineChart({
   width = 600,
   height = 230,
   ariaLabel,
+  formatValue,
+  formatTooltip,
 }: LineChartProps) {
-  const innerW = width - PADDING.left - PADDING.right;
+  const left = formatValue ? Y_AXIS_LEFT : PADDING.left;
+  const innerW = width - left - PADDING.right;
   const innerH = height - PADDING.top - PADDING.bottom;
-  const max = Math.max(...series.flatMap((s) => s.values), 1);
+  const dataMax = Math.max(...series.flatMap((s) => s.values), 1);
+  // With a y-axis, the top gridline sits on a round number at or above the data max.
+  const step = formatValue ? niceStep(dataMax, Y_TICKS) : dataMax / Y_TICKS;
+  const max = step * Y_TICKS;
+  const format = formatTooltip ?? formatValue ?? ((v: number) => `$${v.toLocaleString()}`);
 
   const x = (i: number) =>
-    PADDING.left + (categories.length === 1 ? 0 : (i / (categories.length - 1)) * innerW);
+    left + (categories.length === 1 ? 0 : (i / (categories.length - 1)) * innerW);
   const y = (v: number) => PADDING.top + innerH - (v / max) * innerH;
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={ariaLabel} className="viz">
-      {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-        <line
-          key={t}
-          x1={PADDING.left}
-          x2={width - PADDING.right}
-          y1={PADDING.top + innerH * t}
-          y2={PADDING.top + innerH * t}
-          className="viz-grid"
-        />
+      {Array.from({ length: Y_TICKS + 1 }, (_, i) => i * step).map((tick) => (
+        <g key={tick}>
+          <line
+            x1={left}
+            x2={width - PADDING.right}
+            y1={y(tick)}
+            y2={y(tick)}
+            className="viz-grid"
+          />
+          {formatValue && (
+            <text
+              x={left - 8}
+              y={y(tick)}
+              textAnchor="end"
+              dominantBaseline="middle"
+              className="viz-label"
+            >
+              {formatValue(tick)}
+            </text>
+          )}
+        </g>
       ))}
+      {formatValue && (
+        <line x1={left} y1={PADDING.top} x2={left} y2={PADDING.top + innerH} className="viz-axis" />
+      )}
       <line
-        x1={PADDING.left}
+        x1={left}
         y1={PADDING.top + innerH}
         x2={width - PADDING.right}
         y2={PADDING.top + innerH}
@@ -80,7 +118,7 @@ export function LineChart({
           />
           {s.values.map((v, i) => (
             <circle key={i} cx={x(i)} cy={y(v)} r={4} fill={colorForSeries(s.label, si)}>
-              <title>{`${s.label}, ${categories[i]}: $${v.toLocaleString()}`}</title>
+              <title>{`${s.label}, ${categories[i]}: ${format(v)}`}</title>
             </circle>
           ))}
         </g>
@@ -152,6 +190,99 @@ export function StackedBarChart({
             })}
             <text x={x + barWidth / 2} y={height - 8} textAnchor="middle" className="viz-label">
               {category}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+export interface HorizontalBar {
+  label: string;
+  value: number;
+  /** Extra hover text, e.g. "3 products". */
+  detail?: string;
+}
+
+interface HorizontalBarChartProps {
+  bars: HorizontalBar[];
+  width?: number;
+  ariaLabel: string;
+  /** Unit for value labels and hover text, e.g. "units". */
+  unit: string;
+}
+
+const HBAR = { row: 28, bar: 16, labelWidth: 110, valueWidth: 56, top: 4 };
+const MAX_LABEL_CHARS = 15;
+
+/**
+ * One bar per category (y axis), length = value (x axis). A single series, so
+ * every bar shares one color (category is read from the label, not the hue);
+ * a folded "Other" bar gets the neutral color, as everywhere else.
+ */
+export function HorizontalBarChart({
+  bars,
+  width = 600,
+  ariaLabel,
+  unit,
+}: HorizontalBarChartProps) {
+  const height = HBAR.top * 2 + bars.length * HBAR.row;
+  const barStart = HBAR.labelWidth;
+  const innerW = width - HBAR.labelWidth - HBAR.valueWidth;
+  const max = Math.max(...bars.map((b) => b.value), 1);
+  const bottom = height - HBAR.top;
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={ariaLabel} className="viz">
+      {[0.25, 0.5, 0.75, 1].map((t) => (
+        <line
+          key={t}
+          x1={barStart + innerW * t}
+          x2={barStart + innerW * t}
+          y1={HBAR.top}
+          y2={bottom}
+          className="viz-grid"
+        />
+      ))}
+      <line x1={barStart} x2={barStart} y1={HBAR.top} y2={bottom} className="viz-axis" />
+      {bars.map((bar, i) => {
+        const y = HBAR.top + i * HBAR.row + (HBAR.row - HBAR.bar) / 2;
+        const barW = (bar.value / max) * innerW;
+        const label =
+          bar.label.length > MAX_LABEL_CHARS
+            ? `${bar.label.slice(0, MAX_LABEL_CHARS - 1)}…`
+            : bar.label;
+        const color = bar.label === OTHER_LABEL ? OTHER_COLOR : SERIES_COLORS[2];
+        return (
+          <g key={bar.label}>
+            <title>{`${bar.label}: ${bar.value.toLocaleString()} ${unit}${bar.detail ? ` (${bar.detail})` : ''}`}</title>
+            <text
+              x={barStart - 8}
+              y={y + HBAR.bar / 2}
+              textAnchor="end"
+              dominantBaseline="middle"
+              className="viz-label viz-label--bar"
+            >
+              {label}
+            </text>
+            {bar.value > 0 && (
+              <rect
+                x={barStart}
+                y={y}
+                width={Math.max(barW, 2)}
+                height={HBAR.bar}
+                fill={color}
+                rx={2}
+              />
+            )}
+            <text
+              x={barStart + barW + 6}
+              y={y + HBAR.bar / 2}
+              dominantBaseline="middle"
+              className="viz-label viz-label--bar"
+            >
+              {bar.value.toLocaleString()}
             </text>
           </g>
         );

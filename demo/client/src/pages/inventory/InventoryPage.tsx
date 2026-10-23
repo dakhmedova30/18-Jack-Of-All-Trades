@@ -5,12 +5,30 @@ import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
 import { TagList } from '../../components/TagList';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useInventoryInsights } from '../../hooks/useInventoryInsights';
 import { useItems } from '../../hooks/useItems';
-import type { Item, ItemInput } from '../../types';
+import { useLowStock } from '../../hooks/useLowStock';
+import type {
+  InventoryInsights,
+  Item,
+  ItemInput,
+  ItemSortField,
+  LowStock,
+  SortOrder,
+} from '../../types';
 import { formatCents } from '../../utils/money';
 import { ItemFormModal } from './ItemFormModal';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 15;
+/** The server's max; enough to list every low item for any realistic shop. */
+const LOW_STOCK_LIST_LIMIT = 100;
+
+const SORTABLE_COLUMNS: { field: ItemSortField; label: string; numeric?: boolean }[] = [
+  { field: 'id', label: 'ID' },
+  { field: 'name', label: 'Name' },
+  { field: 'quantity', label: 'Qty', numeric: true },
+  { field: 'unitPriceCents', label: 'Unit price', numeric: true },
+];
 
 type FormState = { mode: 'create' } | { mode: 'edit'; item: Item } | null;
 type DeleteTarget = { kind: 'single'; item: Item } | { kind: 'bulk'; ids: number[] } | null;
@@ -18,8 +36,36 @@ type DeleteTarget = { kind: 'single'; item: Item } | { kind: 'bulk'; ids: number
 export function InventoryPage() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
+  const [sort, setSort] = useState<{ field: ItemSortField; order: SortOrder }>({
+    field: 'id',
+    order: 'asc',
+  });
   const search = useDebouncedValue(searchInput.trim());
-  const { data, error, loading, reload } = useItems({ page, pageSize: PAGE_SIZE, search });
+  const {
+    data,
+    error,
+    loading,
+    reload: reloadItems,
+  } = useItems({ page, pageSize: PAGE_SIZE, search, sort: sort.field, order: sort.order });
+  const lowStock = useLowStock(LOW_STOCK_LIST_LIMIT);
+  const insights = useInventoryInsights();
+
+  // Any add/edit/delete can change what's low and what stock is worth, so refresh all together.
+  function reload() {
+    reloadItems();
+    lowStock.reload();
+    insights.reload();
+  }
+
+  /** Clicking the current sort column flips its direction; a new column starts ascending. */
+  function toggleSort(field: ItemSortField) {
+    setSort((current) =>
+      current.field === field
+        ? { field, order: current.order === 'asc' ? 'desc' : 'asc' }
+        : { field, order: 'asc' },
+    );
+    setPage(1);
+  }
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [formState, setFormState] = useState<FormState>(null);
@@ -67,8 +113,11 @@ export function InventoryPage() {
 
     // If we just emptied the last page, step back one page instead of showing nothing.
     const removedFromPage = items.filter((item) => ids.includes(item.id)).length;
-    if (page > 1 && removedFromPage === items.length) setPage(page - 1);
-    else reload();
+    if (page > 1 && removedFromPage === items.length) {
+      setPage(page - 1);
+      lowStock.reload();
+      insights.reload();
+    } else reload();
   }
 
   const isEmpty = data !== undefined && data.total === 0;
@@ -125,10 +174,29 @@ export function InventoryPage() {
                   aria-label="Select all items on this page"
                 />
               </th>
-              <th>ID</th>
-              <th>Name</th>
-              <th className="numeric">Qty</th>
-              <th className="numeric">Unit price</th>
+              {SORTABLE_COLUMNS.map(({ field, label, numeric }) => {
+                const active = sort.field === field;
+                return (
+                  <th
+                    key={field}
+                    className={numeric ? 'numeric' : undefined}
+                    aria-sort={
+                      active ? (sort.order === 'asc' ? 'ascending' : 'descending') : 'none'
+                    }
+                  >
+                    <button
+                      type="button"
+                      className={`sort-button${active ? ' is-active' : ''}`}
+                      onClick={() => toggleSort(field)}
+                    >
+                      {label}
+                      <span className="sort-button__arrow" aria-hidden="true">
+                        {active ? (sort.order === 'asc' ? '▲' : '▼') : '↕'}
+                      </span>
+                    </button>
+                  </th>
+                );
+              })}
               <th>Tags</th>
               <th className="table__action">Delete</th>
             </tr>
@@ -191,6 +259,11 @@ export function InventoryPage() {
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}
 
+      <div className="panel-row">
+        <StockValuePanel {...insights} />
+        <LowStockPanel {...lowStock} />
+      </div>
+
       {formState && (
         <ItemFormModal
           item={formState.mode === 'edit' ? formState.item : undefined}
@@ -212,5 +285,88 @@ export function InventoryPage() {
         />
       )}
     </section>
+  );
+}
+
+interface LowStockPanelProps {
+  data?: LowStock;
+  error?: string;
+  loading: boolean;
+  reload: () => void;
+}
+
+/** Every item at or below the low-stock threshold, lowest first, in a scrollable list. */
+function LowStockPanel({ data, error, loading, reload }: LowStockPanelProps) {
+  return (
+    <div className="card low-stock">
+      <div className="low-stock__header">
+        <h2>Low stock{data ? ` (${data.count})` : ''}</h2>
+        {data && <span className="muted">{data.threshold} or fewer in stock</span>}
+      </div>
+      {error ? (
+        <div className="banner banner--error" role="alert">
+          Couldn't load low stock: {error}{' '}
+          <button type="button" className="link-button" onClick={reload}>
+            Retry
+          </button>
+        </div>
+      ) : !data ? (
+        <p className="empty-state">{loading ? 'Loading…' : 'No data.'}</p>
+      ) : data.count === 0 ? (
+        <p className="empty-state">Nothing is low on stock.</p>
+      ) : (
+        <>
+          <ul className="low-stock__list">
+            {data.items.map((item) => (
+              <li key={item.id} className="low-stock__row">
+                <span className="low-stock__name">{item.name}</span>
+                <span className={`low-stock__qty${item.quantity === 0 ? ' is-out' : ''}`}>
+                  {item.quantity === 0 ? 'Out of stock' : `${item.quantity} left`}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {data.count > data.items.length && (
+            <p className="muted">
+              Showing the {data.items.length} lowest of {data.count}.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+interface StockValuePanelProps {
+  data?: InventoryInsights;
+  error?: string;
+  loading: boolean;
+  reload: () => void;
+}
+
+/** What everything in stock is worth at selling price, next to Low stock. */
+function StockValuePanel({ data, error, loading, reload }: StockValuePanelProps) {
+  return (
+    <div className="card low-stock">
+      <div className="low-stock__header">
+        <h2>Stock value</h2>
+        <span className="muted">at selling price</span>
+      </div>
+      {error ? (
+        <div className="banner banner--error" role="alert">
+          Couldn't load stock value: {error}{' '}
+          <button type="button" className="link-button" onClick={reload}>
+            Retry
+          </button>
+        </div>
+      ) : !data ? (
+        <p className="empty-state">{loading ? 'Loading…' : 'No data.'}</p>
+      ) : (
+        <div className="stock-value">
+          <span className="stock-value__amount">{formatCents(data.stockValueCents)}</span>
+          <span className="muted">{data.totalUnits.toLocaleString()} units in stock</span>
+        </div>
+      )}
+    </div>
   );
 }
