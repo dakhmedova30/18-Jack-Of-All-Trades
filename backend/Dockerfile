@@ -4,10 +4,8 @@
 # 1. React client (demo/client) -> demo/client/dist
 FROM node:22 AS client
 WORKDIR /repo/demo
-# npm workspaces need every workspace's package.json to install.
 COPY demo/package.json demo/package-lock.json ./
 COPY demo/client/package.json client/
-COPY demo/server/package.json server/
 RUN npm ci
 COPY demo/client/ client/
 RUN npm run build -w client

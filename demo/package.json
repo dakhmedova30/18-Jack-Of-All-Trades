@@ -5,26 +5,21 @@
   "description": "Business management and intelligence platform for small businesses, entrepreneurs and independent creators.",
   "license": "MIT",
   "workspaces": [
-    "client",
-    "server"
+    "client"
   ],
   "engines": {
     "node": ">=22.13"
   },
   "scripts": {
-    "dev": "concurrently -n server,client -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
-    "build": "npm run build -w server && npm run build -w client",
-    "start": "npm run start -w server",
-    "seed": "npm run seed -w server --",
-    "test": "npm run test -w server",
-    "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
+    "dev": "npm run dev -w client",
+    "build": "npm run build -w client",
+    "typecheck": "npm run typecheck -w client",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "concurrently": "^10.0.6",
     "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",

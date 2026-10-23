@@ -28,35 +28,25 @@
  
 ## Development Requirements
 
-There are **two backend implementations** in this repo, both built against the same [API contract](docs/api-contracts.md) and served by the same `demo/client` React app:
-
-* **`backend/` (Java/Spring Boot)** — the primary backend for the D2 demo and going forward.
-* **`demo/server/` (Node/Express)** — the original backend. Kept in the repo, untouched and fully working, as a fallback/reference; it is **not** what the frontend talks to anymore.
-
-Pick whichever section below matches the backend you want to run.
-
 ### Prerequisites
 
  * macOS, Linux or Windows
  * Git
- * A PostgreSQL database, either hosted (AWS RDS, Neon, Supabase, ...) or local ([Postgres.app](https://postgresapp.com/) on macOS, or `docker compose up -d` in `backend/` for the Java backend)
- * For the Java backend: [Java 25](https://adoptium.net/) (`brew install openjdk@25` on macOS) and the Maven wrapper (`backend/mvnw`, no separate Maven install needed)
- * For the Node backend: [Node.js](https://nodejs.org/) 22.13 or newer (24 LTS works too; `nvm use` reads `.nvmrc`) and npm 10+. Node is also required either way, to build/run `demo/client`.
+ * [Java 25](https://adoptium.net/) (`brew install openjdk@25` on macOS) and the Maven wrapper (`backend/mvnw`, no separate Maven install needed)
+ * [Node.js](https://nodejs.org/) 22.13 or newer (24 LTS works too; `nvm use` reads `.nvmrc`) and npm 10+, to build/run `demo/client`
+ * A PostgreSQL database, either hosted (Neon, AWS RDS, Supabase, ...) or local (`docker compose up -d` in `backend/`)
 
 ### Tech stack
 
-| Layer                     | Technology                                                                 |
-| ------------------------- | --------------------------------------------------------------------------- |
-| Frontend                  | React 19, TypeScript, Vite, React Router                                  |
-| Backend — Java (primary)  | Java 25, Spring Boot 4, Spring Security, Spring Data JPA / `JdbcClient`, Flyway, BCrypt, Maven |
-| Backend — Node (fallback) | Node.js, Express 5, TypeScript, Zod (validation)                           |
-| Database                  | PostgreSQL — Neon in production; each backend uses its own separate database |
-| Hosting                   | Render — one web service per backend                                      |
-| Tooling                   | ESLint, Prettier; Vitest + Supertest (Node tests); JUnit 5 + Testcontainers (Java tests) |
+| Layer    | Technology                                                                 |
+| -------- | --------------------------------------------------------------------------- |
+| Frontend | React 19, TypeScript, Vite, React Router                                  |
+| Backend  | Java 25, Spring Boot 4, Spring Security, Spring Data JPA / `JdbcClient`, Flyway, BCrypt, Maven |
+| Database | PostgreSQL (Neon in production)                                           |
+| Hosting  | Render (one Docker web service)                                           |
+| Tooling  | ESLint, Prettier (frontend); JUnit 5 + Testcontainers (backend tests)      |
 
 ### Setup
-
-#### Option A — Java backend (primary)
 
 ```bash
 git clone <repo-url> jack-of-all-trades
@@ -73,47 +63,28 @@ cd demo && npm install && npm run dev -w client   # web app on http://localhost:
 
 No Docker? Point the backend at any hosted Postgres instead by setting `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD` (see [Configuration](#configuration)) before `./mvnw spring-boot:run`. Flyway creates the schema automatically on first connect either way.
 
-#### Option B — Node backend (fallback)
-
-```bash
-git clone <repo-url> jack-of-all-trades
-cd jack-of-all-trades/demo
-npm install                              # installs client + server (npm workspaces)
-cp server/.env.example server/.env       # then set DATABASE_URL in server/.env
-npm run seed                             # optional: loads 24 sample inventory items
-npm run dev                              # API on :4000, web app on http://localhost:5173
-```
-
-Tables are created automatically the first time the server connects. `demo/server/.env` is git-ignored: never commit database passwords.
-
-Either way, the app requires a login. Register your own business account on
-first run, or log in as the seeded demo account:
+The app requires a login. Register your own business account on first run, or log in as the seeded demo account:
 
 ```
 email:    demo@jackofalltrades.test
 password: ChangeMe123!
 ```
 
-Open http://localhost:5173. In development the Vite dev server forwards `/api/*` to whichever backend is running on `:4000`. In production, the backend itself serves the built React app and the API from one URL.
+Open http://localhost:5173. In development the Vite dev server forwards `/api/*` to the backend on `:4000`. In production, the backend itself serves the built React app and the API from one URL.
 
 ### Scripts
 
-Node scripts (run from `demo/`, not the repo root — there is no root `package.json`):
+Frontend (run from `demo/`, not the repo root — there is no root `package.json`):
 
-| Command             | What it does                                                         |
-| ------------------- | -------------------------------------------------------------------- |
-| `npm run dev`       | Runs the Node API and web app together with hot reload                |
-| `npm run seed`      | Seeds an empty database (`npm run seed -- --force` wipes and reseeds) |
-| `npm test`          | Runs the Node API tests against `TEST_DATABASE_URL` (skipped if unset) |
-| `npm run typecheck` | Type-checks client and server                                        |
-| `npm run lint`      | Runs ESLint                                                          |
-| `npm run format`    | Formats everything with Prettier                                     |
-| `npm run build`     | Builds `server/dist` and `client/dist`                               |
-| `npm start`         | Runs the production Node server (after `npm run build`)             |
+| Command             | What it does                      |
+| ------------------- | ---------------------------------- |
+| `npm run dev`       | Runs the web app with hot reload   |
+| `npm run typecheck` | Type-checks the client             |
+| `npm run lint`      | Runs ESLint                        |
+| `npm run format`    | Formats everything with Prettier   |
+| `npm run build`     | Builds `client/dist`               |
 
-To run just the frontend against whichever backend is already running on `:4000`, use `npm run dev -w client` instead of the combined `npm run dev` (which also starts the Node API).
-
-Java commands (run from `backend/`):
+Backend (run from `backend/`):
 
 | Command                          | What it does                                          |
 | --------------------------------- | ------------------------------------------------------ |
@@ -126,32 +97,27 @@ Java commands (run from `backend/`):
 
 ```
 demo/
-  client/                    React app — shared by both backends
+  client/                    React app
     src/api/                 fetch wrappers, one file per resource
     src/components/          shared UI: layout, modal, pagination, icons
     src/hooks/                data-loading hooks (useItems)
     src/pages/                one folder per dashboard
     src/styles.css            design tokens + styles from the Figma wireframe
-  server/                    Node/Express API (fallback, not deployed)
-    src/modules/<feature>/   routes -> service -> repository, plus zod schema + tests
-    src/db/                   Postgres connection, schema, sample data, seed script
-    src/middleware/           shared error handling
-backend/                     Java/Spring Boot API (primary)
+backend/                     Java/Spring Boot API
   src/main/java/ca/jackofalltrades/<feature>/   controller -> service -> repository
   src/main/resources/db/migration/              Flyway SQL migrations
   src/test/java/                                 JUnit 5 + Testcontainers tests
   compose.yaml                                    local Postgres for development
-  render.yaml                                      Render deployment config for this backend
+  render.yaml                                      Render deployment config
 docs/
-  api-contracts.md           the API contract both backends implement
-render.yaml                  Render deployment config for the Node backend (repo root)
+  api-contracts.md           the API contract the backend implements
 ```
 
-Each backend feature follows the same layers: **routes/controllers** handle HTTP only, **services** hold business rules, **repositories** hold all SQL. A new feature should copy an existing one in whichever backend you're extending (`server/src/modules/items` or `backend/src/main/java/ca/jackofalltrades/items`), and should be added to both backends to keep `docs/api-contracts.md` accurate for each.
+Each feature follows the same layers: **controllers** handle HTTP only, **services** hold business rules, **repositories** hold all SQL. A new feature should copy an existing one, e.g. `backend/src/main/java/ca/jackofalltrades/items`, and should be added to `docs/api-contracts.md` to keep it accurate.
 
 ### API
 
-Both backends implement the exact same contract — see [`docs/api-contracts.md`](docs/api-contracts.md) for the authoritative, endpoint-by-endpoint spec. The summary below describes that contract; where it says "the server", read that as whichever backend you're running.
+See [`docs/api-contracts.md`](docs/api-contracts.md) for the authoritative, endpoint-by-endpoint spec. The summary below covers the same contract.
 
 All error responses share one shape: `{ "error": { "message": string, "details"?: [{ "field", "message" }] } }`. Money is always sent as integer cents.
 
@@ -209,8 +175,6 @@ scoped to it, so changing it moves the whole page together.
 
 ### Configuration
 
-#### Java backend (`backend/`)
-
 Set these as environment variables (a `.env` file isn't read automatically; export them, or use your IDE's run configuration). Without them, `backend/src/main/resources/application.yml` defaults to the local Docker Postgres from `docker compose up -d`.
 
 | Variable                      | Required | Description                                                                 |
@@ -221,36 +185,15 @@ Set these as environment variables (a `.env` file isn't read automatically; expo
 | `SPRING_PROFILES_ACTIVE`       | No       | Set to `demo` to seed the demo account on startup                           |
 | `PORT`                         | No       | Defaults to 4000 (Render sets it automatically)                             |
 
-#### Node backend (`demo/server/`)
-
-Set these in `demo/server/.env` locally, or as environment variables on the host. See `demo/server/.env.example`.
-
-| Variable            | Required | Description                                                                 |
-| ------------------- | -------- | --------------------------------------------------------------------------- |
-| `DATABASE_URL`      | Yes      | `postgres://user:password@host:5432/dbname`                                 |
-| `DATABASE_SSL`      | No       | `disable`, `require` or `verify`. Default: off for localhost, `require` otherwise |
-| `SEED_IF_EMPTY`     | No       | `true` loads sample items on startup when the database is empty             |
-| `PORT`              | No       | Defaults to 4000 (Render sets it automatically)                             |
-| `TEST_DATABASE_URL` | No       | Throwaway database for `npm test`; **every table in it is emptied**         |
-
 ### Deploying to Render
 
-Each backend is its own Render web service with its own database — they don't share anything. If you own the GitHub repo, **New > Blueprint** picks up the right `render.yaml` automatically and is the simplest path. If the repo belongs to someone else (as it does here), use **New > Web Service > Public Git Repository** instead and fill in the fields manually, as below.
-
-#### Java backend (`jack-of-all-trades-java` on Render)
-
-1. Create a **new, separate** Neon (or other hosted Postgres) database — don't reuse the Node backend's database; the two have independent schemas and incompatible password-hash formats.
-2. In Render: **New > Web Service > Public Git Repository**, paste this repo's URL, and pick the branch with the Java backend.
+1. Create a Neon (or other hosted Postgres) database and copy its connection string.
+2. In Render: since this repo isn't owned by the account deploying it, use **New > Web Service > Public Git Repository** (rather than **New > Blueprint**) and paste this repo's URL.
 3. Language: **Docker**. Dockerfile Path: `backend/Dockerfile`. Docker Build Context Directory: leave as `.` (the repo root — the Dockerfile needs both `backend/` and `demo/client/`).
 4. Health Check Path: `/api/health` (exactly — a trailing/duplicated path here will make every deploy time out waiting on the health check).
 5. Environment variables: `SPRING_DATASOURCE_URL` (JDBC form, e.g. `jdbc:postgresql://<host>/<db>?sslmode=require`), `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, and `SPRING_PROFILES_ACTIVE=demo`.
-6. The free instance type's 0.1 CPU is often too slow to boot the JVM within Render's health-check window on the first deploy, causing a spurious deploy failure — the $7/month instance (0.5 CPU) boots comfortably. Each push to the selected branch redeploys automatically either way.
-
-#### Node backend (`jack-of-all-trades` on Render — already deployed, generally shouldn't need touching)
-
-1. Create a Postgres database (AWS RDS, Neon, Supabase, ...) and copy its connection string. On AWS RDS, set the instance to *Publicly accessible* and allow inbound port 5432 in its security group, or Render cannot reach it. That is acceptable for a demo, not for production.
-2. In Render: **New > Web Service > Public Git Repository**, paste this repo's URL. The root `render.yaml` sets the build/start commands; you only need to paste the connection string when it asks for `DATABASE_URL`.
-3. Each push to the selected branch redeploys automatically. Free instances sleep when idle, so the first visit after a while takes 30–60 seconds (the Java backend's free tier can take noticeably longer on a cold first boot, per the note above).
+6. The free instance type's 0.1 CPU is too slow to boot the JVM within Render's health-check window — every free-tier deploy we tried either failed outright or took 15+ minutes. Use the $7/month instance (0.5 CPU), which boots in under a minute.
+7. Each push to the selected branch does **not** auto-deploy — "Public Git Repository" services don't get webhooks from a repo they don't own. Redeploy manually from the Render dashboard (**Manual Deploy > Deploy latest commit**) after pushing.
 
  ## Deployment and Github Workflow
 
@@ -261,7 +204,7 @@ Each backend is its own Render web service with its own database — they don't 
  * Branching Strategy and Naming Convention: all new work is developed on separate feature branches that branch off from *main*, named for the user story or feature they add.
      * Ex: `us1-sales`, `us2-inventory`, `allie/java-expenses`
      * This keeps each branch's purpose clear from its name, and keeps related commits for one feature together until it's reviewed and merged.
- * Deployment: each backend is deployed as its own Render web service (see [Deploying to Render](#deploying-to-render)); pushes to the deployed branch redeploy automatically.
+ * Deployment: the backend is deployed as a Render web service (see [Deploying to Render](#deploying-to-render)); since pushes don't auto-deploy, redeploy manually from the Render dashboard after merging.
   
 
  ## Coding Standards and Guidelines
@@ -310,8 +253,6 @@ password: ChangeMe123!
 ```
 
 ...or click "Register" to create your own business account — every dashboard only ever shows your own business's data.
-
-This runs on Render's free tier, so an idle instance spins down and the first request after a while takes **30–60+ seconds** to wake back up — this is expected, not a bug; just wait for the login page to load.
 
 ### Screenshots
 
