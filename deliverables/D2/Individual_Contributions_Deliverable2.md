@@ -61,11 +61,13 @@ Testing: wrote integration tests for all new endpoints.
 
 -----
 
-Jinuo Tao: Designed and built the foundation of the Java backend, and implemented the US1 Sales backend.
+Jinuo Tao: Designed and built the foundation of the Java backend, implemented the US1 Sales and US3 Analytics backends, and prepared the backend's integration with the frontend.
 
 Precise description:
 - Backend architecture: designed the Java Spring Boot backend and wrote the design doc and API contract that the frontend and backend build against.
 - Backend skeleton: built the base every backend feature runs on: database setup, register/login/logout, each business's data kept private, and error handling that matches the contract.
 - US1 Sales: implemented recording, editing, deleting, searching and sorting sales, sales channels, and a monthly summary, with stock kept correct when sales are recorded, edited or deleted.
-- Testing and fixes: wrote integration tests for all of the above, and fixed a bug where prices and quantities silently dropped decimals.
+- US3 Analytics: moved the analytics dashboard (revenue, expenses and profit by tag over a chosen time range, and inventory by tag) from the TypeScript demo to the Java backend.
+- Integration: prepared and opened a series of stacked PRs to bring all backend features into the frontend branch, and checked that every API call the frontend makes works with the Java backend.
+- Testing and fixes: wrote integration tests for my features, reviewed and tested the Expenses backend for a teammate who couldn't run the tests locally, and fixed a bug where prices and quantities silently dropped decimals.
 - Team support: wrote implementation plans and a backend README guide that teammates used to build Inventory and Expenses.
