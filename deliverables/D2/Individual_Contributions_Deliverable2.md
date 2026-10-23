@@ -47,3 +47,14 @@ Precise description:
     - Helped with stylistic choices of sales and expenses' "add" and "modify" pop-up window to improve readability and clarity
 - Implemented the expenses page on the backend side
 - Updated API contract to reflect these changes
+
+-----
+
+Aidan Wang - Implemented the US2 Inventory backend.
+
+Precise description:
+
+Inventory: added creating, editing, deleting and bulk deleting items, checked against the API contract. Deleting an item keeps its name in past sales.
+Insights: added total stock value, this month's top 3 best sellers, and a list of items with 5 or fewer left.
+Security: each business only sees its own items, and editing stock can't overwrite a sale saved at the same moment.
+Testing: wrote integration tests for all new endpoints.
