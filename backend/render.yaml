@@ -1,0 +1,24 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Not at the repo root on purpose: the root render.yaml deploys the Node demo. Point a new
+# Render service (with its own, empty Neon database) at this file to deploy the Java backend.
+# One Docker web service runs Spring Boot, which serves both /api and the built React app.
+# The database is Neon: set the three SPRING_DATASOURCE_* values in the Render dashboard
+# when prompted. They are never committed to git.
+services:
+  - type: web
+    name: jack-of-all-trades
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: SPRING_PROFILES_ACTIVE
+        value: demo
