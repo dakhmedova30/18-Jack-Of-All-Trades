@@ -4,6 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessResourceFailureException;
@@ -19,6 +21,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.exc.MismatchedInputException;
 
 /**
  * Turns every exception into the contract's error format (contract §1). Messages match
@@ -35,6 +39,10 @@ public class GlobalExceptionHandler {
             "23505", "A record with that value already exists",
             "23514", "Value is not allowed",
             "22003", "Number is out of range");
+
+    /** Field types the contract calls whole numbers: ids, quantities and cents. */
+    private static final Set<Class<?>> WHOLE_NUMBER_TYPES =
+            Set.of(Integer.class, int.class, Long.class, long.class, Short.class, short.class);
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> invalidBody(MethodArgumentNotValidException ex) {
@@ -59,8 +67,25 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.BAD_REQUEST, ApiError.of("Validation failed", details));
     }
 
-    @ExceptionHandler({HttpMessageNotReadableException.class, HttpMediaTypeNotSupportedException.class})
-    ResponseEntity<ApiError> unreadableBody() {
+    /**
+     * A body Jackson couldn't map. A whole-number field given a decimal, a string or anything
+     * else (see spring.jackson in application.yml) is a field error, as the demo's
+     * {@code z.number().int()}; any other problem is "Request body is not valid JSON".
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ResponseEntity<ApiError> unreadableBody(HttpMessageNotReadableException ex) {
+        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+            if (cause instanceof MismatchedInputException mismatch
+                    && WHOLE_NUMBER_TYPES.contains(mismatch.getTargetType())) {
+                FieldError detail = new FieldError(jsonPath(mismatch.getPath()), "Must be a whole number");
+                return respond(HttpStatus.BAD_REQUEST, ApiError.of("Validation failed", List.of(detail)));
+            }
+        }
+        return respond(HttpStatus.BAD_REQUEST, ApiError.of("Request body is not valid JSON"));
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    ResponseEntity<ApiError> unsupportedMediaType() {
         return respond(HttpStatus.BAD_REQUEST, ApiError.of("Request body is not valid JSON"));
     }
 
@@ -119,6 +144,13 @@ public class GlobalExceptionHandler {
     ResponseEntity<ApiError> unexpected(Exception ex) {
         log.error("Unhandled error", ex);
         return respond(HttpStatus.INTERNAL_SERVER_ERROR, ApiError.of("Internal server error"));
+    }
+
+    /** Jackson's path to the bad value, in the contract's form: {@code items.1.quantity}. */
+    private static String jsonPath(List<JacksonException.Reference> path) {
+        return path.stream()
+                .map(ref -> ref.getPropertyName() != null ? ref.getPropertyName() : String.valueOf(ref.getIndex()))
+                .collect(Collectors.joining("."));
     }
 
     /** Bean Validation writes list elements as {@code items[1].quantity}; the contract uses {@code items.1.quantity}. */

@@ -16,6 +16,13 @@ spring:
       ddl-auto: validate                  # only Flyway changes the schema
   flyway:
     out-of-order: true
+  jackson:
+    # Whole-number fields (ids, quantities, cents) reject 2.7 and "5" instead of silently
+    # storing 2 and 5; GlobalExceptionHandler reports them as field errors.
+    deserialization:
+      accept-float-as-int: false
+    mapper:
+      allow-coercion-of-scalars: false
   session:
     timeout: 30d
     jdbc:
