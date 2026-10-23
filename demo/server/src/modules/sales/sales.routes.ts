@@ -10,11 +10,13 @@ import type { SaleService } from './sales.service.js';
 
 /**
  * HTTP layer: parse + validate input, call the service, shape the response.
+ * Mounted behind requireAuth, so req.business is always set.
  *
- *   GET    /api/sales?page=1&pageSize=10&search=soap
+ *   GET    /api/sales?page=1&pageSize=10&search=soap&sort=total&order=desc
+ *   GET    /api/sales/month-summary this month's sale count, average and largest sale
  *   GET    /api/sales/:id
- *   POST   /api/sales               { soldAt, tags?, items: [{ itemId, quantity }] }
- *   PATCH  /api/sales/:id           replaces soldAt, tags and the whole item list
+ *   POST   /api/sales               { soldAt, channelId, description?, tags?, items: [...] }
+ *   PATCH  /api/sales/:id           replaces every field, including the whole item list
  *   DELETE /api/sales/:id
  *   POST   /api/sales/bulk-delete   { "ids": [1, 2, 3] }
  */
@@ -22,29 +24,36 @@ export function createSalesRouter(service: SaleService): Router {
   const router = Router();
 
   router.get('/', async (req, res) => {
-    res.json(await service.listSales(listSalesQuerySchema.parse(req.query)));
+    res.json(await service.listSales(req.business!.id, listSalesQuerySchema.parse(req.query)));
   });
 
   router.post('/bulk-delete', async (req, res) => {
     const { ids } = bulkDeleteSalesSchema.parse(req.body);
-    res.json(await service.bulkDeleteSales(ids));
+    res.json(await service.bulkDeleteSales(req.business!.id, ids));
+  });
+
+  // Must stay above GET /:id, or "month-summary" would be parsed as a sale id.
+  router.get('/month-summary', async (req, res) => {
+    res.json(await service.getMonthSummary(req.business!.id));
   });
 
   router.get('/:id', async (req, res) => {
-    res.json(await service.getSale(parseIdParam(req.params.id, 'sale id')));
+    res.json(await service.getSale(req.business!.id, parseIdParam(req.params.id, 'sale id')));
   });
 
   router.post('/', async (req, res) => {
-    res.status(201).json(await service.recordSale(createSaleSchema.parse(req.body)));
+    res
+      .status(201)
+      .json(await service.recordSale(req.business!.id, createSaleSchema.parse(req.body)));
   });
 
   router.patch('/:id', async (req, res) => {
     const id = parseIdParam(req.params.id, 'sale id');
-    res.json(await service.updateSale(id, updateSaleSchema.parse(req.body)));
+    res.json(await service.updateSale(req.business!.id, id, updateSaleSchema.parse(req.body)));
   });
 
   router.delete('/:id', async (req, res) => {
-    await service.deleteSale(parseIdParam(req.params.id, 'sale id'));
+    await service.deleteSale(req.business!.id, parseIdParam(req.params.id, 'sale id'));
     res.status(204).end();
   });
 
