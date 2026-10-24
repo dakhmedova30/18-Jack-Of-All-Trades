@@ -28,14 +28,19 @@ Kimberly Prijadi
 
 -----
 
-Hans Santiago - Built the initial demo, migrated online, and built the login system.
+Hans Santiago - Built the initial demo, migrated online, built the login system, and led the switch to the Java backend.
 
-Precise description: 
-- Demo: built the initial demo based on the team’s frontend/UI work.
-- Database: migrated from local Postgres to a hosted Neon Postgres instance
-- Webapp: deployed the application to Render
-- Login: implemented user authentication registration, login, logout, and session-cookie-based auth using Node’s built-in password hashing.
-- Security: scoped all data (inventory, sales, expenses, analytics) so each business only sees its own records; every protected route requires a valid session, returning 401 otherwise
+Precise description:
+- Demo: built the initial demo based on the team's frontend/UI work.
+- Database: migrated from local Postgres to a hosted Neon Postgres instance.
+- Webapp: deployed the application to Render.
+- Login: implemented user authentication registration, login, logout, and session-cookie-based auth using Node's built-in password hashing.
+- Security: scoped all data (inventory, sales, expenses, analytics) so each business only sees its own records; every protected route requires a valid session, returning 401 otherwise.
+- Backend migration: hard-switched the frontend from the Node backend to the team's new Java/Spring Boot backend, auditing every page (Inventory, Sales, Expenses, Analytics, Accounts) against the API contract and verifying every workflow end-to-end.
+- Deployment: deployed the Java backend to Render (Docker build, environment configuration, health checks)
+- Accessibility: fixed missing form labels, keyboard-inaccessible table rows, missing focus indicators, missing page headings, and a missing 404 page.
+- Documentation: rewrote the README end-to-end for the Java backend (setup, API reference, configuration, deployment instructions).
+- Cleanup: removed the now-unused Node/Express backend and its dependencies from the repo. 
 
 -----
 
