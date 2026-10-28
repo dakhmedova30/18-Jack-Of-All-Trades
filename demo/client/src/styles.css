@@ -93,18 +93,27 @@ code {
 }
 
 .sidebar__logo {
+  display: block;
   border: 1px solid var(--color-sidebar-text);
   border-radius: var(--radius);
   padding: 0.6rem;
   text-align: center;
   font-weight: 600;
   font-size: 0.85rem;
+  color: inherit;
+  text-decoration: none;
 }
 
+.sidebar__logo:hover {
+  background: rgb(255 255 255 / 0.08);
+}
+
+/* Auto margins above and below centre the links in the space between the header and the account button. */
 .sidebar__nav {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  margin-block: auto;
 }
 
 .sidebar__link {
@@ -122,29 +131,84 @@ code {
   background: rgb(255 255 255 / 0.08);
 }
 
-/* Pinned to the bottom of the sidebar, under the nav. */
+/* The bottom of the sidebar: just the avatar button (its menu holds Settings, accounts, Log out). */
 .sidebar__account {
-  margin-top: auto;
+  display: flex;
+}
+
+.sidebar__avatar {
+  padding: 2px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: none;
+  line-height: 0;
+  cursor: pointer;
+}
+
+.sidebar__avatar:hover,
+.sidebar__avatar[aria-expanded='true'] {
+  border-color: var(--color-sidebar-text);
+}
+
+.avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+/* Cream circle with dark initials, readable on the dark sidebar. */
+.avatar--initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-sidebar-text);
+  color: var(--color-sidebar);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+/* Rendered into <body> (see AccountMenu), so it's styled on its own, not as part of the sidebar. */
+.account-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 15rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  padding: 0.35rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-chart);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgb(45 6 6 / 0.25);
 }
 
-.sidebar__account-name {
-  padding: 0 0.65rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sidebar__logout {
-  width: 100%;
+.account-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.65rem;
+  border: none;
+  border-radius: 6px;
   background: none;
   font: inherit;
+  color: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.account-menu__item:hover,
+.account-menu__item:focus-visible {
+  background: var(--color-surface-alt);
+}
+
+.account-menu__divider {
+  height: 1px;
+  margin: 0.3rem 0.35rem;
+  background: var(--color-border);
 }
 
 .sidebar__link.is-active {
@@ -1390,28 +1454,17 @@ code {
 
   .sidebar__nav {
     flex-direction: row;
+    margin-block: 0;
   }
 
   .sidebar-show-container {
     width: 100%;
   }
 
-  /* In the phone top bar, sit at the far end instead of the bottom. */
+  /* In the phone top bar, the avatar sits at the far end instead of the bottom. */
   .sidebar__account {
-    margin-top: 0;
     margin-left: auto;
-    flex-direction: row;
     align-items: center;
-    flex-shrink: 0;
-  }
-
-  /* No room for the business name in a horizontal top bar; the logout icon stays. */
-  .sidebar__account-name {
-    display: none;
-  }
-
-  .sidebar__logout {
-    width: auto;
     flex-shrink: 0;
   }
 

@@ -1,6 +1,7 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { BoxIcon, ChartIcon, HomeIcon, LogOutIcon, ReceiptIcon, WalletIcon } from './icons';
+import { AccountMenu } from './AccountMenu';
+import { BoxIcon, ChartIcon, HomeIcon, ReceiptIcon, WalletIcon } from './icons';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Home', icon: HomeIcon, end: true },
@@ -26,7 +27,10 @@ export function Sidebar({ onClose }: SidebarProps) {
   return (
     <aside className="sidebar" id="main-sidebar">
       <div className="sidebar__header">
-        <div className="sidebar__logo">Jack-Of-All-Trades</div>
+        {/* The logo goes home, the same as the Home link below. */}
+        <Link to="/" className="sidebar__logo">
+          Jack-Of-All-Trades
+        </Link>
         <button
           type="button"
           className="sidebar__toggle"
@@ -51,11 +55,8 @@ export function Sidebar({ onClose }: SidebarProps) {
       </nav>
 
       <div className="sidebar__account">
-        {business && <div className="sidebar__account-name">{business.name}</div>}
-        <button type="button" className="sidebar__link sidebar__logout" onClick={handleLogout}>
-          <LogOutIcon />
-          Log Out
-        </button>
+        {/* No profile picture on the account yet, so this shows initials (e.g. DB). */}
+        {business && <AccountMenu name={business.name} onLogout={handleLogout} />}
       </div>
     </aside>
   );
