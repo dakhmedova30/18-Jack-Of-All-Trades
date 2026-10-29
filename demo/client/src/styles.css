@@ -119,12 +119,19 @@ code {
 .sidebar__link {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0.65rem;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
   border: 1px solid transparent;
   border-radius: var(--radius);
+  font-size: 1.1rem;
   color: inherit;
   text-decoration: none;
+}
+
+.sidebar__link svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
 }
 
 .sidebar__link:hover {
@@ -136,18 +143,55 @@ code {
   display: flex;
 }
 
+/* A pill: avatar, business name + email, and a "..." hint that it opens a menu. */
 .sidebar__avatar {
-  padding: 2px;
-  border: 2px solid transparent;
-  border-radius: 50%;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.75rem 0.5rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
   background: none;
-  line-height: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
 .sidebar__avatar:hover,
 .sidebar__avatar[aria-expanded='true'] {
-  border-color: var(--color-sidebar-text);
+  background: rgb(255 255 255 / 0.08);
+}
+
+.sidebar__avatar-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.sidebar__avatar-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.sidebar__avatar-email {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.sidebar__avatar-name,
+.sidebar__avatar-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar__avatar-more {
+  flex-shrink: 0;
 }
 
 .avatar {
@@ -1468,6 +1512,19 @@ code {
     flex-shrink: 0;
   }
 
+  /* No room for the name in the phone top bar: back to just the circle. */
+  .sidebar__avatar {
+    flex: none;
+    padding: 2px;
+    border-radius: 50%;
+    background: none;
+  }
+
+  .sidebar__avatar-text,
+  .sidebar__avatar-more {
+    display: none;
+  }
+
   .content {
     padding: 1rem;
   }
@@ -1584,4 +1641,75 @@ code {
   font-size: 1.75rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Settings ---------- */
+
+.settings {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+.settings__tabs {
+  flex: 0 0 12rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.settings__tab {
+  padding: 0.6rem 0.85rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: inherit;
+  text-decoration: none;
+}
+
+.settings__tab:hover {
+  background: rgb(0 0 0 / 0.05);
+}
+
+.settings__tab.active {
+  border-color: var(--color-border);
+  font-weight: 600;
+}
+
+.settings__content {
+  flex: 1;
+  min-width: 0;
+  gap: 0.85rem;
+}
+
+.settings__content h2 {
+  margin: 0;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.settings-row__label {
+  flex: 0 0 10rem;
+}
+
+.settings-profile {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* On phones the tab list becomes a row above the content. */
+@media (max-width: 720px) {
+  .settings {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings__tabs {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
 }

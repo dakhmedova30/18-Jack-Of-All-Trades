@@ -101,3 +101,11 @@ export const UserPlusIcon = (p: IconProps) => (
     <path d="M20 8v6M23 11h-6" />
   </Icon>
 );
+
+export const MoreIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="5" cy="12" r="1" />
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="19" cy="12" r="1" />
+  </Icon>
+);

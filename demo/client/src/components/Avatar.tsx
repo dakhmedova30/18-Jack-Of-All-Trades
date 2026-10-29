@@ -1,13 +1,16 @@
 import { useState } from 'react';
 
-/** "Demo Business" -> "DB". First and last word's first letters; one word -> its first letter. */
+/**
+ * The first letter of each word: "Acme" -> "A", "Demo Business" -> "DB",
+ * "Jack of All Trades" -> "JOAT". A word with no letter or digit in it (like the "&" in
+ * "Smith & Sons") is skipped, so that gives "SS", not "S&S".
+ */
 export function getInitials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  const first = words[0];
-  const last = words[words.length - 1];
-  if (!first || !last) return '?';
-  const letter = (word: string) => [...word][0]!; // spread keeps emoji/accents whole
-  return (words.length === 1 ? letter(first) : letter(first) + letter(last)).toUpperCase();
+  const initials = name
+    .split(/\s+/)
+    .map((word) => word.match(/[\p{L}\p{N}]/u)?.[0])
+    .filter((letter): letter is string => letter !== undefined);
+  return initials.length > 0 ? initials.join('').toUpperCase() : '?';
 }
 
 interface AvatarProps {
@@ -24,9 +27,12 @@ export function Avatar({ name, imageUrl }: AvatarProps) {
   if (imageUrl && !failed) {
     return <img className="avatar" src={imageUrl} alt="" onError={() => setFailed(true)} />;
   }
+  const initials = getInitials(name);
+  // Names with many words give many letters; shrink the text so they still fit the circle.
+  const fontSize = initials.length <= 2 ? undefined : initials.length === 3 ? '0.7rem' : '0.55rem';
   return (
-    <span className="avatar avatar--initials" aria-hidden="true">
-      {getInitials(name)}
+    <span className="avatar avatar--initials" aria-hidden="true" style={{ fontSize }}>
+      {initials}
     </span>
   );
 }

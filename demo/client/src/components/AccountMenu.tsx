@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { Avatar } from './Avatar';
-import { LogOutIcon, SettingsIcon, UserPlusIcon } from './icons';
+import { LogOutIcon, MoreIcon, SettingsIcon, UserPlusIcon } from './icons';
 
 interface AccountMenuProps {
   /** The business name; shown as initials when there's no picture, and as the button's label. */
   name: string;
   imageUrl?: string | null;
+  /** Shown under the name in the sidebar pill. */
+  email?: string;
   onLogout: () => void;
 }
 
@@ -19,8 +22,9 @@ const MENU_GAP = 8;
  * switch account, Log out. The menu is rendered into <body> and positioned by hand, because
  * the sidebar clips overflow on phones and would cut a normally-positioned popup off.
  */
-export function AccountMenu({ name, imageUrl, onLogout }: AccountMenuProps) {
+export function AccountMenu({ name, imageUrl, email, onLogout }: AccountMenuProps) {
   const [position, setPosition] = useState<Position | null>(null);
+  const navigate = useNavigate();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const open = position !== null;
@@ -108,6 +112,13 @@ export function AccountMenu({ name, imageUrl, onLogout }: AccountMenuProps) {
         title={name}
       >
         <Avatar name={name} imageUrl={imageUrl} />
+        <span className="sidebar__avatar-text">
+          <span className="sidebar__avatar-name">{name}</span>
+          {email && <span className="sidebar__avatar-email">{email}</span>}
+        </span>
+        <span className="sidebar__avatar-more" aria-hidden="true">
+          <MoreIcon />
+        </span>
       </button>
 
       {open &&
@@ -120,12 +131,14 @@ export function AccountMenu({ name, imageUrl, onLogout }: AccountMenuProps) {
             style={position}
             onKeyDown={handleMenuKeyDown}
           >
-            {/* Placeholder until settings exist: looks real, does nothing yet. */}
             <button
               type="button"
               role="menuitem"
               className="account-menu__item"
-              onClick={() => close()}
+              onClick={() => {
+                close();
+                navigate('/settings');
+              }}
             >
               <SettingsIcon />
               Settings
