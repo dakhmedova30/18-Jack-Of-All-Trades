@@ -18,17 +18,19 @@ export class ApiError extends Error {
 
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   json?: unknown;
+  /** A raw body (e.g. an image), sent with its own Content-Type. */
+  blob?: Blob;
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { json, headers, ...rest } = options;
+  const { json, blob, headers, ...rest } = options;
 
   let response: Response;
   try {
     response = await fetch(`/api${path}`, {
       ...rest,
       headers: json === undefined ? headers : { 'Content-Type': 'application/json', ...headers },
-      body: json === undefined ? undefined : JSON.stringify(json),
+      body: blob ?? (json === undefined ? undefined : JSON.stringify(json)),
     });
   } catch {
     throw new ApiError(0, 'Could not reach the server. Is the API running (npm run dev)?');

@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { Navigate, NavLink, useNavigate, useParams } from 'react-router-dom';
-import { Avatar } from '../../components/Avatar';
-import { useAuth } from '../../hooks/useAuth';
+import { Navigate, NavLink, useParams } from 'react-router-dom';
+import { AccountTab } from './AccountTab';
+import { ProfileTab } from './ProfileTab';
+import { SecurityTab } from './SecurityTab';
 
 const TABS = [
   { slug: 'account', label: 'Account' },
@@ -18,75 +19,11 @@ function isTabSlug(value: string | undefined): value is TabSlug {
   return TABS.some((tab) => tab.slug === value);
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="settings-row">
-      <span className="settings-row__label muted">{label}</span>
-      <span>{children}</span>
-    </div>
-  );
-}
-
 function ComingSoon({ children }: { children: ReactNode }) {
   return (
     <>
       <p className="muted">{children}</p>
       <p className="muted">Coming soon.</p>
-    </>
-  );
-}
-
-function AccountTab() {
-  const { business } = useAuth();
-  if (!business) return null;
-  return (
-    <>
-      <Row label="Business name">{business.name}</Row>
-      <Row label="Email">{business.email}</Row>
-      <Row label="Member since">
-        {new Date(business.createdAt).toLocaleDateString(undefined, {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        })}
-      </Row>
-    </>
-  );
-}
-
-function ProfileTab() {
-  const { business } = useAuth();
-  if (!business) return null;
-  return (
-    <>
-      <div className="settings-profile">
-        <Avatar name={business.name} />
-        <p className="muted">
-          No profile picture yet, so your initials are shown. Uploading a picture is coming soon.
-        </p>
-      </div>
-    </>
-  );
-}
-
-function SecurityTab() {
-  const { logout } = useAuth();
-  const navigate = useNavigate();
-  return (
-    <>
-      <Row label="This device">
-        <button
-          type="button"
-          className="button"
-          onClick={async () => {
-            await logout();
-            navigate('/login', { replace: true });
-          }}
-        >
-          Log out
-        </button>
-      </Row>
-      <ComingSoon>Changing your password will be available here.</ComingSoon>
     </>
   );
 }

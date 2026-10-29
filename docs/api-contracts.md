@@ -64,10 +64,52 @@ One account is one business. Login sets a `jack_session` cookie that the browser
 | `POST` | `/api/auth/login` | `LoginInput` | `200` `Business`; logged in | `401` `Incorrect email or password` |
 | `POST` | `/api/auth/logout` | — | `204`; cookie cleared | — |
 | `GET` | `/api/auth/me` | — | `200` `Business` | `401` `Not logged in` |
+| `PATCH` | `/api/auth/me` | `UpdateBusinessInput` | `200` `Business` | `400`, `401` |
+| `GET` | `/api/auth/me/avatar` | — | `200` the image (use as an `<img src>`) | `401`, `404` |
+| `PUT` | `/api/auth/me/avatar` | the raw image bytes; `Content-Type` is `image/jpeg`, `image/png` or `image/webp`; at most 512 KB | `200` `Business` | `400`, `401` |
+| `DELETE` | `/api/auth/me/avatar` | — | `200` `Business` | `401` |
+| `GET` | `/api/auth/me/logo` | — | `200` the image | `401`, `404` |
+| `PUT` | `/api/auth/me/logo` | the raw image bytes, same rules as the avatar | `200` `Business` | `400`, `401` |
+| `DELETE` | `/api/auth/me/logo` | — | `200` `Business` | `401` |
+| `DELETE` | `/api/auth/me` | `DeleteAccountInput` | `204`; the business and all its data are deleted, every session ends | `400` `Incorrect password`, `401` |
+| `PUT` | `/api/auth/me/password` | `ChangePasswordInput` | `204`; every other device is logged out | `400` (`Incorrect password`, too short, same as current), `401` |
+| `GET` | `/api/auth/sessions` | — | `200` `Session[]`, most recently active first | `401` |
+| `POST` | `/api/auth/sessions/logout-others` | — | `204`; every session but this one ends | `401` |
+| `GET` | `/api/auth/login-activity?limit` | — | `200` `LoginEvent[]`, newest first (`limit` 1 to 50, default 10; the newest 50 are kept) | `401` |
+| `PUT` | `/api/auth/me/email` | `ChangeEmailInput` | `200` `Business` | `400` (`Incorrect password`, duplicate email), `401` |
 
 ```json
-// Business
-{ "id": 1, "name": "Demo Business", "email": "demo@jackofalltrades.test", "createdAt": "2026-10-21T22:00:00.000Z" }
+// Business (everything from businessType on, except timeZone and currency, is null until set)
+{ "id": 1, "name": "Demo Business", "email": "demo@jackofalltrades.test", "businessType": "Candles",
+  "country": "Canada", "timeZone": "America/Toronto", "currency": "CAD",
+  "lastLoginAt": "2026-10-29T15:00:00.000Z", "avatarUrl": "/api/auth/me/avatar?v=1761750000000",
+  "ownerFirstName": "Allie", "ownerLastName": "Chen", "phone": "+1 (604) 555-0199",
+  "addressLine": "12 Main St", "city": "Vancouver", "region": "BC", "postalCode": "V6B 1A1",
+  "description": "Hand-poured candles.", "website": "https://alliescandles.ca",
+  "instagram": null, "facebook": null, "tiktok": null, "etsy": null, "logoUrl": null, "createdAt": "2026-10-21T22:00:00.000Z" }
+
+// UpdateBusinessInput: every field optional; a missing field is left alone,
+// and "" clears any optional text field (businessType, country, owner name, contact, links).
+// phone is digits with + ( ) - . and spaces; website/instagram/facebook/tiktok/etsy are web addresses
+// (https:// is added if missing). Text limits: description 300, links 200, address 120. currency is one of CAD, USD, EUR, GBP, AUD;
+// timeZone is an IANA id such as "America/Toronto".
+{ "name": "Allie's Candles", "businessType": "Candles", "country": "Canada",
+  "timeZone": "America/Toronto", "currency": "CAD" }
+
+// ChangeEmailInput
+{ "email": "new@example.com", "currentPassword": "correct-horse" }
+
+// DeleteAccountInput: permanent, and the whole business goes with it
+{ "currentPassword": "correct-horse" }
+
+// ChangePasswordInput (newPassword follows the registration rules: 8 to 200 characters)
+{ "currentPassword": "correct-horse", "newPassword": "a-new-password" }
+
+// Session (userAgent is null for sessions started before this was recorded)
+{ "userAgent": "Mozilla/5.0 ...", "createdAt": "2026-10-29T15:00:00Z", "lastActiveAt": "2026-10-29T16:20:00Z", "current": true }
+
+// LoginEvent
+{ "at": "2026-10-29T15:00:00Z", "userAgent": "Mozilla/5.0 ..." }
 
 // RegisterInput
 { "name": "Allie's Prints", "email": "allie@example.com", "password": "correct-horse" }

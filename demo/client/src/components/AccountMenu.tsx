@@ -111,7 +111,7 @@ export function AccountMenu({ name, imageUrl, email, onLogout }: AccountMenuProp
         aria-label={`Account menu for ${name}`}
         title={name}
       >
-        <Avatar name={name} imageUrl={imageUrl} />
+        <Avatar key={imageUrl ?? 'initials'} name={name} imageUrl={imageUrl} />
         <span className="sidebar__avatar-text">
           <span className="sidebar__avatar-name">{name}</span>
           {email && <span className="sidebar__avatar-email">{email}</span>}

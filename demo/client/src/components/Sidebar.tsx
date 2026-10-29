@@ -55,9 +55,14 @@ export function Sidebar({ onClose }: SidebarProps) {
       </nav>
 
       <div className="sidebar__account">
-        {/* No profile picture on the account yet, so this shows initials (e.g. DB). */}
+        {/* Shows the profile picture, or the business's initials (e.g. DB) if there isn't one. */}
         {business && (
-          <AccountMenu name={business.name} email={business.email} onLogout={handleLogout} />
+          <AccountMenu
+            name={business.name}
+            email={business.email}
+            imageUrl={business.avatarUrl}
+            onLogout={handleLogout}
+          />
         )}
       </div>
     </aside>

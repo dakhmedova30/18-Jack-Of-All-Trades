@@ -29,7 +29,7 @@ export function Avatar({ name, imageUrl }: AvatarProps) {
   }
   const initials = getInitials(name);
   // Names with many words give many letters; shrink the text so they still fit the circle.
-  const fontSize = initials.length <= 2 ? undefined : initials.length === 3 ? '0.7rem' : '0.55rem';
+  const fontSize = initials.length <= 2 ? undefined : initials.length === 3 ? '0.82em' : '0.65em';
   return (
     <span className="avatar avatar--initials" aria-hidden="true" style={{ fontSize }}>
       {initials}
