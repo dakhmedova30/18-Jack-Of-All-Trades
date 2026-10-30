@@ -1797,11 +1797,13 @@ code {
   margin: 0.25rem 0 0 11rem;
 }
 
+/* The name of each thing you can edit on a Settings tab: big and bold so it's clear what it is. */
 .settings-section {
-  margin: 0.75rem 0 0;
+  margin: 1.75rem 0 0;
   padding-bottom: 0.35rem;
   border-bottom: 1px solid var(--color-border);
-  font-size: 0.95rem;
+  font-size: 1.3rem;
+  font-weight: 700;
 }
 
 .settings-section:first-of-type {
@@ -2065,6 +2067,11 @@ textarea.settings-row__input {
 .notify-row__text {
   display: flex;
   flex-direction: column;
+}
+
+/* Each alert's name, matching the section headings on the other tabs. */
+.notify-row__text strong {
+  font-size: 1.15rem;
 }
 
 .notify-row__number {
