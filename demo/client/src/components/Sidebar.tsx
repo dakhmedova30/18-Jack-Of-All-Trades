@@ -1,6 +1,8 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { BoxIcon, ChartIcon, HomeIcon, LogOutIcon, ReceiptIcon, WalletIcon } from './icons';
+import { AccountMenu } from './AccountMenu';
+import { NotificationBell } from './NotificationBell';
+import { BoxIcon, ChartIcon, HomeIcon, ReceiptIcon, WalletIcon } from './icons';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Home', icon: HomeIcon, end: true },
@@ -26,15 +28,21 @@ export function Sidebar({ onClose }: SidebarProps) {
   return (
     <aside className="sidebar" id="main-sidebar">
       <div className="sidebar__header">
-        <div className="sidebar__logo">Jack-Of-All-Trades</div>
-        <button
-          type="button"
-          className="sidebar__toggle"
-          onClick={onClose}
-          aria-label="Hide sidebar"
-        >
-          ‹
-        </button>
+        {/* The logo goes home, the same as the Home link below. */}
+        <Link to="/" className="sidebar__logo">
+          Jack-Of-All-Trades
+        </Link>
+        <div className="sidebar__header-actions">
+          <NotificationBell />
+          <button
+            type="button"
+            className="sidebar__toggle"
+            onClick={onClose}
+            aria-label="Hide sidebar"
+          >
+            ‹
+          </button>
+        </div>
       </div>
       <nav className="sidebar__nav" aria-label="Main">
         {NAV_ITEMS.map(({ to, label, icon: NavIcon, end }) => (
@@ -51,11 +59,15 @@ export function Sidebar({ onClose }: SidebarProps) {
       </nav>
 
       <div className="sidebar__account">
-        {business && <div className="sidebar__account-name">{business.name}</div>}
-        <button type="button" className="sidebar__link sidebar__logout" onClick={handleLogout}>
-          <LogOutIcon />
-          Log Out
-        </button>
+        {/* Shows the profile picture, or the business's initials (e.g. DB) if there isn't one. */}
+        {business && (
+          <AccountMenu
+            name={business.name}
+            email={business.email}
+            imageUrl={business.avatarUrl}
+            onLogout={handleLogout}
+          />
+        )}
       </div>
     </aside>
   );

@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -68,6 +70,25 @@ public class ItemController {
             @Min(value = 1, message = "Must be at least 1")
             @Max(value = 100, message = "Must be at most 100") int limit) {
         return itemService.lowStock(limit);
+    }
+
+    /** The tags in use on this business's items, with item counts. */
+    @GetMapping("/tags")
+    public List<ItemTagCount> tags() {
+        return itemService.tagCounts();
+    }
+
+    /** Renames a tag on every item that has it. The old name is a query parameter, as it can be any text. */
+    @PutMapping("/tags")
+    public ItemTagCount renameTag(@RequestParam String name, @Valid @RequestBody ItemTagRequest request) {
+        return itemService.renameTag(name, request.name());
+    }
+
+    /** Removes a tag from every item that has it; the items themselves stay. */
+    @DeleteMapping("/tags")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteTag(@RequestParam String name) {
+        itemService.removeTag(name);
     }
 
     @GetMapping("/{id}")

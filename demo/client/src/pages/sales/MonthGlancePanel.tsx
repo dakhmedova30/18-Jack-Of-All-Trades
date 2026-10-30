@@ -1,5 +1,5 @@
 import type { SalesMonthSummary } from '../../types';
-import { formatDate } from '../../utils/date';
+import { usePreferences } from '../../hooks/usePreferences';
 import { formatCents } from '../../utils/money';
 
 export interface MonthGlancePanelProps {
@@ -11,6 +11,7 @@ export interface MonthGlancePanelProps {
 
 /** This month's number of sales, average sale value and largest sale. */
 export function MonthGlancePanel({ data, error, loading, reload }: MonthGlancePanelProps) {
+  const { formatDate } = usePreferences();
   const month = data
     ? new Date(data.periodStart).toLocaleDateString('en-CA', { month: 'long', timeZone: 'UTC' })
     : '';

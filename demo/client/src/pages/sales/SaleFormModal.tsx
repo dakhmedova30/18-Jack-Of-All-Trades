@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { createChannel, listChannels } from '../../api/channels';
+import { usePreferences } from '../../hooks/usePreferences';
 import { listItems } from '../../api/items';
 import { getErrorMessage } from '../../api/http';
 import { Modal } from '../../components/Modal';
@@ -46,7 +47,15 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
 
   const [channels, setChannels] = useState<Channel[] | null>(null);
   const [channelsError, setChannelsError] = useState<string | null>(null);
-  const [channelId, setChannelId] = useState(() => (sale?.channel ? String(sale.channel.id) : ''));
+  const { preferences } = usePreferences();
+  // A new sale starts on the default channel from Settings (checked against the list once it loads).
+  const [channelId, setChannelId] = useState(() =>
+    sale?.channel
+      ? String(sale.channel.id)
+      : sale
+        ? ''
+        : String(preferences.defaultChannelId ?? ''),
+  );
   const [channelError, setChannelError] = useState<string | null>(null);
 
   const [date, setDate] = useState(() => (sale ? isoToDateInputValue(sale.soldAt) : ''));
@@ -66,7 +75,12 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
       .then((page) => setItems(page.data))
       .catch((error: unknown) => setItemsError(getErrorMessage(error)));
     listChannels()
-      .then(setChannels)
+      .then((list) => {
+        setChannels(list);
+        setChannelId((current) =>
+          current && !list.some((channel) => String(channel.id) === current) ? '' : current,
+        );
+      })
       .catch((error: unknown) => setChannelsError(getErrorMessage(error)));
   }, []);
 

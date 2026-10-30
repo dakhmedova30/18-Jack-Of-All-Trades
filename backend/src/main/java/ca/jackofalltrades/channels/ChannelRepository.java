@@ -9,6 +9,8 @@ public interface ChannelRepository extends Repository<Channel, Integer> {
 
     Channel save(Channel channel);
 
+    void delete(Channel channel);
+
     List<Channel> findByBusinessIdOrderByIdAsc(Integer businessId);
 
     Optional<Channel> findByIdAndBusinessId(Integer id, Integer businessId);
