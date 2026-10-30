@@ -3,6 +3,7 @@ import type {
   Item,
   ItemInput,
   ItemSortField,
+  ItemTagCount,
   LowStock,
   Paginated,
   SortOrder,
@@ -56,4 +57,22 @@ export function deleteItem(id: number): Promise<void> {
 
 export function bulkDeleteItems(ids: number[]): Promise<{ deleted: number }> {
   return apiRequest('/items/bulk-delete', { method: 'POST', json: { ids } });
+}
+
+/** The tags in use on items, most used first. */
+export function listItemTags(): Promise<ItemTagCount[]> {
+  return apiRequest('/items/tags');
+}
+
+/** Renames the tag on every item that has it (merging into an existing tag if the name is taken). */
+export function renameItemTag(name: string, newName: string): Promise<ItemTagCount> {
+  return apiRequest(`/items/tags?name=${encodeURIComponent(name)}`, {
+    method: 'PUT',
+    json: { name: newName },
+  });
+}
+
+/** Removes the tag from every item that has it; the items stay. */
+export function deleteItemTag(name: string): Promise<void> {
+  return apiRequest(`/items/tags?name=${encodeURIComponent(name)}`, { method: 'DELETE' });
 }

@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react';
 import { Navigate, NavLink, useParams } from 'react-router-dom';
 import { AccountTab } from './AccountTab';
+import { AppearanceTab } from './AppearanceTab';
+import { NotificationsTab } from './NotificationsTab';
+import { PreferencesTab } from './PreferencesTab';
 import { ProfileTab } from './ProfileTab';
 import { SecurityTab } from './SecurityTab';
 
@@ -19,31 +22,13 @@ function isTabSlug(value: string | undefined): value is TabSlug {
   return TABS.some((tab) => tab.slug === value);
 }
 
-function ComingSoon({ children }: { children: ReactNode }) {
-  return (
-    <>
-      <p className="muted">{children}</p>
-      <p className="muted">Coming soon.</p>
-    </>
-  );
-}
-
 const TAB_CONTENT: Record<TabSlug, () => ReactNode> = {
   account: () => <AccountTab />,
   profile: () => <ProfileTab />,
   security: () => <SecurityTab />,
-  preferences: () => (
-    <ComingSoon>
-      Manage sales channels and expense tags, the low-stock threshold, and currency and date
-      formats.
-    </ComingSoon>
-  ),
-  notifications: () => (
-    <ComingSoon>
-      Choose which emails you get, like low-stock alerts and weekly summaries.
-    </ComingSoon>
-  ),
-  appearance: () => <ComingSoon>Light and dark mode, and table density.</ComingSoon>,
+  preferences: () => <PreferencesTab />,
+  notifications: () => <NotificationsTab />,
+  appearance: () => <AppearanceTab />,
 };
 
 /** /settings/<tab>: a vertical list of tabs on the left, the chosen tab's content on the right. */
@@ -63,9 +48,9 @@ export function SettingsPage() {
             </NavLink>
           ))}
         </nav>
-        <div className="settings__content card">
-          <h2>{current.label}</h2>
-          {TAB_CONTENT[tab]()}
+        <div className="settings__main">
+          <h2 className="settings__title">{current.label}</h2>
+          <div className="settings__content card">{TAB_CONTENT[tab]()}</div>
         </div>
       </div>
     </section>

@@ -3,6 +3,8 @@ package ca.jackofalltrades.expensetags;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -88,5 +90,48 @@ class ExpenseTagControllerTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.error.details[0].message").value("Name must be at most 30 characters"));
         mockMvc.perform(get("/api/expense-tags").cookie(cookie))
                 .andExpect(jsonPath("$[*].name", not(hasItem("   "))));
+    }
+
+    @Test
+    void renameChangesTheTagOnExistingExpensesToo() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int id = tagId(cookie, "supplier");
+        mockMvc.perform(post("/api/expenses").cookie(cookie).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"incurredAt\": \"2026-10-10T08:00:00Z\", \"tags\": [\"supplier\"], "
+                                + "\"items\": [{\"itemId\": null, \"description\": \"Wax\", \"quantity\": 1, "
+                                + "\"unitCostCents\": 2500}]}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(put("/api/expense-tags/" + id).cookie(cookie)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\": \"vendors\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("vendors"));
+        mockMvc.perform(put("/api/expense-tags/" + id).cookie(cookie)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\": \"RENT\"}"))
+                .andExpect(status().isConflict());
+
+        mockMvc.perform(get("/api/expenses").cookie(cookie))
+                .andExpect(jsonPath("$.data[0].tags", contains("vendors")));
+    }
+
+    @Test
+    void deleteRemovesTheTagFromTheListOnly() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int id = tagId(cookie, "market");
+
+        mockMvc.perform(delete("/api/expense-tags/" + id).cookie(cookie)).andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/expense-tags").cookie(cookie))
+                .andExpect(jsonPath("$[*].name", not(hasItem("market"))));
+        mockMvc.perform(delete("/api/expense-tags/" + id).cookie(cookie)).andExpect(status().isNotFound());
+        mockMvc.perform(put("/api/expense-tags/" + id).cookie(registerAndLogin())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\": \"x\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    private int tagId(Cookie cookie, String name) throws Exception {
+        String body = mockMvc.perform(get("/api/expense-tags").cookie(cookie)).andReturn().getResponse()
+                .getContentAsString();
+        return com.jayway.jsonpath.JsonPath.<java.util.List<Integer>>read(body, "$[?(@.name == '" + name + "')].id")
+                .get(0);
     }
 }

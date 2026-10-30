@@ -138,4 +138,51 @@ public class ItemQueries {
                 rs.getObject("created_at", OffsetDateTime.class).toInstant(),
                 rs.getObject("updated_at", OffsetDateTime.class).toInstant());
     }
+
+    /** Every tag in use on this business's items with its item count: most used first, then A to Z. */
+    public List<ItemTagCount> tagCounts(int businessId) {
+        return jdbcClient.sql("""
+                        SELECT tag AS name, COUNT(*) AS item_count
+                        FROM items, unnest(tags) AS tag
+                        WHERE business_id = :businessId
+                        GROUP BY tag
+                        ORDER BY COUNT(*) DESC, tag
+                        """)
+                .param("businessId", businessId)
+                .query((rs, rowNum) -> new ItemTagCount(rs.getString("name"), rs.getLong("item_count")))
+                .list();
+    }
+
+    /**
+     * Renames a tag on every item that has it, returning how many items changed. An item that
+     * already has the new name just loses the old one, so there are no repeats; order is kept.
+     */
+    public int renameTag(int businessId, String oldName, String newName) {
+        return jdbcClient.sql("""
+                        UPDATE items
+                        SET tags = ARRAY(
+                                SELECT t FROM (
+                                    SELECT x AS t, MIN(pos) AS first_pos
+                                    FROM unnest(array_replace(tags, :oldName, :newName)) WITH ORDINALITY AS u(x, pos)
+                                    GROUP BY x) deduped
+                                ORDER BY first_pos),
+                            updated_at = now()
+                        WHERE business_id = :businessId AND :oldName = ANY(tags)
+                        """)
+                .param("businessId", businessId)
+                .param("oldName", oldName)
+                .param("newName", newName)
+                .update();
+    }
+
+    /** Removes a tag from every item that has it, returning how many items changed. */
+    public int removeTag(int businessId, String name) {
+        return jdbcClient.sql("""
+                        UPDATE items SET tags = array_remove(tags, :name), updated_at = now()
+                        WHERE business_id = :businessId AND :name = ANY(tags)
+                        """)
+                .param("businessId", businessId)
+                .param("name", name)
+                .update();
+    }
 }

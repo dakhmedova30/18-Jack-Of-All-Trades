@@ -11,6 +11,8 @@ export interface Business {
   timeZone: string;
   /** 3-letter code, e.g. "CAD". */
   currency: string;
+  /** Items with this many or fewer in stock count as low stock. */
+  lowStockThreshold: number;
   lastLoginAt: string | null;
   /** URL of the profile picture (with a version for cache busting), or null if there isn't one. */
   avatarUrl: string | null;
@@ -115,6 +117,37 @@ export interface SaleItem {
   quantity: number;
   unitPriceCents: number;
   totalCents: number;
+}
+
+/** One alert that applies right now (GET /api/notifications). */
+export interface AppNotification {
+  type: 'low-stock' | 'out-of-stock' | 'no-sales' | 'expense-spike' | 'new-device';
+  /** Changes when the alert's situation does; a dismissed alert stays hidden until then. */
+  fingerprint: string;
+  title: string;
+  message: string;
+  /** Where "View" goes, e.g. "/inventory". */
+  link: string;
+  /** Only set for new-device alerts. */
+  userAgent: string | null;
+  at: string | null;
+}
+
+/** Which alerts the business wants and the numbers that set them off. */
+export interface NotificationSettings {
+  lowStock: boolean;
+  outOfStock: boolean;
+  newDevice: boolean;
+  noSales: boolean;
+  noSalesDays: number;
+  expenseSpike: boolean;
+  expenseSpikePercent: number;
+}
+
+/** A tag in use on the business's items, and how many items carry it. */
+export interface ItemTagCount {
+  name: string;
+  itemCount: number;
 }
 
 export interface Channel {

@@ -85,6 +85,9 @@ public class AuthService {
             }
             business.setTimeZone(request.timeZone());
         }
+        if (request.lowStockThreshold() != null) {
+            business.setLowStockThreshold(request.lowStockThreshold());
+        }
         if (request.currency() != null) {
             if (!CURRENCIES.contains(request.currency())) {
                 throw new BadRequestException("Choose a supported currency");

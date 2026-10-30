@@ -1,5 +1,7 @@
 package ca.jackofalltrades.items;
 
+import ca.jackofalltrades.auth.Business;
+import ca.jackofalltrades.auth.BusinessRepository;
 import ca.jackofalltrades.common.api.BadRequestException;
 import ca.jackofalltrades.common.api.NotFoundException;
 import ca.jackofalltrades.common.api.Paginated;
@@ -19,19 +21,48 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ItemService {
 
-    /** An item is "low stock" at or below this quantity (contract §3). */
-    static final int LOW_STOCK_THRESHOLD = 5;
-
     static final int BEST_SELLERS_LIMIT = 3;
 
     private final ItemRepository items;
     private final ItemQueries queries;
     private final CurrentBusiness currentBusiness;
+    private final BusinessRepository businesses;
 
-    public ItemService(ItemRepository items, ItemQueries queries, CurrentBusiness currentBusiness) {
+    public ItemService(
+            ItemRepository items,
+            ItemQueries queries,
+            CurrentBusiness currentBusiness,
+            BusinessRepository businesses) {
+        this.businesses = businesses;
         this.items = items;
         this.queries = queries;
         this.currentBusiness = currentBusiness;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ItemTagCount> tagCounts() {
+        return queries.tagCounts(currentBusiness.id());
+    }
+
+    /** Renames the tag on every item that has it; 404 if no item does. */
+    @Transactional
+    public ItemTagCount renameTag(String oldName, String newName) {
+        int businessId = currentBusiness.id();
+        if (queries.renameTag(businessId, oldName, newName) == 0) {
+            throw new NotFoundException("Tag", oldName);
+        }
+        return queries.tagCounts(businessId).stream()
+                .filter(tag -> tag.name().equals(newName))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    /** Removes the tag from every item that has it; 404 if no item does. */
+    @Transactional
+    public void removeTag(String name) {
+        if (queries.removeTag(currentBusiness.id(), name) == 0) {
+            throw new NotFoundException("Tag", name);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -60,7 +91,11 @@ public class ItemService {
 
     @Transactional(readOnly = true)
     public LowStock lowStock(int limit) {
-        return queries.lowStock(currentBusiness.id(), LOW_STOCK_THRESHOLD, limit);
+        // An item is "low stock" at or below the business's own threshold (Settings > Preferences).
+        int threshold = businesses.findById(currentBusiness.id())
+                .map(Business::getLowStockThreshold)
+                .orElse(5);
+        return queries.lowStock(currentBusiness.id(), threshold, limit);
     }
 
     @Transactional

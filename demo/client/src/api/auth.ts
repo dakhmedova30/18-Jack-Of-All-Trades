@@ -36,6 +36,7 @@ export interface BusinessUpdate {
   country?: string;
   timeZone?: string;
   currency?: string;
+  lowStockThreshold?: number;
   ownerFirstName?: string;
   ownerLastName?: string;
   phone?: string;

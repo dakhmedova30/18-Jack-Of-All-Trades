@@ -43,6 +43,10 @@ public class Business {
     /** When the profile picture was last set; null means there is none. */
     private Instant avatarUpdatedAt;
 
+    /** An item is "low stock" at or below this quantity. */
+    @Column(nullable = false)
+    private Integer lowStockThreshold = 5;
+
     private String ownerFirstName;
 
     private String ownerLastName;
@@ -252,6 +256,14 @@ public class Business {
 
     public void setLogoUpdatedAt(Instant logoUpdatedAt) {
         this.logoUpdatedAt = logoUpdatedAt;
+    }
+
+    public Integer getLowStockThreshold() {
+        return lowStockThreshold;
+    }
+
+    public void setLowStockThreshold(Integer lowStockThreshold) {
+        this.lowStockThreshold = lowStockThreshold;
     }
 
     public Instant getAvatarUpdatedAt() {

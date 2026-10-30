@@ -1,5 +1,7 @@
 package ca.jackofalltrades.auth;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import java.util.Locale;
 
@@ -23,6 +25,10 @@ public record UpdateBusinessRequest(
 
         @Size(max = 3, message = "Currency must be a 3-letter code")
         String currency,
+
+        @Min(value = 0, message = "Low-stock threshold can't be negative")
+        @Max(value = 100000, message = "Low-stock threshold must be at most 100000")
+        Integer lowStockThreshold,
 
         @Size(max = 60, message = "First name must be at most 60 characters")
         String ownerFirstName,

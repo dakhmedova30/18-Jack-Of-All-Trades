@@ -90,7 +90,7 @@ function PictureControl({
 
 type DetailKey = Exclude<
   keyof BusinessUpdate,
-  'name' | 'businessType' | 'country' | 'timeZone' | 'currency'
+  'name' | 'businessType' | 'country' | 'timeZone' | 'currency' | 'lowStockThreshold'
 >;
 
 /** Saved details as form values: null becomes "". */

@@ -81,14 +81,14 @@ One account is one business. Login sets a `jack_session` cookie that the browser
 ```json
 // Business (everything from businessType on, except timeZone and currency, is null until set)
 { "id": 1, "name": "Demo Business", "email": "demo@jackofalltrades.test", "businessType": "Candles",
-  "country": "Canada", "timeZone": "America/Toronto", "currency": "CAD",
+  "country": "Canada", "timeZone": "America/Toronto", "currency": "CAD", "lowStockThreshold": 5,
   "lastLoginAt": "2026-10-29T15:00:00.000Z", "avatarUrl": "/api/auth/me/avatar?v=1761750000000",
   "ownerFirstName": "Allie", "ownerLastName": "Chen", "phone": "+1 (604) 555-0199",
   "addressLine": "12 Main St", "city": "Vancouver", "region": "BC", "postalCode": "V6B 1A1",
   "description": "Hand-poured candles.", "website": "https://alliescandles.ca",
   "instagram": null, "facebook": null, "tiktok": null, "etsy": null, "logoUrl": null, "createdAt": "2026-10-21T22:00:00.000Z" }
 
-// UpdateBusinessInput: every field optional; a missing field is left alone,
+// UpdateBusinessInput (lowStockThreshold is a whole number from 0 up, default 5): every field optional; a missing field is left alone,
 // and "" clears any optional text field (businessType, country, owner name, contact, links).
 // phone is digits with + ( ) - . and spaces; website/instagram/facebook/tiktok/etsy are web addresses
 // (https:// is added if missing). Text limits: description 300, links 200, address 120. currency is one of CAD, USD, EUR, GBP, AUD;
@@ -132,6 +132,36 @@ One account is one business. Login sets a `jack_session` cookie that the browser
 
 **Demo account** (created by the seeder): `demo@jackofalltrades.test` / `ChangeMe123!`.
 
+## 2.1 Notifications: `/api/notifications`
+
+The alerts that apply right now. They are worked out on request from the business's data and its settings, so nothing is stored per alert; the app decides what to show as dismissed.
+
+| Method | Path | Request body | Success |
+| --- | --- | --- | --- |
+| `GET` | `/api/notifications` | — | `200` `Alert[]` |
+| `GET` | `/api/notifications/settings` | — | `200` `NotificationSettings` (the defaults until saved) |
+| `PUT` | `/api/notifications/settings` | `NotificationSettings` (every field required) | `200` `NotificationSettings`; `400` for a number out of range |
+
+```json
+// Alert. type is low-stock, out-of-stock, no-sales, expense-spike or new-device.
+// fingerprint changes when the alert's situation does. userAgent is only set for new-device.
+{ "type": "low-stock", "fingerprint": "1a2b3c", "title": "Low stock",
+  "message": "2 items are down to 5 or fewer: Candle (2), Soap (4)",
+  "link": "/inventory", "userAgent": null, "at": null }
+
+// NotificationSettings (defaults: all true, 3 days, 20 percent)
+{ "lowStock": true, "outOfStock": true, "newDevice": true,
+  "noSales": true, "noSalesDays": 3, "expenseSpike": true, "expenseSpikePercent": 20 }
+```
+
+| Alert | Shows when |
+| --- | --- |
+| `low-stock` | An item has 1 up to `lowStockThreshold` in stock (the business's own number, set on `PATCH /api/auth/me`) |
+| `out-of-stock` | An item has 0 in stock |
+| `no-sales` | The last sale is more than `noSalesDays` (1 to 365) old; or there are no sales and the account is older than that |
+| `expense-spike` | This UTC month's expenses so far exceed last month's whole total by more than `expenseSpikePercent` (1 to 1000) |
+| `new-device` | In the last 7 days, a login from a browser never used before (not the account's first login, and not the requesting browser) |
+
 ## 3. Inventory: `/api/items` (US2)
 
 *Source: `claude-demo`; sorting, `insights` and `low-stock` from `merge-ui-mods`.*
@@ -141,6 +171,9 @@ One account is one business. Login sets a `jack_session` cookie that the browser
 | `GET` | `/api/items?page&pageSize&search&sort&order` | — | `200` `Paginated<Item>` |
 | `GET` | `/api/items/insights` | — | `200` `InventoryInsights` |
 | `GET` | `/api/items/low-stock?limit` | — | `200` `LowStock` |
+| `GET` | `/api/items/tags` | — | `200` `{ name, itemCount }[]`, the tags in use, most used first |
+| `PUT` | `/api/items/tags?name=Old` | `{ "name": "New" }` | `200` `{ name, itemCount }`; renames the tag on every item that has it (an item that already has `New` just loses `Old`). `400` invalid name; `404` no item has `Old` |
+| `DELETE` | `/api/items/tags?name=Old` | — | `204`; removes the tag from every item that has it (the items stay). `404` no item has it |
 | `GET` | `/api/items/{id}` | — | `200` `Item` |
 | `POST` | `/api/items` | `ItemInput` | `201` `Item` |
 | `PATCH` | `/api/items/{id}` | Partial `ItemInput` (at least one field) | `200` `Item` |
@@ -252,6 +285,8 @@ Deleting an item doesn't change past sales or expenses: their lines keep the ite
 | --- | --- | --- | --- | --- |
 | `GET` | `/api/channels` | — | `200` `Channel[]`, oldest first (not paginated) | — |
 | `POST` | `/api/channels` | `{ "name": "Etsy" }` | `201` `Channel` | `400` invalid name; `409 Channel "Etsy" already exists` |
+| `PUT` | `/api/channels/{id}` | `{ "name": "Etsy" }` (rename) | `200` `Channel` | `400`; `404`; `409` the name is taken (changing only the capitalisation is fine) |
+| `DELETE` | `/api/channels/{id}` | — | `204` | `404`; `409 Channel "Online" is used by 3 sales, so it can't be deleted. Rename it instead.` |
 
 ```json
 // Channel
@@ -332,6 +367,8 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
 | --- | --- | --- | --- | --- |
 | `GET` | `/api/expense-tags` | — | `200` `ExpenseTag[]`, oldest first (not paginated) | — |
 | `POST` | `/api/expense-tags` | `{ "name": "shipping" }` | `201` `ExpenseTag` | `400` invalid name; `409 Tag "shipping" already exists` |
+| `PUT` | `/api/expense-tags/{id}` | `{ "name": "shipping" }` (rename; also renames the tag on this business's existing expenses) | `200` `ExpenseTag` | `400`; `404`; `409` the name is taken |
+| `DELETE` | `/api/expense-tags/{id}` | — | `204`; only removes it from the list, expenses keep their tag text | `404` |
 
 ```json
 // ExpenseTag

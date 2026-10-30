@@ -548,4 +548,32 @@ class AuthControllerTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.error.message").value("Request body is not valid JSON"))
                 .andExpect(jsonPath("$.error.details").doesNotExist());
     }
+
+    @Test
+    void theLowStockThresholdDefaultsToFiveAndDrivesTheLowStockList() throws Exception {
+        Cookie cookie = registerAndLogin();
+        mockMvc.perform(get("/api/auth/me").cookie(cookie))
+                .andExpect(jsonPath("$.lowStockThreshold").value(5));
+        for (int quantity : new int[] {2, 8}) {
+            mockMvc.perform(post("/api/items").cookie(cookie).contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"name\": \"Item %d\", \"quantity\": %d, \"unitPriceCents\": 100}"
+                                    .formatted(quantity, quantity)))
+                    .andExpect(status().isCreated());
+        }
+        mockMvc.perform(get("/api/items/low-stock").cookie(cookie))
+                .andExpect(jsonPath("$.threshold").value(5))
+                .andExpect(jsonPath("$.count").value(1));
+
+        mockMvc.perform(patch("/api/auth/me").cookie(cookie).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"lowStockThreshold\": 10}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.lowStockThreshold").value(10));
+        mockMvc.perform(get("/api/items/low-stock").cookie(cookie))
+                .andExpect(jsonPath("$.threshold").value(10))
+                .andExpect(jsonPath("$.count").value(2));
+
+        mockMvc.perform(patch("/api/auth/me").cookie(cookie).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"lowStockThreshold\": -1}"))
+                .andExpect(status().isBadRequest());
+    }
 }

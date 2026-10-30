@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { createExpenseTag, listExpenseTags } from '../../api/expenseTags';
+import { usePreferences } from '../../hooks/usePreferences';
 import { listItems } from '../../api/items';
 import { getErrorMessage } from '../../api/http';
 import { Modal } from '../../components/Modal';
@@ -57,7 +58,12 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
   const [tagNames, setTagNames] = useState<string[] | null>(null);
   const [tagsError, setTagsError] = useState<string | null>(null);
   // The first tag is the one the dropdown edits (and the one the charts group by).
-  const [tag, setTag] = useState(() => expense?.tags[0] ?? '');
+  const { preferences } = usePreferences();
+  const isNew = !expense;
+  // A new expense starts on the default tag from Settings (checked against the list once it loads).
+  const [tag, setTag] = useState(() =>
+    expense ? (expense.tags[0] ?? '') : (preferences.defaultExpenseTag ?? ''),
+  );
   const [tagError, setTagError] = useState<string | null>(null);
   // null = follow the lines ("Flower Print x 200, Shipping x 1"); a string = the user's own text.
   // An existing expense whose description is blank or was never changed keeps following its lines.
@@ -77,9 +83,13 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
       .then((page) => setItems(page.data))
       .catch((error: unknown) => setItemsError(getErrorMessage(error)));
     listExpenseTags()
-      .then((tags) => setTagNames(tags.map((entry) => entry.name)))
+      .then((tags) => {
+        const names = tags.map((entry) => entry.name);
+        setTagNames(names);
+        if (isNew) setTag((current) => (names.includes(current) ? current : ''));
+      })
       .catch((error: unknown) => setTagsError(getErrorMessage(error)));
-  }, []);
+  }, [isNew]);
 
   // An older expense's tag may not be in the list; offer it so the dropdown can show it.
   const tagOptions = tagNames && tag && !tagNames.includes(tag) ? [...tagNames, tag] : tagNames;

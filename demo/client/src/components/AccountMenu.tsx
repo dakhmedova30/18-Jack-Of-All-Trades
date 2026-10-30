@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Avatar } from './Avatar';
-import { LogOutIcon, MoreIcon, SettingsIcon, UserPlusIcon } from './icons';
+import { HelpCircleIcon, LogOutIcon, MoreIcon, SettingsIcon, UserPlusIcon } from './icons';
 
 interface AccountMenuProps {
   /** The business name; shown as initials when there's no picture, and as the button's label. */
@@ -143,15 +143,28 @@ export function AccountMenu({ name, imageUrl, email, onLogout }: AccountMenuProp
               <SettingsIcon />
               Settings
             </button>
-            {/* Placeholder until multiple accounts exist: does nothing yet. */}
+            {/* One business per login for now, so this is a placeholder: it can be focused but does nothing. */}
+            <button
+              type="button"
+              role="menuitem"
+              aria-disabled="true"
+              className="account-menu__item account-menu__item--disabled"
+            >
+              <UserPlusIcon />
+              Add account / Switch account
+              <span className="account-menu__soon">Coming soon</span>
+            </button>
             <button
               type="button"
               role="menuitem"
               className="account-menu__item"
-              onClick={() => close()}
+              onClick={() => {
+                close();
+                navigate('/help');
+              }}
             >
-              <UserPlusIcon />
-              Add account / Switch account
+              <HelpCircleIcon />
+              Help and Support
             </button>
             <div className="account-menu__divider" role="separator" />
             <button
@@ -166,6 +179,15 @@ export function AccountMenu({ name, imageUrl, email, onLogout }: AccountMenuProp
               <LogOutIcon />
               Log out
             </button>
+            <div className="account-menu__legal">
+              <Link to="/terms" role="menuitem" onClick={() => close()}>
+                Terms
+              </Link>
+              <span aria-hidden="true">·</span>
+              <Link to="/privacy" role="menuitem" onClick={() => close()}>
+                Privacy
+              </Link>
+            </div>
           </div>,
           document.body,
         )}

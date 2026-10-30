@@ -1,6 +1,7 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { AccountMenu } from './AccountMenu';
+import { NotificationBell } from './NotificationBell';
 import { BoxIcon, ChartIcon, HomeIcon, ReceiptIcon, WalletIcon } from './icons';
 
 const NAV_ITEMS = [
@@ -31,14 +32,17 @@ export function Sidebar({ onClose }: SidebarProps) {
         <Link to="/" className="sidebar__logo">
           Jack-Of-All-Trades
         </Link>
-        <button
-          type="button"
-          className="sidebar__toggle"
-          onClick={onClose}
-          aria-label="Hide sidebar"
-        >
-          ‹
-        </button>
+        <div className="sidebar__header-actions">
+          <NotificationBell />
+          <button
+            type="button"
+            className="sidebar__toggle"
+            onClick={onClose}
+            aria-label="Hide sidebar"
+          >
+            ‹
+          </button>
+        </div>
       </div>
       <nav className="sidebar__nav" aria-label="Main">
         {NAV_ITEMS.map(({ to, label, icon: NavIcon, end }) => (
