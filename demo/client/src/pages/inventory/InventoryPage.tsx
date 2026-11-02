@@ -351,9 +351,7 @@ function LowStockPanel({ data, error, loading, reload }: LowStockPanelProps) {
             {(expanded ? data.items : data.items.slice(0, 3)).map((item) => (
               <li key={item.id} className="summary-panel__row">
                 <span className="summary-panel__name">{item.name}</span>
-                <span
-                  className={`summary-panel__detail${item.quantity === 0 ? ' is-out' : ''}`}
-                >
+                <span className={`summary-panel__detail${item.quantity === 0 ? ' is-out' : ''}`}>
                   {item.quantity === 0 ? 'Out of stock' : `${item.quantity} left`}
                 </span>
               </li>

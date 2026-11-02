@@ -74,7 +74,12 @@ export function SelectWithAddRow({
     <div className="form-row">
       <label htmlFor={newName === null ? id : `${id}-new`}>
         {label}
-        {required && <span className="required-marker" aria-hidden="true"> *</span>}
+        {required && (
+          <span className="required-marker" aria-hidden="true">
+            {' '}
+            *
+          </span>
+        )}
       </label>
       <div className="form-row__control">
         {loadError && (

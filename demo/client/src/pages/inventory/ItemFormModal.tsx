@@ -186,7 +186,12 @@ function FormRow({ label, hint, htmlFor, error, required = false, children }: Fo
       <label htmlFor={htmlFor}>
         <span>
           {label}
-          {required && <span className="required-marker" aria-hidden="true"> *</span>}
+          {required && (
+            <span className="required-marker" aria-hidden="true">
+              {' '}
+              *
+            </span>
+          )}
         </span>
         {hint && <span className="field-label__hint">{hint}</span>}
       </label>

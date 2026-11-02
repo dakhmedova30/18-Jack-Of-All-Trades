@@ -47,23 +47,23 @@ export function LoginPage() {
         <div className="auth-field">
           <label htmlFor="login-password">Password</label>
           <div className="auth-password-control">
-          <input
+            <input
               id="login-password"
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
-          />
-          <button
+            />
+            <button
               type="button"
               className="auth-password-toggle"
               aria-pressed={showPassword}
               onClick={() => setShowPassword((visible) => !visible)}
-          >
+            >
               {showPassword ? 'Hide password' : 'Show password'}
-          </button>
+            </button>
           </div>
-      </div>
+        </div>
 
         {error && <p className="form-error">{error}</p>}
 
