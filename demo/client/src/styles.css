@@ -53,6 +53,7 @@
   --font-header: 'Fraunces variable', serif;
 
   /* Shape & layout */
+  --border-default: 1px solid;
   --radius: 6px;
   --sidebar-width: 220px;
   --sidebar-mini-width: 65px;
@@ -135,6 +136,10 @@ code {
 
 /* ---------- Sidebar ---------- */
 
+.panel-row {
+  grid-template-columns: 1fr;
+}
+
 .sidebar {
   background: var(--color-sidebar);
   color: var(--color-sidebar-text);
@@ -152,7 +157,7 @@ code {
 }
 
 .sidebar__logo {
-  border: 1px solid var(--color-sidebar-text);
+  border: var(--border-default) var(--color-sidebar-text);
   border-radius: var(--radius);
   padding: 0.6rem;
   text-align: center;
@@ -200,7 +205,7 @@ code {
   align-items: center;
   gap: 0.6rem;
   padding: 0.5rem 0.65rem;
-  border: 1px solid transparent;
+  border: var(--border-default) transparent;
   border-radius: var(--radius);
   color: inherit;
   text-decoration: none;
@@ -292,7 +297,7 @@ code {
   align-items: center;
   gap: 0.5rem;
   background: var(--color-search);
-  border: 1px solid var(--color-border-strong);
+  border: var(--border-default) var(--color-border-strong);
   border-radius: 999px;
   padding: 0.4rem 0.9rem;
   width: min(320px, 100%);
@@ -319,7 +324,7 @@ code {
   align-items: center;
   gap: 0.4rem;
   padding: 0.45rem 0.85rem;
-  border: 1px solid var(--color-primary);
+  border: var(--border-default) var(--color-primary);
   border-radius: var(--radius);
   background: var(--color-primary);
   color: var(--color-primary-text);
@@ -380,7 +385,7 @@ code {
   flex-direction: column;
   gap: 0.35rem;
   padding: 1rem 1.1rem;
-  border: 1px solid var(--color-border);
+  border: var(--border-default) var(--color-border);
   border-radius: 10px;
   color: inherit;
 }
@@ -455,13 +460,13 @@ code {
   font-family: var(--font-header);
   font-weight: 500;
   padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid var(--color-border-strong);
+  border-bottom: var(--border-default) var(--color-border-strong);
   white-space: nowrap;
 }
 
 .table td {
   padding: 0.55rem 0.6rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-default) var(--color-border);
   vertical-align: middle;
 }
 
@@ -568,7 +573,7 @@ code {
 .pagination__page {
   min-width: 2rem;
   height: 2rem;
-  border: 1px solid transparent;
+  border: var(--border-default) transparent;
   border-radius: var(--radius);
   background: transparent;
   color: inherit;
@@ -632,7 +637,7 @@ code {
   align-items: center;
   margin: 0 1.25rem;
   padding: 1.1rem 0 0.6rem;
-  border-bottom: 1px solid var(--color-border-strong);
+  border-bottom: var(--border-default) var(--color-border-strong);
 }
 
 .modal__body {
@@ -659,7 +664,7 @@ code {
   align-items: start;
   gap: 0.75rem;
   padding: 0.45rem 0;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-default) var(--color-border);
 }
 
 .form-row:focus-within {
@@ -728,7 +733,7 @@ code {
 .select-add input {
   font: inherit;
   padding: 0.3rem 0.4rem;
-  border: 1px solid var(--color-border);
+  border: var(--border-default) var(--color-border);
   border-radius: 4px;
   background: var(--color-bg);
   min-width: 0;
@@ -759,7 +764,7 @@ code {
 }
 
 .form-stack textarea {
-  border: 1px solid var(--color-border-strong);
+  border: var(--border-default) var(--color-border-strong);
   border-radius: 2px;
   font: inherit;
   color: inherit;
@@ -849,7 +854,7 @@ code {
   font: inherit;
   color: inherit;
   padding: 0.3rem 0.4rem;
-  border: 1px solid var(--color-border);
+  border: var(--border-default) var(--color-border);
   border-radius: 4px;
   background: var(--color-surface);
   min-width: 0;
@@ -912,7 +917,7 @@ code {
   width: 100%;
   max-width: 380px;
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: var(--border-default) var(--color-border);
   border-radius: var(--radius);
   padding: 2rem;
   display: flex;
@@ -927,7 +932,7 @@ code {
 
 .auth-card__logo {
   align-self: flex-start;
-  border: 1px solid var(--color-border-strong);
+  border: var(--border-default) var(--color-border-strong);
   border-radius: var(--radius);
   padding: 0.4rem 0.7rem;
   font-weight: 600;
@@ -947,7 +952,7 @@ code {
   font: inherit;
   font-weight: 400;
   padding: 0.5rem 0.6rem;
-  border: 1px solid var(--color-border-strong);
+  border: var(--border-default) var(--color-border-strong);
   border-radius: var(--radius);
   background: var(--color-bg-solid);
   color: var(--color-text);
@@ -1027,7 +1032,7 @@ code {
   align-items: center;
   gap: 0.9rem;
   padding: 1.5rem 1.25rem;
-  border: 1px solid var(--color-border);
+  border: var(--border-default) var(--color-border);
   border-radius: 12px;
   background: var(--color-surface);
   box-shadow: 0 2px 8px rgb(45 6 6 / 0.06);
@@ -1057,7 +1062,7 @@ code {
   /* Same height on every card, whatever its preview holds, so the row lines up. */
   height: 130px;
   padding: 0.6rem 0.75rem;
-  border: 1px solid var(--color-border);
+  border: var(--border-default) var(--color-border);
   border-radius: 8px;
   overflow: hidden;
   background: var(--color-bg);
@@ -1197,7 +1202,7 @@ code {
 .inventory-table {
   max-height: calc(15 * 2.6rem + 2.8rem);
   overflow-y: auto;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-default) var(--color-border);
 }
 
 .inventory-table thead th {
@@ -1221,24 +1226,58 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
-/* Low stock panel */
-.low-stock {
+/* ---------- Shared summary panels ---------- */
+.summary-panel {
   gap: 0.6rem;
 }
 
-.low-stock__toggle {
-  align-self: flex-start;
-}
-
-.low-stock__header {
+.summary-panel__header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
 }
 
+.summary-panel__header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.summary-panel__context {
+  color: var(--color-muted);
+  text-align: right;
+}
+
+.summary-panel__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.summary-panel__value-block {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.6rem;
+  min-height: 100px;
+}
+
+.summary-panel__value {
+  font-family: var(--font-header);
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-panel__toggle {
+  align-self: flex-start;
+}
+
 /* Fixed height with its own scrollbar, so a long list doesn't push the page down. */
-.low-stock__list {
+.summary-panel__list {
   max-height: 240px;
   overflow-y: auto;
   margin: 0;
@@ -1246,113 +1285,51 @@ code {
   list-style: none;
 }
 
-.low-stock__row {
+.summary-panel__row {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
   padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-default) var(--color-border);
   list-style-type: none;
 }
 
-.low-stock__row:last-child {
+.summary-panel__row:last-child {
   border-bottom: none;
 }
 
-.low-stock__name {
+.summary-panel__name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.low-stock__qty {
+.summary-panel__detail {
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
   color: var(--color-muted);
 }
 
-.low-stock__qty.is-out {
+.summary-panel__detail.is-out {
   color: var(--color-danger);
   font-weight: 600;
 }
 
-/* ---------- Summary panels (panel-row, glance, money split, stock value) ---------- */
+/* ---------- Summary panels ---------- */
 
 .panel-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
   width: 100%;
 }
 
-.panel-row .card {
-  width: 50%;
+.panel-row .summary-panel {
   background: var(--color-surface);
   border-color: var(--color-border-chart);
   box-shadow: 0 1px 3px rgb(45 6 6 / 0.08);
-}
-
-.glance {
-  display: flex;
-  justify-content: space-between;
-}
-
-.glance__item {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.glance__item dt {
-  font-weight: 600;
-}
-
-.glance__item dd {
-  margin: 0;
-  font-family: var(--font-header);
-  font-size: 15pt;
-  font-weight: 600;
-}
-
-.glance__item .dd-item {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-span.glance__note {
-  font-family: var(--font-body);
-  font-size: 9pt;
-  font-weight: 400;
-}
-
-.money-split {
-  padding: 0;
-}
-
-.money-split__row {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-  list-style-type: none;
-}
-
-.stock-value {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  height: -webkit-fill-available;
-  gap: 0.25rem;
-  padding: 0.5rem 0.6rem;
-}
-
-.stock-value__amount {
-  font-family: var(--font-header);
-  font-size: 1.75rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
 }
 
 /* ---------- Analytics ---------- */
@@ -1439,7 +1416,7 @@ span.glance__note {
 .analytics-select select {
   font: inherit;
   color: inherit;
-  border: 1px solid var(--color-border-strong);
+  border: var(--border-default) var(--color-border-strong);
   border-radius: 4px;
   padding: 0.15rem 0.4rem;
   background: var(--color-surface);
@@ -1487,7 +1464,7 @@ span.glance__note {
 .analytics-insight {
   margin: 0;
   padding-top: 0.5rem;
-  border-top: 1px solid var(--color-border);
+  border-top: var(--border-default) var(--color-border);
   color: var(--color-muted);
   font-size: 0.8rem;
   font-style: italic;
@@ -1606,7 +1583,7 @@ span.glance__note {
     grid-template-columns: 1fr;
     gap: 0.35rem;
     padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: var(--border-default) var(--color-border);
   }
 
   .sale-line__index {

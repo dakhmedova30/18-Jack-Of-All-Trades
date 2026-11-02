@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { bulkDeleteItems, createItem, deleteItem, updateItem } from '../../api/items';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { SummaryPanel } from '../../components/SummaryPanel';
 import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
 import { TagList } from '../../components/TagList';
@@ -322,11 +323,10 @@ function LowStockPanel({ data, error, loading, reload }: LowStockPanelProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="card low-stock">
-      <div className="low-stock__header">
-        <h2>Low stock{data ? ` (${data.count})` : ''}</h2>
-        {data && <span className="muted">{data.threshold} or fewer in stock</span>}
-      </div>
+    <SummaryPanel
+      title={`Low stock${data ? ` (${data.count})` : ''}`}
+      context={data && `${data.threshold} or fewer in stock`}
+    >
       {error ? (
         <div className="banner banner--error" role="alert">
           Couldn't load low stock: {error}{' '}
@@ -340,11 +340,13 @@ function LowStockPanel({ data, error, loading, reload }: LowStockPanelProps) {
         <p className="empty-state">Nothing is low on stock.</p>
       ) : (
         <>
-          <ul className="low-stock__list" id="low-stock-list">
+          <ul className="summary-panel__list" id="low-stock-list">
             {(expanded ? data.items : data.items.slice(0, 3)).map((item) => (
-              <li key={item.id} className="low-stock__row">
-                <span className="low-stock__name">{item.name}</span>
-                <span className={`low-stock__qty${item.quantity === 0 ? ' is-out' : ''}`}>
+              <li key={item.id} className="summary-panel__row">
+                <span className="summary-panel__name">{item.name}</span>
+                <span
+                  className={`summary-panel__detail${item.quantity === 0 ? ' is-out' : ''}`}
+                >
                   {item.quantity === 0 ? 'Out of stock' : `${item.quantity} left`}
                 </span>
               </li>
@@ -353,7 +355,7 @@ function LowStockPanel({ data, error, loading, reload }: LowStockPanelProps) {
           {data.items.length > 3 && (
             <button
               type="button"
-              className="link-button low-stock__toggle"
+              className="link-button summary-panel__toggle"
               aria-expanded={expanded}
               aria-controls="low-stock-list"
               onClick={() => setExpanded((current) => !current)}
@@ -368,7 +370,7 @@ function LowStockPanel({ data, error, loading, reload }: LowStockPanelProps) {
           )}
         </>
       )}
-    </div>
+    </SummaryPanel>
   );
 }
 
@@ -382,11 +384,7 @@ interface StockValuePanelProps {
 /** What everything in stock is worth at selling price, next to Low stock. */
 function StockValuePanel({ data, error, loading, reload }: StockValuePanelProps) {
   return (
-    <div className="card low-stock">
-      <div className="low-stock__header">
-        <h2>Stock value</h2>
-        <span className="muted">at selling price</span>
-      </div>
+    <SummaryPanel title="Stock value" context="at selling price">
       {error ? (
         <div className="banner banner--error" role="alert">
           Couldn't load stock value: {error}{' '}
@@ -397,11 +395,11 @@ function StockValuePanel({ data, error, loading, reload }: StockValuePanelProps)
       ) : !data ? (
         <p className="empty-state">{loading ? 'Loading…' : 'No data.'}</p>
       ) : (
-        <div className="stock-value">
-          <span className="stock-value__amount">{formatCents(data.stockValueCents)}</span>
+        <div className="summary-panel__value-block">
+          <span className="summary-panel__value">{formatCents(data.stockValueCents)}</span>
           <span className="muted">{data.totalUnits.toLocaleString()} units in stock</span>
         </div>
       )}
-    </div>
+    </SummaryPanel>
   );
 }
