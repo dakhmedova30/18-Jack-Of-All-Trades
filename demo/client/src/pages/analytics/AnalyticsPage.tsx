@@ -1,7 +1,11 @@
 import { useState } from 'react';
+import { useAnalyticsDateRange } from '../../hooks/useAnalyticsDateRange';
 import { useAnalyticsSummary } from '../../hooks/useAnalyticsSummary';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useInventoryByTag } from '../../hooks/useInventoryByTag';
+import { formatDate, startOfMonth } from '../../utils/date';
 import { formatCents, formatCentsCompact } from '../../utils/money';
+import { AnalyticsFilters } from './AnalyticsFilters';
 import {
   ChartLegend,
   DonutChart,
@@ -9,89 +13,142 @@ import {
   LineChart,
   type DonutSegment,
 } from './charts';
-import type { AnalyticsRange, AnalyticsSummary } from '../../types';
+import type { AnalyticsDateRange, AnalyticsSummary, DateRange } from '../../types';
 
-const RANGE_OPTIONS: { value: AnalyticsRange; label: string }[] = [
-  { value: 'week', label: 'Weekly' },
-  { value: 'month', label: 'Month' },
-  { value: 'ytd', label: 'Year to date' },
-  { value: '12months', label: '12 months' },
-];
-const DEFAULT_RANGE: AnalyticsRange = '12months';
+/** How long the period must stay still (e.g. while dragging the slider) before it reloads. */
+const RELOAD_DELAY_MS = 250;
 
-/** Human phrase for the range, used in empty-state/insight copy ("No sales in {phrase}"). */
-function rangeDescription(range: AnalyticsRange): string {
-  switch (range) {
-    case 'week':
-      return 'the last 7 days';
-    case 'month':
-      return 'this month so far';
-    case 'ytd':
-      return 'this year so far';
-    case '12months':
-      return 'the last 12 months';
-  }
+const AXIS_LABELS: Record<AnalyticsSummary['granularity'], string> = {
+  day: 'Day',
+  week: 'Week',
+  month: 'Month',
+};
+
+/**
+ * The period the page opens with: the 12 calendar months up to the latest record (like the old
+ * "12 months" default), starting no earlier than the first record. With no records yet, the 12
+ * months up to today.
+ */
+function defaultPeriod({ firstDate, lastDate, today }: AnalyticsDateRange): DateRange {
+  const to = lastDate ?? today;
+  const yearBack = startOfMonth(to, -11);
+  return { from: firstDate && firstDate > yearBack ? firstDate : yearBack, to };
+}
+
+/** "from Aug 1, 2025 to Oct 29, 2026" (or "on Oct 29, 2026"), for empty states and insights. */
+function periodPhrase({ from, to }: DateRange): string {
+  return from === to ? `on ${formatDate(from)}` : `from ${formatDate(from)} to ${formatDate(to)}`;
+}
+
+function AnalyticsHeader() {
+  return (
+    <div className="analytics-header">
+      <div>
+        <h1>Analytics</h1>
+        <p className="muted">
+          Revenue, expenses and sales group by each record's first tag (top 3, the rest folded into
+          "Other"). The date filter sets the period for everything here except Inventory Overview,
+          which always shows current stock.
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export function AnalyticsPage() {
-  const [range, setRange] = useState<AnalyticsRange>(DEFAULT_RANGE);
-  const { data, error, loading, reload } = useAnalyticsSummary(range);
+  const { data: dates, error, reload } = useAnalyticsDateRange();
 
   return (
     <section className="page">
-      <div className="analytics-header">
-        <div>
-          <h1>Analytics</h1>
-          <p className="muted">
-            Revenue, expenses and sales group by each record's first tag (top 3, the rest folded
-            into "Other"). "Show by" sets the time range for everything on this page except the
-            Breakdown, which has its own month picker, and Inventory Overview, which always shows
-            current stock.
-          </p>
-        </div>
-        <label className="analytics-select">
-          Show by
-          <select
-            value={range}
-            onChange={(event) => setRange(event.target.value as AnalyticsRange)}
-            aria-label="Time range for the whole dashboard"
-          >
-            {RANGE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      {error && (
-        <div className="banner banner--error" role="alert">
-          {error}{' '}
-          <button type="button" className="link-button" onClick={reload}>
-            Retry
-          </button>
-        </div>
+      {dates ? (
+        <AnalyticsDashboard dates={dates} />
+      ) : (
+        <>
+          <AnalyticsHeader />
+          {error ? (
+            <div className="banner banner--error" role="alert">
+              {error}{' '}
+              <button type="button" className="link-button" onClick={reload}>
+                Retry
+              </button>
+            </div>
+          ) : (
+            <p className="empty-state">Loading analytics…</p>
+          )}
+        </>
       )}
-
-      {loading && !data && <p className="empty-state">Loading analytics…</p>}
-
-      {data && <AnalyticsContent data={data} range={range} />}
     </section>
+  );
+}
+
+/** The dashboard and its filter side bar, once the first and last record dates are known. */
+function AnalyticsDashboard({ dates }: { dates: AnalyticsDateRange }) {
+  const initial = defaultPeriod(dates);
+  const [period, setPeriod] = useState<DateRange>(initial);
+  // Dragging the slider changes the period many times a second; load only where it settles.
+  const requested = useDebouncedValue(period, RELOAD_DELAY_MS);
+  const { data, error, loading, reload } = useAnalyticsSummary(requested);
+  const refreshing = data !== undefined && (loading || requested !== period);
+
+  return (
+    <>
+      <AnalyticsHeader />
+
+      <div className="analytics-layout">
+        <AnalyticsFilters
+          dates={dates}
+          value={period}
+          onChange={setPeriod}
+          onReset={() => setPeriod(initial)}
+          isDefault={period.from === initial.from && period.to === initial.to}
+        />
+
+        <div className="analytics-main">
+          {error && (
+            <div className="banner banner--error" role="alert">
+              {error}{' '}
+              <button type="button" className="link-button" onClick={reload}>
+                Retry
+              </button>
+            </div>
+          )}
+
+          {loading && !data && <p className="empty-state">Loading analytics…</p>}
+
+          {data && (
+            <div
+              className={`analytics-body${refreshing ? ' is-loading' : ''}`}
+              aria-busy={refreshing}
+            >
+              <AnalyticsContent data={data} period={requested} />
+            </div>
+          )}
+
+          <div className="analytics-row">
+            <BreakdownCard data={data} period={requested} refreshing={refreshing} error={error} />
+
+            <InventoryOverview />
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
 interface AnalyticsContentProps {
   data: AnalyticsSummary;
-  range: AnalyticsRange;
+  /** The period `data` was loaded for. */
+  period: DateRange;
 }
 
-function AnalyticsContent({ data, range }: AnalyticsContentProps) {
+/** The totals and the two overview charts: everything the date filter moves. */
+function AnalyticsContent({ data, period }: AnalyticsContentProps) {
   const netProfitTone = data.netProfitCents >= 0 ? 'positive' : 'negative';
+  const phrase = periodPhrase(period);
 
   const topRevenueTag = topSeriesLabel(data.revenueSeries);
   const topExpenseTag = topSeriesLabel(data.expenseSeries);
-  const axisLabel = data.granularity === 'day' ? 'Day' : 'Month';
+  const axisLabel = AXIS_LABELS[data.granularity];
 
   return (
     <>
@@ -117,7 +174,7 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
         <div className="card analytics-card">
           <h2>Revenue Overview</h2>
           {data.revenueSeries.length === 0 ? (
-            <p className="empty-state">No sales in {rangeDescription(range)}.</p>
+            <p className="empty-state">No sales {phrase}.</p>
           ) : (
             <>
               <LineChart
@@ -137,15 +194,15 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
           {/* Mirrors the Expenses note, which also keeps the two charts the same size. */}
           <p className="analytics-insight">
             {topRevenueTag
-              ? `"${topRevenueTag}" is your top revenue category in ${rangeDescription(range)}.`
-              : `No sales recorded in ${rangeDescription(range)}.`}
+              ? `"${topRevenueTag}" is your top revenue category ${phrase}.`
+              : `No sales recorded ${phrase}.`}
           </p>
         </div>
 
         <div className="card analytics-card">
           <h2>Expenses Overview</h2>
           {data.expenseSeries.length === 0 ? (
-            <p className="empty-state">No expenses in {rangeDescription(range)}.</p>
+            <p className="empty-state">No expenses {phrase}.</p>
           ) : (
             <>
               <LineChart
@@ -164,16 +221,10 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
           )}
           <p className="analytics-insight">
             {topExpenseTag
-              ? `"${topExpenseTag}" is your biggest expense category in ${rangeDescription(range)}.`
-              : `No expenses recorded in ${rangeDescription(range)}.`}
+              ? `"${topExpenseTag}" is your biggest expense category ${phrase}.`
+              : `No expenses recorded ${phrase}.`}
           </p>
         </div>
-      </div>
-
-      <div className="analytics-row">
-        <BreakdownCard />
-
-        <InventoryOverview />
       </div>
     </>
   );
@@ -181,8 +232,8 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
 
 /**
  * Current stock (units) by first tag. Loads separately from the summary since
- * it's a snapshot that "Show by" doesn't affect, so changing the range doesn't
- * refetch it.
+ * it's a snapshot that the date filter doesn't affect, so changing the period
+ * doesn't refetch it.
  */
 function InventoryOverview() {
   const { data, error, loading, reload } = useInventoryByTag();
@@ -221,94 +272,60 @@ function InventoryOverview() {
       <p className="analytics-insight">
         {data && top && data.totalQuantity > 0
           ? `${data.totalQuantity.toLocaleString()} units across ${data.totalItems} products; "${top.label}" holds the most stock (${Math.round((top.quantity / data.totalQuantity) * 100)}%).`
-          : 'Current stock, not affected by "Show by".'}
+          : 'Current stock, not affected by the date filter.'}
       </p>
     </div>
   );
 }
 
-/** "2026-10" -> "Oct 2026" */
-function formatMonthKey(key: string): string {
-  return new Date(`${key}-01T00:00:00Z`).toLocaleDateString('en-CA', {
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
-}
-
-/** Per-tag totals for one bucket of a tag series, dropping tags with nothing that month. */
-function segmentsAt(series: AnalyticsSummary['revenueSeries'], index: number): DonutSegment[] {
+/**
+ * Each tag's total over the whole period, in the series' own order. Keeping that order keeps
+ * each tag's colour the same as in the overview charts. Tags that add up to nothing are dropped.
+ */
+function periodTotals(series: AnalyticsSummary['revenueSeries']): DonutSegment[] {
   return series
-    .map((s) => ({ label: s.label, value: s.values[index] ?? 0 }))
+    .map((s) => ({ label: s.label, value: s.values.reduce((sum, v) => sum + v, 0) }))
     .filter((s) => s.value > 0);
 }
 
+interface BreakdownCardProps {
+  /** The page's summary for the filtered period; undefined until it first loads. */
+  data: AnalyticsSummary | undefined;
+  period: DateRange;
+  /** A new period is loading, so `data` is about to change. */
+  refreshing: boolean;
+  /** Why the summary didn't load (the page shows it, with Retry, above). */
+  error: string | undefined;
+}
+
 /**
- * Sales and expense pies for one chosen month (current month by default), out
- * of the last 12. Has its own month picker and loads the 12-month summary
- * itself, so the page-wide "Show by" doesn't affect it. Tags are the top 3
- * across those 12 months (the rest in "Other"), so a tag keeps the same
- * meaning whichever month is picked.
+ * Sales and expense pies for the filtered period: each tag's share of its totals. The tags (top
+ * 3 plus "Other") are the overview charts' own, so a tag reads the same everywhere on the page.
  */
-function BreakdownCard() {
-  const { data, error, loading, reload } = useAnalyticsSummary('12months');
-  const [pickedMonth, setPickedMonth] = useState<string | null>(null);
-
-  const months = data?.buckets ?? [];
-  // Default (and fallback, e.g. after the month rolls over): the latest month.
-  const month = pickedMonth && months.includes(pickedMonth) ? pickedMonth : months.at(-1);
-  const index = month ? months.indexOf(month) : -1;
-  const monthLabel = month ? formatMonthKey(month) : '';
-
-  const sales = data && index >= 0 ? segmentsAt(data.revenueSeries, index) : [];
-  const expenses = data && index >= 0 ? segmentsAt(data.expenseSeries, index) : [];
+function BreakdownCard({ data, period, refreshing, error }: BreakdownCardProps) {
+  const sales = data ? periodTotals(data.revenueSeries) : [];
+  const expenses = data ? periodTotals(data.expenseSeries) : [];
+  const phrase = periodPhrase(period);
   const insight = [
-    breakdownInsight(sales, 'leads sales at', `No sales in ${monthLabel}.`),
-    breakdownInsight(expenses, 'is', `No expenses in ${monthLabel}.`, 'of expenses'),
+    breakdownInsight(sales, 'leads sales at', `No sales ${phrase}.`),
+    breakdownInsight(expenses, 'is', `No expenses ${phrase}.`, 'of expenses'),
   ].join(' ');
 
   return (
-    <div className="card analytics-card">
-      <div className="analytics-card__header">
-        <h2>Revenue &amp; Expense Breakdown</h2>
-        {months.length > 0 && (
-          <label className="analytics-select">
-            Month
-            <select
-              value={month}
-              onChange={(event) => setPickedMonth(event.target.value)}
-              aria-label="Month for the sales and expense breakdown"
-            >
-              {[...months].reverse().map((key) => (
-                <option key={key} value={key}>
-                  {formatMonthKey(key)}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </div>
-      {error ? (
+    <div className={`card analytics-card${refreshing ? ' is-loading' : ''}`} aria-busy={refreshing}>
+      <h2>Revenue &amp; Expense Breakdown</h2>
+      {!data ? (
         <p className="empty-state">
-          Couldn't load the breakdown: {error}{' '}
-          <button type="button" className="link-button" onClick={reload}>
-            Retry
-          </button>
+          {error ? "Couldn't load the breakdown." : 'Loading breakdown…'}
         </p>
-      ) : !data ? (
-        <p className="empty-state">{loading ? 'Loading breakdown…' : 'No data.'}</p>
       ) : (
         <>
           <div className="analytics-donuts">
-            <BreakdownDonut
-              title="Sales"
-              segments={sales}
-              emptyText={`No sales in ${monthLabel}.`}
-            />
+            <BreakdownDonut title="Sales" segments={sales} emptyText="No sales in this period." />
             <BreakdownDonut
               title="Expenses"
               segments={expenses}
-              emptyText={`No expenses in ${monthLabel}.`}
+              emptyText="No expenses in this period."
             />
           </div>
           <p className="analytics-insight">{insight}</p>

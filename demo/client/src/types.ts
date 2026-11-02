@@ -158,7 +158,22 @@ export interface AnalyticsTagSeries {
 
 export type AnalyticsRange = 'week' | 'month' | 'ytd' | '12months';
 
-/** Current stock by first tag. A snapshot, so the "Show by" range doesn't apply. */
+/** A period of whole UTC days, both ends included, as "YYYY-MM-DD". */
+export interface DateRange {
+  from: string;
+  to: string;
+}
+
+/** The two ends of the Analytics date filter: the first and last day with a sale or expense. */
+export interface AnalyticsDateRange {
+  /** Both null when there are no sales or expenses yet. */
+  firstDate: string | null;
+  lastDate: string | null;
+  /** The server's UTC date. */
+  today: string;
+}
+
+/** Current stock by first tag. A snapshot, so the date filter doesn't apply. */
 export interface InventoryByTag {
   /** Largest first; tags past the top 7 fold into "Other" (last). */
   byTag: { label: string; quantity: number; itemCount: number }[];
@@ -167,13 +182,13 @@ export interface InventoryByTag {
 }
 
 export interface AnalyticsSummary {
-  /** Sum of revenueSeries / expenseSeries — i.e. scoped to `range`, not all-time. */
+  /** Sum of revenueSeries / expenseSeries — i.e. scoped to the range or period, not all-time. */
   totalRevenueCents: number;
   totalExpensesCents: number;
   netProfitCents: number;
-  /** The page-wide "Show by" filter: every chart and total above moves with it. */
-  range: AnalyticsRange;
-  granularity: 'day' | 'month';
+  /** The "Show by" range asked for, or "custom" for a chosen period. */
+  range: AnalyticsRange | 'custom';
+  granularity: 'day' | 'week' | 'month';
   buckets: string[];
   bucketLabels: string[];
   revenueSeries: AnalyticsTagSeries[];

@@ -41,6 +41,9 @@ const PADDING = { top: 16, right: 16, bottom: 28, left: 36 };
 /** Extra room on the left for y-axis labels like "$12.5K". */
 const Y_AXIS_LEFT = 56;
 const Y_TICKS = 4;
+/** Rough width of one character of a 10px axis label, in viewBox units, plus a gap between labels. */
+const LABEL_CHAR_WIDTH = 6;
+const LABEL_GAP = 10;
 
 /** Rounds `max / ticks` up to a 1/2/2.5/5 x 10^n step, so axis labels are round numbers. */
 function niceStep(max: number, ticks: number): number {
@@ -71,6 +74,12 @@ export function LineChart({
   const x = (i: number) =>
     left + (categories.length === 1 ? 0 : (i / (categories.length - 1)) * innerW);
   const y = (v: number) => PADDING.top + innerH - (v / max) * innerH;
+
+  // Long periods have more points than there's room to label: label every `labelEvery`th one.
+  const labelWidth = Math.max(...categories.map((c) => c.length), 1) * LABEL_CHAR_WIDTH + LABEL_GAP;
+  const labelEvery = Math.max(1, Math.ceil((labelWidth * (categories.length - 1)) / innerW));
+  // ...and smaller dots, so dense lines don't turn into a row of blobs.
+  const dotRadius = categories.length > 40 ? 2 : categories.length > 20 ? 3 : 4;
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={ariaLabel} className="viz">
@@ -117,17 +126,19 @@ export function LineChart({
             strokeLinejoin="round"
           />
           {s.values.map((v, i) => (
-            <circle key={i} cx={x(i)} cy={y(v)} r={4} fill={colorForSeries(s.label, si)}>
+            <circle key={i} cx={x(i)} cy={y(v)} r={dotRadius} fill={colorForSeries(s.label, si)}>
               <title>{`${s.label}, ${categories[i]}: ${format(v)}`}</title>
             </circle>
           ))}
         </g>
       ))}
-      {categories.map((category, i) => (
-        <text key={category} x={x(i)} y={height - 8} textAnchor="middle" className="viz-label">
-          {category}
-        </text>
-      ))}
+      {categories.map((category, i) =>
+        i % labelEvery === 0 ? (
+          <text key={i} x={x(i)} y={height - 8} textAnchor="middle" className="viz-label">
+            {category}
+          </text>
+        ) : null,
+      )}
     </svg>
   );
 }

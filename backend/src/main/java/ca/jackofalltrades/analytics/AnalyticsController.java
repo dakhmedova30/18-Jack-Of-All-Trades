@@ -1,7 +1,11 @@
 package ca.jackofalltrades.analytics;
 
+import ca.jackofalltrades.common.api.BadRequestException;
 import jakarta.validation.constraints.Pattern;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -18,13 +22,30 @@ public class AnalyticsController {
         this.analyticsService = analyticsService;
     }
 
-    /** The whole dashboard; {@code range} is the page's "Show by" filter. */
+    /**
+     * The whole dashboard, for a "Show by" {@code range} or for the period {@code from} to
+     * {@code to} (ISO dates, both included). A period, when given, takes precedence over {@code range}.
+     */
     @GetMapping("/summary")
     public AnalyticsSummary summary(
             @RequestParam(defaultValue = AnalyticsWindow.DEFAULT_RANGE)
             @Pattern(regexp = "week|month|ytd|12months", message = "Must be one of week, month, ytd, 12months")
-            String range) {
-        return analyticsService.summary(range, Instant.now());
+            String range,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        if (from == null && to == null) {
+            return analyticsService.summary(range, Instant.now());
+        }
+        if (from == null || to == null) {
+            throw new BadRequestException("Give both 'from' and 'to', or neither");
+        }
+        return analyticsService.summary(from, to);
+    }
+
+    /** The first and last day with a sale or expense: the two ends of the date filter's slider. */
+    @GetMapping("/date-range")
+    public AnalyticsDateRange dateRange() {
+        return analyticsService.dateRange(LocalDate.now(ZoneOffset.UTC));
     }
 
     /** Current stock by first tag; a snapshot, so {@code range} doesn't apply. */

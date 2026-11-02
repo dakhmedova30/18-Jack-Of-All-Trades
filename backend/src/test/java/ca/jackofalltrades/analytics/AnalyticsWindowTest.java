@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ca.jackofalltrades.analytics.AnalyticsWindow.Bucket;
 import java.time.Instant;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 
 /** Plain unit tests (no Spring) for the summary ranges, on fixed dates. */
@@ -58,5 +59,60 @@ class AnalyticsWindowTest {
         assertThat(window.buckets().getFirst()).isEqualTo(
                 new Bucket("2025-11", "Nov", Instant.parse("2025-11-01T00:00:00Z")));
         assertThat(window.buckets().getLast().key()).isEqualTo("2026-10");
+        assertThat(window.end()).isNull();
+    }
+
+    @Test
+    void periodOfUpToAMonthHasOneBucketPerDay() {
+        AnalyticsWindow window = AnalyticsWindow.between(LocalDate.parse("2026-10-01"), LocalDate.parse("2026-10-31"));
+
+        assertThat(window.granularity()).isEqualTo("day");
+        assertThat(window.buckets()).hasSize(31);
+        assertThat(window.buckets().getFirst()).isEqualTo(
+                new Bucket("2026-10-01", "Oct 1", Instant.parse("2026-10-01T00:00:00Z")));
+        assertThat(window.buckets().getLast().label()).isEqualTo("Oct 31");
+        assertThat(window.end()).isEqualTo(Instant.parse("2026-11-01T00:00:00Z"));
+        // A single day is one bucket.
+        assertThat(AnalyticsWindow.between(LocalDate.parse("2026-10-29"), LocalDate.parse("2026-10-29")).buckets())
+                .extracting(Bucket::key).containsExactly("2026-10-29");
+    }
+
+    @Test
+    void longerPeriodHasWeeksFromMondayWithAPartialFirstWeek() {
+        // Thu Oct 1 to Sun Nov 1: 32 days, so weekly.
+        AnalyticsWindow window = AnalyticsWindow.between(LocalDate.parse("2026-10-01"), LocalDate.parse("2026-11-01"));
+
+        assertThat(window.granularity()).isEqualTo("week");
+        assertThat(window.buckets()).extracting(Bucket::key)
+                .containsExactly("2026-09-28", "2026-10-05", "2026-10-12", "2026-10-19", "2026-10-26");
+        // The first week starts where the period does, and is labelled with that day.
+        assertThat(window.buckets().getFirst()).isEqualTo(
+                new Bucket("2026-09-28", "Oct 1", Instant.parse("2026-10-01T00:00:00Z")));
+        assertThat(window.buckets().get(1).label()).isEqualTo("Oct 5");
+        assertThat(window.end()).isEqualTo(Instant.parse("2026-11-02T00:00:00Z"));
+    }
+
+    @Test
+    void periodOverSixMonthsHasMonthsLabelledWithTheYearWhenItSpansYears() {
+        AnalyticsWindow window = AnalyticsWindow.between(LocalDate.parse("2025-08-15"), LocalDate.parse("2026-10-29"));
+
+        assertThat(window.granularity()).isEqualTo("month");
+        assertThat(window.buckets()).hasSize(15);
+        assertThat(window.buckets().getFirst()).isEqualTo(
+                new Bucket("2025-08", "Aug 2025", Instant.parse("2025-08-15T00:00:00Z")));
+        assertThat(window.buckets().getLast().label()).isEqualTo("Oct 2026");
+        assertThat(AnalyticsWindow.between(LocalDate.parse("2026-01-01"), LocalDate.parse("2026-12-31")).buckets())
+                .extracting(Bucket::label).containsExactly(
+                        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec");
+    }
+
+    @Test
+    void bucketSizeChangesAfterThirtyOneAndAfterOneHundredEightyThreeDays() {
+        LocalDate from = LocalDate.parse("2026-01-01");
+
+        assertThat(AnalyticsWindow.between(from, from.plusDays(30)).granularity()).isEqualTo("day");
+        assertThat(AnalyticsWindow.between(from, from.plusDays(31)).granularity()).isEqualTo("week");
+        assertThat(AnalyticsWindow.between(from, from.plusDays(182)).granularity()).isEqualTo("week");
+        assertThat(AnalyticsWindow.between(from, from.plusDays(183)).granularity()).isEqualTo("month");
     }
 }

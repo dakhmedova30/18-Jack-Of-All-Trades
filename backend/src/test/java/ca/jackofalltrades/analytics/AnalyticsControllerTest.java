@@ -2,6 +2,7 @@ package ca.jackofalltrades.analytics;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -10,6 +11,7 @@ import ca.jackofalltrades.PostgresTestBase;
 import jakarta.servlet.http.Cookie;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
@@ -141,6 +143,86 @@ class AnalyticsControllerTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.totalRevenueCents").value(170))
                 .andExpect(jsonPath("$.revenueSeries[*].label", contains("print")))
                 .andExpect(jsonPath("$.salesByTag[*].label", contains("print", "future")));
+    }
+
+    @Test
+    void periodCountsOnlyRecordsFromTheStartOfFromToTheEndOfTo() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        insertSale(business, Instant.parse("2026-09-30T23:59:59Z"), 1, "print");       // the day before
+        insertSale(business, Instant.parse("2026-10-01T00:00:00Z"), 100, "print");
+        insertSale(business, Instant.parse("2026-10-31T23:59:59Z"), 20, "print");
+        insertSale(business, Instant.parse("2026-11-01T00:00:00Z"), 1000, "print");    // the day after
+        insertExpense(business, Instant.parse("2026-10-15T12:00:00Z"), 30, "supplies");
+        insertExpense(business, Instant.parse("2026-11-01T00:00:00Z"), 5000, "supplies");
+
+        mockMvc.perform(get("/api/analytics/summary?from=2026-10-01&to=2026-10-31").cookie(cookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.range").value("custom"))
+                .andExpect(jsonPath("$.granularity").value("day"))
+                .andExpect(jsonPath("$.buckets", hasSize(31)))
+                .andExpect(jsonPath("$.bucketLabels[0]").value("Oct 1"))
+                .andExpect(jsonPath("$.totalRevenueCents").value(120))
+                .andExpect(jsonPath("$.totalExpensesCents").value(30))
+                .andExpect(jsonPath("$.netProfitCents").value(90))
+                .andExpect(jsonPath("$.revenueSeries[0].values[0]").value(100))
+                .andExpect(jsonPath("$.revenueSeries[0].values[30]").value(20))
+                .andExpect(jsonPath("$.expenseSeries[0].values[14]").value(30));
+    }
+
+    @Test
+    void periodOverAMonthGroupsByWeek() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        insertSale(business, Instant.parse("2026-10-01T10:00:00Z"), 100, "print");     // Thu: week of Mon Sep 28
+        insertSale(business, Instant.parse("2026-10-04T10:00:00Z"), 50, "print");      // Sun: same week
+        insertSale(business, Instant.parse("2026-10-05T10:00:00Z"), 7, "print");       // Mon: the next week
+
+        mockMvc.perform(get("/api/analytics/summary?from=2026-10-01&to=2026-11-01").cookie(cookie))
+                .andExpect(jsonPath("$.granularity").value("week"))
+                .andExpect(jsonPath("$.buckets", contains("2026-09-28", "2026-10-05", "2026-10-12", "2026-10-19", "2026-10-26")))
+                .andExpect(jsonPath("$.revenueSeries[0].values", contains(150, 7, 0, 0, 0)));
+    }
+
+    @Test
+    void periodMustHaveBothEndsInOrder() throws Exception {
+        Cookie cookie = registerAndLogin();
+
+        mockMvc.perform(get("/api/analytics/summary?from=2026-10-01").cookie(cookie))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("Give both 'from' and 'to', or neither"));
+        mockMvc.perform(get("/api/analytics/summary?from=2026-10-02&to=2026-10-01").cookie(cookie))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("'from' must be on or before 'to'"));
+        mockMvc.perform(get("/api/analytics/summary?from=2026-10-01&to=2126-10-01").cookie(cookie))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/analytics/summary?from=yesterday&to=2026-10-01").cookie(cookie))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("Invalid value for 'from'"));
+    }
+
+    @Test
+    void dateRangeIsTheFirstAndLastDayWithASaleOrExpense() throws Exception {
+        Cookie mine = registerAndLogin();
+        Cookie theirs = registerAndLogin();
+        String today = LocalDate.now(ZoneOffset.UTC).toString();
+
+        mockMvc.perform(get("/api/analytics/date-range").cookie(mine))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.firstDate").value(nullValue()))
+                .andExpect(jsonPath("$.lastDate").value(nullValue()))
+                .andExpect(jsonPath("$.today").value(today));
+
+        int business = businessId(mine);
+        insertExpense(business, Instant.parse("2025-03-04T23:30:00Z"), 10, "rent");
+        insertSale(business, Instant.parse("2025-06-01T09:00:00Z"), 10, "print");
+        insertSale(business, Instant.parse("2026-02-10T00:15:00Z"), 10, "print");
+        insertSale(businessId(theirs), Instant.parse("2020-01-01T00:00:00Z"), 10, "theirs");
+
+        mockMvc.perform(get("/api/analytics/date-range").cookie(mine))
+                .andExpect(jsonPath("$.firstDate").value("2025-03-04"))
+                .andExpect(jsonPath("$.lastDate").value("2026-02-10"));
+        mockMvc.perform(get("/api/analytics/date-range")).andExpect(status().isUnauthorized());
     }
 
     @Test
