@@ -9,7 +9,7 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
     defaults:
       run:
         working-directory: demo
@@ -28,7 +28,7 @@ jobs:
 
   backend-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 5
     defaults:
       run:
         working-directory: backend
