@@ -638,6 +638,34 @@ code {
   margin: 0.75rem 0 0;
 }
 
+/* AUTH PW CONTROL */
+.auth-password-control {
+  position: relative;
+}
+
+.auth-password-control input {
+  width: 100%;
+  padding-right: 7.5rem;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.5rem;
+  transform: translateY(-50%);
+  border: 0;
+  padding: 0.25rem;
+  background: transparent;
+  color: var(--color-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.auth-password-toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 /* ---------- Sale line items ---------- */
 
 .sale-lines {

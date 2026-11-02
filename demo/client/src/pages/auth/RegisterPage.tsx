@@ -12,6 +12,7 @@ export function RegisterPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | undefined>();
   const [submitting, setSubmitting] = useState(false);
@@ -71,18 +72,28 @@ export function RegisterPage() {
           {errors.email && <span className="field-error">{errors.email}</span>}
         </label>
 
-        <label className="auth-field" htmlFor="register-password">
-          Password
-          <input
-            id="register-password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            minLength={8}
-            required
-          />
+        <div className="auth-field">
+          <label htmlFor="register-password">Password</label>
+          <div className="auth-password-control">
+            <input
+              id="register-password"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              minLength={8}
+              required
+            />
+            <button
+              type="button"
+              className="auth-password-toggle"
+              aria-pressed={showPassword}
+              onClick={() => setShowPassword((visible) => !visible)}
+            >
+              {showPassword ? 'Hide password' : 'Show password'}
+            </button>
+          </div>
           {errors.password && <span className="field-error">{errors.password}</span>}
-        </label>
+        </div>
 
         {submitError && <p className="form-error">{submitError}</p>}
 

@@ -8,6 +8,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [submitting, setSubmitting] = useState(false);
 
@@ -43,16 +44,26 @@ export function LoginPage() {
           />
         </label>
 
-        <label className="auth-field" htmlFor="login-password">
-          Password
+        <div className="auth-field">
+          <label htmlFor="login-password">Password</label>
+          <div className="auth-password-control">
           <input
-            id="login-password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            required
+              id="login-password"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
           />
-        </label>
+          <button
+              type="button"
+              className="auth-password-toggle"
+              aria-pressed={showPassword}
+              onClick={() => setShowPassword((visible) => !visible)}
+          >
+              {showPassword ? 'Hide password' : 'Show password'}
+          </button>
+          </div>
+      </div>
 
         {error && <p className="form-error">{error}</p>}
 
