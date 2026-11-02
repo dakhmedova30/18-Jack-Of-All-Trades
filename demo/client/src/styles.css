@@ -674,6 +674,13 @@ code {
   padding-top: 0.15rem;
 }
 
+.field-label__hint {
+  display: block;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
 .form-row input {
   width: 100%;
   border: none;

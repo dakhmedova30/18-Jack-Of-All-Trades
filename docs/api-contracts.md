@@ -134,7 +134,7 @@ One account is one business. Login sets a `jack_session` cookie that the browser
 | --- | --- |
 | `name` | Required on create; 1–120 characters, trimmed |
 | `quantity` | Required on create; whole number ≥ 0 |
-| `unitPriceCents` | Required on create; whole number ≥ 0 |
+| `unitPriceCents` | Required on create; whole number from 0 to 999,999,999 cents ($0.00–$9,999,999.99) |
 | `tags` | Optional; ≤ 10 tags, each 1–30 characters; duplicates removed; default `[]` |
 | `note` | Optional; ≤ 1000 characters; default `""` |
 
@@ -272,7 +272,7 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
 | line `itemId` | One of your items (**restocks** it), or `null`/omitted for a plain cost |
 | line `description` | Required when `itemId` is `null` (`Pick an item or enter a description`, on `items.N.description`); ≤ 120 characters, trimmed. Ignored when `itemId` is set |
 | line `quantity` | ≥ 1 |
-| line `unitCostCents` | ≥ 0 (`Cost cannot be negative`) |
+| line `unitCostCents` | 0–999,999,999 cents ($0.00–$9,999,999.99) |
 
 **Behavior:**
 - A restock line increases the item's stock and copies the item's current name into `itemName`; a plain-cost line's `itemName` is its `description`. Unlike sales, the cost is whatever the client sends, not the item's price.

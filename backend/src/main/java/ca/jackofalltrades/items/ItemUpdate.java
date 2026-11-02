@@ -1,6 +1,7 @@
 package ca.jackofalltrades.items;
 
 import ca.jackofalltrades.common.api.Tags;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -18,7 +19,8 @@ public record ItemUpdate(
         @Min(value = 0, message = "Quantity cannot be negative")
         Integer quantity,
 
-        @Min(value = 0, message = "Price cannot be negative")
+        @Min(value = 0, message = "Price must be between 0.00 and 9,999,999.99")
+        @Max(value = 999_999_999, message = "Price must be between 0.00 and 9,999,999.99")
         Integer unitPriceCents,
 
         @Size(max = 10, message = "At most 10 tags")

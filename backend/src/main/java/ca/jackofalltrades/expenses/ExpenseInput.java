@@ -7,6 +7,7 @@ import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import jakarta.validation.Payload;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -61,7 +62,8 @@ public record ExpenseInput(
             Integer quantity,
 
             @NotNull(message = "Required")
-            @PositiveOrZero(message = "Cost cannot be negative")
+            @PositiveOrZero(message = "Cost must be between 0.00 and 9,999,999.99")
+            @Max(value = 999_999_999, message = "Cost must be between 0.00 and 9,999,999.99")
             Integer unitCostCents) {
 
         public Line {
