@@ -1,5 +1,6 @@
 package ca.jackofalltrades.auth;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -13,6 +14,7 @@ public record ChangeEmailRequest(
         @Size(max = 255, message = "Email must be at most 255 characters")
         String email,
 
+        @JsonAlias("password")
         @NotNull(message = "Enter your current password")
         String currentPassword) {
 
