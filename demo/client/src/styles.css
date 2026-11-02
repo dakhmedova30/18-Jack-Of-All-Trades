@@ -2,8 +2,8 @@
 :root {
   --color-bg: linear-gradient(rgba(251, 245, 240, 1) 0%, rgba(255, 254, 254, 1) 100%);
   --color-bg-solid: #fbf7f3;
-  --color-surface: #fcf9f6;
-  --color-surface-alt: #f0ede0;
+  --color-surface: #FCF9F6;
+  --color-surface-alt: #efede6;
   --color-border: #e3d6d0;
   /* Chart card outlines: dark enough to read as a clear edge. */
   --color-border-chart: #a89a94;
@@ -13,26 +13,29 @@
   --color-sidebar: #2d0606;
   --color-sidebar-text: #f6eee6;
   --color-primary: #4a1414;
-  --color-primary-text: #f4efe5;
+  --color-primary-text: #F4EFE5;
   --color-accent: #6b1111;
   --color-accent-text: #fbeee8;
   --color-search: transparent;
   --color-danger: #b42318;
   --color-danger-bg: #fdecea;
-  --radius: 6px;
-  --sidebar-width: 220px;
-  --sidebar-mini-width: 65px;
-  font-family:
-    Inter,
+  --font-body: 'Inter',
     system-ui,
     -apple-system,
     'Segoe UI',
     Roboto,
     sans-serif;
+  --font-header: 'Fraunces variable', serif;
+  --radius: 6px;
+  --sidebar-width: 220px;
+  --sidebar-mini-width: 65px;
+  font-family: var(--font-body);
   color: var(--color-text);
   background: var(--color-bg);
   font-size: 14px;
   line-height: 1.45;
+  font-weight: 400;
+  font-style: normal;
 }
 
 * {
@@ -53,6 +56,11 @@ h6 {
   font-family: 'Libre Caslon Text', serif;
   font-weight: 500;
   font-style: normal;
+}
+
+h1 + p { /* shrinks the subheader in home */
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 h1 {
@@ -90,6 +98,7 @@ code {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  font-family: var(--font-header);
 }
 
 .sidebar__logo {
@@ -330,7 +339,7 @@ code {
 
 .table th {
   text-align: left;
-  font-family: 'Libre Caslon Text', serif;
+  font-family: var(--font-header);
   font-weight: 500;
   padding: 0.5rem 0.6rem;
   border-bottom: 1px solid var(--color-border-strong);
@@ -629,82 +638,6 @@ code {
   margin: 0.75rem 0 0;
 }
 
-/* ---------- Auth (login / register) ---------- */
-
-.auth-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  background: var(--color-bg);
-}
-
-.auth-card {
-  width: 100%;
-  max-width: 380px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.auth-card__logo {
-  align-self: flex-start;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius);
-  padding: 0.4rem 0.7rem;
-  font-weight: 600;
-  font-size: 0.8rem;
-  margin-bottom: 0.25rem;
-}
-
-.auth-card h1 {
-  font-size: 1.3rem;
-  margin: 0;
-}
-
-.auth-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.auth-field input {
-  font: inherit;
-  font-weight: 400;
-  padding: 0.5rem 0.6rem;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius);
-  background: var(--color-bg-solid);
-  color: var(--color-text);
-}
-
-.auth-field input:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 1px;
-}
-
-.auth-switch {
-  text-align: center;
-  font-size: 0.85rem;
-  color: var(--color-muted);
-  margin: 0;
-}
-
-.auth-switch a {
-  color: var(--color-primary);
-}
-
-.auth-loading {
-  padding: 2rem;
-}
-
 /* ---------- Sale line items ---------- */
 
 .sale-lines {
@@ -795,11 +728,6 @@ code {
   border-top: 2px solid var(--color-border-strong);
   font-weight: 700;
   color: var(--color-accent);
-}
-
-/* The date/channel/ID rows follow the total in the sale and expense forms. */
-.sale-total + .form-row {
-  margin-top: 1rem;
 }
 
 .banner {
@@ -981,6 +909,10 @@ code {
   font-size: 0.8rem;
 }
 
+.stat-card__value {
+  font-family: var(--font-header);
+}
+
 .home-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -1055,6 +987,7 @@ code {
   text-align: center;
   font-size: 1.6rem;
   font-weight: 700;
+  font-family: var(--font-header);
 }
 
 .home-bars {
@@ -1381,7 +1314,7 @@ code {
   }
 
   .sidebar {
-    flex-direction: row;
+    /* flex-direction: row; */
     align-items: center;
     gap: 1rem;
     padding: 0.75rem 1rem;
@@ -1393,6 +1326,7 @@ code {
   }
 
   .sidebar-show-container {
+    height:fit-content;
     width: 100%;
   }
 
@@ -1479,9 +1413,9 @@ code {
 }
 
 .panel-row {
-  display: flex;
-  gap: 0.75rem;
-  width: 100%;
+    display: flex;
+    gap: 0.75rem;
+    width: 100%;
 }
 
 .panel-row .card {
@@ -1495,8 +1429,7 @@ code {
   padding: 0;
 }
 
-.money-split__row,
-.low-stock__row {
+.money-split__row, .low-stock__row {
   list-style-type: none;
   display: flex;
   flex-direction: row;
@@ -1504,9 +1437,15 @@ code {
   align-items: center;
 }
 
-.glance__item {
+.stock-value {
   display: flex;
   justify-content: space-between;
+}
+
+.glance__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .glance__item dt {
@@ -1517,6 +1456,24 @@ code {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+}
+
+.glance__item dd {
+  font-weight: 600;
+  font-size: 15pt;
+  font-family: var(--font-header);
+  margin: 0;
+}
+
+span.glance__note {
+  font-size: 9pt;
+  font-family: var(--font-body);
+  font-weight: 400;
+}
+
+.glance {
+  display: flex;
+  justify-content: space-between;
 }
 
 .stock-value {
@@ -1531,4 +1488,5 @@ code {
   font-size: 1.75rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-header);
 }

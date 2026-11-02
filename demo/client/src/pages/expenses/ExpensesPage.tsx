@@ -141,7 +141,16 @@ export function ExpensesPage() {
 
   return (
     <section className="page">
-      <h1>Expenses</h1>
+      <div>
+        <h1>Expenses</h1>
+        <p className="muted">A recap of expenses made over the chosen date range.</p>
+      </div>
+
+      <div className="panel-row">
+        <MoneyBreakdownPanel {...breakdown} />
+        <TopRestockPanel {...breakdown} />
+      </div>
+
       <div className="toolbar">
         <div className="toolbar__actions">
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
@@ -292,10 +301,10 @@ export function ExpensesPage() {
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}
 
-      <div className="panel-row">
+      {/* <div className="panel-row">
         <MoneyBreakdownPanel {...breakdown} />
         <TopRestockPanel {...breakdown} />
-      </div>
+      </div> */}
 
       {formState && (
         <ExpenseFormModal

@@ -124,7 +124,15 @@ export function InventoryPage() {
 
   return (
     <section className="page">
-      <h1>Inventory</h1>
+      <div>
+        <h1>Inventory</h1>
+        <p className="muted">A view of your current inventory.</p>
+      </div>
+
+      <div className="panel-row">
+        <StockValuePanel {...insights} />
+        <LowStockPanel {...lowStock} />
+      </div>
       <div className="toolbar">
         <div className="toolbar__actions">
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
@@ -273,10 +281,10 @@ export function InventoryPage() {
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}
 
-      <div className="panel-row">
+      {/* <div className="panel-row">
         <StockValuePanel {...insights} />
         <LowStockPanel {...lowStock} />
-      </div>
+      </div> */}
 
       {formState && (
         <ItemFormModal
