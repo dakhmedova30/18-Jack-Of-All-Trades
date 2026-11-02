@@ -319,6 +319,8 @@ interface LowStockPanelProps {
 
 /** Every item at or below the low-stock threshold, lowest first, in a scrollable list. */
 function LowStockPanel({ data, error, loading, reload }: LowStockPanelProps) {
+  const [expanded, setExpanded] = useState(false);
+
   return (
     <div className="card low-stock">
       <div className="low-stock__header">
@@ -338,8 +340,8 @@ function LowStockPanel({ data, error, loading, reload }: LowStockPanelProps) {
         <p className="empty-state">Nothing is low on stock.</p>
       ) : (
         <>
-          <ul className="low-stock__list">
-            {data.items.map((item) => (
+          <ul className="low-stock__list" id="low-stock-list">
+            {(expanded ? data.items : data.items.slice(0, 3)).map((item) => (
               <li key={item.id} className="low-stock__row">
                 <span className="low-stock__name">{item.name}</span>
                 <span className={`low-stock__qty${item.quantity === 0 ? ' is-out' : ''}`}>
@@ -348,6 +350,17 @@ function LowStockPanel({ data, error, loading, reload }: LowStockPanelProps) {
               </li>
             ))}
           </ul>
+          {data.items.length > 3 && (
+            <button
+              type="button"
+              className="link-button low-stock__toggle"
+              aria-expanded={expanded}
+              aria-controls="low-stock-list"
+              onClick={() => setExpanded((current) => !current)}
+            >
+              {expanded ? 'Show less' : 'Expand list'}
+            </button>
+          )}
           {data.count > data.items.length && (
             <p className="muted">
               Showing the {data.items.length} lowest of {data.count}.

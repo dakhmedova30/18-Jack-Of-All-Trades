@@ -130,15 +130,15 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
           <span className="form-row__static">{item?.id ?? 'Assigned on save'}</span>
         </div>
 
-        <FormRow label="Name" htmlFor="item-name" error={errors.name}>
+        <FormRow label="Name" htmlFor="item-name" error={errors.name} required>
           <input {...fieldProps('name')} placeholder="Item 1" autoFocus maxLength={120} />
         </FormRow>
 
-        <FormRow label="Qty" htmlFor="item-quantity" error={errors.quantity}>
+        <FormRow label="Qty" htmlFor="item-quantity" error={errors.quantity} required>
           <input {...fieldProps('quantity')} inputMode="numeric" placeholder="100" />
         </FormRow>
 
-        <FormRow label="Unit price (CAD)" htmlFor="item-unitPrice" error={errors.unitPrice}>
+        <FormRow label="Unit price (CAD)" htmlFor="item-unitPrice" error={errors.unitPrice} required>
           <input {...fieldProps('unitPrice')} inputMode="decimal" placeholder="5.00" />
         </FormRow>
 
@@ -161,13 +161,17 @@ interface FormRowProps {
   label: string;
   htmlFor: string;
   error?: string;
+  required?: boolean;
   children: ReactNode;
 }
 
-function FormRow({ label, htmlFor, error, children }: FormRowProps) {
+function FormRow({ label, htmlFor, error, required = false, children }: FormRowProps) {
   return (
     <div className="form-row">
-      <label htmlFor={htmlFor}>{label}</label>
+      <label htmlFor={htmlFor}>
+        {label}
+        {required && <span className="required-marker" aria-hidden="true"> *</span>}
+      </label>
       <div className="form-row__control">
         {children}
         {error && <span className="field-error">{error}</span>}
