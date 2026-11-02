@@ -4,7 +4,7 @@ import { useItemCount } from '../hooks/useItemCount';
 import { useLowStock } from '../hooks/useLowStock';
 import { useRecentSales } from '../hooks/useRecentSales';
 import type { AnalyticsSummary, LowStock, Sale } from '../types';
-import { formatDate } from '../utils/date';
+import { usePreferences } from '../hooks/usePreferences';
 import { formatCents } from '../utils/money';
 import {
   AnalyticsPreview,
@@ -72,6 +72,7 @@ function describeSaleItems(sale: Sale): string {
 
 /** The latest sales by sale date. Display only: rows don't open the sale. */
 function RecentSales() {
+  const { formatDate } = usePreferences();
   const { sales, error, loading, reload } = useRecentSales(RECENT_SALES_COUNT);
 
   return (

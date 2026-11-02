@@ -3,6 +3,8 @@ package ca.jackofalltrades.channels;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -86,5 +88,73 @@ class ChannelControllerTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.error.details[0].message").value("Name must be at most 40 characters"));
         mockMvc.perform(get("/api/channels").cookie(cookie))
                 .andExpect(jsonPath("$[*].name", not(hasItem("   "))));
+    }
+
+    @Test
+    void renameChangesTheNameAndRejectsADuplicate() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int id = channelIdByName(cookie, "Misc");
+
+        mockMvc.perform(put("/api/channels/" + id).cookie(cookie)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\": \"  Etsy  \"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Etsy"));
+        mockMvc.perform(put("/api/channels/" + id).cookie(cookie)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\": \"online\"}"))
+                .andExpect(status().isConflict());
+        // Only the capitalisation changes: allowed.
+        mockMvc.perform(put("/api/channels/" + id).cookie(cookie)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\": \"ETSY\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(put("/api/channels/999999").cookie(cookie)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\": \"Nope\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteRemovesAnUnusedChannelButNotOneWithSales() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int misc = channelIdByName(cookie, "Misc");
+        int online = channelIdByName(cookie, "Online");
+
+        mockMvc.perform(post("/api/items").cookie(cookie).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Candle\", \"quantity\": 5, \"unitPriceCents\": 1000}"))
+                .andExpect(status().isCreated());
+        int itemId = com.jayway.jsonpath.JsonPath.read(
+                mockMvc.perform(get("/api/items").cookie(cookie)).andReturn().getResponse().getContentAsString(),
+                "$.data[0].id");
+        mockMvc.perform(post("/api/sales").cookie(cookie).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"soldAt\": \"2026-10-18T15:30:00Z\", \"channelId\": %d, \"items\": [{\"itemId\": %d, \"quantity\": 1}]}"
+                                .formatted(online, itemId)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(delete("/api/channels/" + online).cookie(cookie))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.message").value(
+                        "Channel \"Online\" is used by 1 sale, so it can't be deleted. Rename it instead."));
+
+        mockMvc.perform(delete("/api/channels/" + misc).cookie(cookie)).andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/channels").cookie(cookie))
+                .andExpect(jsonPath("$[*].name", not(hasItem("Misc"))));
+        mockMvc.perform(delete("/api/channels/" + misc).cookie(cookie)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void anotherBusinessCannotRenameOrDeleteMyChannel() throws Exception {
+        Cookie mine = registerAndLogin();
+        Cookie theirs = registerAndLogin();
+        int id = channelIdByName(mine, "Misc");
+
+        mockMvc.perform(put("/api/channels/" + id).cookie(theirs)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\": \"Hacked\"}"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(delete("/api/channels/" + id).cookie(theirs)).andExpect(status().isNotFound());
+    }
+
+    private int channelIdByName(Cookie cookie, String name) throws Exception {
+        String body = mockMvc.perform(get("/api/channels").cookie(cookie)).andReturn().getResponse()
+                .getContentAsString();
+        return com.jayway.jsonpath.JsonPath.<java.util.List<Integer>>read(body, "$[?(@.name == '" + name + "')].id")
+                .get(0);
     }
 }

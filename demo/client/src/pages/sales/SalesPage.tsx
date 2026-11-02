@@ -8,13 +8,11 @@ import { useInventoryInsights } from '../../hooks/useInventoryInsights';
 import { useSalesMonthSummary } from '../../hooks/useSalesMonthSummary';
 import { useSales } from '../../hooks/useSales';
 import type { Sale, SaleInput, SaleSortField, SortOrder } from '../../types';
-import { formatDate } from '../../utils/date';
+import { usePreferences } from '../../hooks/usePreferences';
 import { formatCents } from '../../utils/money';
 import { BestSellersPanel } from './BestSellersPanel';
 import { MonthGlancePanel } from './MonthGlancePanel';
 import { SaleFormModal } from './SaleFormModal';
-
-const PAGE_SIZE = 15;
 
 /** Table columns in order; those without a `field` aren't sortable. */
 const COLUMNS: { field?: SaleSortField; label: string; numeric?: boolean }[] = [
@@ -30,6 +28,7 @@ type FormState = { mode: 'create' } | { mode: 'edit'; sale: Sale } | null;
 type DeleteTarget = { kind: 'single'; sale: Sale } | { kind: 'bulk'; ids: number[] } | null;
 
 export function SalesPage() {
+  const { preferences, formatDate } = usePreferences();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebouncedValue(searchInput.trim());
@@ -39,7 +38,13 @@ export function SalesPage() {
     error,
     loading,
     reload: reloadSales,
-  } = useSales({ page, pageSize: PAGE_SIZE, search, sort: sort.field, order: sort.order });
+  } = useSales({
+    page,
+    pageSize: preferences.rowsPerPage,
+    search,
+    sort: sort.field,
+    order: sort.order,
+  });
   const insights = useInventoryInsights();
   const monthSummary = useSalesMonthSummary();
 
