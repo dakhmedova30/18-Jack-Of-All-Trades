@@ -1,59 +1,77 @@
 /* ==========================================================================
    Contents
    1. Design tokens
-   2. Base
-   3. App shell (sidebar, content, page)
-   4. Shared components (buttons, toolbar, cards, tables, pagination,
+   2. Themes, accents & display options (Settings > Appearance)
+   3. Base
+   4. App shell (sidebar, account menu, notifications, content)
+   5. Shared components (buttons, toolbar, cards, avatar, tables, pagination,
       modal, forms, line items, banners)
-   5. Auth
-   6. Pages: Home, Inventory, Summary panels, Analytics
-   7. SVG charts
-   8. Responsive (<= 720px)
+   6. Auth
+   7. Pages: Home, Inventory, Summary panels, Analytics, Settings,
+      Help & legal
+   8. SVG charts
+   9. Responsive (<= 720px)
    ========================================================================== */
 
 
 /* ==========================================================================
    1. Design tokens — matches the maroon/cream Figma wireframe.
       Change colours here only.
+
+   How colour works: every neutral (backgrounds, borders, text, shadows) is
+   built from --hue, so picking an accent in Settings > Appearance re-tints
+   the whole app, not just the buttons. Each accent in section 2 sets --hue
+   plus its four brand colours. Maroon is the default.
    ========================================================================== */
 
 :root {
+  color-scheme: light;
+
+  /* The one knob: each accent overrides this (see section 2). */
+  --hue: 15;
+
   /* Backgrounds & surfaces */
-  --color-bg: linear-gradient(rgba(251, 245, 240, 1) 0%, rgba(255, 254, 254, 1) 100%);
-  --color-bg-solid: #fbf7f3;
-  --color-surface: #fcf9f6;
-  --color-surface-alt: #efede6;
+  --color-bg: linear-gradient(hsl(var(--hue) 45% 96%) 0%, hsl(var(--hue) 30% 99.5%) 100%);
+  --color-bg-solid: hsl(var(--hue) 40% 96%);
+  --color-surface: hsl(var(--hue) 35% 98%);
+  --color-surface-alt: hsl(var(--hue) 22% 92%);
+  --color-highlight: hsl(var(--hue) 40% 93%);
 
   /* Borders (chart card outlines are dark enough to read as a clear edge) */
-  --color-border: #e3d6d0;
-  --color-border-chart: #a89a94;
-  --color-border-strong: #3a0d0d;
+  --color-border: hsl(var(--hue) 26% 85%);
+  --color-border-chart: hsl(var(--hue) 10% 62%);
+  --color-border-strong: hsl(var(--hue) 60% 13%);
 
   /* Text */
-  --color-text: #2a0a0a;
-  --color-muted: #7a6a66;
+  --color-text: hsl(var(--hue) 50% 10%);
+  --color-muted: hsl(var(--hue) 8% 44%);
+  --color-placeholder: hsl(var(--hue) 12% 70%);
+
+  /* Brand (overridden per accent) */
+  --color-primary: #4a1414;
+  --color-primary-text: hsl(var(--hue) 40% 95%);
+  --color-accent: #6b1111;
+  --color-accent-text: hsl(var(--hue) 50% 95%);
+  --color-secondary: #5e2222;
 
   /* Sidebar */
   --color-sidebar: #2d0606;
-  --color-sidebar-text: #f6eee6;
+  --color-sidebar-text: hsl(var(--hue) 40% 95%);
+  --color-sidebar-hover: rgb(255 255 255 / 0.08);
 
-  /* Brand */
-  --color-primary: #4a1414;
-  --color-primary-text: #f4efe5;
-  --color-accent: #6b1111;
-  --color-accent-text: #fbeee8;
-
-  /* Misc */
-  --color-search: transparent;
+  /* Status & interaction */
   --color-danger: #b42318;
   --color-danger-bg: #fdecea;
-  --table-pad-y: 0.55rem;
-  color-scheme: light;
-    --color-secondary: #5e2222;
-  --color-placeholder: #bfaea8;
-  --color-highlight: #f5e9e4;
   --color-positive: #1a7f4b;
   --color-hover: rgb(0 0 0 / 0.05);
+  --color-search: transparent;
+
+  /* Overlays & shadows (tinted by --hue) */
+  --color-scrim: hsl(var(--hue) 80% 10% / 0.3);
+  --shadow-card: 0 1px 3px hsl(var(--hue) 80% 10% / 0.08);
+  --shadow-tile: 0 2px 8px hsl(var(--hue) 80% 10% / 0.06);
+  --shadow-popover: 0 8px 24px hsl(var(--hue) 80% 10% / 0.25);
+  --shadow-modal: 0 12px 40px hsl(var(--hue) 80% 10% / 0.2);
 
   /* Type */
   --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -64,6 +82,7 @@
   --radius: 6px;
   --sidebar-width: 220px;
   --sidebar-mini-width: 65px;
+  --table-pad-y: 0.55rem;
 
   /* Document defaults */
   font-family: var(--font-body);
@@ -77,7 +96,129 @@
 
 
 /* ==========================================================================
-   2. Base
+   2. Themes, accents & display options
+   Settings > Appearance sets data-theme, data-accent, data-text-size and
+   data-density on <html> (hooks/useAppearance.tsx; index.html does it before
+   first paint). Light and maroon are the defaults in section 1.
+   ========================================================================== */
+
+/* ---------- Dark theme: same tokens, low-glare, still tinted by --hue ---------- */
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-bg: linear-gradient(hsl(var(--hue) 16% 12%) 0%, hsl(var(--hue) 18% 8%) 100%);
+  --color-bg-solid: hsl(var(--hue) 16% 10%);
+  --color-surface: hsl(var(--hue) 14% 14%);
+  --color-surface-alt: hsl(var(--hue) 13% 18%);
+  --color-highlight: hsl(var(--hue) 13% 18%);
+
+  --color-border: hsl(var(--hue) 12% 24%);
+  --color-border-chart: hsl(var(--hue) 10% 38%);
+  --color-border-strong: hsl(var(--hue) 12% 58%);
+
+  --color-text: hsl(var(--hue) 30% 93%);
+  --color-muted: hsl(var(--hue) 10% 66%);
+  --color-placeholder: hsl(var(--hue) 8% 45%);
+
+  --color-primary: #9a3030;
+  --color-primary-text: hsl(var(--hue) 40% 97%);
+  --color-accent: #b84646;
+  --color-accent-text: hsl(var(--hue) 40% 97%);
+  --color-secondary: #7d3333;
+  --color-sidebar: #140707;
+
+  --color-danger: #f0766b;
+  --color-danger-bg: #3b1714;
+  --color-positive: #52cf91;
+  --color-hover: rgb(255 255 255 / 0.07);
+}
+
+/* ---------- Accents: hue + brand colours (light, then dark) ---------- */
+
+:root[data-accent='blue'] {
+  --hue: 220;
+  --color-primary: #1e3a6e;
+  --color-accent: #2a5db0;
+  --color-sidebar: #0e1f3d;
+  --color-secondary: #284b8a;
+}
+
+:root[data-theme='dark'][data-accent='blue'] {
+  --color-primary: #3d6fd1;
+  --color-accent: #5a8cf0;
+  --color-sidebar: #0a1426;
+  --color-secondary: #345fb0;
+}
+
+:root[data-accent='green'] {
+  --hue: 150;
+  --color-primary: #1f4d36;
+  --color-accent: #2f7a56;
+  --color-sidebar: #0e2a1d;
+  --color-secondary: #2b6446;
+}
+
+:root[data-theme='dark'][data-accent='green'] {
+  --color-primary: #2f8a5e;
+  --color-accent: #4fbf8b;
+  --color-sidebar: #09190f;
+  --color-secondary: #2f7c58;
+}
+
+:root[data-accent='purple'] {
+  --hue: 265;
+  --color-primary: #43296b;
+  --color-accent: #6a3fb0;
+  --color-sidebar: #231038;
+  --color-secondary: #55358a;
+}
+
+:root[data-theme='dark'][data-accent='purple'] {
+  --color-primary: #7a52c8;
+  --color-accent: #a583ee;
+  --color-sidebar: #130a20;
+  --color-secondary: #6e4aae;
+}
+
+:root[data-accent='teal'] {
+  --hue: 190;
+  --color-primary: #16505a;
+  --color-accent: #1f7c8a;
+  --color-sidebar: #0a2a30;
+  --color-secondary: #1d6572;
+}
+
+:root[data-theme='dark'][data-accent='teal'] {
+  --color-primary: #2a95a6;
+  --color-accent: #52c4d4;
+  --color-sidebar: #061a1e;
+  --color-secondary: #258392;
+}
+
+/* ---------- Text size: everything is in rem, so this scales the whole app ---------- */
+
+:root[data-text-size='small'] {
+  font-size: 13px;
+}
+
+:root[data-text-size='large'] {
+  font-size: 16px;
+}
+
+/* ---------- Table density: row padding ---------- */
+
+:root[data-density='compact'] {
+  --table-pad-y: 0.3rem;
+}
+
+:root[data-density='spacious'] {
+  --table-pad-y: 0.85rem;
+}
+
+
+/* ==========================================================================
+   3. Base
    ========================================================================== */
 
 * {
@@ -116,6 +257,11 @@ h2 {
   margin: 0;
 }
 
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
 code {
   background: var(--color-surface);
   padding: 0.1em 0.35em;
@@ -128,7 +274,7 @@ code {
 
 
 /* ==========================================================================
-   3. App shell
+   4. App shell
    ========================================================================== */
 
 .app {
@@ -142,10 +288,6 @@ code {
 }
 
 /* ---------- Sidebar ---------- */
-
-.panel-row {
-  grid-template-columns: 1fr;
-}
 
 .sidebar {
   background: var(--color-sidebar);
@@ -163,17 +305,22 @@ code {
   justify-content: space-between;
 }
 
+.sidebar__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
 .sidebar__logo {
-  border: var(--border-default) var(--color-sidebar-text);
-  border: 1px solid var(--color-sidebar-text);
   display: block;
+  border: var(--border-default) var(--color-sidebar-text);
   border-radius: var(--radius);
   padding: 0.6rem;
   text-align: center;
   font-weight: 600;
+  font-size: 0.85rem;
   color: inherit;
   text-decoration: none;
-  font-size: 0.85rem;
 }
 
 .sidebar__toggle,
@@ -215,12 +362,9 @@ code {
 .sidebar__link {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0.65rem;
-  border: var(--border-default) transparent;
   gap: 0.85rem;
   padding: 0.85rem 1rem;
-  border: 1px solid transparent;
+  border: var(--border-default) transparent;
   border-radius: var(--radius);
   font-size: 1.1rem;
   color: inherit;
@@ -234,14 +378,15 @@ code {
 }
 
 .sidebar__link:hover {
-  background: rgb(255 255 255 / 0.08);
+  background: var(--color-sidebar-hover);
 }
 
 .sidebar__link.is-active {
   border-color: var(--color-sidebar-text);
 }
 
-/* Pinned to the bottom of the sidebar, under the nav. */
+/* ---------- Sidebar account (avatar pill + menu) ---------- */
+
 .sidebar__account {
   display: flex;
   flex-direction: column;
@@ -256,7 +401,7 @@ code {
   align-items: center;
   gap: 0.65rem;
   padding: 0.5rem 0.75rem 0.5rem 0.5rem;
-  border: 1px solid transparent;
+  border: var(--border-default) transparent;
   border-radius: 999px;
   background: none;
   color: inherit;
@@ -267,7 +412,7 @@ code {
 
 .sidebar__avatar:hover,
 .sidebar__avatar[aria-expanded='true'] {
-  background: rgb(255 255 255 / 0.08);
+  background: var(--color-sidebar-hover);
 }
 
 .sidebar__avatar-text {
@@ -299,27 +444,6 @@ code {
   flex-shrink: 0;
 }
 
-.avatar {
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 50%;
-  flex-shrink: 0;
-  object-fit: cover;
-}
-
-/* Cream circle with dark initials, readable on the dark sidebar. */
-.avatar--initials {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-sidebar-text);
-  color: var(--color-sidebar);
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  line-height: 1;
-}
-
 /* Rendered into <body> (see AccountMenu), so it's styled on its own, not as part of the sidebar. */
 .account-menu {
   position: fixed;
@@ -330,9 +454,9 @@ code {
   padding: 0.35rem;
   background: var(--color-surface);
   color: var(--color-text);
-  border: 1px solid var(--color-border-chart);
+  border: var(--border-default) var(--color-border-chart);
   border-radius: 10px;
-  box-shadow: 0 8px 24px rgb(45 6 6 / 0.25);
+  box-shadow: var(--shadow-popover);
 }
 
 .account-menu__item {
@@ -347,6 +471,128 @@ code {
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+/* ---------- Notifications: the bell and its panel ---------- */
+
+/* The bell sits in the sidebar header next to the collapse arrow: icon only, count on top. */
+.sidebar__bell {
+  position: relative;
+  padding: 0.35rem;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--color-surface);
+  line-height: 0;
+  cursor: pointer;
+}
+
+.sidebar__bell:hover,
+.sidebar__bell[aria-expanded='true'] {
+  background: rgb(255 255 255 / 0.1);
+}
+
+.sidebar__bell svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -0.1rem;
+  right: -0.15rem;
+  min-width: 1rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1rem;
+  text-align: center;
+}
+
+/* Rendered into <body> (see NotificationBell), so it carries its own look. */
+.notification-panel {
+  position: fixed;
+  z-index: 1000;
+  width: min(22rem, calc(100vw - 1rem));
+  max-height: min(28rem, calc(100vh - 2rem));
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: var(--border-default) var(--color-border-chart);
+  border-radius: 10px;
+  box-shadow: var(--shadow-popover);
+}
+
+.notification-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 0.9rem;
+  border-bottom: var(--border-default) var(--color-border);
+}
+
+.notification-panel__empty {
+  margin: 0;
+  padding: 1.25rem 0.9rem;
+}
+
+.notification-panel__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.notification-panel__link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.7rem 0.9rem;
+  border-bottom: var(--border-default) var(--color-border);
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  font-size: 0.9rem;
+}
+
+.notification-item__dismiss {
+  padding: 0 0.35rem;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.notification-item__dismiss:hover {
+  opacity: 1;
 }
 
 /* ---------- Content area ---------- */
@@ -371,7 +617,7 @@ code {
 
 
 /* ==========================================================================
-   4. Shared components
+   5. Shared components
    ========================================================================== */
 
 /* ---------- Toolbar & search ---------- */
@@ -483,6 +729,29 @@ code {
   cursor: pointer;
 }
 
+/* ---------- Avatar ---------- */
+
+.avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+/* Cream circle with dark initials, readable on the dark sidebar. */
+.avatar--initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-sidebar-text);
+  color: var(--color-sidebar);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
 /* ---------- Cards & stat cards ---------- */
 
 .card {
@@ -521,7 +790,7 @@ code {
   font-size: 0.8rem;
 }
 
-/* Net profit style: deep red with cream text, as in the wireframe. */
+/* Net profit style: deep accent colour with light text, as in the wireframe. */
 .stat-card--positive {
   background: var(--color-accent);
   color: var(--color-accent-text);
@@ -533,7 +802,7 @@ code {
   opacity: 0.85;
 }
 
-/* Revenue / expenses style: warm beige with maroon text. */
+/* Revenue / expenses style: soft neutral with accent text. */
 .stat-card--neutral {
   background: var(--color-surface-alt);
   color: var(--color-accent);
@@ -564,18 +833,14 @@ code {
   text-align: left;
   font-family: var(--font-header);
   font-weight: 500;
-  padding: 0.5rem 0.6rem;
-  border-bottom: var(--border-default) var(--color-border-strong);
   padding: calc(var(--table-pad-y) - 0.05rem) 0.6rem;
-  border-bottom: 1px solid var(--color-border-strong);
+  border-bottom: var(--border-default) var(--color-border-strong);
   white-space: nowrap;
 }
 
 .table td {
-  padding: 0.55rem 0.6rem;
-  border-bottom: var(--border-default) var(--color-border);
   padding: var(--table-pad-y) 0.6rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-default) var(--color-border);
   vertical-align: middle;
 }
 
@@ -714,7 +979,7 @@ code {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgb(45 6 6 / 0.3);
+  background: var(--color-scrim);
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -724,7 +989,7 @@ code {
 .modal {
   background: var(--color-surface);
   border-radius: 10px;
-  box-shadow: 0 12px 40px rgb(45 6 6 / 0.2);
+  box-shadow: var(--shadow-modal);
   width: 100%;
   max-height: calc(100vh - 2rem);
   overflow-y: auto;
@@ -1006,7 +1271,7 @@ code {
 
 
 /* ==========================================================================
-   5. Auth (login / register)
+   6. Auth (login / register)
    ========================================================================== */
 
 .auth-page {
@@ -1112,7 +1377,7 @@ code {
 
 
 /* ==========================================================================
-   6. Pages
+   7. Pages
    ========================================================================== */
 
 /* ---------- Home ---------- */
@@ -1144,7 +1409,7 @@ code {
   border: var(--border-default) var(--color-border);
   border-radius: 12px;
   background: var(--color-surface);
-  box-shadow: 0 2px 8px rgb(45 6 6 / 0.06);
+  box-shadow: var(--shadow-tile);
   color: inherit;
   text-decoration: none;
   transition:
@@ -1296,7 +1561,7 @@ code {
 
 .home-recent__amount {
   white-space: nowrap;
-  color: #1a7f4b;
+  color: var(--color-positive);
   font-weight: 600;
 }
 
@@ -1335,7 +1600,8 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- Shared summary panels ---------- */
+/* ---------- Summary panels (shared by Inventory and the panel row) ---------- */
+
 .summary-panel {
   gap: 0.6rem;
 }
@@ -1345,11 +1611,6 @@ code {
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-}
-
-.summary-panel__header h2 {
-  margin: 0;
-  font-size: 1.05rem;
 }
 
 .summary-panel__context {
@@ -1426,8 +1687,6 @@ code {
   font-weight: 600;
 }
 
-/* ---------- Summary panels ---------- */
-
 .panel-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1438,7 +1697,7 @@ code {
 .panel-row .summary-panel {
   background: var(--color-surface);
   border-color: var(--color-border-chart);
-  box-shadow: 0 1px 3px rgb(45 6 6 / 0.08);
+  box-shadow: var(--shadow-card);
 }
 
 /* ---------- Analytics ---------- */
@@ -1469,7 +1728,7 @@ code {
   gap: 0.75rem;
   background: var(--color-surface);
   border-color: var(--color-border-chart);
-  box-shadow: 0 1px 3px rgb(45 6 6 / 0.08);
+  box-shadow: var(--shadow-card);
 }
 
 /*
@@ -1579,164 +1838,7 @@ code {
   font-style: italic;
 }
 
-
-/* ==========================================================================
-   7. SVG charts
-   ========================================================================== */
-
-.viz {
-  width: 100%;
-  height: auto;
-}
-
-.viz-grid {
-  stroke: var(--color-border);
-  stroke-width: 1;
-}
-
-.viz-axis {
-  stroke: var(--color-accent);
-  stroke-width: 1;
-}
-
-.viz-label {
-  fill: var(--color-muted);
-  font-size: 10px;
-}
-
-/* Bar-chart category and value labels are read, not just glanced at. */
-.viz-label--bar {
-  fill: var(--color-text);
-  font-size: 12px;
-}
-
-.viz-donut-label {
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.viz-legend {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  font-size: 0.78rem;
-  color: var(--color-muted);
-}
-
-.viz-legend li {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.viz-legend__swatch {
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 2px;
-  flex: none;
-}
-
-
-/* ==========================================================================
-   8. Responsive (<= 720px)
-   ========================================================================== */
-
-@media (max-width: 720px) {
-  /* Shell */
-  .app,
-  .app--sidebar-hidden {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    align-items: center;
-    gap: 1rem;
-    padding: 0.75rem 1rem;
-    overflow-x: auto;
-  }
-
-  .sidebar__nav {
-    flex-direction: row;
-    margin-block: 0;
-  }
-
-  .sidebar-show-container {
-    height: fit-content;
-    width: 100%;
-  }
-
-  /* In the phone top bar, the avatar sits at the far end instead of the bottom. */
-  .sidebar__account {
-    margin-left: auto;
-    flex-direction: row;
-    align-items: center;
-    flex-shrink: 0;
-  }
-
-  /* No room for the business name in a horizontal top bar; the logout icon stays. */
-  .sidebar__account-name {
-    display: none;
-  }
-
-  .sidebar__logout {
-    width: auto;
-    flex-shrink: 0;
-  }
-
-  /* Line items: stack each field full-width instead of squeezing them side by side. */
-  .sale-line,
-  .expense-line {
-    grid-template-columns: 1fr;
-    gap: 0.35rem;
-    padding-bottom: 0.75rem;
-    border-bottom: var(--border-default) var(--color-border);
-  }
-
-  .sale-line__index {
-    padding-bottom: 0;
-  }
-
-  .sale-line__field--total span {
-    text-align: left;
-  }
-
-  /* Inventory */
-  .inventory-panels {
-    grid-template-columns: 1fr;
-  }
-
-  /* Analytics: stacked one per row, so natural heights are fine again. */
-  .analytics-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .analytics-row,
-  .analytics-stats,
-  .analytics-donuts {
-    grid-template-columns: 1fr;
-  }
-
-  .analytics-row .analytics-card {
-    height: auto;
-  }
-
-  .analytics-card > .viz,
-  .analytics-donuts,
-  .analytics-donut-panel .analytics-donut {
-    flex: none;
-  }
-
-  .analytics-donut .viz {
-    width: 160px;
-    height: auto;
-  }
-}
-
-/* ---------- Settings ---------- */
+/* ---------- Settings: layout & tabs ---------- */
 
 .settings {
   display: flex;
@@ -1753,7 +1855,7 @@ code {
 
 .settings__tab {
   padding: 0.6rem 0.85rem;
-  border: 1px solid transparent;
+  border: var(--border-default) transparent;
   border-radius: var(--radius);
   color: inherit;
   text-decoration: none;
@@ -1789,6 +1891,26 @@ code {
   gap: 0.85rem;
 }
 
+/* The name of each thing you can edit on a Settings tab: big and bold so it's clear what it is. */
+.settings-section {
+  margin: 1.75rem 0 0;
+  padding-bottom: 0.35rem;
+  border-bottom: var(--border-default) var(--color-border);
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.settings-section:first-of-type {
+  margin-top: 0;
+}
+
+.settings-section--danger {
+  color: var(--color-danger);
+  border-bottom-color: var(--color-danger);
+}
+
+/* ---------- Settings: rows, forms & lists ---------- */
+
 .settings-row {
   display: flex;
   align-items: center;
@@ -1797,25 +1919,6 @@ code {
 
 .settings-row__label {
   flex: 0 0 10rem;
-}
-
-.settings-profile {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-/* On phones the tab list becomes a row above the content. */
-@media (max-width: 720px) {
-  .settings {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .settings__tabs {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
 }
 
 .settings-row__body {
@@ -1834,26 +1937,22 @@ code {
   flex: 1;
   min-width: 0;
   padding: 0.4rem 0.6rem;
-  border: 1px solid var(--color-border);
+  border: var(--border-default) var(--color-border);
   border-radius: var(--radius);
   font: inherit;
 }
 
+.settings-row__input--short {
+  flex: 0 0 6rem;
+  max-width: 6rem;
+}
+
+textarea.settings-row__input {
+  resize: vertical;
+}
+
 .settings-row__error {
   margin: 0.25rem 0 0 11rem;
-}
-
-/* The name of each thing you can edit on a Settings tab: big and bold so it's clear what it is. */
-.settings-section {
-  margin: 1.75rem 0 0;
-  padding-bottom: 0.35rem;
-  border-bottom: 1px solid var(--color-border);
-  font-size: 1.3rem;
-  font-weight: 700;
-}
-
-.settings-section:first-of-type {
-  margin-top: 0;
 }
 
 /* Several settings rows that belong to one form. */
@@ -1861,6 +1960,59 @@ code {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+}
+
+/* Add / rename / delete rows on the Preferences tab. */
+.settings-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* Devices and login history: one line each, label left, time right. */
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-list__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  padding: 0.5rem 0;
+  border-bottom: var(--border-default) var(--color-border);
+}
+
+.settings-list__item:last-child {
+  border-bottom: none;
+}
+
+.settings-list__detail {
+  margin-left: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.settings-badge {
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border: var(--border-default) var(--color-border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+/* ---------- Settings: profile & logo ---------- */
+
+.settings-profile {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .settings-profile .avatar {
@@ -1904,199 +2056,14 @@ code {
   object-fit: contain;
 }
 
-textarea.settings-row__input {
-  resize: vertical;
-}
-
-/* Devices and login history: one line each, label left, time right. */
-.settings-list {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.settings-list__item {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.25rem 1rem;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.settings-list__item:last-child {
-  border-bottom: none;
-}
-
-.settings-badge {
-  margin-left: 0.5rem;
-  padding: 0.1rem 0.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  font-size: 0.75rem;
-}
-
-.settings-section--danger {
-  color: var(--color-danger);
-  border-bottom-color: var(--color-danger);
-}
-
-/* Add / rename / delete rows on the Preferences tab. */
-.settings-inline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.settings-row__input--short {
-  flex: 0 0 6rem;
-  max-width: 6rem;
-}
-
-.settings-list__detail {
-  margin-left: 0.6rem;
-  font-size: 0.85rem;
-}
-
-/* ---------- Notifications: the bell, its panel, and the settings rows ---------- */
-
-/* The bell sits in the sidebar header next to the collapse arrow: icon only, count on top. */
-.sidebar__header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.15rem;
-}
-
-.sidebar__bell {
-  position: relative;
-  padding: 0.35rem;
-  border: none;
-  border-radius: var(--radius);
-  background: none;
-  color: var(--color-surface);
-  line-height: 0;
-  cursor: pointer;
-}
-
-.sidebar__bell:hover,
-.sidebar__bell[aria-expanded='true'] {
-  background: rgb(255 255 255 / 0.1);
-}
-
-.sidebar__bell svg {
-  width: 1.25rem;
-  height: 1.25rem;
-}
-
-.notification-badge {
-  position: absolute;
-  top: -0.1rem;
-  right: -0.15rem;
-  min-width: 1rem;
-  padding: 0 0.25rem;
-  border-radius: 999px;
-  background: var(--color-danger);
-  color: #fff;
-  font-size: 0.65rem;
-  font-weight: 700;
-  line-height: 1rem;
-  text-align: center;
-}
-
-/* Rendered into <body> (see NotificationBell), so it carries its own look. */
-.notification-panel {
-  position: fixed;
-  z-index: 1000;
-  width: min(22rem, calc(100vw - 1rem));
-  max-height: min(28rem, calc(100vh - 2rem));
-  display: flex;
-  flex-direction: column;
-  background: var(--color-surface);
-  color: var(--color-text);
-  border: 1px solid var(--color-border-chart);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgb(45 6 6 / 0.25);
-}
-
-.notification-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.7rem 0.9rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.notification-panel__empty {
-  margin: 0;
-  padding: 1.25rem 0.9rem;
-}
-
-.notification-panel__list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  overflow-y: auto;
-}
-
-.notification-panel__link {
-  padding: 0;
-  border: none;
-  background: none;
-  color: inherit;
-  font: inherit;
-  font-size: 0.85rem;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.notification-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.7rem 0.9rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.notification-item:last-child {
-  border-bottom: none;
-}
-
-.notification-item__body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.2rem;
-  font-size: 0.9rem;
-}
-
-.notification-item__dismiss {
-  padding: 0 0.35rem;
-  border: none;
-  background: none;
-  color: inherit;
-  font-size: 1.25rem;
-  line-height: 1;
-  opacity: 0.6;
-  cursor: pointer;
-}
-
-.notification-item__dismiss:hover {
-  opacity: 1;
-}
+/* ---------- Settings: notification toggles ---------- */
 
 .notify-row {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-default) var(--color-border);
 }
 
 .notify-row__toggle {
@@ -2132,115 +2099,8 @@ textarea.settings-row__input {
   margin: 0 0 0 1.65rem;
 }
 
-/* ---------- Appearance ----------
-   Settings > Appearance sets data-theme, data-accent, data-text-size and data-density on <html>
-   (hooks/useAppearance.tsx; index.html does it before first paint). Light and maroon are the
-   defaults above. */
+/* ---------- Settings: appearance controls ---------- */
 
-/* Dark theme: the same tokens, warm and low-glare. */
-:root[data-theme='dark'] {
-  --color-bg: linear-gradient(#1d1514 0%, #151010 100%);
-  --color-bg-solid: #1a1212;
-  --color-surface: #251b1a;
-  --color-surface-alt: #2f2321;
-  --color-border: #3f302d;
-  --color-border-chart: #6e5c57;
-  --color-border-strong: #9c8780;
-  --color-text: #f3e9e4;
-  --color-muted: #ab9a93;
-  --color-primary-text: #fff6f1;
-  --color-accent-text: #fff6f1;
-  --color-danger: #f0766b;
-  --color-danger-bg: #3b1714;
-  --color-placeholder: #7d6c66;
-  --color-highlight: #2f2321;
-  --color-positive: #52cf91;
-  --color-hover: rgb(255 255 255 / 0.07);
-  color-scheme: dark;
-}
-
-:root[data-theme='dark'] {
-  --color-primary: #9a3030;
-  --color-accent: #b84646;
-  --color-sidebar: #140707;
-  --color-secondary: #7d3333;
-}
-
-:root[data-accent='blue'] {
-  --color-primary: #1e3a6e;
-  --color-accent: #2a5db0;
-  --color-sidebar: #0e1f3d;
-  --color-secondary: #284b8a;
-}
-
-:root[data-theme='dark'][data-accent='blue'] {
-  --color-primary: #3d6fd1;
-  --color-accent: #5a8cf0;
-  --color-sidebar: #0a1426;
-  --color-secondary: #345fb0;
-}
-
-:root[data-accent='green'] {
-  --color-primary: #1f4d36;
-  --color-accent: #2f7a56;
-  --color-sidebar: #0e2a1d;
-  --color-secondary: #2b6446;
-}
-
-:root[data-theme='dark'][data-accent='green'] {
-  --color-primary: #2f8a5e;
-  --color-accent: #4fbf8b;
-  --color-sidebar: #09190f;
-  --color-secondary: #2f7c58;
-}
-
-:root[data-accent='purple'] {
-  --color-primary: #43296b;
-  --color-accent: #6a3fb0;
-  --color-sidebar: #231038;
-  --color-secondary: #55358a;
-}
-
-:root[data-theme='dark'][data-accent='purple'] {
-  --color-primary: #7a52c8;
-  --color-accent: #a583ee;
-  --color-sidebar: #130a20;
-  --color-secondary: #6e4aae;
-}
-
-:root[data-accent='teal'] {
-  --color-primary: #16505a;
-  --color-accent: #1f7c8a;
-  --color-sidebar: #0a2a30;
-  --color-secondary: #1d6572;
-}
-
-:root[data-theme='dark'][data-accent='teal'] {
-  --color-primary: #2a95a6;
-  --color-accent: #52c4d4;
-  --color-sidebar: #061a1e;
-  --color-secondary: #258392;
-}
-
-/* Text size: everything is in rem, so this scales the whole app. */
-:root[data-text-size='small'] {
-  font-size: 13px;
-}
-
-:root[data-text-size='large'] {
-  font-size: 16px;
-}
-
-/* Table density: row padding. */
-:root[data-density='compact'] {
-  --table-pad-y: 0.3rem;
-}
-
-:root[data-density='spacious'] {
-  --table-pad-y: 0.85rem;
-}
-
-/* Appearance tab controls. */
 .choice-group {
   display: flex;
   flex-wrap: wrap;
@@ -2249,7 +2109,7 @@ textarea.settings-row__input {
 
 .choice {
   padding: 0.4rem 0.85rem;
-  border: 1px solid var(--color-border);
+  border: var(--border-default) var(--color-border);
   border-radius: var(--radius);
   background: none;
   color: inherit;
@@ -2327,7 +2187,7 @@ textarea.settings-row__input {
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-default) var(--color-border);
 }
 
 .legal-page__brand {
@@ -2349,4 +2209,173 @@ textarea.settings-row__input {
 
 .legal-page__body h2 {
   margin-top: 1.75rem;
+}
+
+
+/* ==========================================================================
+   8. SVG charts
+   ========================================================================== */
+
+.viz {
+  width: 100%;
+  height: auto;
+}
+
+.viz-grid {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.viz-axis {
+  stroke: var(--color-accent);
+  stroke-width: 1;
+}
+
+.viz-label {
+  fill: var(--color-muted);
+  font-size: 10px;
+}
+
+/* Bar-chart category and value labels are read, not just glanced at. */
+.viz-label--bar {
+  fill: var(--color-text);
+  font-size: 12px;
+}
+
+.viz-donut-label {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.viz-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+.viz-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.viz-legend__swatch {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 2px;
+  flex: none;
+}
+
+
+/* ==========================================================================
+   9. Responsive (<= 720px)
+   ========================================================================== */
+
+@media (max-width: 720px) {
+  /* Shell */
+  .app,
+  .app--sidebar-hidden {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+  }
+
+  .sidebar__nav {
+    flex-direction: row;
+    margin-block: 0;
+  }
+
+  .sidebar-show-container {
+    height: fit-content;
+    width: 100%;
+  }
+
+  /* In the phone top bar, the avatar sits at the far end instead of the bottom. */
+  .sidebar__account {
+    margin-left: auto;
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  /* NOTE: these two predate the avatar-pill redesign and have no base rule any
+     more. Delete them if nothing in the markup still uses these classes. */
+  .sidebar__account-name {
+    display: none;
+  }
+
+  .sidebar__logout {
+    width: auto;
+    flex-shrink: 0;
+  }
+
+  /* Line items: stack each field full-width instead of squeezing them side by side. */
+  .sale-line,
+  .expense-line {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    padding-bottom: 0.75rem;
+    border-bottom: var(--border-default) var(--color-border);
+  }
+
+  .sale-line__index {
+    padding-bottom: 0;
+  }
+
+  .sale-line__field--total span {
+    text-align: left;
+  }
+
+  /* Inventory */
+  .inventory-panels {
+    grid-template-columns: 1fr;
+  }
+
+  /* Analytics: stacked one per row, so natural heights are fine again. */
+  .analytics-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .analytics-row,
+  .analytics-stats,
+  .analytics-donuts {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-row .analytics-card {
+    height: auto;
+  }
+
+  .analytics-card > .viz,
+  .analytics-donuts,
+  .analytics-donut-panel .analytics-donut {
+    flex: none;
+  }
+
+  .analytics-donut .viz {
+    width: 160px;
+    height: auto;
+  }
+
+  /* Settings: the tab list becomes a row above the content. */
+  .settings {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings__tabs {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
 }
