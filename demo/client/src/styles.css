@@ -1,34 +1,63 @@
-/* Design tokens — matches the maroon/cream Figma wireframe. Change colours here only. */
+/* ==========================================================================
+   Contents
+   1. Design tokens
+   2. Base
+   3. App shell (sidebar, content, page)
+   4. Shared components (buttons, toolbar, cards, tables, pagination,
+      modal, forms, line items, banners)
+   5. Auth
+   6. Pages: Home, Inventory, Summary panels, Analytics
+   7. SVG charts
+   8. Responsive (<= 720px)
+   ========================================================================== */
+
+
+/* ==========================================================================
+   1. Design tokens — matches the maroon/cream Figma wireframe.
+      Change colours here only.
+   ========================================================================== */
+
 :root {
+  /* Backgrounds & surfaces */
   --color-bg: linear-gradient(rgba(251, 245, 240, 1) 0%, rgba(255, 254, 254, 1) 100%);
   --color-bg-solid: #fbf7f3;
-  --color-surface: #FCF9F6;
+  --color-surface: #fcf9f6;
   --color-surface-alt: #efede6;
+
+  /* Borders (chart card outlines are dark enough to read as a clear edge) */
   --color-border: #e3d6d0;
-  /* Chart card outlines: dark enough to read as a clear edge. */
   --color-border-chart: #a89a94;
   --color-border-strong: #3a0d0d;
+
+  /* Text */
   --color-text: #2a0a0a;
   --color-muted: #7a6a66;
+
+  /* Sidebar */
   --color-sidebar: #2d0606;
   --color-sidebar-text: #f6eee6;
+
+  /* Brand */
   --color-primary: #4a1414;
-  --color-primary-text: #F4EFE5;
+  --color-primary-text: #f4efe5;
   --color-accent: #6b1111;
   --color-accent-text: #fbeee8;
+
+  /* Misc */
   --color-search: transparent;
   --color-danger: #b42318;
   --color-danger-bg: #fdecea;
-  --font-body: 'Inter',
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
+
+  /* Type */
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-header: 'Fraunces variable', serif;
+
+  /* Shape & layout */
   --radius: 6px;
   --sidebar-width: 220px;
   --sidebar-mini-width: 65px;
+
+  /* Document defaults */
   font-family: var(--font-body);
   color: var(--color-text);
   background: var(--color-bg);
@@ -37,6 +66,11 @@
   font-weight: 400;
   font-style: normal;
 }
+
+
+/* ==========================================================================
+   2. Base
+   ========================================================================== */
 
 * {
   box-sizing: border-box;
@@ -53,19 +87,20 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: 'Libre Caslon Text', serif;
-  font-weight: 500;
+  font-family: var(--font-header);
+  font-weight: 700;
   font-style: normal;
-}
-
-h1 + p { /* shrinks the subheader in home */
-  margin-top: 0;
-  margin-bottom: 0;
 }
 
 h1 {
   font-size: 1.5rem;
   margin: 0 0 0.25rem;
+}
+
+h1 + p {
+  /* shrinks the subheader on Home */
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 h2 {
@@ -83,13 +118,22 @@ code {
   color: var(--color-muted);
 }
 
-/* ---------- Layout ---------- */
+
+/* ==========================================================================
+   3. App shell
+   ========================================================================== */
 
 .app {
   display: grid;
   grid-template-columns: var(--sidebar-width) 1fr;
   height: 100vh;
 }
+
+.app--sidebar-hidden {
+  grid-template-columns: var(--sidebar-mini-width) 1fr;
+}
+
+/* ---------- Sidebar ---------- */
 
 .sidebar {
   background: var(--color-sidebar);
@@ -101,6 +145,12 @@ code {
   font-family: var(--font-header);
 }
 
+.sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .sidebar__logo {
   border: 1px solid var(--color-sidebar-text);
   border-radius: var(--radius);
@@ -108,6 +158,35 @@ code {
   text-align: center;
   font-weight: 600;
   font-size: 0.85rem;
+}
+
+.sidebar__toggle,
+.sidebar-show {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.sidebar__toggle {
+  color: var(--color-surface);
+}
+
+.sidebar-show {
+  margin-bottom: 0.5rem;
+}
+
+/* Collapsed sidebar strip */
+.sidebar-show-container {
+  padding: 15px;
+  height: 100%;
+  background: var(--color-sidebar);
+  width: var(--sidebar-mini-width);
+}
+
+.sidebar-show-container button {
+  color: var(--color-sidebar-text);
 }
 
 .sidebar__nav {
@@ -129,6 +208,10 @@ code {
 
 .sidebar__link:hover {
   background: rgb(255 255 255 / 0.08);
+}
+
+.sidebar__link.is-active {
+  border-color: var(--color-sidebar-text);
 }
 
 /* Pinned to the bottom of the sidebar, under the nav. */
@@ -156,51 +239,15 @@ code {
   cursor: pointer;
 }
 
-.sidebar__link.is-active {
-  border-color: var(--color-sidebar-text);
-}
-
-.sidebar__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.sidebar__toggle,
-.sidebar-show {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1.25rem;
-  padding: 0.25rem 0.5rem;
-}
-
-.sidebar-show {
-  margin-bottom: 0.5rem;
-}
-
-.sidebar-show-container {
-  padding: 15px;
-  height: 100%;
-  background: var(--color-sidebar);
-  width: var(--sidebar-mini-width);
-}
-
-.sidebar-show-container button {
-  color: var(--color-sidebar-text);
-}
-
-.sidebar__toggle {
-  color: var(--color-surface);
-}
-
-.app--sidebar-hidden {
-  grid-template-columns: var(--sidebar-mini-width) 1fr;
-}
+/* ---------- Content area ---------- */
 
 .content {
-  padding: 1.5rem 2rem;
   min-width: 0;
+  height: 100%;
+  overflow-y: scroll;
+  display: flex;
+  flex-direction: row;
+  padding: 0;
 }
 
 .page {
@@ -212,7 +259,12 @@ code {
   padding: 40px;
 }
 
-/* ---------- Toolbar ---------- */
+
+/* ==========================================================================
+   4. Shared components
+   ========================================================================== */
+
+/* ---------- Toolbar & search ---------- */
 
 .toolbar {
   display: flex;
@@ -321,6 +373,67 @@ code {
   cursor: pointer;
 }
 
+/* ---------- Cards & stat cards ---------- */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  color: inherit;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 1rem 1.1rem;
+  border-radius: 10px;
+}
+
+.stat-card__label {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.stat-card__value {
+  font-family: var(--font-header);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.stat-card__detail {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+
+/* Net profit style: deep red with cream text, as in the wireframe. */
+.stat-card--positive {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.stat-card--positive .stat-card__label,
+.stat-card--positive .stat-card__detail {
+  color: var(--color-accent-text);
+  opacity: 0.85;
+}
+
+/* Revenue / expenses style: warm beige with maroon text. */
+.stat-card--neutral {
+  background: var(--color-surface-alt);
+  color: var(--color-accent);
+}
+
+.stat-card--negative {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
 /* ---------- Table ---------- */
 
 .table-wrap {
@@ -352,8 +465,17 @@ code {
   vertical-align: middle;
 }
 
+.table .numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .table__row {
   cursor: pointer;
+}
+
+.table__row:hover {
+  background: var(--color-surface-alt);
 }
 
 .table__row:focus-visible {
@@ -368,15 +490,6 @@ code {
   white-space: nowrap;
 }
 
-.table__row:hover {
-  background: var(--color-surface-alt);
-}
-
-.table .numeric {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
 .table__check {
   width: 2rem;
 }
@@ -385,6 +498,30 @@ code {
   width: 4.5rem;
   text-align: center !important;
 }
+
+/* Sortable column headers look like the plain ones, plus a direction arrow. */
+.sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sort-button__arrow {
+  font-size: 0.7rem;
+  color: var(--color-muted);
+}
+
+.sort-button.is-active .sort-button__arrow {
+  color: var(--color-text);
+}
+
+/* ---------- Tags ---------- */
 
 .tag-list {
   display: flex;
@@ -402,6 +539,8 @@ code {
   padding: 0.05rem 0.45rem;
   border-radius: 4px;
 }
+
+/* ---------- Empty state ---------- */
 
 .empty-state {
   text-align: center;
@@ -491,11 +630,9 @@ code {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.1rem 1.25rem 0.6rem;
-  border-bottom: 1px solid var(--color-border-strong);
   margin: 0 1.25rem;
-  padding-left: 0;
-  padding-right: 0;
+  padding: 1.1rem 0 0.6rem;
+  border-bottom: 1px solid var(--color-border-strong);
 }
 
 .modal__body {
@@ -525,20 +662,16 @@ code {
   border-bottom: 1px solid var(--color-border);
 }
 
+.form-row:focus-within {
+  border-bottom-color: var(--color-border-strong);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .form-row label {
   font-weight: 600;
   padding-top: 0.15rem;
-}
-
-.form-row__static {
-  text-align: right;
-  color: var(--color-muted);
-}
-
-.form-row__control {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
 }
 
 .form-row input {
@@ -557,11 +690,15 @@ code {
   color: #bfaea8;
 }
 
-.form-row:focus-within {
-  border-bottom-color: var(--color-border-strong);
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-  border-radius: 2px;
+.form-row__static {
+  text-align: right;
+  color: var(--color-muted);
+}
+
+.form-row__control {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .form-row__reset {
@@ -624,6 +761,8 @@ code {
   resize: vertical;
 }
 
+/* ---------- Validation & banners ---------- */
+
 [aria-invalid='true'] {
   color: var(--color-danger);
 }
@@ -633,116 +772,26 @@ code {
   font-size: 0.8rem;
 }
 
+.required-marker {
+  color: var(--color-danger);
+}
+
 .form-error {
   color: var(--color-danger);
   margin: 0.75rem 0 0;
 }
 
-/* ---------- Auth (login / register) ---------- */
-
-.auth-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  background: var(--color-bg);
-}
-
-.auth-card {
-  width: 100%;
-  max-width: 380px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+.banner {
+  padding: 0.6rem 0.9rem;
   border-radius: var(--radius);
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
 }
 
-.auth-card__logo {
-  align-self: flex-start;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius);
-  padding: 0.4rem 0.7rem;
-  font-weight: 600;
-  font-size: 0.8rem;
-  margin-bottom: 0.25rem;
+.banner--error {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
 }
 
-.auth-card h1 {
-  font-size: 1.3rem;
-  margin: 0;
-}
-
-.auth-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.auth-field input {
-  font: inherit;
-  font-weight: 400;
-  padding: 0.5rem 0.6rem;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius);
-  background: var(--color-bg-solid);
-  color: var(--color-text);
-}
-
-.auth-field input:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 1px;
-}
-
-.auth-switch {
-  text-align: center;
-  font-size: 0.85rem;
-  color: var(--color-muted);
-  margin: 0;
-}
-
-.auth-switch a {
-  color: var(--color-primary);
-}
-
-.auth-loading {
-  padding: 2rem;
-}
-
-/* AUTH PW CONTROL */
-.auth-password-control {
-  position: relative;
-}
-
-.auth-password-control input {
-  width: 100%;
-  padding-right: 7.5rem;
-}
-
-.auth-password-toggle {
-  position: absolute;
-  top: 50%;
-  right: 0.5rem;
-  transform: translateY(-50%);
-  border: 0;
-  padding: 0.25rem;
-  background: transparent;
-  color: var(--color-primary);
-  font: inherit;
-  cursor: pointer;
-}
-
-.auth-password-toggle:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-/* ---------- Sale line items ---------- */
+/* ---------- Line items (sales & expenses) ---------- */
 
 .sale-lines {
   display: flex;
@@ -751,9 +800,22 @@ code {
   padding-top: 0.9rem;
 }
 
+.sale-lines__add {
+  align-self: flex-start;
+}
+
 .sale-line {
   display: grid;
   grid-template-columns: 1.25rem 1fr 4.5rem 6rem auto;
+  gap: 0.6rem;
+  align-items: end;
+}
+
+/* Expenses reuse .sale-line__field etc., with two extra columns
+   (Description, Unit cost) since a line can restock an item or be free-text. */
+.expense-line {
+  display: grid;
+  grid-template-columns: 1.25rem 1.3fr 1.3fr 4rem 5.5rem 6rem auto;
   gap: 0.6rem;
   align-items: end;
 }
@@ -798,29 +860,16 @@ code {
   color: var(--color-accent);
 }
 
+.expense-line .sale-line__field input:disabled {
+  color: var(--color-muted);
+  background: var(--color-surface-alt);
+}
+
 .sale-line__error {
   grid-column: 1 / -1;
   margin-top: -0.3rem;
   color: var(--color-danger);
   font-size: 0.8rem;
-}
-
-.sale-lines__add {
-  align-self: flex-start;
-}
-
-/* Expenses reuse .sale-line__field etc., just with two extra columns
-   (Description, Unit cost) since a line can restock an item or be free-text. */
-.expense-line {
-  display: grid;
-  grid-template-columns: 1.25rem 1.3fr 1.3fr 4rem 5.5rem 6rem auto;
-  gap: 0.6rem;
-  align-items: end;
-}
-
-.expense-line .sale-line__field input:disabled {
-  color: var(--color-muted);
-  background: var(--color-surface-alt);
 }
 
 .sale-total {
@@ -834,129 +883,116 @@ code {
   color: var(--color-accent);
 }
 
-.banner {
-  padding: 0.6rem 0.9rem;
-  border-radius: var(--radius);
-}
 
-.banner--error {
-  background: var(--color-danger-bg);
-  color: var(--color-danger);
-}
+/* ==========================================================================
+   5. Auth (login / register)
+   ========================================================================== */
 
-/* ---------- Inventory: table, stat, panels ---------- */
-
-.inventory-stat {
-  align-self: flex-start;
-  min-width: 260px;
-}
-
-/* About 15 rows tall, then the table scrolls inside itself with the header pinned. */
-.inventory-table {
-  max-height: calc(15 * 2.6rem + 2.8rem);
-  overflow-y: auto;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.inventory-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--color-bg-solid);
-}
-
-/* Sortable column headers look like the plain ones, plus a direction arrow. */
-.sort-button {
-  display: inline-flex;
+.auth-page {
+  min-height: 100vh;
+  display: flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0;
-  border: none;
-  background: none;
+  justify-content: center;
+  padding: 1.5rem;
+  background: var(--color-bg);
+}
+
+.auth-loading {
+  padding: 2rem;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.auth-card h1 {
+  font-size: 1.3rem;
+  margin: 0;
+}
+
+.auth-card__logo {
+  align-self: flex-start;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.7rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.auth-field input {
   font: inherit;
-  color: inherit;
-  cursor: pointer;
-}
-
-.sort-button__arrow {
-  font-size: 0.7rem;
-  color: var(--color-muted);
-}
-
-.sort-button.is-active .sort-button__arrow {
+  font-weight: 400;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-bg-solid);
   color: var(--color-text);
 }
 
-.inventory-panels {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-  align-items: start;
+.auth-field input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
 }
 
-.best-sellers__rank {
-  display: inline-block;
-  width: 1.5rem;
+.auth-password-control {
+  position: relative;
+}
+
+.auth-password-control input {
+  width: 100%;
+  padding-right: 7.5rem;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.5rem;
+  transform: translateY(-50%);
+  border: 0;
+  padding: 0.25rem;
+  background: transparent;
+  color: var(--color-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.auth-password-toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.auth-switch {
+  text-align: center;
+  font-size: 0.85rem;
   color: var(--color-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-@media (max-width: 720px) {
-  .inventory-panels {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ---------- Inventory: low stock panel ---------- */
-
-.low-stock {
-  gap: 0.6rem;
-}
-
-.low-stock__header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-/* Fixed height with its own scrollbar, so a long list doesn't push the page down. */
-.low-stock__list {
-  max-height: 240px;
-  overflow-y: auto;
   margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
-.low-stock__row {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid var(--color-border);
+.auth-switch a {
+  color: var(--color-primary);
 }
 
-.low-stock__row:last-child {
-  border-bottom: none;
-}
 
-.low-stock__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.low-stock__qty {
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-muted);
-}
-
-.low-stock__qty.is-out {
-  color: var(--color-danger);
-  font-weight: 600;
-}
+/* ==========================================================================
+   6. Pages
+   ========================================================================== */
 
 /* ---------- Home ---------- */
 
@@ -969,52 +1005,6 @@ code {
 
 .home-kpis__error {
   margin-top: 1rem;
-}
-
-.home-recent {
-  gap: 0.6rem;
-  margin-top: 1.5rem;
-}
-
-.home-recent__header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.home-recent__link {
-  color: var(--color-accent);
-  font-size: 0.85rem;
-}
-
-.home-recent__date {
-  white-space: nowrap;
-  color: var(--color-muted);
-}
-
-.home-recent__items {
-  /* One line per sale on desktop; long item names get cut with an ellipsis. */
-  max-width: 0;
-  width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.home-recent__amount {
-  white-space: nowrap;
-  color: #1a7f4b;
-  font-weight: 600;
-}
-
-.stat-card__detail {
-  color: var(--color-muted);
-  font-size: 0.8rem;
-}
-
-.stat-card__value {
-  font-family: var(--font-header);
 }
 
 .home-cards {
@@ -1152,16 +1142,210 @@ code {
   vertical-align: middle;
 }
 
-/* ---------- Shared card (Analytics panels reuse this) ---------- */
+.home-recent {
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+}
 
-.card {
+.home-recent__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.home-recent__link {
+  color: var(--color-accent);
+  font-size: 0.85rem;
+}
+
+.home-recent__date {
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+
+.home-recent__items {
+  /* One line per sale on desktop; long item names get cut with an ellipsis. */
+  max-width: 0;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-recent__amount {
+  white-space: nowrap;
+  color: #1a7f4b;
+  font-weight: 600;
+}
+
+/* ---------- Inventory ---------- */
+
+.inventory-stat {
+  align-self: flex-start;
+  min-width: 260px;
+}
+
+/* About 15 rows tall, then the table scrolls inside itself with the header pinned. */
+.inventory-table {
+  max-height: calc(15 * 2.6rem + 2.8rem);
+  overflow-y: auto;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.inventory-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-bg-solid);
+}
+
+.inventory-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.best-sellers__rank {
+  display: inline-block;
+  width: 1.5rem;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Low stock panel */
+.low-stock {
+  gap: 0.6rem;
+}
+
+.low-stock__toggle {
+  align-self: flex-start;
+}
+
+.low-stock__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* Fixed height with its own scrollbar, so a long list doesn't push the page down. */
+.low-stock__list {
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.low-stock__row {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--color-border);
+  list-style-type: none;
+}
+
+.low-stock__row:last-child {
+  border-bottom: none;
+}
+
+.low-stock__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.low-stock__qty {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+}
+
+.low-stock__qty.is-out {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+/* ---------- Summary panels (panel-row, glance, money split, stock value) ---------- */
+
+.panel-row {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.panel-row .card {
+  width: 50%;
+  background: var(--color-surface);
+  border-color: var(--color-border-chart);
+  box-shadow: 0 1px 3px rgb(45 6 6 / 0.08);
+}
+
+.glance {
+  display: flex;
+  justify-content: space-between;
+}
+
+.glance__item {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  padding: 1rem 1.1rem;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  color: inherit;
+  align-items: flex-start;
+}
+
+.glance__item dt {
+  font-weight: 600;
+}
+
+.glance__item dd {
+  margin: 0;
+  font-family: var(--font-header);
+  font-size: 15pt;
+  font-weight: 600;
+}
+
+.glance__item .dd-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+span.glance__note {
+  font-family: var(--font-body);
+  font-size: 9pt;
+  font-weight: 400;
+}
+
+.money-split {
+  padding: 0;
+}
+
+.money-split__row {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  list-style-type: none;
+}
+
+.stock-value {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: -webkit-fill-available;
+  gap: 0.25rem;
+  padding: 0.5rem 0.6rem;
+}
+
+.stock-value__amount {
+  font-family: var(--font-header);
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---------- Analytics ---------- */
@@ -1171,6 +1355,12 @@ code {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1.5rem;
+}
+
+.analytics-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
 }
 
 /* Each chart row is two equal columns; minmax(0, 1fr) lets SVGs shrink instead of overflowing. */
@@ -1187,13 +1377,6 @@ code {
   background: var(--color-surface);
   border-color: var(--color-border-chart);
   box-shadow: 0 1px 3px rgb(45 6 6 / 0.08);
-}
-
-.analytics-card__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
 }
 
 /*
@@ -1214,37 +1397,11 @@ code {
   min-height: 0;
 }
 
-/* Sales and Expenses donuts side by side, splitting the card's chart space. */
-.analytics-donuts {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: minmax(0, 1fr);
-  gap: 1rem;
-}
-
-.analytics-donut-panel {
+.analytics-card__header {
   display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  min-height: 0;
-}
-
-.analytics-donut-panel__title {
-  margin: 0;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--color-muted);
-}
-
-.analytics-donut-panel .analytics-donut {
-  flex: 1 1 0;
-  min-height: 0;
-}
-
-.analytics-donut .viz {
-  width: auto;
-  height: 100%;
-  max-width: 65%;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .analytics-card__footer {
@@ -1281,59 +1438,43 @@ code {
   background: var(--color-surface);
 }
 
-.analytics-stats {
+/* Sales and Expenses donuts side by side, splitting the card's chart space. */
+.analytics-donuts {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
   gap: 1rem;
 }
 
-.stat-card {
+.analytics-donut-panel {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  padding: 1rem 1.1rem;
-  border-radius: 10px;
-  flex: 1;
-  justify-content: center;
+  gap: 0.4rem;
+  min-height: 0;
 }
 
-/* Net profit style: deep red with cream text, as in the wireframe. */
-.stat-card--positive {
-  background: var(--color-accent);
-  color: var(--color-accent-text);
-}
-
-.stat-card--positive .stat-card__label,
-.stat-card--positive .stat-card__detail {
-  color: var(--color-accent-text);
-  opacity: 0.85;
-}
-
-/* Revenue / expenses style: warm beige with maroon text. */
-.stat-card--neutral {
-  background: var(--color-surface-alt);
-  color: var(--color-accent);
-}
-
-.stat-card--negative {
-  background: var(--color-danger-bg);
-  color: var(--color-danger);
-}
-
-.stat-card__label {
-  color: var(--color-muted);
+.analytics-donut-panel__title {
+  margin: 0;
   font-size: 0.85rem;
-}
-
-.stat-card__value {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: 600;
+  color: var(--color-muted);
 }
 
 .analytics-donut {
   display: flex;
   align-items: center;
   gap: 1.25rem;
+}
+
+.analytics-donut-panel .analytics-donut {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.analytics-donut .viz {
+  width: auto;
+  height: 100%;
+  max-width: 65%;
 }
 
 .analytics-insight {
@@ -1345,7 +1486,10 @@ code {
   font-style: italic;
 }
 
-/* ---------- SVG charts ---------- */
+
+/* ==========================================================================
+   7. SVG charts
+   ========================================================================== */
 
 .viz {
   width: 100%;
@@ -1402,23 +1546,19 @@ code {
   flex: none;
 }
 
-/* ---------- Small screens ---------- */
+
+/* ==========================================================================
+   8. Responsive (<= 720px)
+   ========================================================================== */
 
 @media (max-width: 720px) {
-  .app {
-    grid-template-columns: 1fr;
-  }
-
-  .content {
-    flex-direction: column;
-  }
-
+  /* Shell */
+  .app,
   .app--sidebar-hidden {
     grid-template-columns: 1fr;
   }
 
   .sidebar {
-    /* flex-direction: row; */
     align-items: center;
     gap: 1rem;
     padding: 0.75rem 1rem;
@@ -1430,7 +1570,7 @@ code {
   }
 
   .sidebar-show-container {
-    height:fit-content;
+    height: fit-content;
     width: 100%;
   }
 
@@ -1453,42 +1593,7 @@ code {
     flex-shrink: 0;
   }
 
-  .content {
-    padding: 1rem;
-  }
-
-  .analytics-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .analytics-row,
-  .analytics-stats {
-    grid-template-columns: 1fr;
-  }
-
-  /* Stacked one per row on phones, so natural heights are fine again. */
-  .analytics-row .analytics-card {
-    height: auto;
-  }
-
-  .analytics-card > .viz,
-  .analytics-donuts,
-  .analytics-donut-panel .analytics-donut {
-    flex: none;
-  }
-
-  .analytics-donuts {
-    grid-template-columns: 1fr;
-  }
-
-  .analytics-donut .viz {
-    width: 160px;
-    height: auto;
-  }
-
-  /* The sale/expense line grids are too narrow-column for the modal's mobile
-     width; stack each field full-width instead of squeezing them side by side. */
+  /* Line items: stack each field full-width instead of squeezing them side by side. */
   .sale-line,
   .expense-line {
     grid-template-columns: 1fr;
@@ -1504,93 +1609,36 @@ code {
   .sale-line__field--total span {
     text-align: left;
   }
-}
 
-/* --- SORT LATER --- */
+  /* Inventory */
+  .inventory-panels {
+    grid-template-columns: 1fr;
+  }
 
-.content {
-  height: 100%;
-  overflow-y: scroll;
-  display: flex;
-  flex-direction: row;
-  padding: 0;
-}
+  /* Analytics: stacked one per row, so natural heights are fine again. */
+  .analytics-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
 
-.panel-row {
-    display: flex;
-    gap: 0.75rem;
-    width: 100%;
-}
+  .analytics-row,
+  .analytics-stats,
+  .analytics-donuts {
+    grid-template-columns: 1fr;
+  }
 
-.panel-row .card {
-  background: var(--color-surface);
-  border-color: var(--color-border-chart);
-  box-shadow: 0 1px 3px rgb(45 6 6 / 0.08);
-  width: 50%;
-}
+  .analytics-row .analytics-card {
+    height: auto;
+  }
 
-.money-split {
-  padding: 0;
-}
+  .analytics-card > .viz,
+  .analytics-donuts,
+  .analytics-donut-panel .analytics-donut {
+    flex: none;
+  }
 
-.money-split__row, .low-stock__row {
-  list-style-type: none;
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.stock-value {
-  display: flex;
-  justify-content: space-between;
-}
-
-.glance__item {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.glance__item dt {
-  font-weight: 600;
-}
-
-.glance__item .dd-item {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.glance__item dd {
-  font-weight: 600;
-  font-size: 15pt;
-  font-family: var(--font-header);
-  margin: 0;
-}
-
-span.glance__note {
-  font-size: 9pt;
-  font-family: var(--font-body);
-  font-weight: 400;
-}
-
-.glance {
-  display: flex;
-  justify-content: space-between;
-}
-
-.stock-value {
-  /* re-add css from other */
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.5rem 0.6rem;
-}
-
-.stock-value__amount {
-  font-size: 1.75rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  font-family: var(--font-header);
+  .analytics-donut .viz {
+    width: 160px;
+    height: auto;
+  }
 }
