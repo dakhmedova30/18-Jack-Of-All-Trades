@@ -2264,8 +2264,22 @@ textarea.settings-row__input {
 }
 
 /* ==========================================================================
-   9. Responsive (<= 720px)
+   9. Responsive (<= 720px, <= 896px)
    ========================================================================== */
+
+@media (max-width: 896px) {
+  /* Settings: the tab list becomes a row above the content. */
+  .settings {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings__tabs {
+    flex-direction: row;
+    flex-wrap: wrap;
+    max-height: min-content;
+  }
+}
 
 @media (max-width: 720px) {
   /* Shell */
@@ -2357,16 +2371,5 @@ textarea.settings-row__input {
   .analytics-donut .viz {
     width: 160px;
     height: auto;
-  }
-
-  /* Settings: the tab list becomes a row above the content. */
-  .settings {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .settings__tabs {
-    flex-direction: row;
-    flex-wrap: wrap;
   }
 }
