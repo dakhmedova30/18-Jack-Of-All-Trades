@@ -1,0 +1,24 @@
+Team split
+(Other notes)
+US1, US2: 
+Basic stuff like CRUD (+ filter + sort) for D2
+Might add extra functionality for Sales + Inventory for complexity (?)
+Editing sales impacts inventory
+Sales from different sources
+…
+Define data structures and API contract first so teams can develop concurrently
+US1 (Sales)
+Goal: A user can log a sale with an amount, date, product, and sales channel.
+Minh - Frontend
+Jinuo - Backend
+US2 (Inventory)
+Goal: A business owner can log individual sales and sales channel to keep track of revenue source
+Allie - front end
+Diana - Backend
+US3 (formerly US5) (Analytics)
+Goal: A user can see charts showcasing the number of sales over time, and number of sales per item.
+Kimberly - front end
+Aidan - backend 
+Sign up
+Goal: A user can log in to see a dashboard with cards linking them to pages for sales (US1), inventory (US2), and analytics (US3)
+Hans
