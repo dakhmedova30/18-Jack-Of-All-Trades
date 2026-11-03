@@ -18,7 +18,10 @@ const COUNTRIES = ['Canada', 'United States', 'United Kingdom', 'Australia', 'Ot
 const CURRENCIES = ['CAD', 'USD', 'EUR', 'GBP', 'AUD'];
 
 /** Every IANA time zone the browser knows, with UTC first (the server's default). */
-const TIME_ZONES = ['UTC', ...Intl.supportedValuesOf('timeZone').filter((zone) => zone !== 'UTC')];
+// Guarded: Safari < 15.4 has no Intl.supportedValuesOf, and this runs at import time.
+const BROWSER_ZONES =
+  typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [];
+const TIME_ZONES = ['UTC', ...BROWSER_ZONES.filter((zone) => zone !== 'UTC')];
 
 function formatDate(iso: string | null): string {
   if (!iso) return 'Never';

@@ -8,6 +8,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Duration;
 import java.util.List;
 import org.springframework.http.CacheControl;
@@ -106,8 +108,9 @@ public class AuthController {
     /** Sets the profile picture. The body is the raw image (JPEG, PNG or WebP), up to 512 KB. */
     @PutMapping("/me/avatar")
     public BusinessResponse setAvatar(
-            @RequestBody byte[] data, @RequestHeader(value = "Content-Type", required = false) String contentType) {
-        return BusinessResponse.from(authService.setAvatar(currentBusiness.id(), contentType, data));
+            HttpServletRequest request, @RequestHeader(value = "Content-Type", required = false) String contentType)
+            throws IOException {
+        return BusinessResponse.from(authService.setAvatar(currentBusiness.id(), contentType, readImage(request)));
     }
 
     @DeleteMapping("/me/avatar")
@@ -125,8 +128,16 @@ public class AuthController {
     /** Sets the business logo, with the same rules as the profile picture. */
     @PutMapping("/me/logo")
     public BusinessResponse setLogo(
-            @RequestBody byte[] data, @RequestHeader(value = "Content-Type", required = false) String contentType) {
-        return BusinessResponse.from(authService.setLogo(currentBusiness.id(), contentType, data));
+            HttpServletRequest request, @RequestHeader(value = "Content-Type", required = false) String contentType)
+            throws IOException {
+        return BusinessResponse.from(authService.setLogo(currentBusiness.id(), contentType, readImage(request)));
+    }
+
+    /** Reads one byte past the size limit at most, so an oversized upload is rejected without buffering all of it. */
+    private static byte[] readImage(HttpServletRequest request) throws IOException {
+        try (InputStream in = request.getInputStream()) {
+            return in.readNBytes(AuthService.MAX_IMAGE_BYTES + 1);
+        }
     }
 
     @DeleteMapping("/me/logo")
@@ -150,10 +161,14 @@ public class AuthController {
                 .orElseThrow(() -> new NotFoundException(what, id));
     }
 
-    /** Changes the login email; needs the current password. */
+    /** Changes the login email; needs the current password. Logs out every other device, like a password change. */
     @PutMapping("/me/email")
-    public BusinessResponse changeEmail(@Valid @RequestBody ChangeEmailRequest body) {
-        return BusinessResponse.from(authService.changeEmail(currentBusiness.id(), body));
+    public BusinessResponse changeEmail(@Valid @RequestBody ChangeEmailRequest body, HttpServletRequest request) {
+        int id = currentBusiness.id();
+        Business business = authService.changeEmail(id, body);
+        HttpSession session = request.getSession(false);
+        accountSecurity.logOutOtherSessions(id, session == null ? null : session.getId());
+        return BusinessResponse.from(business);
     }
 
     /**

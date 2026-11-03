@@ -25,6 +25,12 @@ class AuthControllerTest extends PostgresTestBase {
                 """.formatted(email, password);
     }
 
+    private static String emailChange(String email, String currentPassword) {
+        return """
+                {"email": "%s", "currentPassword": "%s"}
+                """.formatted(email, currentPassword);
+    }
+
     @Test
     void registerReturnsTheBusinessAndASessionCookie() throws Exception {
         String email = uniqueEmail();
@@ -217,21 +223,21 @@ class AuthControllerTest extends PostgresTestBase {
         mockMvc.perform(put("/api/auth/me/email")
                         .cookie(cookie)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json(fresh, "wrong-password")))
+                        .content(emailChange(fresh, "wrong-password")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("Incorrect password"));
 
         mockMvc.perform(put("/api/auth/me/email")
                         .cookie(cookie)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json(taken, "correct-horse")))
+                        .content(emailChange(taken, "correct-horse")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("An account with that email already exists"));
 
         mockMvc.perform(put("/api/auth/me/email")
                         .cookie(cookie)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json(fresh, "correct-horse")))
+                        .content(emailChange(fresh, "correct-horse")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(fresh));
 
@@ -240,6 +246,26 @@ class AuthControllerTest extends PostgresTestBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(fresh, "correct-horse")))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void changingTheEmailLogsOutOtherDevices() throws Exception {
+        String email = uniqueEmail();
+        Cookie thisDevice = register("Test Business", email, "correct-horse");
+        Cookie otherDevice = sessionCookie(mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(email, "correct-horse")))
+                .andExpect(status().isOk())
+                .andReturn());
+
+        mockMvc.perform(put("/api/auth/me/email")
+                        .cookie(thisDevice)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(emailChange(uniqueEmail(), "correct-horse")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/auth/me").cookie(thisDevice)).andExpect(status().isOk());
+        mockMvc.perform(get("/api/auth/me").cookie(otherDevice)).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -285,6 +311,14 @@ class AuthControllerTest extends PostgresTestBase {
                         .cookie(cookie)
                         .contentType(MediaType.IMAGE_PNG)
                         .content(new byte[AuthService.MAX_IMAGE_BYTES + 1]))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("Image must be 512 KB or smaller"));
+
+        // Far past the limit is rejected the same way (only the first limit + 1 bytes are read).
+        mockMvc.perform(put("/api/auth/me/avatar")
+                        .cookie(cookie)
+                        .contentType(MediaType.IMAGE_PNG)
+                        .content(new byte[AuthService.MAX_IMAGE_BYTES * 4]))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("Image must be 512 KB or smaller"));
 
