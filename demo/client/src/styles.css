@@ -19,6 +19,14 @@
   --color-search: transparent;
   --color-danger: #b42318;
   --color-danger-bg: #fdecea;
+  --color-secondary: #5e2222;
+  --color-placeholder: #bfaea8;
+  --color-highlight: #f5e9e4;
+  --color-positive: #1a7f4b;
+  --color-hover: rgb(0 0 0 / 0.05);
+  /* Table row padding: Appearance > Table density changes this. */
+  --table-pad-y: 0.55rem;
+  color-scheme: light;
   --radius: 6px;
   --sidebar-width: 220px;
   --sidebar-mini-width: 65px;
@@ -93,58 +101,204 @@ code {
 }
 
 .sidebar__logo {
+  display: block;
   border: 1px solid var(--color-sidebar-text);
   border-radius: var(--radius);
   padding: 0.6rem;
   text-align: center;
   font-weight: 600;
   font-size: 0.85rem;
+  color: inherit;
+  text-decoration: none;
 }
 
+.sidebar__logo:hover {
+  background: rgb(255 255 255 / 0.08);
+}
+
+/* Auto margins above and below centre the links in the space between the header and the account button. */
 .sidebar__nav {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  margin-block: auto;
 }
 
 .sidebar__link {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0.65rem;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
   border: 1px solid transparent;
   border-radius: var(--radius);
+  font-size: 1.1rem;
   color: inherit;
   text-decoration: none;
+}
+
+.sidebar__link svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
 }
 
 .sidebar__link:hover {
   background: rgb(255 255 255 / 0.08);
 }
 
-/* Pinned to the bottom of the sidebar, under the nav. */
+/* The bottom of the sidebar: just the avatar button (its menu holds Settings, accounts, Log out). */
 .sidebar__account {
-  margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.35rem;
 }
 
-.sidebar__account-name {
-  padding: 0 0.65rem;
-  font-size: 0.85rem;
-  font-weight: 600;
+/* A pill: avatar, business name + email, and a "..." hint that it opens a menu. */
+.sidebar__avatar {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.75rem 0.5rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar__avatar:hover,
+.sidebar__avatar[aria-expanded='true'] {
+  background: rgb(255 255 255 / 0.08);
+}
+
+.sidebar__avatar-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.sidebar__avatar-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.sidebar__avatar-email {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.sidebar__avatar-name,
+.sidebar__avatar-email {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sidebar__logout {
-  width: 100%;
+.sidebar__avatar-more {
+  flex-shrink: 0;
+}
+
+.avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+/* Cream circle with dark initials, readable on the dark sidebar. */
+.avatar--initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-sidebar-text);
+  color: var(--color-sidebar);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+/* Rendered into <body> (see AccountMenu), so it's styled on its own, not as part of the sidebar. */
+.account-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 15rem;
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-chart);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgb(45 6 6 / 0.25);
+}
+
+.account-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.65rem;
+  border: none;
+  border-radius: 6px;
   background: none;
   font: inherit;
+  color: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.account-menu__item:hover,
+.account-menu__item:focus-visible {
+  background: var(--color-surface-alt);
+}
+
+.account-menu__item--disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.account-menu__item--disabled:hover {
+  background: none;
+}
+
+.account-menu__soon {
+  margin-left: auto;
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.account-menu__legal {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.65rem 0.2rem;
+  font-size: 0.78rem;
+}
+
+.account-menu__legal a {
+  color: var(--color-muted);
+  text-decoration: none;
+}
+
+.account-menu__legal a:hover,
+.account-menu__legal a:focus-visible {
+  text-decoration: underline;
+}
+
+.account-menu__divider {
+  height: 1px;
+  margin: 0.3rem 0.35rem;
+  background: var(--color-border);
 }
 
 .sidebar__link.is-active {
@@ -273,8 +427,8 @@ code {
 }
 
 .button--secondary {
-  background: #5e2222;
-  border-color: #5e2222;
+  background: var(--color-secondary);
+  border-color: var(--color-secondary);
 }
 
 .button--ghost {
@@ -332,13 +486,13 @@ code {
   text-align: left;
   font-family: 'Libre Caslon Text', serif;
   font-weight: 500;
-  padding: 0.5rem 0.6rem;
+  padding: calc(var(--table-pad-y) - 0.05rem) 0.6rem;
   border-bottom: 1px solid var(--color-border-strong);
   white-space: nowrap;
 }
 
 .table td {
-  padding: 0.55rem 0.6rem;
+  padding: var(--table-pad-y) 0.6rem;
   border-bottom: 1px solid var(--color-border);
   vertical-align: middle;
 }
@@ -545,7 +699,7 @@ code {
 
 .form-row input::placeholder,
 .form-stack textarea::placeholder {
-  color: #bfaea8;
+  color: var(--color-placeholder);
 }
 
 .form-row:focus-within {
@@ -791,7 +945,7 @@ code {
   justify-content: space-between;
   margin-top: 0.75rem;
   padding: 0.6rem 0.5rem 0.5rem;
-  background: #f5e9e4;
+  background: var(--color-highlight);
   border-top: 2px solid var(--color-border-strong);
   font-weight: 700;
   color: var(--color-accent);
@@ -972,7 +1126,7 @@ code {
 
 .home-recent__amount {
   white-space: nowrap;
-  color: #1a7f4b;
+  color: var(--color-positive);
   font-weight: 600;
 }
 
@@ -1390,29 +1544,32 @@ code {
 
   .sidebar__nav {
     flex-direction: row;
+    margin-block: 0;
   }
 
   .sidebar-show-container {
     width: 100%;
   }
 
-  /* In the phone top bar, sit at the far end instead of the bottom. */
+  /* In the phone top bar, the avatar sits at the far end instead of the bottom. */
   .sidebar__account {
-    margin-top: 0;
     margin-left: auto;
     flex-direction: row;
     align-items: center;
     flex-shrink: 0;
   }
 
-  /* No room for the business name in a horizontal top bar; the logout icon stays. */
-  .sidebar__account-name {
-    display: none;
+  /* No room for the name in the phone top bar: back to just the circle. */
+  .sidebar__avatar {
+    flex: none;
+    padding: 2px;
+    border-radius: 50%;
+    background: none;
   }
 
-  .sidebar__logout {
-    width: auto;
-    flex-shrink: 0;
+  .sidebar__avatar-text,
+  .sidebar__avatar-more {
+    display: none;
   }
 
   .content {
@@ -1531,4 +1688,619 @@ code {
   font-size: 1.75rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Settings ---------- */
+
+.settings {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+.settings__tabs {
+  flex: 0 0 12rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.settings__tab {
+  padding: 0.6rem 0.85rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: inherit;
+  text-decoration: none;
+}
+
+.settings__tab:hover {
+  background: var(--color-hover);
+}
+
+.settings__tab.active {
+  border-color: var(--color-border);
+  font-weight: 600;
+}
+
+/* The tab's name sits centred above its card, large, like a page title. */
+.settings__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.settings__title {
+  margin: 0;
+  text-align: center;
+  font-size: 2.25rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.settings__content {
+  gap: 0.85rem;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.settings-row__label {
+  flex: 0 0 10rem;
+}
+
+.settings-profile {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* On phones the tab list becomes a row above the content. */
+@media (max-width: 720px) {
+  .settings {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings__tabs {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+.settings-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.settings-row__value {
+  overflow-wrap: anywhere;
+}
+
+.settings-row__input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font: inherit;
+}
+
+.settings-row__error {
+  margin: 0.25rem 0 0 11rem;
+}
+
+/* The name of each thing you can edit on a Settings tab: big and bold so it's clear what it is. */
+.settings-section {
+  margin: 1.75rem 0 0;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.settings-section:first-of-type {
+  margin-top: 0;
+}
+
+/* Several settings rows that belong to one form. */
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.settings-profile .avatar {
+  width: 6rem;
+  height: 6rem;
+  font-size: 2rem;
+}
+
+.settings-profile__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.settings-profile__actions p {
+  margin: 0;
+}
+
+.settings-profile__buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* The logo keeps its shape, so it gets a box, not a circle. */
+.settings-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12rem;
+  height: 6rem;
+  flex-shrink: 0;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.settings-logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+textarea.settings-row__input {
+  resize: vertical;
+}
+
+/* Devices and login history: one line each, label left, time right. */
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-list__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settings-list__item:last-child {
+  border-bottom: none;
+}
+
+.settings-badge {
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+.settings-section--danger {
+  color: var(--color-danger);
+  border-bottom-color: var(--color-danger);
+}
+
+/* Add / rename / delete rows on the Preferences tab. */
+.settings-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.settings-row__input--short {
+  flex: 0 0 6rem;
+  max-width: 6rem;
+}
+
+.settings-list__detail {
+  margin-left: 0.6rem;
+  font-size: 0.85rem;
+}
+
+/* ---------- Notifications: the bell, its panel, and the settings rows ---------- */
+
+/* The bell sits in the sidebar header next to the collapse arrow: icon only, count on top. */
+.sidebar__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.sidebar__bell {
+  position: relative;
+  padding: 0.35rem;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--color-surface);
+  line-height: 0;
+  cursor: pointer;
+}
+
+.sidebar__bell:hover,
+.sidebar__bell[aria-expanded='true'] {
+  background: rgb(255 255 255 / 0.1);
+}
+
+.sidebar__bell svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -0.1rem;
+  right: -0.15rem;
+  min-width: 1rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1rem;
+  text-align: center;
+}
+
+/* Rendered into <body> (see NotificationBell), so it carries its own look. */
+.notification-panel {
+  position: fixed;
+  z-index: 1000;
+  width: min(22rem, calc(100vw - 1rem));
+  max-height: min(28rem, calc(100vh - 2rem));
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-chart);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgb(45 6 6 / 0.25);
+}
+
+.notification-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.notification-panel__empty {
+  margin: 0;
+  padding: 1.25rem 0.9rem;
+}
+
+.notification-panel__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.notification-panel__link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  font-size: 0.9rem;
+}
+
+.notification-item__dismiss {
+  padding: 0 0.35rem;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.notification-item__dismiss:hover {
+  opacity: 1;
+}
+
+.notify-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.notify-row__toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  cursor: pointer;
+}
+
+.notify-row__toggle input {
+  margin-top: 0.3rem;
+}
+
+.notify-row__text {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Each alert's name, matching the section headings on the other tabs. */
+.notify-row__text strong {
+  font-size: 1.15rem;
+}
+
+.notify-row__number {
+  margin-left: 1.65rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.notify-row__error {
+  margin: 0 0 0 1.65rem;
+}
+
+/* ---------- Appearance ----------
+   Settings > Appearance sets data-theme, data-accent, data-text-size and data-density on <html>
+   (hooks/useAppearance.tsx; index.html does it before first paint). Light and maroon are the
+   defaults above. */
+
+/* Dark theme: the same tokens, warm and low-glare. */
+:root[data-theme='dark'] {
+  --color-bg: linear-gradient(#1d1514 0%, #151010 100%);
+  --color-bg-solid: #1a1212;
+  --color-surface: #251b1a;
+  --color-surface-alt: #2f2321;
+  --color-border: #3f302d;
+  --color-border-chart: #6e5c57;
+  --color-border-strong: #9c8780;
+  --color-text: #f3e9e4;
+  --color-muted: #ab9a93;
+  --color-primary-text: #fff6f1;
+  --color-accent-text: #fff6f1;
+  --color-danger: #f0766b;
+  --color-danger-bg: #3b1714;
+  --color-placeholder: #7d6c66;
+  --color-highlight: #2f2321;
+  --color-positive: #52cf91;
+  --color-hover: rgb(255 255 255 / 0.07);
+  color-scheme: dark;
+}
+
+:root[data-theme='dark'] {
+  --color-primary: #9a3030;
+  --color-accent: #b84646;
+  --color-sidebar: #140707;
+  --color-secondary: #7d3333;
+}
+
+:root[data-accent='blue'] {
+  --color-primary: #1e3a6e;
+  --color-accent: #2a5db0;
+  --color-sidebar: #0e1f3d;
+  --color-secondary: #284b8a;
+}
+
+:root[data-theme='dark'][data-accent='blue'] {
+  --color-primary: #3d6fd1;
+  --color-accent: #5a8cf0;
+  --color-sidebar: #0a1426;
+  --color-secondary: #345fb0;
+}
+
+:root[data-accent='green'] {
+  --color-primary: #1f4d36;
+  --color-accent: #2f7a56;
+  --color-sidebar: #0e2a1d;
+  --color-secondary: #2b6446;
+}
+
+:root[data-theme='dark'][data-accent='green'] {
+  --color-primary: #2f8a5e;
+  --color-accent: #4fbf8b;
+  --color-sidebar: #09190f;
+  --color-secondary: #2f7c58;
+}
+
+:root[data-accent='purple'] {
+  --color-primary: #43296b;
+  --color-accent: #6a3fb0;
+  --color-sidebar: #231038;
+  --color-secondary: #55358a;
+}
+
+:root[data-theme='dark'][data-accent='purple'] {
+  --color-primary: #7a52c8;
+  --color-accent: #a583ee;
+  --color-sidebar: #130a20;
+  --color-secondary: #6e4aae;
+}
+
+:root[data-accent='teal'] {
+  --color-primary: #16505a;
+  --color-accent: #1f7c8a;
+  --color-sidebar: #0a2a30;
+  --color-secondary: #1d6572;
+}
+
+:root[data-theme='dark'][data-accent='teal'] {
+  --color-primary: #2a95a6;
+  --color-accent: #52c4d4;
+  --color-sidebar: #061a1e;
+  --color-secondary: #258392;
+}
+
+/* Text size: everything is in rem, so this scales the whole app. */
+:root[data-text-size='small'] {
+  font-size: 13px;
+}
+
+:root[data-text-size='large'] {
+  font-size: 16px;
+}
+
+/* Table density: row padding. */
+:root[data-density='compact'] {
+  --table-pad-y: 0.3rem;
+}
+
+:root[data-density='spacious'] {
+  --table-pad-y: 0.85rem;
+}
+
+/* Appearance tab controls. */
+.choice-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.choice {
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.choice:hover {
+  background: var(--color-hover);
+}
+
+.choice.is-selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.swatch-group {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.swatch {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  outline-offset: 2px;
+}
+
+.swatch.is-selected {
+  box-shadow:
+    0 0 0 2px var(--color-surface),
+    0 0 0 4px var(--color-text);
+}
+
+.appearance-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+}
+
+/* ---------- Help, Terms and Privacy ---------- */
+
+.help-page {
+  max-width: 44rem;
+}
+
+.help-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.help-item summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.help-item p {
+  margin: 0.6rem 0 0;
+}
+
+.legal-page {
+  min-height: 100vh;
+}
+
+.legal-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.legal-page__brand {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.legal-page__nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.legal-page__body {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.legal-page__body h2 {
+  margin-top: 1.75rem;
 }

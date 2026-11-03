@@ -7,6 +7,7 @@ import { TagList } from '../../components/TagList';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useInventoryInsights } from '../../hooks/useInventoryInsights';
 import { useItems } from '../../hooks/useItems';
+import { usePreferences } from '../../hooks/usePreferences';
 import { useLowStock } from '../../hooks/useLowStock';
 import type {
   InventoryInsights,
@@ -19,7 +20,6 @@ import type {
 import { formatCents } from '../../utils/money';
 import { ItemFormModal } from './ItemFormModal';
 
-const PAGE_SIZE = 15;
 /** The server's max; enough to list every low item for any realistic shop. */
 const LOW_STOCK_LIST_LIMIT = 100;
 
@@ -34,6 +34,7 @@ type FormState = { mode: 'create' } | { mode: 'edit'; item: Item } | null;
 type DeleteTarget = { kind: 'single'; item: Item } | { kind: 'bulk'; ids: number[] } | null;
 
 export function InventoryPage() {
+  const { preferences } = usePreferences();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [sort, setSort] = useState<{ field: ItemSortField; order: SortOrder }>({
@@ -46,7 +47,13 @@ export function InventoryPage() {
     error,
     loading,
     reload: reloadItems,
-  } = useItems({ page, pageSize: PAGE_SIZE, search, sort: sort.field, order: sort.order });
+  } = useItems({
+    page,
+    pageSize: preferences.rowsPerPage,
+    search,
+    sort: sort.field,
+    order: sort.order,
+  });
   const lowStock = useLowStock(LOW_STOCK_LIST_LIMIT);
   const insights = useInventoryInsights();
 
