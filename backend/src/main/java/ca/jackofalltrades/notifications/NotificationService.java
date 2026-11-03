@@ -153,13 +153,14 @@ public class NotificationService {
     // ---------------------------------------------------------------- sales
 
     private void noSalesAlert(int businessId, Instant accountCreatedAt, int days, List<NotificationAlert> out) {
-        Instant lastSale = jdbcClient.sql("SELECT MAX(sold_at) FROM sales WHERE business_id = :businessId")
+        Instant lastSale = jdbcClient.sql("""
+                        SELECT sold_at FROM sales WHERE business_id = :businessId
+                        ORDER BY sold_at DESC LIMIT 1
+                        """)
                 .param("businessId", businessId)
-                .query((rs, rowNum) -> {
-                    OffsetDateTime at = rs.getObject(1, OffsetDateTime.class);
-                    return at == null ? null : at.toInstant();
-                })
-                .single();
+                .query((rs, rowNum) -> rs.getObject(1, OffsetDateTime.class).toInstant())
+                .optional()
+                .orElse(null);
         Instant now = Instant.now();
         Instant cutoff = now.minus(Duration.ofDays(days));
 

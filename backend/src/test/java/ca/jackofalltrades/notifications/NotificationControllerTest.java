@@ -1,8 +1,10 @@
 package ca.jackofalltrades.notifications;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -54,8 +56,8 @@ class NotificationControllerTest extends PostgresTestBase {
 
     private void expense(Cookie cookie, Instant at, int costCents) throws Exception {
         mockMvc.perform(post("/api/expenses").cookie(cookie).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"incurredAt\": \"%s\", \"tags\": [\"supplier\"], \"items\": [{\"itemId\": null, "
-                                + "\"description\": \"Wax\", \"quantity\": 1, \"unitCostCents\": %d}]}"
+                        .content(("{\"incurredAt\": \"%s\", \"tags\": [\"supplier\"], \"items\": [{\"itemId\": null, "
+                                + "\"description\": \"Wax\", \"quantity\": 1, \"unitCostCents\": %d}]}")
                                 .formatted(at, costCents)))
                 .andExpect(status().isCreated());
     }
@@ -104,11 +106,11 @@ class NotificationControllerTest extends PostgresTestBase {
 
         mockMvc.perform(get("/api/notifications").cookie(cookie))
                 .andExpect(jsonPath("$[?(@.type == 'out-of-stock')].message", hasSize(1)))
-                .andExpect(jsonPath("$[?(@.type == 'out-of-stock')].message[0]", containsString("Empty Jar")))
-                .andExpect(jsonPath("$[?(@.type == 'low-stock')].message[0]", containsString("Candle (2)")))
-                .andExpect(jsonPath("$[?(@.type == 'low-stock')].message[0]", containsString("Soap (4)")))
-                .andExpect(jsonPath("$[?(@.type == 'low-stock')].message[0]",
-                        org.hamcrest.Matchers.not(containsString("Empty Jar"))));
+                .andExpect(jsonPath("$[?(@.type == 'out-of-stock')].message", contains(containsString("Empty Jar"))))
+                .andExpect(jsonPath("$[?(@.type == 'low-stock')].message", contains(containsString("Candle (2)"))))
+                .andExpect(jsonPath("$[?(@.type == 'low-stock')].message", contains(containsString("Soap (4)"))))
+                .andExpect(jsonPath("$[?(@.type == 'low-stock')].message",
+                        contains(not(containsString("Empty Jar")))));
 
         // Lowering the threshold to 1 drops Candle (2) and Soap (4); the empty jar is still out of stock.
         mockMvc.perform(patch("/api/auth/me").cookie(cookie).contentType(MediaType.APPLICATION_JSON)
@@ -133,7 +135,7 @@ class NotificationControllerTest extends PostgresTestBase {
 
         mockMvc.perform(get("/api/notifications").cookie(cookie))
                 .andExpect(jsonPath("$[?(@.type == 'no-sales')]", hasSize(1)))
-                .andExpect(jsonPath("$[?(@.type == 'no-sales')].link[0]").value("/sales"));
+                .andExpect(jsonPath("$[?(@.type == 'no-sales')].link", contains("/sales")));
 
         saveSettings(cookie, ALL_ON.formatted(30, 20));
         mockMvc.perform(get("/api/notifications").cookie(cookie))
@@ -155,7 +157,7 @@ class NotificationControllerTest extends PostgresTestBase {
         // 30% above last month: past the default 20%.
         mockMvc.perform(get("/api/notifications").cookie(cookie))
                 .andExpect(jsonPath("$[?(@.type == 'expense-spike')]", hasSize(1)))
-                .andExpect(jsonPath("$[?(@.type == 'expense-spike')].message[0]", containsString("30%")));
+                .andExpect(jsonPath("$[?(@.type == 'expense-spike')].message", contains(containsString("30%"))));
 
         saveSettings(cookie, ALL_ON.formatted(3, 50));
         mockMvc.perform(get("/api/notifications").cookie(cookie))
@@ -180,7 +182,7 @@ class NotificationControllerTest extends PostgresTestBase {
 
         mockMvc.perform(get("/api/notifications").cookie(first).header("User-Agent", "First Browser"))
                 .andExpect(jsonPath("$[?(@.type == 'new-device')]", hasSize(1)))
-                .andExpect(jsonPath("$[?(@.type == 'new-device')].userAgent[0]").value("Second Browser"));
+                .andExpect(jsonPath("$[?(@.type == 'new-device')].userAgent", contains("Second Browser")));
         // The new device itself isn't told about itself.
         mockMvc.perform(get("/api/notifications").cookie(first).header("User-Agent", "Second Browser"))
                 .andExpect(jsonPath("$[?(@.type == 'new-device')]", empty()));
