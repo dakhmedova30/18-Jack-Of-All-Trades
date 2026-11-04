@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Public profiles (contract §6.1). Unlike every other service, the business comes from the
+ * Public profiles (contract §2.2). Unlike every other service, the business comes from the
  * link's slug, not CurrentBusiness: there is no login. A business with no slug has no profile,
  * so an unknown slug and a turned-off profile give the same 404.
  */

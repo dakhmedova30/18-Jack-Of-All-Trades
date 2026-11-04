@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Public profile endpoints (contract §6.1). Under /api/public/**, which SecurityConfig lets anyone read. */
+/** Public profile endpoints (contract §2.2). Under /api/public/**, which SecurityConfig lets anyone read. */
 @RestController
 @RequestMapping("/api/public/businesses/{slug}")
 public class PublicProfileController {

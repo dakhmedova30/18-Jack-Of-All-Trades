@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.ResultActions;
 
-/** Contract §6.1: the public business profile, and the owner's settings behind it. */
+/** Contract §2.2: the public business profile, and the owner's settings behind it. */
 class PublicProfileTest extends PostgresTestBase {
 
     /** A slug no other test uses, so tests stay independent on the shared database. */
