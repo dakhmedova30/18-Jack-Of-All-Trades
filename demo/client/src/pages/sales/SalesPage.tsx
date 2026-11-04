@@ -122,7 +122,15 @@ export function SalesPage() {
 
   return (
     <section className="page">
-      <h1>Sales</h1>
+      <div>
+        <h1>Sales</h1>
+        <p className="muted">A recap of sales made over the chosen date range.</p>
+      </div>
+
+      <div className="panel-row">
+        <MonthGlancePanel {...monthSummary} />
+        <BestSellersPanel {...insights} />
+      </div>
       <div className="toolbar">
         <div className="toolbar__actions">
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
@@ -270,11 +278,6 @@ export function SalesPage() {
       </div>
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}
-
-      <div className="panel-row">
-        <MonthGlancePanel {...monthSummary} />
-        <BestSellersPanel {...insights} />
-      </div>
 
       {formState && (
         <SaleFormModal

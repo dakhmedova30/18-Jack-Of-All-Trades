@@ -9,7 +9,13 @@ import { DescriptionRow } from '../../components/DescriptionRow';
 import { SelectWithAddRow } from '../../components/SelectWithAddRow';
 import { dateInputValueToIso, isoToDateInputValue } from '../../utils/date';
 import { describeLines } from '../../utils/describeLines';
-import { centsToInputValue, formatCents, parseDollarsToCents } from '../../utils/money';
+import {
+  centsToInputValue,
+  formatCents,
+  MAX_AMOUNT_CENTS,
+  MAX_AMOUNT_DISPLAY,
+  parseDollarsToCents,
+} from '../../utils/money';
 import type { Expense, ExpenseInput, Item } from '../../types';
 
 interface ExpenseFormModalProps {
@@ -149,6 +155,8 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
         errors[line.key] = 'Enter a whole number, 1 or more';
       } else if (unitCostCents === null) {
         errors[line.key] = 'Enter a cost like 5 or 5.99';
+      } else if (unitCostCents < 0 || unitCostCents > MAX_AMOUNT_CENTS) {
+        errors[line.key] = `Cost must be between 0.00 and ${MAX_AMOUNT_DISPLAY}`;
       }
 
       return {
@@ -244,7 +252,15 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
                   </div>
 
                   <div className="sale-line__field">
-                    <label htmlFor={`${line.key}-description`}>Description</label>
+                    <label htmlFor={`${line.key}-description`}>
+                      Description
+                      {isFreeText && (
+                        <span className="required-marker" aria-hidden="true">
+                          {' '}
+                          *
+                        </span>
+                      )}
+                    </label>
                     <input
                       id={`${line.key}-description`}
                       value={
@@ -262,7 +278,13 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
                   </div>
 
                   <div className="sale-line__field sale-line__field--qty">
-                    <label htmlFor={`${line.key}-qty`}>Qty</label>
+                    <label htmlFor={`${line.key}-qty`}>
+                      Qty
+                      <span className="required-marker" aria-hidden="true">
+                        {' '}
+                        *
+                      </span>
+                    </label>
                     <input
                       id={`${line.key}-qty`}
                       value={line.quantity}
@@ -273,7 +295,16 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
                   </div>
 
                   <div className="sale-line__field sale-line__field--qty">
-                    <label htmlFor={`${line.key}-cost`}>Unit cost</label>
+                    <label htmlFor={`${line.key}-cost`}>
+                      <span>
+                        Unit cost
+                        <span className="required-marker" aria-hidden="true">
+                          {' '}
+                          *
+                        </span>
+                      </span>
+                      <span className="field-label__hint">{`0.00–${MAX_AMOUNT_DISPLAY}`}</span>
+                    </label>
                     <input
                       id={`${line.key}-cost`}
                       value={line.unitCost}
@@ -323,7 +354,13 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
         </div>
 
         <div className="form-row">
-          <label htmlFor="expense-date">Date</label>
+          <label htmlFor="expense-date">
+            Date
+            <span className="required-marker" aria-hidden="true">
+              {' '}
+              *
+            </span>
+          </label>
           <div className="form-row__control">
             <input
               id="expense-date"
@@ -342,6 +379,7 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
         <SelectWithAddRow
           id="expense-tag"
           label="Tag"
+          required
           noun="tag"
           options={tagOptions?.map((name) => ({ value: name, label: name })) ?? null}
           loadError={tagsError}

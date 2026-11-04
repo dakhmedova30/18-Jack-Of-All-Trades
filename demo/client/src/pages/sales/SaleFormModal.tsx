@@ -203,7 +203,13 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
                   <span className="sale-line__index">{index + 1}</span>
 
                   <div className="sale-line__field">
-                    <label htmlFor={`${line.key}-item`}>Item</label>
+                    <label htmlFor={`${line.key}-item`}>
+                      Item
+                      <span className="required-marker" aria-hidden="true">
+                        {' '}
+                        *
+                      </span>
+                    </label>
                     <select
                       id={`${line.key}-item`}
                       value={line.itemId}
@@ -221,7 +227,13 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
                   </div>
 
                   <div className="sale-line__field sale-line__field--qty">
-                    <label htmlFor={`${line.key}-qty`}>Qty</label>
+                    <label htmlFor={`${line.key}-qty`}>
+                      Qty
+                      <span className="required-marker" aria-hidden="true">
+                        {' '}
+                        *
+                      </span>
+                    </label>
                     <input
                       id={`${line.key}-qty`}
                       value={line.quantity}
@@ -270,7 +282,13 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
         </div>
 
         <div className="form-row">
-          <label htmlFor="sale-date">Date</label>
+          <label htmlFor="sale-date">
+            Date
+            <span className="required-marker" aria-hidden="true">
+              {' '}
+              *
+            </span>
+          </label>
           <div className="form-row__control">
             <input
               id="sale-date"
@@ -289,6 +307,7 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
         <SelectWithAddRow
           id="sale-channel"
           label="Channel"
+          required
           noun="channel"
           options={
             channels?.map((channel) => ({ value: String(channel.id), label: channel.name })) ?? null

@@ -30,6 +30,10 @@ function RedirectIfAuthed() {
   return <Outlet />;
 }
 
+// Imports required fonts
+import '@fontsource-variable/fraunces';
+import '@fontsource-variable/inter';
+
 export function App() {
   return (
     <Routes>

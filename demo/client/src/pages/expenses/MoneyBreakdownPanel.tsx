@@ -1,5 +1,6 @@
 import type { ExpenseMonthBreakdown } from '../../types';
 import { formatCents } from '../../utils/money';
+import { SummaryPanel } from '../../components/SummaryPanel';
 
 export interface MoneyBreakdownPanelProps {
   data?: ExpenseMonthBreakdown;
@@ -8,38 +9,23 @@ export interface MoneyBreakdownPanelProps {
   reload: () => void;
 }
 
-/** This month's spending split into restocks (inventory) vs running costs, as bars. */
+/** This month's spending split into restocks (inventory) vs running costs. */
 export function MoneyBreakdownPanel({ data, error, loading, reload }: MoneyBreakdownPanelProps) {
   const month = data
     ? new Date(data.periodStart).toLocaleDateString('en-CA', { month: 'long', timeZone: 'UTC' })
     : '';
   const rows = data
     ? [
-        {
-          key: 'restock',
-          label: 'Restock (inventory)',
-          hint: 'Lines linked to an inventory item',
-          cents: data.restockCents,
-        },
-        {
-          key: 'running',
-          label: 'Running costs',
-          hint: 'Rent, fees, supplies and other free-text lines',
-          cents: data.runningCents,
-        },
+        { key: 'restock', label: 'Restock (inventory)', cents: data.restockCents },
+        { key: 'running', label: 'Running costs', cents: data.runningCents },
       ]
     : [];
 
   return (
-    <div className="card low-stock">
-      <div className="low-stock__header">
-        <h2>Where the money goes</h2>
-        {data && (
-          <span className="muted">
-            {month} · {formatCents(data.totalCents)} total
-          </span>
-        )}
-      </div>
+    <SummaryPanel
+      title="Where the money goes"
+      context={data && `${month} · ${formatCents(data.totalCents)} total`}
+    >
       {error ? (
         <div className="banner banner--error" role="alert">
           Couldn't load this month's spending: {error}{' '}
@@ -52,19 +38,13 @@ export function MoneyBreakdownPanel({ data, error, loading, reload }: MoneyBreak
       ) : data.totalCents === 0 ? (
         <p className="empty-state">No expenses yet this month.</p>
       ) : (
-        <ul className="money-split">
-          {rows.map(({ key, label, hint, cents }) => {
+        <ul className="summary-panel__list">
+          {rows.map(({ key, label, cents }) => {
             const percent = Math.round((cents / data.totalCents) * 100);
             return (
-              <li key={key} className="money-split__row" title={hint}>
-                <span className="money-split__label">{label}</span>
-                <span className="money-split__track">
-                  <span
-                    className={`money-split__fill money-split__fill--${key}`}
-                    style={{ width: `${(cents / data.totalCents) * 100}%` }}
-                  />
-                </span>
-                <span className="money-split__value">
+              <li key={key} className="summary-panel__row">
+                <span className="summary-panel__name">{label}</span>
+                <span className="summary-panel__detail">
                   {formatCents(cents)} · {percent}%
                 </span>
               </li>
@@ -72,6 +52,6 @@ export function MoneyBreakdownPanel({ data, error, loading, reload }: MoneyBreak
           })}
         </ul>
       )}
-    </div>
+    </SummaryPanel>
   );
 }
