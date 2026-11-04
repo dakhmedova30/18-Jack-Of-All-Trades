@@ -12,8 +12,7 @@
  * Inventory Dashboard: Allows business owners to add and update inventory items.
  * Expenses Dashboard: Allows business owners to record costs, including restocking inventory.
  * Analytics Dashboard: Displays performance indicators for the business.
- * Business Profile Dashboard: Allows businesses to list their products.
- * Customer Dashboard: Allows customers to view vendors registered on the platform and make purchases.
+ * Public Business Profile: Gives each business a shareable page (`/p/your-shop`) where customers can see its details and the products it chooses to show, with no account needed.
 ​
 ## Instructions
 
@@ -22,9 +21,8 @@
      * Inventory Dashboard: Click the "Add Item" button to add an item, set prices, and set stock count.
      * Expenses Dashboard: Click "Add" to record an expense. Set a date and tags, then add one or more lines; each line either restocks an inventory item (pick it, and its stock goes up by the quantity) or is a free-text cost like "Rent" with no stock effect. Recording, editing or deleting an expense keeps inventory stock in sync automatically.
      * Analytics Dashboard: View real revenue, expenses and net profit, computed from your sales and expenses. Revenue, expenses and sales group by each record's first tag (top 3, the rest folded into "Other"); "Show by" (Weekly / Month / Year to date / 12 months) sets the time range for all three charts together.
-     * Business Profile Dashboard: Set up a public profile for customers to see.
- * Customers: Register a customer account.
-     * Can browse and look up available businesses and make purchases. 
+     * Public Business Profile: In Settings > Profile, scroll to "Public profile", type a link name (e.g. `demo-shop`) and click "Turn on". Then edit inventory items and tick "Show on my public profile" (public items get a "Public" marker in the table). Click "View profile" or "Copy link" to see and share the page. Email, phone, street address and stock counts are never shown publicly, only "In stock" or "Sold out". "Turn off" hides the page again.
+ * Customers: No account needed. Open a business's link (e.g. `/p/demo-shop`) to see its description, location, links and products with prices and availability. Ordering through the platform is planned for later.
  
 ## Development Requirements
 
@@ -146,7 +144,7 @@ See [`docs/api-contracts.md`](docs/api-contracts.md) for the authoritative, endp
 
 All error responses share one shape: `{ "error": { "message": string, "details"?: [{ "field", "message" }] } }`. Money is always sent as integer cents.
 
-Every route except `/api/health` and `/api/auth/*` requires a logged-in session
+Every route except `/api/health`, `/api/auth/*` and the read-only `/api/public/*` requires a logged-in session
 (a cookie set by register/login) and returns 401 without one. Items, sales,
 expenses, channels, expense tags and analytics are all scoped to the logged-in
 business: one business can never see or modify another's data, even by
@@ -178,6 +176,8 @@ guessing an id in the URL.
 | DELETE | `/api/expenses/:id`         | Delete an expense (undoes any restock)        |
 | POST   | `/api/expenses/bulk-delete` | Delete several expenses (`{ "ids": [1, 2] }`) |
 | GET    | `/api/analytics/summary`    | Dashboard totals and charts (`range`, default `12months`) |
+| GET    | `/api/public/businesses/:slug`      | A business's public profile and public items (**no login needed**) |
+| GET    | `/api/public/businesses/:slug/logo` | That business's logo (**no login needed**)                   |
 
 A sale is one transaction: a date, optional tags, and one or more line items
 (`{ itemId, quantity }`). Each line's unit price is snapshotted from the item at
