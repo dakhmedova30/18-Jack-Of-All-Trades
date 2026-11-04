@@ -300,11 +300,6 @@ export function ExpensesPage() {
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}
 
-      {/* <div className="panel-row">
-        <MoneyBreakdownPanel {...breakdown} />
-        <TopRestockPanel {...breakdown} />
-      </div> */}
-
       {formState && (
         <ExpenseFormModal
           expense={formState.mode === 'edit' ? formState.expense : undefined}

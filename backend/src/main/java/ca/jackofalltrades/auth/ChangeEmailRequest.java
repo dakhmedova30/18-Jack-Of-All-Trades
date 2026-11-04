@@ -14,7 +14,6 @@ public record ChangeEmailRequest(
         @Size(max = 255, message = "Email must be at most 255 characters")
         String email,
 
-        @JsonAlias("password")
         @NotNull(message = "Enter your current password")
         String currentPassword) {
 

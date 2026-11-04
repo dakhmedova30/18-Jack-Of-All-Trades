@@ -279,11 +279,6 @@ export function SalesPage() {
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}
 
-      {/* <div className="panel-row">
-        <MonthGlancePanel {...monthSummary} />
-        <BestSellersPanel {...insights} />
-      </div> */}
-
       {formState && (
         <SaleFormModal
           sale={formState.mode === 'edit' ? formState.sale : undefined}

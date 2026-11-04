@@ -73,7 +73,7 @@
   --shadow-modal: 0 12px 40px hsl(var(--hue) 80% 10% / 0.2);
 
   /* Type */
-  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-header: 'Fraunces variable', serif;
 
   /* Shape & layout */
@@ -293,6 +293,7 @@ code {
   flex-direction: column;
   gap: 2rem;
   font-family: var(--font-header);
+  z-index: 99;
 }
 
 .sidebar__header {
@@ -441,6 +442,7 @@ code {
 }
 
 /* Rendered into <body> (see AccountMenu), so it's styled on its own, not as part of the sidebar. */
+
 .account-menu {
   position: fixed;
   z-index: 1000;
@@ -468,6 +470,21 @@ code {
   text-align: left;
   cursor: pointer;
 }
+
+.account-menu__item--disabled { opacity: 0.6; cursor: default; }
+.account-menu__item--disabled:hover { background: none; }
+.account-menu__soon {
+  margin-left: auto; padding: 0.05rem 0.45rem; border: 1px solid var(--color-border);
+  border-radius: 999px; font-size: 0.7rem; white-space: nowrap;
+}
+.account-menu__legal {
+  display: flex; justify-content: center; gap: 0.5rem;
+  padding: 0.4rem 0.65rem 0.2rem; font-size: 0.78rem;
+}
+.account-menu__legal a { color: var(--color-muted); text-decoration: none; }
+.account-menu__legal a:hover,
+.account-menu__legal a:focus-visible { text-decoration: underline; }
+.account-menu__divider { height: 1px; margin: 0.3rem 0.35rem; background: var(--color-border); }
 
 /* ---------- Notifications: the bell and its panel ---------- */
 
@@ -1579,13 +1596,6 @@ code {
   background: var(--color-bg-solid);
 }
 
-.inventory-panels {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-  align-items: start;
-}
-
 .best-sellers__rank {
   display: inline-block;
   width: 1.5rem;
@@ -2293,10 +2303,12 @@ textarea.settings-row__input {
     gap: 1rem;
     padding: 0.75rem 1rem;
     overflow-x: auto;
+    height: fit-content;
   }
 
   .sidebar__nav {
     flex-direction: row;
+    flex-wrap: wrap;
     margin-block: 0;
   }
 
@@ -2371,5 +2383,10 @@ textarea.settings-row__input {
   .analytics-donut .viz {
     width: 160px;
     height: auto;
+  }
+
+  /* Panel row stacking */
+  .panel-row {
+    grid-template-columns: 1fr;
   }
 }

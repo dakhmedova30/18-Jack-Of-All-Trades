@@ -289,11 +289,6 @@ export function InventoryPage() {
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}
 
-      {/* <div className="panel-row">
-        <StockValuePanel {...insights} />
-        <LowStockPanel {...lowStock} />
-      </div> */}
-
       {formState && (
         <ItemFormModal
           item={formState.mode === 'edit' ? formState.item : undefined}
