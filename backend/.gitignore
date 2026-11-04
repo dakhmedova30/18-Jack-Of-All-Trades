@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Environment ###
+# Real credentials go in .env (never committed); .env.example is the template.
+.env
+.env.*
+!.env.example

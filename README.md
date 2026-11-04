@@ -59,7 +59,7 @@ cd backend && SPRING_PROFILES_ACTIVE=demo ./mvnw spring-boot:run
 cd demo && npm install && npm run dev -w client   # web app on http://localhost:5173
 ```
 
-No Docker? Point the backend at any hosted Postgres instead by setting `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD` (see [Configuration](#configuration)) before `./mvnw spring-boot:run`. Flyway creates the schema automatically on first connect either way.
+No Docker? Point the backend at any hosted Postgres instead by setting `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD` (copy `backend/.env.example`; see [Configuration](#configuration)) before `./mvnw spring-boot:run`. Flyway creates the schema automatically on first connect either way.
 
 The app requires a login. Register your own business account on first run, or log in as the seeded demo account:
 
@@ -200,7 +200,24 @@ scoped to it, so changing it moves the whole page together.
 
 ### Configuration
 
-Set these as environment variables (a `.env` file isn't read automatically; export them, or use your IDE's run configuration). Without them, `backend/src/main/resources/application.yml` defaults to the local Docker Postgres from `docker compose up -d`.
+Every variable is optional. Without any of them, `backend/src/main/resources/application.yml` defaults to the local Docker Postgres from `docker compose up -d`, so the [Setup](#setup) steps work as-is.
+
+Templates with every variable and a comment for each are committed as `backend/.env.example` and `demo/client/.env.example`. To use them, copy each to `.env` next to it and fill in real values. Both `.env` files are gitignored; **never commit real credentials**, and never put them in the `.env.example` files.
+
+```bash
+cp backend/.env.example backend/.env
+cp demo/client/.env.example demo/client/.env
+```
+
+Spring Boot doesn't read `.env` on its own, so load it into your shell before starting the backend (or paste the values into your IDE's run configuration):
+
+```bash
+cd backend && set -a && source .env && set +a && ./mvnw spring-boot:run
+```
+
+Vite reads `demo/client/.env` by itself when `npm run dev` or `npm run build` starts.
+
+**Backend** (`backend/.env`; on Render, the service's **Environment** tab):
 
 | Variable                      | Required | Description                                                                 |
 | ------------------------------ | -------- | --------------------------------------------------------------------------- |
@@ -210,10 +227,16 @@ Set these as environment variables (a `.env` file isn't read automatically; expo
 | `SPRING_PROFILES_ACTIVE`       | No       | Set to `demo` to seed the demo account on startup                           |
 | `PORT`                         | No       | Defaults to 4000 (Render sets it automatically)                             |
 
+**Client** (`demo/client/.env`, read at build time):
+
+| Variable              | Required | Description                                                                              |
+| --------------------- | -------- | ---------------------------------------------------------------------------------------- |
+| `VITE_SUPPORT_EMAIL`  | No       | Support address shown on the Help page. Leave it empty to show a generic "ask the person who set up this app" line instead. Anything prefixed `VITE_` is visible in the browser, so never put secrets in client variables. |
+
 ### Deploying to Render
 
 1. Create a Neon (or other hosted Postgres) database and copy its connection string.
-2. In Render: since this repo isn't owned by the account deploying it, use **New > Web Service > Public Git Repository** (rather than **New > Blueprint**) and paste this repo's URL.
+2. In Render: since this repo isn't owned by the account deploying it, use **New > Web Service > Public Git Repository** (rather than **New > Blueprint**) and paste this repo's URL. (If you fork the repo into your own GitHub account, **New > Blueprint** on your fork reads `backend/render.yaml` and fills in steps 3–6 for you. You're still asked for the three `SPRING_DATASOURCE_*` values.)
 3. Language: **Docker**. Dockerfile Path: `backend/Dockerfile`. Docker Build Context Directory: leave as `.` (the repo root — the Dockerfile needs both `backend/` and `demo/client/`).
 4. Health Check Path: `/api/health` (exactly — a trailing/duplicated path here will make every deploy time out waiting on the health check).
 5. Environment variables: `SPRING_DATASOURCE_URL` (JDBC form, e.g. `jdbc:postgresql://<host>/<db>?sslmode=require`), `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, and `SPRING_PROFILES_ACTIVE=demo`.
@@ -235,7 +258,7 @@ Set these as environment variables (a `.env` file isn't read automatically; expo
  * Branching Strategy and Naming Convention: all new work is developed on separate feature branches that branch off from *main*, named for the user story or feature they add.
      * Ex: `us1-sales`, `us2-inventory`, `allie/java-expenses`
      * This keeps each branch's purpose clear from its name, and keeps related commits for one feature together until it's reviewed and merged.
- * Deployment: the backend is deployed as a Render web service (see [Deploying to Render](#deploying-to-render)); since pushes don't auto-deploy, redeploy manually from the Render dashboard after merging.
+ * Deployment: the backend is deployed as a Render web service (see [Deploying to Render](#deploying-to-render)). Every merge to *main* deploys automatically once CI's checks and tests pass, so nothing is deployed that hasn't been reviewed and tested.
   
 
  ## Coding Standards and Guidelines
