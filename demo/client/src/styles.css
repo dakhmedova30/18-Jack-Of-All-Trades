@@ -2346,17 +2346,6 @@ textarea.settings-row__input {
     flex-shrink: 0;
   }
 
-  /* NOTE: these two predate the avatar-pill redesign and have no base rule any
-     more. Delete them if nothing in the markup still uses these classes. */
-  .sidebar__account-name {
-    display: none;
-  }
-
-  .sidebar__logout {
-    width: auto;
-    flex-shrink: 0;
-  }
-
   /* Line items: stack each field full-width instead of squeezing them side by side. */
   .sale-line,
   .expense-line {
