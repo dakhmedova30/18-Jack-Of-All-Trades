@@ -73,6 +73,9 @@ public class Business {
 
     private String etsy;
 
+    /** The public profile's link name (/p/<slug>); null means the profile is off. */
+    private String publicSlug;
+
     /** When the logo was last set; null means there is none. */
     private Instant logoUpdatedAt;
 
@@ -248,6 +251,14 @@ public class Business {
 
     public void setEtsy(String etsy) {
         this.etsy = etsy;
+    }
+
+    public String getPublicSlug() {
+        return publicSlug;
+    }
+
+    public void setPublicSlug(String publicSlug) {
+        this.publicSlug = publicSlug;
     }
 
     public Instant getLogoUpdatedAt() {

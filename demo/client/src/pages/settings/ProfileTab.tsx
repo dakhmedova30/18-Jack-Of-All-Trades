@@ -1,4 +1,5 @@
 import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { getErrorMessage } from '../../api/http';
 import type { BusinessUpdate } from '../../api/auth';
 import { Avatar } from '../../components/Avatar';
@@ -90,7 +91,7 @@ function PictureControl({
 
 type DetailKey = Exclude<
   keyof BusinessUpdate,
-  'name' | 'businessType' | 'country' | 'timeZone' | 'currency' | 'lowStockThreshold'
+  'name' | 'businessType' | 'country' | 'timeZone' | 'currency' | 'lowStockThreshold' | 'publicSlug'
 >;
 
 /** Saved details as form values: null becomes "". */
@@ -224,6 +225,134 @@ function DetailsForm({ business }: { business: Business }) {
   );
 }
 
+/** "Jinuo's Jewelry" -> "jinuos-jewelry": a suggested link name, shown as the placeholder. */
+function suggestSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40)
+    .replace(/-+$/, '');
+}
+
+/**
+ * The public profile's link. Saving a link name turns the profile on; "Turn off" clears it.
+ * Saved separately from the details above, since it decides whether any of them are public.
+ */
+function PublicProfileForm({ business }: { business: Business }) {
+  const { updateBusiness } = useAuth();
+  const saved = business.publicSlug ?? '';
+  const [slug, setSlug] = useState(saved);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  // Show what the server kept (it lowercases and trims), and clear the box after "Turn off".
+  const [shownSaved, setShownSaved] = useState(saved);
+  if (shownSaved !== saved) {
+    setShownSaved(saved);
+    setSlug(saved);
+  }
+
+  const path = saved ? `/p/${saved}` : null;
+  const url = path ? `${window.location.origin}${path}` : null;
+
+  async function save(publicSlug: string) {
+    setSaving(true);
+    setError(null);
+    setCopied(false);
+    try {
+      await updateBusiness({ publicSlug });
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function copy() {
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+    } catch {
+      setError('Could not copy the link. Select it and copy it instead.');
+    }
+  }
+
+  return (
+    <form
+      className="settings-stack"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void save(slug.trim());
+      }}
+      noValidate
+    >
+      <h3 className="settings-section">Public profile</h3>
+      <p className="muted">
+        A page customers can visit without an account. It shows your logo, description, city and
+        links above, and the inventory items you mark &quot;Show on my public profile&quot;. Your
+        email, phone, street address and stock counts are never shown.
+      </p>
+      <SettingsRow label="Status">
+        {url ? (
+          <span className="public-link">
+            On at <code>{url}</code>
+          </span>
+        ) : (
+          <span className="muted">Off. Choose a link name to turn it on.</span>
+        )}
+      </SettingsRow>
+      <SettingsRow label="Link name">
+        <span className="public-link__prefix muted">/p/</span>
+        <input
+          className="settings-row__input settings-row__input--short"
+          aria-label="Public link name"
+          value={slug}
+          placeholder={suggestSlug(business.name) || 'your-shop'}
+          maxLength={40}
+          onChange={(event) => {
+            setSlug(event.target.value);
+            setError(null);
+          }}
+        />
+      </SettingsRow>
+      <SettingsRow label="">
+        <button
+          type="submit"
+          className="button"
+          disabled={saving || slug.trim() === '' || slug.trim().toLowerCase() === saved}
+        >
+          {saving ? 'Saving…' : saved ? 'Change link' : 'Turn on'}
+        </button>
+        {path && (
+          <>
+            <Link to={path} target="_blank" rel="noopener" className="button button--secondary">
+              View profile
+            </Link>
+            <button type="button" className="button button--secondary" onClick={copy}>
+              Copy link
+            </button>
+            <button
+              type="button"
+              className="button button--ghost"
+              disabled={saving}
+              onClick={() => void save('')}
+            >
+              Turn off
+            </button>
+          </>
+        )}
+        {copied && <span className="muted">Copied.</span>}
+      </SettingsRow>
+      <p className="muted">3–40 characters: lowercase letters, numbers and hyphens.</p>
+      {error && <p className="form-error settings-row__error">{error}</p>}
+    </form>
+  );
+}
+
 export function ProfileTab() {
   const { business, setAvatar, removeAvatar, setLogo, removeLogo } = useAuth();
   if (!business) return null;
@@ -267,6 +396,8 @@ export function ProfileTab() {
       />
 
       <DetailsForm key={business.id} business={business} />
+
+      <PublicProfileForm key={`public-${business.id}`} business={business} />
     </>
   );
 }

@@ -135,6 +135,7 @@ public class ItemQueries {
                 rs.getInt("unit_price_cents"),
                 List.of((String[]) tags.getArray()),
                 rs.getString("note"),
+                rs.getBoolean("is_public"),
                 rs.getObject("created_at", OffsetDateTime.class).toInstant(),
                 rs.getObject("updated_at", OffsetDateTime.class).toInstant());
     }

@@ -101,7 +101,7 @@ public class ItemService {
     @Transactional
     public ItemResponse create(ItemInput input) {
         Item item = new Item(currentBusiness.id(), input.name(), input.quantity(), input.unitPriceCents(),
-                input.tags(), input.note());
+                input.tags(), input.note(), input.isPublic());
         return ItemResponse.from(items.saveAndFlush(item));
     }
 
@@ -130,6 +130,9 @@ public class ItemService {
         }
         if (changes.note() != null) {
             item.setNote(changes.note());
+        }
+        if (changes.isPublic() != null) {
+            item.setPublic(changes.isPublic());
         }
         return ItemResponse.from(items.saveAndFlush(item));
     }

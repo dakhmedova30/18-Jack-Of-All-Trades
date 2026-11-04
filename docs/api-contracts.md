@@ -78,6 +78,8 @@ One account is one business. Login sets a `jack_session` cookie that the browser
 | `GET` | `/api/auth/login-activity?limit` | — | `200` `LoginEvent[]`, newest first (`limit` 1 to 50, default 10; the newest 50 are kept) | `401` |
 | `PUT` | `/api/auth/me/email` | `ChangeEmailInput` | `200` `Business` | `400` (`Incorrect password`, duplicate email), `401` |
 
+`PATCH /api/auth/me` also returns `409` when `publicSlug` is taken.
+
 ```json
 // Business (everything from businessType on, except timeZone and currency, is null until set)
 { "id": 1, "name": "Demo Business", "email": "demo@jackofalltrades.test", "businessType": "Candles",
@@ -86,13 +88,16 @@ One account is one business. Login sets a `jack_session` cookie that the browser
   "ownerFirstName": "Allie", "ownerLastName": "Chen", "phone": "+1 (604) 555-0199",
   "addressLine": "12 Main St", "city": "Vancouver", "region": "BC", "postalCode": "V6B 1A1",
   "description": "Hand-poured candles.", "website": "https://alliescandles.ca",
-  "instagram": null, "facebook": null, "tiktok": null, "etsy": null, "logoUrl": null, "createdAt": "2026-10-21T22:00:00.000Z" }
+  "instagram": null, "facebook": null, "tiktok": null, "etsy": null, "logoUrl": null, "publicSlug": null,
+  "createdAt": "2026-10-21T22:00:00.000Z" }
 
 // UpdateBusinessInput (lowStockThreshold is a whole number from 0 up, default 5): every field optional; a missing field is left alone,
 // and "" clears any optional text field (businessType, country, owner name, contact, links).
 // phone is digits with + ( ) - . and spaces; website/instagram/facebook/tiktok/etsy are web addresses
 // (https:// is added if missing). Text limits: description 300, links 200, address 120. currency is one of CAD, USD, EUR, GBP, AUD;
-// timeZone is an IANA id such as "America/Toronto".
+// timeZone is an IANA id such as "America/Toronto". publicSlug turns on the public profile (§2.2):
+// 3-40 lowercase letters, digits and single hyphens (stored lowercased); "" turns it off;
+// one already used by another business is 409 "That public link is already taken".
 { "name": "Allie's Candles", "businessType": "Candles", "country": "Canada",
   "timeZone": "America/Toronto", "currency": "CAD" }
 
@@ -162,6 +167,28 @@ The alerts that apply right now. They are worked out on request from the busines
 | `expense-spike` | This UTC month's expenses so far exceed last month's whole total by more than `expenseSpikePercent` (1 to 1000) |
 | `new-device` | In the last 7 days, a login from a browser never used before (not the account's first login, and not the requesting browser) |
 
+## 2.2 Public profile: `/api/public` (D1's US3/US4)
+
+A page customers can read **without logging in**: the business's public details and the items it marks `isPublic`. It is off until the owner sets `publicSlug` on `PATCH /api/auth/me`; the app shows it at `/p/{slug}`.
+
+| Method | Path | Request body | Success | Errors |
+| --- | --- | --- | --- | --- |
+| `GET` | `/api/public/businesses/{slug}` | — | `200` `PublicProfile` | `404` `Public profile {slug} not found` |
+| `GET` | `/api/public/businesses/{slug}/logo` | — | `200` the image (publicly cacheable) | `404` |
+
+- The slug is matched case-insensitively. An unknown slug and a turned-off profile give the **same** `404`, so nobody can tell whether a business exists.
+- `PublicProfile` is an allowlist: email, phone, street address, postal code, owner name and login times are never sent, nor are item quantities, notes or tags. `inStock` is `quantity > 0`.
+- Items are only this business's `isPublic` items, sorted by name.
+
+```json
+// PublicProfile
+{ "slug": "alliescandles", "name": "Allie's Candles", "description": "Hand-poured candles.",
+  "city": "Vancouver", "region": "BC", "currency": "CAD", "website": "https://alliescandles.ca",
+  "instagram": null, "facebook": null, "tiktok": null, "etsy": null,
+  "logoUrl": "/api/public/businesses/alliescandles/logo?v=1761750000000",
+  "items": [{ "id": 7, "name": "Lavender Candle", "unitPriceCents": 1800, "inStock": true }] }
+```
+
 ## 3. Inventory: `/api/items` (US2)
 
 *Source: `claude-demo`; sorting, `insights` and `low-stock` from `merge-ui-mods`.*
@@ -187,12 +214,12 @@ The alerts that apply right now. They are worked out on request from the busines
 // Item
 {
   "id": 7, "name": "Flower Print", "quantity": 10, "unitPriceCents": 1200,
-  "tags": ["print"], "note": "",
+  "tags": ["print"], "note": "", "isPublic": false,
   "createdAt": "2026-10-19T20:00:00.000Z", "updatedAt": "2026-10-19T20:00:00.000Z"
 }
 
-// ItemInput
-{ "name": "Flower Print", "quantity": 10, "unitPriceCents": 1200, "tags": ["print"], "note": "" }
+// ItemInput (isPublic is optional, default false: shown on the public profile, §2.2)
+{ "name": "Flower Print", "quantity": 10, "unitPriceCents": 1200, "tags": ["print"], "note": "", "isPublic": false }
 
 // InventoryInsights: stock value at selling price, and this month's top 3 sellers
 {

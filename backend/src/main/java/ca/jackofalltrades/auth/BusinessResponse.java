@@ -28,6 +28,7 @@ public record BusinessResponse(
         String tiktok,
         String etsy,
         String logoUrl,
+        String publicSlug,
         Instant createdAt) {
 
     /** An image's URL, or null. The version in the query string makes browsers refetch a new image. */
@@ -61,6 +62,7 @@ public record BusinessResponse(
                 business.getTiktok(),
                 business.getEtsy(),
                 imageUrl(business.getLogoUpdatedAt(), "logo"),
+                business.getPublicSlug(),
                 business.getCreatedAt());
     }
 }

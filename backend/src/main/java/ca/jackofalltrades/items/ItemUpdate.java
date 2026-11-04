@@ -27,7 +27,9 @@ public record ItemUpdate(
         List<@NotBlank(message = "Tags cannot be empty") @Size(max = 30, message = "Tags must be at most 30 characters") String> tags,
 
         @Size(max = 1000, message = "Note must be at most 1000 characters")
-        String note) {
+        String note,
+
+        Boolean isPublic) {
 
     public ItemUpdate {
         name = name == null ? null : name.strip();
@@ -35,6 +37,6 @@ public record ItemUpdate(
     }
 
     boolean isEmpty() {
-        return name == null && quantity == null && unitPriceCents == null && tags == null && note == null;
+        return name == null && quantity == null && unitPriceCents == null && tags == null && note == null && isPublic == null;
     }
 }

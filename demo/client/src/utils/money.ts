@@ -11,6 +11,11 @@ export function formatCents(cents: number): string {
   return `${amountFormatter.format(cents / 100)} CAD`;
 }
 
+/** Like formatCents, in the given currency: (1850, "USD") -> "18.50 USD". */
+export function formatCentsIn(cents: number, currency: string): string {
+  return `${amountFormatter.format(cents / 100)} ${currency}`;
+}
+
 const compactFormatter = new Intl.NumberFormat('en-CA', {
   style: 'currency',
   currency: 'CAD',

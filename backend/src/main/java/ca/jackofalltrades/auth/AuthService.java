@@ -2,6 +2,7 @@ package ca.jackofalltrades.auth;
 
 import ca.jackofalltrades.channels.ChannelService;
 import ca.jackofalltrades.common.api.BadRequestException;
+import ca.jackofalltrades.common.api.ConflictException;
 import ca.jackofalltrades.expensetags.ExpenseTagService;
 import ca.jackofalltrades.common.api.UnauthorizedException;
 import java.net.URI;
@@ -24,6 +25,7 @@ public class AuthService {
     static final int MAX_IMAGE_BYTES = 512 * 1024;
     private static final Set<String> IMAGE_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
     private static final Pattern PHONE = Pattern.compile("[0-9+()\\-.\\s]{3,30}");
+    private static final Pattern PUBLIC_SLUG = Pattern.compile("[a-z0-9]+(-[a-z0-9]+)*");
 
     private final BusinessRepository businesses;
     private final AvatarRepository avatars;
@@ -133,6 +135,9 @@ public class AuthService {
         if (request.etsy() != null) {
             business.setEtsy(emptyToNull(webAddress(request.etsy(), "Etsy link")));
         }
+        if (request.publicSlug() != null) {
+            business.setPublicSlug(emptyToNull(publicSlug(request.publicSlug(), id)));
+        }
         return business;
     }
 
@@ -207,6 +212,21 @@ public class AuthService {
     private static String phone(String value) {
         if (!value.isEmpty() && !PHONE.matcher(value).matches()) {
             throw new BadRequestException("Enter a valid phone number");
+        }
+        return value;
+    }
+
+    /** A public profile link name: 3-40 lowercase letters, digits and single hyphens. Empty turns it off. */
+    private String publicSlug(String value, Integer id) {
+        if (value.isEmpty()) {
+            return value;
+        }
+        if (value.length() < 3 || !PUBLIC_SLUG.matcher(value).matches()) {
+            throw new BadRequestException(
+                    "Public link must be 3-40 characters: lowercase letters, numbers and hyphens");
+        }
+        if (businesses.existsByPublicSlugAndIdNot(value, id)) {
+            throw new ConflictException("That public link is already taken");
         }
         return value;
     }
