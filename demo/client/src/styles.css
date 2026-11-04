@@ -1,17 +1,19 @@
 /* ==========================================================================
    Contents
    1. Design tokens
-   2. Appearance themes and display options
-   3. Base elements
-   4. App shell: sidebar, menus, notifications, content
-   5. Shared components: toolbar/search, buttons/avatar, cards, tables/tags,
+   2. Themes, accents & display options (Settings > Appearance)
+   3. Base
+   4. App shell: sidebar (rail, collapsed strip, nav, account), account menu,
+      notifications, content
+   5. Shared components: toolbar/search, buttons, avatar, cards, tables/tags,
       empty states/pagination, modal, forms/line items, validation/banners
-   6. Authentication
-   7. Pages: Home, inventory summaries/ranked lists, Analytics, Settings,
-      Help/legal
+   6. Auth
+   7. Pages: Home, Summary panels & ranked lists, Analytics, Settings,
+      Help & legal
    8. SVG charts
-   9. Responsive overrides (<= 896px, <= 720px)
+   9. Responsive (<= 896px, <= 720px, reduced motion)
    ========================================================================== */
+
 
 /* ==========================================================================
    1. Design tokens — matches the maroon/cream Figma wireframe.
@@ -92,6 +94,7 @@
   font-weight: 400;
   font-style: normal;
 }
+
 
 /* ==========================================================================
    2. Themes, accents & display options
@@ -214,6 +217,7 @@
   --table-pad-y: 0.85rem;
 }
 
+
 /* ==========================================================================
    3. Base
    ========================================================================== */
@@ -269,6 +273,7 @@ code {
   color: var(--color-muted);
 }
 
+
 /* ==========================================================================
    4. App shell
    ========================================================================== */
@@ -284,7 +289,8 @@ code {
   grid-template-columns: var(--sidebar-mini-width) 1fr;
 }
 
-/* ---------- Sidebar ---------- */
+/* ---------- Sidebar rail: the expanded and collapsed views share one grid cell
+   and cross-fade/slide between each other ---------- */
 
 .sidebar-rail {
   display: grid;
@@ -310,6 +316,8 @@ code {
     visibility 0s linear 220ms;
 }
 
+/* ---------- Sidebar (expanded) ---------- */
+
 .sidebar {
   background: var(--color-sidebar);
   color: var(--color-sidebar-text);
@@ -331,9 +339,9 @@ code {
 
 .sidebar__header-actions {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 0.5rem;
-  flex-direction: column;
   height: 60px;
 }
 
@@ -349,44 +357,50 @@ code {
   text-decoration: none;
 }
 
+/* Icon buttons on the dark sidebar: collapse arrow, expand arrow, bell. */
 .sidebar__toggle,
-.sidebar-show {
-  background: none;
+.sidebar-show,
+.sidebar__bell {
   border: none;
-  cursor: pointer;
-  font-size: 1.25rem;
-  padding: 0.25rem 0.5rem;
   border-radius: var(--radius);
-  color: var(--color-surface);
+  background: none;
+  color: var(--color-sidebar-text);
   line-height: 0;
+  cursor: pointer;
 }
 
+.sidebar__toggle,
+.sidebar-show {
+  padding: 0.25rem 0.5rem;
+  font-size: 1.25rem;
+}
+
+.sidebar__toggle:hover,
 .sidebar-show:hover,
-.sidebar__toggle:hover {
+.sidebar__bell:hover,
+.sidebar__bell[aria-expanded='true'] {
   background: rgb(255 255 255 / 0.1);
 }
 
+.sidebar__toggle svg,
 .sidebar-show svg,
-.sidebar__toggle svg {
+.sidebar__bell svg {
   width: 1.25rem;
   height: 1.25rem;
 }
 
-/* Collapsed sidebar strip */
+/* ---------- Sidebar (collapsed strip) ---------- */
+
 .sidebar-show-container {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  padding: 1.25rem 1rem;
+  width: 100%;
   height: 100%;
+  padding: 1.25rem 1rem;
   background: var(--color-sidebar);
   color: var(--color-sidebar-text);
   font-family: var(--font-header);
-  width: 100%;
-}
-
-.sidebar-show-container button {
-  color: var(--color-sidebar-text);
 }
 
 .sidebar-rail--closed .sidebar__link {
@@ -401,6 +415,8 @@ code {
 .sidebar-rail--closed .sidebar__account {
   margin-top: auto;
 }
+
+/* ---------- Sidebar nav ---------- */
 
 .sidebar__nav {
   display: flex;
@@ -435,7 +451,7 @@ code {
   border-color: var(--color-sidebar-text);
 }
 
-/* ---------- Sidebar account (avatar pill + menu) ---------- */
+/* ---------- Sidebar account (avatar pill) ---------- */
 
 .sidebar__account {
   display: flex;
@@ -500,7 +516,9 @@ code {
   flex-shrink: 0;
 }
 
-/* Rendered into <body> (see AccountMenu), so it's styled on its own, not as part of the sidebar. */
+/* ---------- Account menu ----------
+   Rendered into <body> (see AccountMenu), so it's styled on its own, not as
+   part of the sidebar. */
 
 .account-menu {
   position: fixed;
@@ -534,17 +552,26 @@ code {
   opacity: 0.6;
   cursor: default;
 }
+
 .account-menu__item--disabled:hover {
   background: none;
 }
+
 .account-menu__soon {
   margin-left: auto;
   padding: 0.05rem 0.45rem;
-  border: 1px solid var(--color-border);
+  border: var(--border-default) var(--color-border);
   border-radius: 999px;
   font-size: 0.7rem;
   white-space: nowrap;
 }
+
+.account-menu__divider {
+  height: 1px;
+  margin: 0.3rem 0.35rem;
+  background: var(--color-border);
+}
+
 .account-menu__legal {
   display: flex;
   justify-content: center;
@@ -552,42 +579,24 @@ code {
   padding: 0.4rem 0.65rem 0.2rem;
   font-size: 0.78rem;
 }
+
 .account-menu__legal a {
   color: var(--color-muted);
   text-decoration: none;
 }
+
 .account-menu__legal a:hover,
 .account-menu__legal a:focus-visible {
   text-decoration: underline;
 }
-.account-menu__divider {
-  height: 1px;
-  margin: 0.3rem 0.35rem;
-  background: var(--color-border);
-}
 
 /* ---------- Notifications: the bell and its panel ---------- */
 
-/* The bell sits in the sidebar header next to the collapse arrow: icon only, count on top. */
+/* The bell sits in the sidebar header next to the collapse arrow: icon only, count on top.
+   Colour, hover and icon size come from the shared sidebar icon-button rules above. */
 .sidebar__bell {
   position: relative;
   padding: 0.35rem;
-  border: none;
-  border-radius: var(--radius);
-  background: none;
-  color: var(--color-surface);
-  line-height: 0;
-  cursor: pointer;
-}
-
-.sidebar__bell:hover,
-.sidebar__bell[aria-expanded='true'] {
-  background: rgb(255 255 255 / 0.1);
-}
-
-.sidebar__bell svg {
-  width: 1.25rem;
-  height: 1.25rem;
 }
 
 .notification-badge {
@@ -707,6 +716,7 @@ code {
   height: fit-content;
   padding: 40px;
 }
+
 
 /* ==========================================================================
    5. Shared components
@@ -1361,6 +1371,7 @@ code {
   color: var(--color-accent);
 }
 
+
 /* ==========================================================================
    6. Auth (login / register)
    ========================================================================== */
@@ -1465,6 +1476,7 @@ code {
 .auth-switch a {
   color: var(--color-primary);
 }
+
 
 /* ==========================================================================
    7. Pages
@@ -1655,7 +1667,7 @@ code {
   font-weight: 600;
 }
 
-/* ---------- Summary panels and ranked lists ---------- */
+/* ---------- Summary panels & ranked lists (Inventory, Sales, Expenses) ---------- */
 
 .best-sellers__rank {
   display: inline-block;
@@ -1663,8 +1675,6 @@ code {
   color: var(--color-muted);
   font-variant-numeric: tabular-nums;
 }
-
-/* Shared by Inventory, Sales, and Expenses. */
 
 .summary-panel {
   gap: 0.6rem;
@@ -2275,6 +2285,7 @@ textarea.settings-row__input {
   margin-top: 1.75rem;
 }
 
+
 /* ==========================================================================
    8. SVG charts
    ========================================================================== */
@@ -2334,8 +2345,9 @@ textarea.settings-row__input {
   flex: none;
 }
 
+
 /* ==========================================================================
-   9. Responsive overrides (<= 896px, <= 720px)
+   9. Responsive
    ========================================================================== */
 
 @media (max-width: 896px) {
@@ -2353,14 +2365,19 @@ textarea.settings-row__input {
 }
 
 @media (max-width: 720px) {
-  /* Shell */
+  /* ---------- Shell ---------- */
+
   .app,
   .app--sidebar-hidden {
     grid-template-columns: 1fr;
   }
 
+  /* Sidebar becomes a top bar. The inactive view is taken out of flow and
+     slides down/up instead of sideways, and the rail clips it as it leaves. */
   .sidebar-rail {
+    position: relative;
     width: 100%;
+    overflow: hidden;
   }
 
   .sidebar-rail--closed {
@@ -2369,6 +2386,10 @@ textarea.settings-row__input {
   }
 
   .sidebar-view--inactive {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
     transform: translateY(-0.75rem);
   }
 
@@ -2390,39 +2411,6 @@ textarea.settings-row__input {
     margin-block: 0;
   }
 
-  .sidebar-show-container {
-    height: auto;
-    width: 100%;
-    flex-direction: row;
-    align-items: center;
-    gap: 0.75rem;
-    overflow-x: auto;
-  }
-
-  .sidebar-rail--closed .sidebar__nav {
-    flex: 1;
-    justify-content: center;
-    flex-wrap: nowrap;
-    margin-block: 0;
-  }
-
-  .sidebar-rail--closed .sidebar__account {
-    margin-top: 0;
-    margin-left: auto;
-  }
-
-  .sidebar-rail {
-    position: relative;
-    overflow: hidden; /* clips the old view while it slides out */
-  }
-
-  .sidebar-view--inactive {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-  }
-
   /* In the phone top bar, the avatar sits at the far end instead of the bottom. */
   .sidebar__account {
     margin-left: auto;
@@ -2431,7 +2419,29 @@ textarea.settings-row__input {
     flex-shrink: 0;
   }
 
-  /* Line items: stack each field full-width instead of squeezing them side by side. */
+  .sidebar-show-container {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    height: auto;
+    overflow-x: auto;
+  }
+
+  .sidebar-rail--closed .sidebar__nav {
+    flex: 1;
+    flex-wrap: nowrap;
+    justify-content: center;
+    margin-block: 0;
+  }
+
+  .sidebar-rail--closed .sidebar__account {
+    margin-top: 0;
+    margin-left: auto;
+  }
+
+  /* ---------- Line items: stack each field full-width instead of squeezing them side by side ---------- */
+
   .sale-line,
   .expense-line {
     grid-template-columns: 1fr;
@@ -2448,7 +2458,14 @@ textarea.settings-row__input {
     text-align: left;
   }
 
-  /* Analytics: stacked one per row, so natural heights are fine again. */
+  /* ---------- Summary panels ---------- */
+
+  .panel-row {
+    grid-template-columns: 1fr;
+  }
+
+  /* ---------- Analytics: stacked one per row, so natural heights are fine again ---------- */
+
   .analytics-header {
     flex-direction: column;
     align-items: stretch;
@@ -2473,11 +2490,6 @@ textarea.settings-row__input {
   .analytics-donut .viz {
     width: 160px;
     height: auto;
-  }
-
-  /* Panel row stacking */
-  .panel-row {
-    grid-template-columns: 1fr;
   }
 }
 
