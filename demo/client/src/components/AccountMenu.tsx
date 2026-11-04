@@ -10,6 +10,7 @@ interface AccountMenuProps {
   imageUrl?: string | null;
   /** Shown under the name in the sidebar pill. */
   email?: string;
+  compact?: boolean;
   onLogout: () => void;
 }
 
@@ -22,7 +23,13 @@ const MENU_GAP = 8;
  * switch account, Log out. The menu is rendered into <body> and positioned by hand, because
  * the sidebar clips overflow on phones and would cut a normally-positioned popup off.
  */
-export function AccountMenu({ name, imageUrl, email, onLogout }: AccountMenuProps) {
+export function AccountMenu({
+  name,
+  imageUrl,
+  email,
+  compact = false,
+  onLogout,
+}: AccountMenuProps) {
   const [position, setPosition] = useState<Position | null>(null);
   const navigate = useNavigate();
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -104,7 +111,7 @@ export function AccountMenu({ name, imageUrl, email, onLogout }: AccountMenuProp
       <button
         ref={buttonRef}
         type="button"
-        className="sidebar__avatar"
+        className={`sidebar__avatar${compact ? ' sidebar__avatar--compact' : ''}`}
         onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -112,13 +119,17 @@ export function AccountMenu({ name, imageUrl, email, onLogout }: AccountMenuProp
         title={name}
       >
         <Avatar key={imageUrl ?? 'initials'} name={name} imageUrl={imageUrl} />
-        <span className="sidebar__avatar-text">
-          <span className="sidebar__avatar-name">{name}</span>
-          {email && <span className="sidebar__avatar-email">{email}</span>}
-        </span>
-        <span className="sidebar__avatar-more" aria-hidden="true">
-          <MoreIcon />
-        </span>
+        {!compact && (
+          <>
+            <span className="sidebar__avatar-text">
+              <span className="sidebar__avatar-name">{name}</span>
+              {email && <span className="sidebar__avatar-email">{email}</span>}
+            </span>
+            <span className="sidebar__avatar-more" aria-hidden="true">
+              <MoreIcon />
+            </span>
+          </>
+        )}
       </button>
 
       {open &&

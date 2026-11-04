@@ -1,22 +1,16 @@
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { AccountMenu } from './AccountMenu';
 import { NotificationBell } from './NotificationBell';
-import { BoxIcon, ChartIcon, HomeIcon, MenuIcon, ReceiptIcon, WalletIcon } from './icons';
-
-const NAV_ITEMS = [
-  { to: '/', label: 'Home', icon: HomeIcon, end: true },
-  { to: '/inventory', label: 'Inventory', icon: BoxIcon, end: false },
-  { to: '/sales', label: 'Sales', icon: ReceiptIcon, end: false },
-  { to: '/expenses', label: 'Expenses', icon: WalletIcon, end: false },
-  { to: '/analytics', label: 'Analytics', icon: ChartIcon, end: false },
-];
+import { MenuIcon } from './icons';
+import { SIDEBAR_NAV_ITEMS } from './sidebarNavItems';
 
 type SidebarProps = {
   onClose: () => void;
+  active?: boolean;
 };
 
-export function Sidebar({ onClose }: SidebarProps) {
+export function Sidebar({ onClose, active = true }: SidebarProps) {
   const { business, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -39,16 +33,12 @@ export function Sidebar({ onClose }: SidebarProps) {
             <MenuIcon />
           </button>
         </div>
-        {/* The logo goes home, the same as the Home link below. */}
-        <Link to="/" className="sidebar__logo">
-          Jack-Of-All-Trades
-        </Link>
         <div className="sidebar__header-actions">
-          <NotificationBell />
+          <NotificationBell key={active ? 'active' : 'inactive'} />
         </div>
       </div>
       <nav className="sidebar__nav" aria-label="Main">
-        {NAV_ITEMS.map(({ to, label, icon: NavIcon, end }) => (
+        {SIDEBAR_NAV_ITEMS.map(({ to, label, icon: NavIcon, end }) => (
           <NavLink
             key={to}
             to={to}
@@ -56,7 +46,7 @@ export function Sidebar({ onClose }: SidebarProps) {
             className={({ isActive }) => `sidebar__link${isActive ? ' is-active' : ''}`}
           >
             <NavIcon />
-            {label}
+            <span className="sidebar__link-label">{label}</span>
           </NavLink>
         ))}
       </nav>
@@ -68,6 +58,7 @@ export function Sidebar({ onClose }: SidebarProps) {
             name={business.name}
             email={business.email}
             imageUrl={business.avatarUrl}
+            key={active ? 'active' : 'inactive'}
             onLogout={handleLogout}
           />
         )}
