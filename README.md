@@ -93,6 +93,31 @@ Backend (run from `backend/`):
 | `./mvnw -DskipTests package`      | Builds the jar (used by `backend/Dockerfile`)           |
 | `docker compose up -d`            | Starts local Postgres on `:5433` for development        |
 
+### Running tests
+
+The backend has a JUnit 5 test suite (about 170 tests) covering the API endpoints, input
+validation, auth and sessions, and the sales, expense, analytics and notification
+calculations. Tests run against a real PostgreSQL that Testcontainers starts in Docker, so
+there's no database to set up.
+
+You'll need Java 25 and a running Docker (Docker Desktop, OrbStack or colima).
+
+```bash
+cd backend
+./mvnw test
+```
+
+A passing run ends with `Failures: 0, Errors: 0` and `BUILD SUCCESS`. The first run downloads
+Maven dependencies and the Postgres image, so it takes a few minutes; after that it's about a
+minute.
+
+There's no `npm test`; the frontend is checked with `npm run lint`, `npm run typecheck` and
+`npm run build` instead.
+
+The same suite runs in GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
+on every pull request into `main` and every push to `main`, and a merge only deploys if it
+passes. See recent runs in the [Actions tab](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/actions).
+
 ### Project structure
 
 ```
@@ -193,7 +218,13 @@ Set these as environment variables (a `.env` file isn't read automatically; expo
 4. Health Check Path: `/api/health` (exactly — a trailing/duplicated path here will make every deploy time out waiting on the health check).
 5. Environment variables: `SPRING_DATASOURCE_URL` (JDBC form, e.g. `jdbc:postgresql://<host>/<db>?sslmode=require`), `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, and `SPRING_PROFILES_ACTIVE=demo`.
 6. The free instance type's 0.1 CPU is too slow to boot the JVM within Render's health-check window — every free-tier deploy we tried either failed outright or took 15+ minutes. Use the $7/month instance (0.5 CPU), which boots in under a minute.
-7. Each push to the selected branch does **not** auto-deploy — "Public Git Repository" services don't get webhooks from a repo they don't own. Redeploy manually from the Render dashboard (**Manual Deploy > Deploy latest commit**) after pushing.
+7. Deploys are triggered from GitHub Actions, not by Render itself: "Public Git Repository"
+   services don't get webhooks from a repo they don't own. Instead, the `deploy` job in
+   `.github/workflows/ci.yml` calls the service's Render **Deploy Hook** once the checks and
+   tests pass on `main`. To set it up, copy the hook URL from Render (**Settings > Deploy Hook**)
+   into a GitHub Actions secret named `RENDER_DEPLOY_HOOK_URL`. Never put it in the workflow
+   file, because anyone with the URL can trigger a deploy. Manual redeploys still work via
+   **Manual Deploy > Deploy latest commit**.
 
  ## Deployment and Github Workflow
 
