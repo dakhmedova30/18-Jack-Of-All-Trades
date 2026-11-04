@@ -471,20 +471,41 @@ code {
   cursor: pointer;
 }
 
-.account-menu__item--disabled { opacity: 0.6; cursor: default; }
-.account-menu__item--disabled:hover { background: none; }
+.account-menu__item--disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.account-menu__item--disabled:hover {
+  background: none;
+}
 .account-menu__soon {
-  margin-left: auto; padding: 0.05rem 0.45rem; border: 1px solid var(--color-border);
-  border-radius: 999px; font-size: 0.7rem; white-space: nowrap;
+  margin-left: auto;
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  white-space: nowrap;
 }
 .account-menu__legal {
-  display: flex; justify-content: center; gap: 0.5rem;
-  padding: 0.4rem 0.65rem 0.2rem; font-size: 0.78rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.65rem 0.2rem;
+  font-size: 0.78rem;
 }
-.account-menu__legal a { color: var(--color-muted); text-decoration: none; }
+.account-menu__legal a {
+  color: var(--color-muted);
+  text-decoration: none;
+}
 .account-menu__legal a:hover,
-.account-menu__legal a:focus-visible { text-decoration: underline; }
-.account-menu__divider { height: 1px; margin: 0.3rem 0.35rem; background: var(--color-border); }
+.account-menu__legal a:focus-visible {
+  text-decoration: underline;
+}
+.account-menu__divider {
+  height: 1px;
+  margin: 0.3rem 0.35rem;
+  background: var(--color-border);
+}
 
 /* ---------- Notifications: the bell and its panel ---------- */
 
