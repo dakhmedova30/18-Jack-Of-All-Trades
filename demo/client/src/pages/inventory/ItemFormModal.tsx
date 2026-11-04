@@ -49,7 +49,10 @@ function parseTags(raw: string): string[] {
   ];
 }
 
-function validate(values: FormValues): { input?: ItemInput; errors: FieldErrors } {
+function validate(
+  values: FormValues,
+  isPublic: boolean,
+): { input?: ItemInput; errors: FieldErrors } {
   const errors: FieldErrors = {};
   const name = values.name.trim();
   const quantity = Number(values.quantity);
@@ -69,7 +72,14 @@ function validate(values: FormValues): { input?: ItemInput; errors: FieldErrors 
 
   if (Object.keys(errors).length > 0) return { errors };
   return {
-    input: { name, quantity, unitPriceCents: unitPriceCents!, tags, note: values.note.trim() },
+    input: {
+      name,
+      quantity,
+      unitPriceCents: unitPriceCents!,
+      tags,
+      note: values.note.trim(),
+      isPublic,
+    },
     errors,
   };
 }
@@ -77,6 +87,7 @@ function validate(values: FormValues): { input?: ItemInput; errors: FieldErrors 
 export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) {
   const isEditing = item !== undefined;
   const [values, setValues] = useState<FormValues>(() => toFormValues(item));
+  const [isPublic, setIsPublic] = useState(item?.isPublic ?? false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -88,7 +99,7 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const { input, errors: validationErrors } = validate(values);
+    const { input, errors: validationErrors } = validate(values, isPublic);
     setErrors(validationErrors);
     if (!input) return;
 
@@ -158,6 +169,18 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
 
         <FormRow label="Tags" htmlFor="item-tags" error={errors.tags}>
           <input {...fieldProps('tags')} placeholder="Tag, Tag" />
+        </FormRow>
+
+        <FormRow label="Public" htmlFor="item-isPublic">
+          <label className="item-form__check">
+            <input
+              id="item-isPublic"
+              type="checkbox"
+              checked={isPublic}
+              onChange={(event) => setIsPublic(event.target.checked)}
+            />
+            Show on my public profile
+          </label>
         </FormRow>
 
         <div className="form-stack">

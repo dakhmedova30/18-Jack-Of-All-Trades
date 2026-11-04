@@ -50,6 +50,8 @@ export interface BusinessUpdate {
   facebook?: string;
   tiktok?: string;
   etsy?: string;
+  /** An empty string turns the public profile off. */
+  publicSlug?: string;
 }
 
 /** Updates the logged-in business; returns the updated record. */

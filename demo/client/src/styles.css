@@ -2236,6 +2236,108 @@ textarea.settings-row__input {
   margin-top: 1.75rem;
 }
 
+/* ---------- Public profile (/p/:slug) and its owner controls ---------- */
+
+.public-profile {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.public-profile__hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.public-profile__hero h1 {
+  margin: 0 0 0.25rem;
+}
+
+.public-profile__logo {
+  width: 8rem;
+  max-height: 8rem;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.public-profile__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.public-profile__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.public-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.public-item__tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 4 / 3;
+  margin-bottom: 0.5rem;
+  border-radius: var(--radius);
+  background: var(--color-surface-alt);
+  color: var(--color-muted);
+  font-family: var(--font-header);
+  font-size: 2.5rem;
+}
+
+.public-item__name {
+  font-weight: 600;
+}
+
+.public-item__stock {
+  color: var(--color-positive);
+  font-size: 0.85rem;
+}
+
+.public-item__stock--out {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.public-marker {
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.45rem;
+  border: var(--border-default) var(--color-border);
+  border-radius: 4px;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+
+.public-link code {
+  word-break: break-all;
+}
+
+.item-form__check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 720px) {
+  .public-profile__hero {
+    flex-direction: column;
+  }
+}
+
 /* ==========================================================================
    8. SVG charts
    ========================================================================== */
