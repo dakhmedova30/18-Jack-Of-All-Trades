@@ -2,7 +2,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { AccountMenu } from './AccountMenu';
 import { NotificationBell } from './NotificationBell';
-import { BoxIcon, ChartIcon, HomeIcon, ReceiptIcon, WalletIcon } from './icons';
+import { BoxIcon, ChartIcon, HomeIcon, MenuIcon, ReceiptIcon, WalletIcon } from './icons';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Home', icon: HomeIcon, end: true },
@@ -28,20 +28,23 @@ export function Sidebar({ onClose }: SidebarProps) {
   return (
     <aside className="sidebar" id="main-sidebar">
       <div className="sidebar__header">
+        <div className="sidebar__header-actions">
+          <button
+            type="button"
+            className="sidebar__toggle"
+            onClick={onClose}
+            aria-label="Hide sidebar"
+            aria-expanded={true}
+          >
+            <MenuIcon />
+          </button>
+        </div>
         {/* The logo goes home, the same as the Home link below. */}
         <Link to="/" className="sidebar__logo">
           Jack-Of-All-Trades
         </Link>
         <div className="sidebar__header-actions">
           <NotificationBell />
-          <button
-            type="button"
-            className="sidebar__toggle"
-            onClick={onClose}
-            aria-label="Hide sidebar"
-          >
-            ‹
-          </button>
         </div>
       </div>
       <nav className="sidebar__nav" aria-label="Main">

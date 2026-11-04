@@ -124,3 +124,11 @@ export const HelpCircleIcon = (p: IconProps) => (
     <path d="M12 17h.01" />
   </Icon>
 );
+
+export const MenuIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 5H21" stroke-linecap="round" stroke-linejoin="round"></path>
+    <path d="M3 12H21" stroke-linecap="round" stroke-linejoin="round"></path>
+    <path d="M3 19H21" stroke-linecap="round" stroke-linejoin="round"></path>
+  </Icon>
+);

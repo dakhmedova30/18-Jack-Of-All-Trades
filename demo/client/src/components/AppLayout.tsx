@@ -3,6 +3,8 @@ import { Outlet } from 'react-router-dom';
 import { NotificationsProvider } from '../hooks/useNotifications';
 import { PreferencesProvider } from '../hooks/usePreferences';
 import { Sidebar } from './Sidebar';
+import { NotificationBell } from './NotificationBell';
+import { MenuIcon } from './icons';
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -15,16 +17,20 @@ export function AppLayout() {
             <Sidebar onClose={() => setSidebarOpen(false)} />
           ) : (
             <div className="sidebar-show-container">
-              <button
-                type="button"
-                className="sidebar-show"
-                onClick={() => setSidebarOpen(true)}
-                aria-label="Show sidebar"
-                aria-controls="main-sidebar"
-                aria-expanded={false}
-              >
-                ☰
-              </button>
+              <div className="sidebar__header-actions">
+                <button
+                  type="button"
+                  className="sidebar__toggle"
+                  onClick={() => setSidebarOpen(true)}
+                  aria-label="Show sidebar"
+                  aria-controls="main-sidebar"
+                  aria-expanded={false}
+                >
+                  <MenuIcon />
+                </button>
+                <NotificationBell />
+              </div>
+              
             </div>
           )}
           <main className="content">
