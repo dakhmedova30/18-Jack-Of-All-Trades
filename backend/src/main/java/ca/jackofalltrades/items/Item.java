@@ -42,6 +42,10 @@ public class Item {
     @Column(nullable = false)
     private String note;
 
+    /** Shown on the business's public profile. New items start private. */
+    @Column(nullable = false)
+    private boolean isPublic;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
@@ -54,13 +58,15 @@ public class Item {
         // for JPA
     }
 
-    Item(Integer businessId, String name, int quantity, int unitPriceCents, List<String> tags, String note) {
+    Item(Integer businessId, String name, int quantity, int unitPriceCents, List<String> tags, String note,
+            boolean isPublic) {
         this.businessId = businessId;
         this.name = name;
         this.quantity = quantity;
         this.unitPriceCents = unitPriceCents;
         this.tags = new ArrayList<>(tags);
         this.note = note;
+        this.isPublic = isPublic;
     }
 
     public Integer getId() {
@@ -91,6 +97,10 @@ public class Item {
         return note;
     }
 
+    public boolean isPublic() {
+        return isPublic;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
@@ -118,6 +128,10 @@ public class Item {
 
     void setNote(String note) {
         this.note = note;
+    }
+
+    void setPublic(boolean isPublic) {
+        this.isPublic = isPublic;
     }
 
     /** Changes stock by {@code delta} (negative when selling). Callers check stock first. */

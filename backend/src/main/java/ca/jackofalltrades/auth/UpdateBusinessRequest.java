@@ -67,7 +67,11 @@ public record UpdateBusinessRequest(
         String tiktok,
 
         @Size(max = 200, message = "Etsy link must be at most 200 characters")
-        String etsy) {
+        String etsy,
+
+        /** The public profile's link name; an empty string turns the profile off. */
+        @Size(max = 40, message = "Public link must be at most 40 characters")
+        String publicSlug) {
 
     public UpdateBusinessRequest {
         name = strip(name);
@@ -88,6 +92,7 @@ public record UpdateBusinessRequest(
         facebook = strip(facebook);
         tiktok = strip(tiktok);
         etsy = strip(etsy);
+        publicSlug = publicSlug == null ? null : publicSlug.strip().toLowerCase(Locale.ROOT);
     }
 
     private static String strip(String value) {
