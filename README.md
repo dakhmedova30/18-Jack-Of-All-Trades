@@ -202,7 +202,7 @@ scoped to it, so changing it moves the whole page together.
 
 Every variable is optional. Without any of them, `backend/src/main/resources/application.yml` defaults to the local Docker Postgres from `docker compose up -d`, so the [Setup](#setup) steps work as-is.
 
-Templates with every variable and a comment for each are committed as `backend/.env.example` and `demo/client/.env.example`. To use them, copy each to `.env` next to it and fill in real values. Both `.env` files are gitignored; **never commit real credentials**, and never put them in the `.env.example` files.
+Templates with every variable and a comment for each are committed as `backend/.env.example` and `demo/client/.env.example`. To use them, copy each to `.env` next to it, then uncomment and fill in only the variables you need (an unedited copy changes nothing). Both `.env` files are gitignored; **never commit real credentials**, and never put them in the `.env.example` files.
 
 ```bash
 cp backend/.env.example backend/.env
