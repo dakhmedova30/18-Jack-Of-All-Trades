@@ -247,7 +247,10 @@ export function InventoryPage() {
                   />
                 </td>
                 <td>{item.id}</td>
-                <td>{item.name}</td>
+                <td>
+                  {item.name}
+                  {item.isPublic && <span className="public-marker">Public</span>}
+                </td>
                 <td className="numeric">{item.quantity}</td>
                 <td className="numeric">{formatCents(item.unitPriceCents)}</td>
                 <td>

@@ -11,6 +11,7 @@ import { InventoryPage } from './pages/inventory/InventoryPage';
 import { PrivacyPage } from './pages/legal/PrivacyPage';
 import { TermsPage } from './pages/legal/TermsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { PublicProfilePage } from './pages/public/PublicProfilePage';
 import { SalesPage } from './pages/sales/SalesPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 
@@ -40,6 +41,8 @@ export function App() {
       {/* Public: linked from the account menu, and readable without logging in. */}
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
+      {/* A business's public profile, for customers (no account needed). */}
+      <Route path="/p/:slug" element={<PublicProfilePage />} />
 
       <Route element={<RedirectIfAuthed />}>
         <Route path="/login" element={<LoginPage />} />

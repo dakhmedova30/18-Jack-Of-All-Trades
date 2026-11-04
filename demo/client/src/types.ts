@@ -32,6 +32,8 @@ export interface Business {
   etsy: string | null;
   /** URL of the business logo (with a version for cache busting), or null. */
   logoUrl: string | null;
+  /** The public profile's link name (/p/<slug>), or null while the profile is off. */
+  publicSlug: string | null;
   createdAt: string;
 }
 
@@ -56,11 +58,41 @@ export interface Item {
   unitPriceCents: number;
   tags: string[];
   note: string;
+  /** Shown on the business's public profile. */
+  isPublic: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export type ItemInput = Pick<Item, 'name' | 'quantity' | 'unitPriceCents' | 'tags' | 'note'>;
+export type ItemInput = Pick<
+  Item,
+  'name' | 'quantity' | 'unitPriceCents' | 'tags' | 'note' | 'isPublic'
+>;
+
+/** An item as customers see it: no stock count, note or tags. */
+export interface PublicItem {
+  id: number;
+  name: string;
+  unitPriceCents: number;
+  inStock: boolean;
+}
+
+/** GET /api/public/businesses/:slug, readable without logging in. */
+export interface PublicProfile {
+  slug: string;
+  name: string;
+  description: string | null;
+  city: string | null;
+  region: string | null;
+  currency: string;
+  website: string | null;
+  instagram: string | null;
+  facebook: string | null;
+  tiktok: string | null;
+  etsy: string | null;
+  logoUrl: string | null;
+  items: PublicItem[];
+}
 
 export type ItemSortField = 'id' | 'name' | 'quantity' | 'unitPriceCents';
 export type SaleSortField = 'id' | 'soldAt' | 'total' | 'tags' | 'channel';

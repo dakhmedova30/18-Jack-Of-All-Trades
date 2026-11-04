@@ -31,11 +31,15 @@ public record ItemInput(
         List<@NotBlank(message = "Tags cannot be empty") @Size(max = 30, message = "Tags must be at most 30 characters") String> tags,
 
         @Size(max = 1000, message = "Note must be at most 1000 characters")
-        String note) {
+        String note,
+
+        /** Optional; omitted means private. */
+        Boolean isPublic) {
 
     public ItemInput {
         name = name == null ? null : name.strip();
         tags = Tags.normalize(tags);
         note = note == null ? "" : note;
+        isPublic = isPublic != null && isPublic;
     }
 }

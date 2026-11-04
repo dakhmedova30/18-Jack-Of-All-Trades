@@ -11,11 +11,12 @@ public record ItemResponse(
         int unitPriceCents,
         List<String> tags,
         String note,
+        boolean isPublic,
         Instant createdAt,
         Instant updatedAt) {
 
     static ItemResponse from(Item item) {
         return new ItemResponse(item.getId(), item.getName(), item.getQuantity(), item.getUnitPriceCents(),
-                List.copyOf(item.getTags()), item.getNote(), item.getCreatedAt(), item.getUpdatedAt());
+                List.copyOf(item.getTags()), item.getNote(), item.isPublic(), item.getCreatedAt(), item.getUpdatedAt());
     }
 }
