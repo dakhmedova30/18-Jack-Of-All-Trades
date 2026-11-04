@@ -1,16 +1,16 @@
 /* ==========================================================================
    Contents
    1. Design tokens
-   2. Themes, accents & display options (Settings > Appearance)
-   3. Base
-   4. App shell (sidebar, account menu, notifications, content)
-   5. Shared components (buttons, toolbar, cards, avatar, tables, pagination,
-      modal, forms, line items, banners)
-   6. Auth
-   7. Pages: Home, Inventory, Summary panels, Analytics, Settings,
-      Help & legal
+   2. Appearance themes and display options
+   3. Base elements
+   4. App shell: sidebar, menus, notifications, content
+   5. Shared components: toolbar/search, buttons/avatar, cards, tables/tags,
+      empty states/pagination, modal, forms/line items, validation/banners
+   6. Authentication
+   7. Pages: Home, inventory summaries/ranked lists, Analytics, Settings,
+      Help/legal
    8. SVG charts
-   9. Responsive (<= 720px)
+   9. Responsive overrides (<= 896px, <= 720px)
    ========================================================================== */
 
 /* ==========================================================================
@@ -332,11 +332,6 @@ code {
   border-radius: var(--radius);
   color: var(--color-surface);
   line-height: 0;
-  cursor: pointer;
-}
-
-.sidebar__toggle {
-  color: var(--color-surface);
 }
 
 .sidebar-show:hover,
@@ -1609,26 +1604,7 @@ code {
   font-weight: 600;
 }
 
-/* ---------- Inventory ---------- */
-
-.inventory-stat {
-  align-self: flex-start;
-  min-width: 260px;
-}
-
-/* About 15 rows tall, then the table scrolls inside itself with the header pinned. */
-.inventory-table {
-  max-height: calc(15 * 2.6rem + 2.8rem);
-  overflow-y: auto;
-  border-bottom: var(--border-default) var(--color-border);
-}
-
-.inventory-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--color-bg-solid);
-}
+/* ---------- Summary panels and ranked lists ---------- */
 
 .best-sellers__rank {
   display: inline-block;
@@ -1637,7 +1613,7 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- Summary panels (shared by Inventory and the panel row) ---------- */
+/* Shared by Inventory, Sales, and Expenses. */
 
 .summary-panel {
   gap: 0.6rem;
@@ -2308,7 +2284,7 @@ textarea.settings-row__input {
 }
 
 /* ==========================================================================
-   9. Responsive (<= 720px, <= 896px)
+   9. Responsive overrides (<= 896px, <= 720px)
    ========================================================================== */
 
 @media (max-width: 896px) {
@@ -2378,11 +2354,6 @@ textarea.settings-row__input {
 
   .sale-line__field--total span {
     text-align: left;
-  }
-
-  /* Inventory */
-  .inventory-panels {
-    grid-template-columns: 1fr;
   }
 
   /* Analytics: stacked one per row, so natural heights are fine again. */
