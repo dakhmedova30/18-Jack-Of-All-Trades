@@ -46,8 +46,8 @@ export function LoginPage() {
         <h1>Welcome back</h1>
         <p className="muted">Log in to your business account.</p>
 
-        <label className="auth-field" htmlFor="login-email">
-          Email
+        <div className="auth-field">
+          <label htmlFor="login-email">Email</label>
           <input
             id="login-email"
             type="email"
@@ -60,9 +60,14 @@ export function LoginPage() {
             autoFocus
             required
             aria-invalid={errors.email ? true : undefined}
+            aria-describedby={errors.email ? 'login-email-error' : undefined}
           />
-          {errors.email && <span className="field-error">{errors.email}</span>}
-        </label>
+          {errors.email && (
+            <span id="login-email-error" className="field-error" aria-live="polite">
+              {errors.email}
+            </span>
+          )}
+        </div>
 
         <div className="auth-field">
           <label htmlFor="login-password">Password</label>
@@ -78,6 +83,7 @@ export function LoginPage() {
               }}
               required
               aria-invalid={errors.password ? true : undefined}
+              aria-describedby={errors.password ? 'login-password-error' : undefined}
             />
             <button
               type="button"
@@ -89,7 +95,11 @@ export function LoginPage() {
               {showPassword ? 'Hide password' : 'Show password'}
             </button>
           </div>
-          {errors.password && <span className="field-error">{errors.password}</span>}
+          {errors.password && (
+            <span id="login-password-error" className="field-error" aria-live="polite">
+              {errors.password}
+            </span>
+          )}
         </div>
 
         {error && (

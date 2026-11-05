@@ -47,8 +47,8 @@ export function RegisterPage() {
         <h1>Register your business</h1>
         <p className="muted">Create an account to get started.</p>
 
-        <label className="auth-field" htmlFor="register-name">
-          Business name
+        <div className="auth-field">
+          <label htmlFor="register-name">Business name</label>
           <input
             id="register-name"
             autoComplete="organization"
@@ -68,10 +68,10 @@ export function RegisterPage() {
               {errors.name}
             </span>
           )}
-        </label>
+        </div>
 
-        <label className="auth-field" htmlFor="register-email">
-          Email
+        <div className="auth-field">
+          <label htmlFor="register-email">Email</label>
           <input
             id="register-email"
             type="email"
@@ -90,7 +90,7 @@ export function RegisterPage() {
               {errors.email}
             </span>
           )}
-        </label>
+        </div>
 
         <div className="auth-field">
           <label htmlFor="register-password">Password</label>
