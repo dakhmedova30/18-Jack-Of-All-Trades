@@ -79,6 +79,7 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
       : null,
   );
   const [lines, setLines] = useState<LineState[]>(() => linesFromExpense(expense));
+  const [hasUnsavedInput, setHasUnsavedInput] = useState(false);
   const [dateError, setDateError] = useState<string | null>(null);
   const [lineErrors, setLineErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -101,6 +102,7 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
   const tagOptions = tagNames && tag && !tagNames.includes(tag) ? [...tagNames, tag] : tagNames;
 
   function updateLine(key: string, changes: Partial<LineState>) {
+    setHasUnsavedInput(true);
     setLines((current) =>
       current.map((line) => (line.key === key ? { ...line, ...changes } : line)),
     );
@@ -108,13 +110,25 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
   }
 
   function addLine() {
+    setHasUnsavedInput(true);
     setLines((current) => [...current, newLine()]);
   }
 
   function removeLine(key: string) {
+    setHasUnsavedInput(true);
     setLines((current) =>
       current.length > 1 ? current.filter((line) => line.key !== key) : current,
     );
+  }
+
+  function handleCancel() {
+    if (
+      hasUnsavedInput &&
+      !window.confirm('You have unsaved information. Are you sure you want to discard it?')
+    ) {
+      return;
+    }
+    onCancel();
   }
 
   function lineTotalCents(line: LineState): number | null {
@@ -197,10 +211,10 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
   return (
     <Modal
       title={isEditing ? 'Modify expense' : 'Add expense'}
-      onClose={onCancel}
+      onClose={handleCancel}
       footer={
         <>
-          <button type="button" className="button button--ghost" onClick={onCancel}>
+          <button type="button" className="button button--ghost" onClick={handleCancel}>
             Cancel
           </button>
           <button
@@ -218,7 +232,10 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
         <DescriptionRow
           id="expense-description"
           customDescription={customDescription}
-          onChange={setCustomDescription}
+          onChange={(value) => {
+            setHasUnsavedInput(true);
+            setCustomDescription(value);
+          }}
           autoDescription={autoDescription}
           placeholder="Add a description (optional)"
         />
@@ -380,6 +397,7 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
               type="date"
               value={date}
               onChange={(event) => {
+                setHasUnsavedInput(true);
                 setDate(event.target.value);
                 setDateError(null);
               }}
@@ -404,6 +422,7 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
           loadError={tagsError}
           value={tag}
           onChange={(value) => {
+            setHasUnsavedInput(true);
             setTag(value);
             setTagError(null);
           }}

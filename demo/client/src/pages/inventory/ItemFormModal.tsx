@@ -88,13 +88,25 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
   const isEditing = item !== undefined;
   const [values, setValues] = useState<FormValues>(() => toFormValues(item));
   const [isPublic, setIsPublic] = useState(item?.isPublic ?? false);
+  const [hasUnsavedInput, setHasUnsavedInput] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   function setField(field: FieldName, value: string) {
+    setHasUnsavedInput(true);
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined }));
+  }
+
+  function handleCancel() {
+    if (
+      hasUnsavedInput &&
+      !window.confirm('You have unsaved information. Are you sure you want to discard it?')
+    ) {
+      return;
+    }
+    onCancel();
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -132,10 +144,10 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
   return (
     <Modal
       title={isEditing ? 'Modify item' : 'Add new item'}
-      onClose={onCancel}
+      onClose={handleCancel}
       footer={
         <>
-          <button type="button" className="button button--ghost" onClick={onCancel}>
+          <button type="button" className="button button--ghost" onClick={handleCancel}>
             Cancel
           </button>
           <button type="submit" form="item-form" className="button" disabled={submitting}>
@@ -178,7 +190,10 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
               id="item-isPublic"
               type="checkbox"
               checked={isPublic}
-              onChange={(event) => setIsPublic(event.target.checked)}
+              onChange={(event) => {
+                setHasUnsavedInput(true);
+                setIsPublic(event.target.checked);
+              }}
             />
             Show on my public profile
           </label>
