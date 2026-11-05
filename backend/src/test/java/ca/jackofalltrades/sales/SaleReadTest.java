@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
-/** Contract §4: GET /api/sales (search, sort, paging) and GET /api/sales/{id}. */
+/** Contract §4: GET /api/sales (search, filters, sort, paging) and GET /api/sales/{id}. */
 class SaleReadTest extends PostgresTestBase {
 
     @Autowired
@@ -171,6 +171,96 @@ class SaleReadTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.data[*].id", contains(small, big, none)));
         mockMvc.perform(get("/api/sales?sort=id&order=desc").cookie(cookie))
                 .andExpect(jsonPath("$.data[*].id", contains(none, big, small)));
+    }
+
+    @Test
+    void filtersByChannel() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        insertSale(business, "2026-10-01T12:00:00Z", "Online", "", "Web order", 1);
+        insertSale(business, "2026-10-02T12:00:00Z", "In person", "", "Market stall", 1);
+        insertSale(business, "2026-10-03T12:00:00Z", "Online", "", "Second web order", 1);
+
+        mockMvc.perform(get("/api/sales?channelId=" + channelId(business, "Online")).cookie(cookie))
+                .andExpect(jsonPath("$.data[*].items[0].itemName", contains("Second web order", "Web order")))
+                .andExpect(jsonPath("$.total").value(2));
+    }
+
+    @Test
+    void dateRangeIncludesWholeUtcDaysAtBothEnds() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        insertSale(business, "2026-09-30T23:59:59Z", "Online", "", "Day before", 1);
+        insertSale(business, "2026-10-01T00:00:00Z", "Online", "", "First instant", 1);
+        insertSale(business, "2026-10-03T23:59:59Z", "Online", "", "Last instant", 1);
+        insertSale(business, "2026-10-04T00:00:00Z", "Online", "", "Day after", 1);
+
+        mockMvc.perform(get("/api/sales?from=2026-10-01&to=2026-10-03").cookie(cookie))
+                .andExpect(jsonPath("$.data[*].items[0].itemName", contains("Last instant", "First instant")));
+        mockMvc.perform(get("/api/sales?from=2026-10-01&to=2026-10-01").cookie(cookie))
+                .andExpect(jsonPath("$.data[*].items[0].itemName", contains("First instant")));
+        // Either end on its own is open-ended.
+        mockMvc.perform(get("/api/sales?from=2026-10-03").cookie(cookie))
+                .andExpect(jsonPath("$.data[*].items[0].itemName", contains("Day after", "Last instant")));
+        mockMvc.perform(get("/api/sales?to=2026-09-30").cookie(cookie))
+                .andExpect(jsonPath("$.data[*].items[0].itemName", contains("Day before")));
+    }
+
+    @Test
+    void filtersCombineWithSearchAndPaging() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        insertSale(business, "2026-10-01T12:00:00Z", "Online", "", "Print A", 1);
+        insertSale(business, "2026-10-02T12:00:00Z", "Online", "", "Print B", 1);
+        insertSale(business, "2026-10-03T12:00:00Z", "Online", "", "Print C", 1);
+        insertSale(business, "2026-10-02T12:00:00Z", "In person", "", "Print D", 1);
+        insertSale(business, "2026-10-02T12:00:00Z", "Online", "", "Sticker", 1);
+        int online = channelId(business, "Online");
+
+        mockMvc.perform(get("/api/sales?search=print&channelId=" + online
+                        + "&from=2026-10-02&pageSize=1").cookie(cookie))
+                .andExpect(jsonPath("$.data[*].items[0].itemName", contains("Print C")))
+                .andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.totalPages").value(2));
+    }
+
+    @Test
+    void anotherBusinesssChannelMatchesNothing() throws Exception {
+        Cookie mine = registerAndLogin();
+        Cookie theirs = registerAndLogin();
+        insertSale(businessId(mine), "2026-10-01T12:00:00Z", "Online", "", "Mine", 1);
+        int theirChannel = channelId(businessId(theirs), "Online");
+
+        mockMvc.perform(get("/api/sales?channelId=" + theirChannel).cookie(mine))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(0));
+    }
+
+    @Test
+    void fromAfterToIs400() throws Exception {
+        Cookie cookie = registerAndLogin();
+
+        mockMvc.perform(get("/api/sales?from=2026-10-05&to=2026-10-01").cookie(cookie))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("'from' must be on or before 'to'"));
+    }
+
+    @Test
+    void malformedFiltersAre400() throws Exception {
+        Cookie cookie = registerAndLogin();
+
+        mockMvc.perform(get("/api/sales?from=October").cookie(cookie))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("Invalid value for 'from'"));
+        mockMvc.perform(get("/api/sales?to=2026-02-30").cookie(cookie))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("Invalid value for 'to'"));
+        mockMvc.perform(get("/api/sales?channelId=abc").cookie(cookie))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("Invalid value for 'channelId'"));
+        mockMvc.perform(get("/api/sales?channelId=0").cookie(cookie))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].field").value("channelId"));
     }
 
     @Test
