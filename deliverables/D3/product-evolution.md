@@ -3,12 +3,41 @@
 > Aim for 1000-2000 words. Be concise and analytical. We care about reasoning, impact, and integration quality, not length.
 
 ## 1. What Needed to Improve
+<!-- Identify the most important gap or limitation after D2 and how you identified it. -->
 
-Identify the most important gap or limitation after D2 and how you identified it.
+### The most important gap
+
+Jack-Of-All-Trades promises small businesses [management *and* intelligence](../../README.md#description-about-the-project), but at [D2](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/tree/D2) it delivered mostly the first half: owners could record sales, expenses and stock but learn little from them. Every sale stored its date and channel, yet Analytics offered only four fixed periods ending today and no channel breakdown, and the Sales list had only free-text search, with no date filter. "How did last holiday season go?" and "Which channel earns the most?" had no answer. We ranked this first because it touches every owner on every visit and is the product's reason to exist. Three smaller gaps surrounded it: owners couldn't edit their account or password, rename a channel or set their own low-stock cutoff; pages built by different teammates looked and behaved differently, and dialogs lost keyboard focus; and quality relied on people rather than checks, since CI ran no tests and every deploy was manual.
+
+### How we identified it
+
+- **Feedback and reflection:** demo-day feedback was about how information is laid out, and our [D2 retrospective](../D2/iteration-02-review.md) planned analytics by sales channel, UI consistency and more integration testing.
+- **Using the product:** answering real questions with the demo account's 15 months of data showed that a quarter of its sales never appeared in Analytics.
+- **Testing:** once CI ran the backend tests, the first PR it checked ([#8](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/8)) failed.
 
 ## 2. What You Did
+<!-- Describe what was implemented, key architectural or design changes, and integration challenges. -->
 
-Describe what was implemented, key architectural or design changes, and integration challenges.
+Our work fell into four areas, most important first:
+
+- **Finding answers in the data** ([#15](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/15), [#16](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/16)): channel and date filters on Sales; on Analytics, a side panel with dates, a slider over the whole history and a channel filter, plus a Revenue by Channel card.
+- **Running the business from the app** ([#8](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/8), [#12](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/12), [#21](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/21)): Settings for account, security, preferences and notifications, and a public business profile whose products can be shown or hidden in bulk.
+- **Consistency and accessibility** ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9), [#14](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/14), [#17](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/17), [#20](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/20)): shared cards, fonts and colours, a collapsible sidebar, focus-managed dialogs, page titles, a read-aloud reader, and login and registration errors that say what to fix.
+- **Reliable delivery** ([#10](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/10), [#11](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/11), [#13](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/13), [#18](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/18)): backend and frontend tests and time limits in [CI](../../.github/workflows/ci.yml), automatic deploys once everything passes, and [documented configuration](../../backend/.env.example).
+
+### Key design changes
+
+- **Periods instead of fixed ranges:** owners think in seasons, not "the last 12 months", so `GET /api/sales` and `GET /api/analytics/summary` now take `from` and `to` (whole UTC days, both included). Analytics picks daily, weekly or monthly buckets from the period's length, so one endpoint serves a week or the whole history and charts stay readable; `/api/analytics/date-range` gives the slider its ends.
+- **Honest numbers where data is missing:** expenses have no channel, so one channel's revenue minus every expense would be a misleading profit. The channel filter narrows only revenue, and Net Profit shows "—" with the reason.
+- **Public data by allowlist:** the public profile is our first endpoint that needs no login, so it has its own response type instead of reusing the owner's. A field added to a business or item later stays private unless someone adds it to the profile on purpose.
+
+### Integration challenges
+
+- **Deploying from a repo the service doesn't own:** our Render service gets no push events from a repository owned by another teammate's account. CI now calls its deploy hook (kept in a GitHub secret) after the checks pass, so nothing untested reaches the live site.
+- **Changing an endpoint Home depends on:** Home's month-to-date cards use the summary endpoint Analytics was rebuilding, so the API keeps the fixed ranges alongside periods and the shared hook accepts either.
+- **Settings every page depends on:** once preferences and notifications wrapped every logged-in page, components couldn't be tested on their own, so the frontend tests ([#18](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/18)) gained shared test providers and complete test records.
+
+Merge conflicts, our largest integration cost, are covered in Section 4.
 
 ## 3. Before vs. After
 <!--  Show concrete improvements: workflow clarity, speed, error reduction, reliability, etc. -->
