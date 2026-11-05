@@ -1,0 +1,2 @@
+# Settings for the "demo" profile (SPRING_PROFILES_ACTIVE=demo).
+# The profile itself enables DemoDataSeeder; no extra settings are needed yet.

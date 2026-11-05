@@ -13,13 +13,11 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useExpenseMonthBreakdown } from '../../hooks/useExpenseMonthBreakdown';
 import { useExpenses } from '../../hooks/useExpenses';
 import type { Expense, ExpenseInput, ExpenseSortField, SortOrder } from '../../types';
-import { formatDate } from '../../utils/date';
+import { usePreferences } from '../../hooks/usePreferences';
 import { formatCents } from '../../utils/money';
 import { ExpenseFormModal } from './ExpenseFormModal';
 import { MoneyBreakdownPanel } from './MoneyBreakdownPanel';
 import { TopRestockPanel } from './TopRestockPanel';
-
-const PAGE_SIZE = 15;
 
 const SORTABLE_COLUMNS: { field: ExpenseSortField; label: string; numeric?: boolean }[] = [
   { field: 'id', label: 'ID' },
@@ -49,6 +47,7 @@ type FormState = { mode: 'create' } | { mode: 'edit'; expense: Expense } | null;
 type DeleteTarget = { kind: 'single'; expense: Expense } | { kind: 'bulk'; ids: number[] } | null;
 
 export function ExpensesPage() {
+  const { preferences, formatDate } = usePreferences();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebouncedValue(searchInput.trim());
@@ -60,7 +59,7 @@ export function ExpensesPage() {
     reload: reloadExpenses,
   } = useExpenses({
     page,
-    pageSize: PAGE_SIZE,
+    pageSize: preferences.rowsPerPage,
     search,
     sort: sort.field,
     order: sort.order,
@@ -141,6 +140,16 @@ export function ExpensesPage() {
 
   return (
     <section className="page">
+      <div>
+        <h1>Expenses</h1>
+        <p className="muted">A recap of expenses made over the chosen date range.</p>
+      </div>
+
+      <div className="panel-row">
+        <MoneyBreakdownPanel {...breakdown} />
+        <TopRestockPanel {...breakdown} />
+      </div>
+
       <div className="toolbar">
         <div className="toolbar__actions">
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
@@ -155,19 +164,23 @@ export function ExpensesPage() {
             Bulk delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
           </button>
         </div>
-        <label className="search">
-          <input
-            type="search"
-            placeholder="Search"
-            value={searchInput}
-            onChange={(event) => {
-              setSearchInput(event.target.value);
-              setPage(1);
-            }}
-            aria-label="Search expenses by tag or item"
-          />
-          <SearchIcon />
-        </label>
+        <div className="search-field">
+          <label htmlFor="expenses-search">Search</label>
+          <div className="search">
+            <input
+              id="expenses-search"
+              type="search"
+              placeholder="Search"
+              value={searchInput}
+              onChange={(event) => {
+                setSearchInput(event.target.value);
+                setPage(1);
+              }}
+              aria-label="Search expenses by tag or item"
+            />
+            <SearchIcon />
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -225,7 +238,16 @@ export function ExpensesPage() {
               <tr
                 key={expense.id}
                 className="table__row"
+                tabIndex={0}
+                aria-label={`Edit expense ${expense.id}`}
                 onClick={() => setFormState({ mode: 'edit', expense })}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget) return;
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setFormState({ mode: 'edit', expense });
+                  }
+                }}
               >
                 <td className="table__check" onClick={(event) => event.stopPropagation()}>
                   <input
@@ -277,11 +299,6 @@ export function ExpensesPage() {
       </div>
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}
-
-      <div className="panel-row">
-        <MoneyBreakdownPanel {...breakdown} />
-        <TopRestockPanel {...breakdown} />
-      </div>
 
       {formState && (
         <ExpenseFormModal

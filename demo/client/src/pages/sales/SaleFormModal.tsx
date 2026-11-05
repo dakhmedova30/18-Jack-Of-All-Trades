@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { createChannel, listChannels } from '../../api/channels';
+import { usePreferences } from '../../hooks/usePreferences';
 import { listItems } from '../../api/items';
 import { getErrorMessage } from '../../api/http';
 import { Modal } from '../../components/Modal';
@@ -46,7 +47,15 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
 
   const [channels, setChannels] = useState<Channel[] | null>(null);
   const [channelsError, setChannelsError] = useState<string | null>(null);
-  const [channelId, setChannelId] = useState(() => (sale?.channel ? String(sale.channel.id) : ''));
+  const { preferences } = usePreferences();
+  // A new sale starts on the default channel from Settings (checked against the list once it loads).
+  const [channelId, setChannelId] = useState(() =>
+    sale?.channel
+      ? String(sale.channel.id)
+      : sale
+        ? ''
+        : String(preferences.defaultChannelId ?? ''),
+  );
   const [channelError, setChannelError] = useState<string | null>(null);
 
   const [date, setDate] = useState(() => (sale ? isoToDateInputValue(sale.soldAt) : ''));
@@ -56,6 +65,7 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
     sale?.description && sale.description !== describeLines(sale.items) ? sale.description : null,
   );
   const [lines, setLines] = useState<LineState[]>(() => linesFromSale(sale));
+  const [hasUnsavedInput, setHasUnsavedInput] = useState(false);
   const [dateError, setDateError] = useState<string | null>(null);
   const [lineErrors, setLineErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -66,11 +76,17 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
       .then((page) => setItems(page.data))
       .catch((error: unknown) => setItemsError(getErrorMessage(error)));
     listChannels()
-      .then(setChannels)
+      .then((list) => {
+        setChannels(list);
+        setChannelId((current) =>
+          current && !list.some((channel) => String(channel.id) === current) ? '' : current,
+        );
+      })
       .catch((error: unknown) => setChannelsError(getErrorMessage(error)));
   }, []);
 
   function updateLine(key: string, changes: Partial<LineState>) {
+    setHasUnsavedInput(true);
     setLines((current) =>
       current.map((line) => (line.key === key ? { ...line, ...changes } : line)),
     );
@@ -78,13 +94,25 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
   }
 
   function addLine() {
+    setHasUnsavedInput(true);
     setLines((current) => [...current, newLine()]);
   }
 
   function removeLine(key: string) {
+    setHasUnsavedInput(true);
     setLines((current) =>
       current.length > 1 ? current.filter((line) => line.key !== key) : current,
     );
+  }
+
+  function handleCancel() {
+    if (
+      hasUnsavedInput &&
+      !window.confirm('You have unsaved information. Are you sure you want to discard it?')
+    ) {
+      return;
+    }
+    onCancel();
   }
 
   function lineTotalCents(line: LineState): number | null {
@@ -152,10 +180,10 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
   return (
     <Modal
       title={isEditing ? 'Modify sale' : 'Add sale'}
-      onClose={onCancel}
+      onClose={handleCancel}
       footer={
         <>
-          <button type="button" className="button button--ghost" onClick={onCancel}>
+          <button type="button" className="button button--ghost" onClick={handleCancel}>
             Cancel
           </button>
           <button
@@ -173,7 +201,10 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
         <DescriptionRow
           id="sale-description"
           customDescription={customDescription}
-          onChange={setCustomDescription}
+          onChange={(value) => {
+            setHasUnsavedInput(true);
+            setCustomDescription(value);
+          }}
           autoDescription={autoDescription}
           placeholder="Add a description (optional)"
         />
@@ -184,17 +215,29 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
           {items &&
             lines.map((line, index) => {
               const total = lineTotalCents(line);
+              const errorId = `${line.key}-error`;
               return (
-                <div className="sale-line" key={line.key}>
-                  <span className="sale-line__index">{index + 1}</span>
+                <fieldset className="sale-line" key={line.key}>
+                  <legend className="visually-hidden">Sale item {index + 1}</legend>
+                  <span className="sale-line__index" aria-hidden="true">
+                    {index + 1}
+                  </span>
 
                   <div className="sale-line__field">
-                    <label htmlFor={`${line.key}-item`}>Item</label>
+                    <label htmlFor={`${line.key}-item`}>
+                      Item
+                      <span className="required-marker" aria-hidden="true">
+                        {' '}
+                        *
+                      </span>
+                    </label>
                     <select
                       id={`${line.key}-item`}
                       value={line.itemId}
                       onChange={(event) => updateLine(line.key, { itemId: event.target.value })}
+                      required
                       aria-invalid={lineErrors[line.key] ? true : undefined}
+                      aria-describedby={lineErrors[line.key] ? errorId : undefined}
                     >
                       <option value="">Select…</option>
                       {items.map((item) => (
@@ -207,18 +250,26 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
                   </div>
 
                   <div className="sale-line__field sale-line__field--qty">
-                    <label htmlFor={`${line.key}-qty`}>Qty</label>
+                    <label htmlFor={`${line.key}-qty`}>
+                      Qty
+                      <span className="required-marker" aria-hidden="true">
+                        {' '}
+                        *
+                      </span>
+                    </label>
                     <input
                       id={`${line.key}-qty`}
                       value={line.quantity}
                       onChange={(event) => updateLine(line.key, { quantity: event.target.value })}
                       inputMode="numeric"
+                      required
                       aria-invalid={lineErrors[line.key] ? true : undefined}
+                      aria-describedby={lineErrors[line.key] ? errorId : undefined}
                     />
                   </div>
 
                   <div className="sale-line__field sale-line__field--total">
-                    <label>Total</label>
+                    <span className="sale-line__total-label">Total</span>
                     <span>{total === null ? '—' : formatCents(total)}</span>
                   </div>
 
@@ -233,9 +284,11 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
                   </button>
 
                   {lineErrors[line.key] && (
-                    <span className="field-error sale-line__error">{lineErrors[line.key]}</span>
+                    <span id={errorId} className="field-error sale-line__error" aria-live="polite">
+                      {lineErrors[line.key]}
+                    </span>
                   )}
-                </div>
+                </fieldset>
               );
             })}
 
@@ -256,25 +309,39 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
         </div>
 
         <div className="form-row">
-          <label htmlFor="sale-date">Date</label>
+          <label htmlFor="sale-date">
+            Date
+            <span className="required-marker" aria-hidden="true">
+              {' '}
+              *
+            </span>
+          </label>
           <div className="form-row__control">
             <input
               id="sale-date"
               type="date"
               value={date}
               onChange={(event) => {
+                setHasUnsavedInput(true);
                 setDate(event.target.value);
                 setDateError(null);
               }}
+              required
               aria-invalid={dateError ? true : undefined}
+              aria-describedby={dateError ? 'sale-date-error' : undefined}
             />
-            {dateError && <span className="field-error">{dateError}</span>}
+            {dateError && (
+              <span id="sale-date-error" className="field-error" aria-live="polite">
+                {dateError}
+              </span>
+            )}
           </div>
         </div>
 
         <SelectWithAddRow
           id="sale-channel"
           label="Channel"
+          required
           noun="channel"
           options={
             channels?.map((channel) => ({ value: String(channel.id), label: channel.name })) ?? null
@@ -282,6 +349,7 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
           loadError={channelsError}
           value={channelId}
           onChange={(value) => {
+            setHasUnsavedInput(true);
             setChannelId(value);
             setChannelError(null);
           }}
@@ -298,12 +366,16 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
         {/* A new sale has no ID until it's saved, so only show it when editing. */}
         {sale && (
           <div className="form-row">
-            <label>ID</label>
+            <span className="form-row__label">ID</span>
             <span className="form-row__static">{sale.id}</span>
           </div>
         )}
 
-        {submitError && <p className="form-error">{submitError}</p>}
+        {submitError && (
+          <p className="form-error" role="alert">
+            {submitError}
+          </p>
+        )}
       </form>
     </Modal>
   );

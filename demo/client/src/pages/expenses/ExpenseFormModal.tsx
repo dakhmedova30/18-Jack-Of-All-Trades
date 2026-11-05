@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { createExpenseTag, listExpenseTags } from '../../api/expenseTags';
+import { usePreferences } from '../../hooks/usePreferences';
 import { listItems } from '../../api/items';
 import { getErrorMessage } from '../../api/http';
 import { Modal } from '../../components/Modal';
@@ -8,7 +9,13 @@ import { DescriptionRow } from '../../components/DescriptionRow';
 import { SelectWithAddRow } from '../../components/SelectWithAddRow';
 import { dateInputValueToIso, isoToDateInputValue } from '../../utils/date';
 import { describeLines } from '../../utils/describeLines';
-import { centsToInputValue, formatCents, parseDollarsToCents } from '../../utils/money';
+import {
+  centsToInputValue,
+  formatCents,
+  MAX_AMOUNT_CENTS,
+  MAX_AMOUNT_DISPLAY,
+  parseDollarsToCents,
+} from '../../utils/money';
 import type { Expense, ExpenseInput, Item } from '../../types';
 
 interface ExpenseFormModalProps {
@@ -57,7 +64,12 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
   const [tagNames, setTagNames] = useState<string[] | null>(null);
   const [tagsError, setTagsError] = useState<string | null>(null);
   // The first tag is the one the dropdown edits (and the one the charts group by).
-  const [tag, setTag] = useState(() => expense?.tags[0] ?? '');
+  const { preferences } = usePreferences();
+  const isNew = !expense;
+  // A new expense starts on the default tag from Settings (checked against the list once it loads).
+  const [tag, setTag] = useState(() =>
+    expense ? (expense.tags[0] ?? '') : (preferences.defaultExpenseTag ?? ''),
+  );
   const [tagError, setTagError] = useState<string | null>(null);
   // null = follow the lines ("Flower Print x 200, Shipping x 1"); a string = the user's own text.
   // An existing expense whose description is blank or was never changed keeps following its lines.
@@ -67,6 +79,7 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
       : null,
   );
   const [lines, setLines] = useState<LineState[]>(() => linesFromExpense(expense));
+  const [hasUnsavedInput, setHasUnsavedInput] = useState(false);
   const [dateError, setDateError] = useState<string | null>(null);
   const [lineErrors, setLineErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -77,14 +90,19 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
       .then((page) => setItems(page.data))
       .catch((error: unknown) => setItemsError(getErrorMessage(error)));
     listExpenseTags()
-      .then((tags) => setTagNames(tags.map((entry) => entry.name)))
+      .then((tags) => {
+        const names = tags.map((entry) => entry.name);
+        setTagNames(names);
+        if (isNew) setTag((current) => (names.includes(current) ? current : ''));
+      })
       .catch((error: unknown) => setTagsError(getErrorMessage(error)));
-  }, []);
+  }, [isNew]);
 
   // An older expense's tag may not be in the list; offer it so the dropdown can show it.
   const tagOptions = tagNames && tag && !tagNames.includes(tag) ? [...tagNames, tag] : tagNames;
 
   function updateLine(key: string, changes: Partial<LineState>) {
+    setHasUnsavedInput(true);
     setLines((current) =>
       current.map((line) => (line.key === key ? { ...line, ...changes } : line)),
     );
@@ -92,13 +110,25 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
   }
 
   function addLine() {
+    setHasUnsavedInput(true);
     setLines((current) => [...current, newLine()]);
   }
 
   function removeLine(key: string) {
+    setHasUnsavedInput(true);
     setLines((current) =>
       current.length > 1 ? current.filter((line) => line.key !== key) : current,
     );
+  }
+
+  function handleCancel() {
+    if (
+      hasUnsavedInput &&
+      !window.confirm('You have unsaved information. Are you sure you want to discard it?')
+    ) {
+      return;
+    }
+    onCancel();
   }
 
   function lineTotalCents(line: LineState): number | null {
@@ -139,6 +169,8 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
         errors[line.key] = 'Enter a whole number, 1 or more';
       } else if (unitCostCents === null) {
         errors[line.key] = 'Enter a cost like 5 or 5.99';
+      } else if (unitCostCents < 0 || unitCostCents > MAX_AMOUNT_CENTS) {
+        errors[line.key] = `Cost must be between 0.00 and ${MAX_AMOUNT_DISPLAY}`;
       }
 
       return {
@@ -179,10 +211,10 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
   return (
     <Modal
       title={isEditing ? 'Modify expense' : 'Add expense'}
-      onClose={onCancel}
+      onClose={handleCancel}
       footer={
         <>
-          <button type="button" className="button button--ghost" onClick={onCancel}>
+          <button type="button" className="button button--ghost" onClick={handleCancel}>
             Cancel
           </button>
           <button
@@ -200,7 +232,10 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
         <DescriptionRow
           id="expense-description"
           customDescription={customDescription}
-          onChange={setCustomDescription}
+          onChange={(value) => {
+            setHasUnsavedInput(true);
+            setCustomDescription(value);
+          }}
           autoDescription={autoDescription}
           placeholder="Add a description (optional)"
         />
@@ -212,9 +247,13 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
             lines.map((line, index) => {
               const total = lineTotalCents(line);
               const isFreeText = line.itemId === '';
+              const errorId = `${line.key}-error`;
               return (
-                <div className="expense-line" key={line.key}>
-                  <span className="sale-line__index">{index + 1}</span>
+                <fieldset className="expense-line" key={line.key}>
+                  <legend className="visually-hidden">Expense item {index + 1}</legend>
+                  <span className="sale-line__index" aria-hidden="true">
+                    {index + 1}
+                  </span>
 
                   <div className="sale-line__field">
                     <label htmlFor={`${line.key}-item`}>Item (optional)</label>
@@ -223,6 +262,7 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
                       value={line.itemId}
                       onChange={(event) => updateLine(line.key, { itemId: event.target.value })}
                       aria-invalid={lineErrors[line.key] ? true : undefined}
+                      aria-describedby={lineErrors[line.key] ? errorId : undefined}
                     >
                       <option value="">No item — free-text cost</option>
                       {items.map((item) => (
@@ -234,7 +274,15 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
                   </div>
 
                   <div className="sale-line__field">
-                    <label htmlFor={`${line.key}-description`}>Description</label>
+                    <label htmlFor={`${line.key}-description`}>
+                      Description
+                      {isFreeText && (
+                        <span className="required-marker" aria-hidden="true">
+                          {' '}
+                          *
+                        </span>
+                      )}
+                    </label>
                     <input
                       id={`${line.key}-description`}
                       value={
@@ -247,35 +295,56 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
                       }
                       placeholder="Rent, packaging tape, …"
                       disabled={!isFreeText}
+                      required={isFreeText}
                       aria-invalid={lineErrors[line.key] ? true : undefined}
+                      aria-describedby={lineErrors[line.key] ? errorId : undefined}
                     />
                   </div>
 
                   <div className="sale-line__field sale-line__field--qty">
-                    <label htmlFor={`${line.key}-qty`}>Qty</label>
+                    <label htmlFor={`${line.key}-qty`}>
+                      Qty
+                      <span className="required-marker" aria-hidden="true">
+                        {' '}
+                        *
+                      </span>
+                    </label>
                     <input
                       id={`${line.key}-qty`}
                       value={line.quantity}
                       onChange={(event) => updateLine(line.key, { quantity: event.target.value })}
                       inputMode="numeric"
+                      required
                       aria-invalid={lineErrors[line.key] ? true : undefined}
+                      aria-describedby={lineErrors[line.key] ? errorId : undefined}
                     />
                   </div>
 
                   <div className="sale-line__field sale-line__field--qty">
-                    <label htmlFor={`${line.key}-cost`}>Unit cost</label>
+                    <label htmlFor={`${line.key}-cost`}>
+                      <span>
+                        Unit cost
+                        <span className="required-marker" aria-hidden="true">
+                          {' '}
+                          *
+                        </span>
+                      </span>
+                      <span className="field-label__hint">{`0.00–${MAX_AMOUNT_DISPLAY}`}</span>
+                    </label>
                     <input
                       id={`${line.key}-cost`}
                       value={line.unitCost}
                       onChange={(event) => updateLine(line.key, { unitCost: event.target.value })}
                       inputMode="decimal"
                       placeholder="5.00"
+                      required
                       aria-invalid={lineErrors[line.key] ? true : undefined}
+                      aria-describedby={lineErrors[line.key] ? errorId : undefined}
                     />
                   </div>
 
                   <div className="sale-line__field sale-line__field--total">
-                    <label>Total</label>
+                    <span className="sale-line__total-label">Total</span>
                     <span>{total === null ? '—' : formatCents(total)}</span>
                   </div>
 
@@ -290,9 +359,11 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
                   </button>
 
                   {lineErrors[line.key] && (
-                    <span className="field-error sale-line__error">{lineErrors[line.key]}</span>
+                    <span id={errorId} className="field-error sale-line__error" aria-live="polite">
+                      {lineErrors[line.key]}
+                    </span>
                   )}
-                </div>
+                </fieldset>
               );
             })}
 
@@ -313,30 +384,45 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
         </div>
 
         <div className="form-row">
-          <label htmlFor="expense-date">Date</label>
+          <label htmlFor="expense-date">
+            Date
+            <span className="required-marker" aria-hidden="true">
+              {' '}
+              *
+            </span>
+          </label>
           <div className="form-row__control">
             <input
               id="expense-date"
               type="date"
               value={date}
               onChange={(event) => {
+                setHasUnsavedInput(true);
                 setDate(event.target.value);
                 setDateError(null);
               }}
+              required
               aria-invalid={dateError ? true : undefined}
+              aria-describedby={dateError ? 'expense-date-error' : undefined}
             />
-            {dateError && <span className="field-error">{dateError}</span>}
+            {dateError && (
+              <span id="expense-date-error" className="field-error" aria-live="polite">
+                {dateError}
+              </span>
+            )}
           </div>
         </div>
 
         <SelectWithAddRow
           id="expense-tag"
           label="Tag"
+          required
           noun="tag"
           options={tagOptions?.map((name) => ({ value: name, label: name })) ?? null}
           loadError={tagsError}
           value={tag}
           onChange={(value) => {
+            setHasUnsavedInput(true);
             setTag(value);
             setTagError(null);
           }}
@@ -351,11 +437,15 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
         />
 
         <div className="form-row">
-          <label>ID</label>
+          <span className="form-row__label">ID</span>
           <span className="form-row__static">{expense?.id ?? 'Assigned on save'}</span>
         </div>
 
-        {submitError && <p className="form-error">{submitError}</p>}
+        {submitError && (
+          <p className="form-error" role="alert">
+            {submitError}
+          </p>
+        )}
       </form>
     </Modal>
   );

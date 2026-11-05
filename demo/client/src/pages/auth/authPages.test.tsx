@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../api/http';
 import * as authApi from '../../api/auth';
 import { AuthProvider } from '../../hooks/useAuth';
+import { testBusiness } from '../../test/fixtures';
 import { LoginPage } from './LoginPage';
 import { RegisterPage } from './RegisterPage';
 
@@ -15,12 +16,7 @@ vi.mock('../../api/auth', () => ({
   register: vi.fn(),
 }));
 
-const business = {
-  id: 1,
-  name: 'Test Business',
-  email: 'owner@example.com',
-  createdAt: '2026-01-01T00:00:00.000Z',
-};
+const business = testBusiness;
 
 function renderAuthPage(page: 'login' | 'register') {
   const Page = page === 'login' ? LoginPage : RegisterPage;

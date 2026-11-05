@@ -17,6 +17,12 @@ describe('money utilities', () => {
   it('returns null for invalid dollar amounts', () => {
     expect(parseDollarsToCents('not a price')).toBeNull();
     expect(parseDollarsToCents('1.234')).toBeNull();
-    expect(parseDollarsToCents('-2')).toBeNull();
+    expect(parseDollarsToCents('$5')).toBeNull();
+  });
+
+  it('parses negative amounts, so forms can say the amount is out of range', () => {
+    // The forms reject these with "must be between 0.00 and …" rather than "enter a price".
+    expect(parseDollarsToCents('-2')).toBe(-200);
+    expect(parseDollarsToCents('-0.50')).toBe(-50);
   });
 });

@@ -1,5 +1,6 @@
+import { SummaryPanel } from '../../components/SummaryPanel';
 import type { SalesMonthSummary } from '../../types';
-import { formatDate } from '../../utils/date';
+import { usePreferences } from '../../hooks/usePreferences';
 import { formatCents } from '../../utils/money';
 
 export interface MonthGlancePanelProps {
@@ -9,50 +10,58 @@ export interface MonthGlancePanelProps {
   reload: () => void;
 }
 
-/** This month's number of sales, average sale value and largest sale. */
+/** This month's sales count, average sale value and largest sale as separate panels. */
 export function MonthGlancePanel({ data, error, loading, reload }: MonthGlancePanelProps) {
+  const { formatDate } = usePreferences();
   const month = data
     ? new Date(data.periodStart).toLocaleDateString('en-CA', { month: 'long', timeZone: 'UTC' })
-    : '';
+    : undefined;
+
+  const metrics = data
+    ? [
+        {
+          title: 'Sales',
+          value: data.saleCount.toLocaleString(),
+          detail: data.saleCount === 1 ? 'sale this month' : 'sales this month',
+        },
+        {
+          title: 'Average sale',
+          value: data.saleCount > 0 ? formatCents(data.averageSaleCents) : '—',
+          detail: data.saleCount > 0 ? 'per sale' : 'No sales yet',
+        },
+        {
+          title: 'Largest sale',
+          value: data.largestSale ? formatCents(data.largestSale.totalCents) : '—',
+          detail: data.largestSale ? `on ${formatDate(data.largestSale.soldAt)}` : 'No sales yet',
+        },
+      ]
+    : [
+        { title: 'Sales', value: '', detail: '' },
+        { title: 'Average sale', value: '', detail: '' },
+        { title: 'Largest sale', value: '', detail: '' },
+      ];
 
   return (
-    <div className="card low-stock">
-      <div className="low-stock__header">
-        <h2>This month at a glance</h2>
-        {data && <span className="muted">{month}</span>}
-      </div>
-      {error ? (
-        <div className="banner banner--error" role="alert">
-          Couldn't load this month's sales: {error}{' '}
-          <button type="button" className="link-button" onClick={reload}>
-            Retry
-          </button>
-        </div>
-      ) : !data ? (
-        <p className="empty-state">{loading ? 'Loading…' : 'No data.'}</p>
-      ) : data.saleCount === 0 ? (
-        <p className="empty-state">No sales yet this month.</p>
-      ) : (
-        <dl className="glance">
-          <div className="glance__item">
-            <dt>Sales</dt>
-            <dd>{data.saleCount.toLocaleString()}</dd>
-          </div>
-          <div className="glance__item">
-            <dt>Average sale</dt>
-            <dd>{formatCents(data.averageSaleCents)}</dd>
-          </div>
-          <div className="glance__item">
-            <dt>Largest sale</dt>
-            <dd className="dd-item">
-              {data.largestSale ? formatCents(data.largestSale.totalCents) : '—'}
-              {data.largestSale && (
-                <span className="muted glance__note">on {formatDate(data.largestSale.soldAt)}</span>
-              )}
-            </dd>
-          </div>
-        </dl>
-      )}
-    </div>
+    <>
+      {metrics.map(({ title, value, detail }) => (
+        <SummaryPanel key={title} title={title} context={month}>
+          {error ? (
+            <div className="banner banner--error" role="alert">
+              Couldn't load this month's sales: {error}{' '}
+              <button type="button" className="link-button" onClick={reload}>
+                Retry
+              </button>
+            </div>
+          ) : !data ? (
+            <p className="empty-state">{loading ? 'Loading…' : 'No data.'}</p>
+          ) : (
+            <div className="summary-panel__value-block">
+              <span className="summary-panel__value">{value}</span>
+              <span className="muted">{detail}</span>
+            </div>
+          )}
+        </SummaryPanel>
+      ))}
+    </>
   );
 }

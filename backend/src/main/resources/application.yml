@@ -1,0 +1,29 @@
+server:
+  port: ${PORT:4000}
+  forward-headers-strategy: framework     # Render's proxy terminates HTTPS
+spring:
+  application:
+    name: backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/jack}
+    username: ${SPRING_DATASOURCE_USERNAME:jack}
+    password: ${SPRING_DATASOURCE_PASSWORD:jack}
+    hikari:
+      connection-timeout: 10000           # milliseconds, as the demo; fail fast (503) when the database is down
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate                  # only Flyway changes the schema
+  flyway:
+    out-of-order: true
+  jackson:
+    # Whole-number fields (ids, quantities, cents) reject 2.7 and "5" instead of silently
+    # storing 2 and 5; GlobalExceptionHandler reports them as field errors.
+    deserialization:
+      accept-float-as-int: false
+    mapper:
+      allow-coercion-of-scalars: false
+  session:
+    timeout: 30d
+    jdbc:
+      initialize-schema: never            # the Flyway migration creates the tables

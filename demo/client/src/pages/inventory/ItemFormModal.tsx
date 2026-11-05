@@ -2,7 +2,12 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { ApiError, getErrorMessage } from '../../api/http';
 import { Modal } from '../../components/Modal';
 import type { Item, ItemInput } from '../../types';
-import { centsToInputValue, parseDollarsToCents } from '../../utils/money';
+import {
+  centsToInputValue,
+  MAX_AMOUNT_CENTS,
+  MAX_AMOUNT_DISPLAY,
+  parseDollarsToCents,
+} from '../../utils/money';
 
 interface ItemFormModalProps {
   /** Pass an item to edit it ("Modify item"); omit to create one ("Add new item"). */
@@ -44,7 +49,10 @@ function parseTags(raw: string): string[] {
   ];
 }
 
-function validate(values: FormValues): { input?: ItemInput; errors: FieldErrors } {
+function validate(
+  values: FormValues,
+  isPublic: boolean,
+): { input?: ItemInput; errors: FieldErrors } {
   const errors: FieldErrors = {};
   const name = values.name.trim();
   const quantity = Number(values.quantity);
@@ -56,12 +64,22 @@ function validate(values: FormValues): { input?: ItemInput; errors: FieldErrors 
     errors.quantity = 'Enter a whole number, 0 or more';
   }
   if (unitPriceCents === null) errors.unitPrice = 'Enter a price like 5 or 5.99';
+  else if (unitPriceCents < 0 || unitPriceCents > MAX_AMOUNT_CENTS) {
+    errors.unitPrice = `Price must be between 0.00 and ${MAX_AMOUNT_DISPLAY}`;
+  }
   if (tags.length > 10) errors.tags = 'At most 10 tags';
   if (tags.some((tag) => tag.length > 30)) errors.tags = 'Each tag must be 30 characters or less';
 
   if (Object.keys(errors).length > 0) return { errors };
   return {
-    input: { name, quantity, unitPriceCents: unitPriceCents!, tags, note: values.note.trim() },
+    input: {
+      name,
+      quantity,
+      unitPriceCents: unitPriceCents!,
+      tags,
+      note: values.note.trim(),
+      isPublic,
+    },
     errors,
   };
 }
@@ -69,18 +87,31 @@ function validate(values: FormValues): { input?: ItemInput; errors: FieldErrors 
 export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) {
   const isEditing = item !== undefined;
   const [values, setValues] = useState<FormValues>(() => toFormValues(item));
+  const [isPublic, setIsPublic] = useState(item?.isPublic ?? false);
+  const [hasUnsavedInput, setHasUnsavedInput] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   function setField(field: FieldName, value: string) {
+    setHasUnsavedInput(true);
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined }));
   }
 
+  function handleCancel() {
+    if (
+      hasUnsavedInput &&
+      !window.confirm('You have unsaved information. Are you sure you want to discard it?')
+    ) {
+      return;
+    }
+    onCancel();
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const { input, errors: validationErrors } = validate(values);
+    const { input, errors: validationErrors } = validate(values, isPublic);
     setErrors(validationErrors);
     if (!input) return;
 
@@ -107,15 +138,16 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
     value: values[field],
     onChange: (event: { target: { value: string } }) => setField(field, event.target.value),
     'aria-invalid': errors[field] ? true : undefined,
+    'aria-describedby': errors[field] ? `item-${field}-error` : undefined,
   });
 
   return (
     <Modal
       title={isEditing ? 'Modify item' : 'Add new item'}
-      onClose={onCancel}
+      onClose={handleCancel}
       footer={
         <>
-          <button type="button" className="button button--ghost" onClick={onCancel}>
+          <button type="button" className="button button--ghost" onClick={handleCancel}>
             Cancel
           </button>
           <button type="submit" form="item-form" className="button" disabled={submitting}>
@@ -126,24 +158,45 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
     >
       <form id="item-form" className="item-form" onSubmit={handleSubmit} noValidate>
         <div className="form-row">
-          <label>ID</label>
+          <span className="form-row__label">ID</span>
           <span className="form-row__static">{item?.id ?? 'Assigned on save'}</span>
         </div>
 
-        <FormRow label="Name" htmlFor="item-name" error={errors.name}>
-          <input {...fieldProps('name')} placeholder="Item 1" autoFocus maxLength={120} />
+        <FormRow label="Name" htmlFor="item-name" error={errors.name} required>
+          <input {...fieldProps('name')} placeholder="Item 1" maxLength={120} required />
         </FormRow>
 
-        <FormRow label="Qty" htmlFor="item-quantity" error={errors.quantity}>
-          <input {...fieldProps('quantity')} inputMode="numeric" placeholder="100" />
+        <FormRow label="Qty" htmlFor="item-quantity" error={errors.quantity} required>
+          <input {...fieldProps('quantity')} inputMode="numeric" placeholder="100" required />
         </FormRow>
 
-        <FormRow label="Unit price (CAD)" htmlFor="item-unitPrice" error={errors.unitPrice}>
-          <input {...fieldProps('unitPrice')} inputMode="decimal" placeholder="5.00" />
+        <FormRow
+          label="Unit price (CAD)"
+          hint={`0.00–${MAX_AMOUNT_DISPLAY}`}
+          htmlFor="item-unitPrice"
+          error={errors.unitPrice}
+          required
+        >
+          <input {...fieldProps('unitPrice')} inputMode="decimal" placeholder="5.00" required />
         </FormRow>
 
         <FormRow label="Tags" htmlFor="item-tags" error={errors.tags}>
           <input {...fieldProps('tags')} placeholder="Tag, Tag" />
+        </FormRow>
+
+        <FormRow label="Public" htmlFor="item-isPublic">
+          <label className="item-form__check">
+            <input
+              id="item-isPublic"
+              type="checkbox"
+              checked={isPublic}
+              onChange={(event) => {
+                setHasUnsavedInput(true);
+                setIsPublic(event.target.checked);
+              }}
+            />
+            Show on my public profile
+          </label>
         </FormRow>
 
         <div className="form-stack">
@@ -151,7 +204,11 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
           <textarea {...fieldProps('note')} rows={4} maxLength={1000} />
         </div>
 
-        {submitError && <p className="form-error">{submitError}</p>}
+        {submitError && (
+          <p className="form-error" role="alert">
+            {submitError}
+          </p>
+        )}
       </form>
     </Modal>
   );
@@ -159,18 +216,39 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
 
 interface FormRowProps {
   label: string;
+  hint?: string;
   htmlFor: string;
   error?: string;
+  required?: boolean;
   children: ReactNode;
 }
 
-function FormRow({ label, htmlFor, error, children }: FormRowProps) {
+function FormRow({ label, hint, htmlFor, error, required = false, children }: FormRowProps) {
   return (
     <div className="form-row">
-      <label htmlFor={htmlFor}>{label}</label>
+      <label htmlFor={htmlFor}>
+        <span>
+          {label}
+          {required && (
+            <span className="required-marker" aria-hidden="true">
+              {' '}
+              *
+            </span>
+          )}
+        </span>
+        {hint && <span className="field-label__hint">{hint}</span>}
+      </label>
       <div className="form-row__control">
         {children}
-        {error && <span className="field-error">{error}</span>}
+        {error && (
+          <span
+            id={`item-${htmlFor.replace('item-', '')}-error`}
+            className="field-error"
+            aria-live="polite"
+          >
+            {error}
+          </span>
+        )}
       </div>
     </div>
   );

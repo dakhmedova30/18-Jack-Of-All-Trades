@@ -1,9 +1,18 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as authApi from '../../api/auth';
 import * as expenseTagApi from '../../api/expenseTags';
 import * as itemApi from '../../api/items';
+import { PageProviders } from '../../test/providers';
 import { ExpenseFormModal } from './ExpenseFormModal';
+
+// Required fields' labels end in a "*" (hidden from screen readers), so labels are matched by
+// how they start.
+
+vi.mock('../../api/auth', () => ({
+  getCurrentBusiness: vi.fn(),
+}));
 
 vi.mock('../../api/expenseTags', () => ({
   createExpenseTag: vi.fn(),
@@ -17,6 +26,7 @@ vi.mock('../../api/items', () => ({
 describe('ExpenseFormModal', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(authApi.getCurrentBusiness).mockResolvedValue(undefined);
     vi.mocked(itemApi.listItems).mockResolvedValue({
       data: [],
       page: 1,
@@ -30,13 +40,13 @@ describe('ExpenseFormModal', () => {
   it('submits a free-text expense with its date, tag, and cost', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn().mockResolvedValue(undefined);
-    render(<ExpenseFormModal onCancel={vi.fn()} onSubmit={onSubmit} />);
+    render(<ExpenseFormModal onCancel={vi.fn()} onSubmit={onSubmit} />, { wrapper: PageProviders });
 
-    await screen.findByLabelText('Tag');
+    await screen.findByLabelText(/^Tag\b/);
     await user.type(screen.getByPlaceholderText('Rent, packaging tape, …'), 'Rent');
-    await user.type(screen.getByLabelText('Unit cost'), '125.50');
-    await user.type(screen.getByLabelText('Date'), '2026-10-20');
-    await user.selectOptions(await screen.findByLabelText('Tag'), 'Utilities');
+    await user.type(screen.getByLabelText(/^Unit cost\b/), '125.50');
+    await user.type(screen.getByLabelText(/^Date\b/), '2026-10-20');
+    await user.selectOptions(await screen.findByLabelText(/^Tag\b/), 'Utilities');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(onSubmit).toHaveBeenCalledWith({

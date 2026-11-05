@@ -46,7 +46,6 @@ export function ConfirmDialog({
             className="button button--danger"
             onClick={handleConfirm}
             disabled={pending}
-            autoFocus
           >
             {pending ? 'Deleting…' : confirmLabel}
           </button>

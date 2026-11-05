@@ -6,6 +6,7 @@ interface SelectWithAddRowProps {
   /** Base id for the select; the "new" input gets `${id}-new`. */
   id: string;
   label: string;
+  required?: boolean;
   /** Lowercase name of one entry, for the button and messages: "channel", "tag". */
   noun: string;
   /** null while loading. */
@@ -28,6 +29,7 @@ interface SelectWithAddRowProps {
 export function SelectWithAddRow({
   id,
   label,
+  required = false,
   noun,
   options,
   loadError,
@@ -70,7 +72,15 @@ export function SelectWithAddRow({
 
   return (
     <div className="form-row">
-      <label htmlFor={newName === null ? id : `${id}-new`}>{label}</label>
+      <label htmlFor={newName === null ? id : `${id}-new`}>
+        {label}
+        {required && (
+          <span className="required-marker" aria-hidden="true">
+            {' '}
+            *
+          </span>
+        )}
+      </label>
       <div className="form-row__control">
         {loadError && (
           <span className="form-error">
@@ -85,7 +95,9 @@ export function SelectWithAddRow({
               id={id}
               value={value}
               onChange={(event) => onChange(event.target.value)}
+              required={required}
               aria-invalid={shownError ? true : undefined}
+              aria-describedby={shownError ? `${id}-error` : undefined}
             >
               <option value="">Select…</option>
               {options.map((option) => (
@@ -123,7 +135,9 @@ export function SelectWithAddRow({
               placeholder={placeholder}
               maxLength={maxLength}
               autoFocus
+              required={required}
               aria-invalid={shownError ? true : undefined}
+              aria-describedby={shownError ? `${id}-error` : undefined}
             />
             <button
               type="button"
@@ -139,7 +153,11 @@ export function SelectWithAddRow({
           </div>
         )}
 
-        {shownError && <span className="field-error">{shownError}</span>}
+        {shownError && (
+          <span id={`${id}-error`} className="field-error" aria-live="polite">
+            {shownError}
+          </span>
+        )}
       </div>
     </div>
   );

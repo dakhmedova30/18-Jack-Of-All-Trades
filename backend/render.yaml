@@ -1,0 +1,32 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Deploys the whole app as one Docker web service: Spring Boot serves both /api and the built
+# React client. Our live service was created by hand ("Public Git Repository", see the README's
+# "Deploying to Render"); this file gives the same setup for anyone deploying from a fork
+# they own, via New > Blueprint.
+#
+# The database is Neon (or any hosted Postgres): Render asks for the three SPRING_DATASOURCE_*
+# values when the Blueprint is created. They are never committed to git; see
+# backend/.env.example for their format.
+services:
+  - type: web
+    name: jack-of-all-trades
+    runtime: docker
+    # 0.5 CPU / 512 MB. The free plan's 0.1 CPU is too slow to boot the JVM within the
+    # health-check window.
+    plan: 0.5c-512mb
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    # Deploys are triggered by the deploy job in .github/workflows/ci.yml (through the
+    # RENDER_DEPLOY_HOOK_URL secret) only after the checks and tests pass on main, so Render
+    # doesn't also deploy on every commit by itself.
+    autoDeployTrigger: "off"
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: SPRING_PROFILES_ACTIVE
+        value: demo
