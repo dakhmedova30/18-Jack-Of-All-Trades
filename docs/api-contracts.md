@@ -248,7 +248,7 @@ Deleting an item doesn't change past sales or expenses: their lines keep the ite
 
 | Method | Path | Request body | Success |
 | --- | --- | --- | --- |
-| `GET` | `/api/sales?page&pageSize&search&sort&order` | — | `200` `Paginated<Sale>` |
+| `GET` | `/api/sales?page&pageSize&search&sort&order&channelId&from&to` | — | `200` `Paginated<Sale>` |
 | `GET` | `/api/sales/month-summary` | — | `200` `SalesMonthSummary` |
 | `GET` | `/api/sales/{id}` | — | `200` `Sale` |
 | `POST` | `/api/sales` | `SaleInput` | `201` `Sale` |
@@ -257,6 +257,7 @@ Deleting an item doesn't change past sales or expenses: their lines keep the ite
 | `POST` | `/api/sales/bulk-delete` | `{ "ids": [1, 2] }` (1–100 ids) | `200` `{ "deleted": 2 }` |
 
 - **List:** `search` matches tags, the description, the channel's name, or item names on the sale's lines. `sort` is `soldAt` (default), `id`, `total`, `tags` (first tag) or `channel` (channel name); `order` is `desc` (default) or `asc`. Sorting by `tags` or `channel` ignores case; untagged sales go last either way.
+- **Filters** (all optional, combined with each other and with `search`): `channelId` keeps one channel's sales (another business's channel matches nothing). `from` and `to` are dates (`2026-10-01`) and both ends are inclusive whole UTC days, as the app displays dates; either may be given alone. `400 'from' must be on or before 'to'` for a backwards range, `400 Invalid value for 'from'` for a value that isn't a real date, `400 'from' must be a date between the years 1 and 9999` outside those years, and a validation error on `channelId` below 1.
 
 ```json
 // Sale
@@ -410,9 +411,21 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
 
 *Source: `claude-demo`; `inventory` from `merge-ui-mods`.*
 
-### `GET /api/analytics/summary?range`
+### `GET /api/analytics/summary?range` or `?from&to`, plus optional `&channelId`
 
-One response drives the whole dashboard. `range` is the page's "Show by" filter:
+One response drives the whole dashboard, for either a fixed `range` or a chosen period.
+
+**A chosen period** (the Analytics page's date filter): `from` and `to` are ISO dates (`2026-10-01`), both included. Give both or neither. When given, they take precedence over `range`, `range` in the response is `"custom"`, and the totals count only that period. The bucket size follows the period's length:
+
+| Period length | Buckets |
+| --- | --- |
+| Up to 31 days | One per day, labelled `Oct 5` |
+| Up to 183 days | One per week, from Monday; `buckets` holds each week's Monday. The label is the week's first day in the period, so a partial first week is labelled with `from` |
+| Longer | One per month, labelled `Oct`, or `Oct 2025` when the period spans more than one year |
+
+Errors (`400`): only one of `from`/`to` given, `from` after `to`, a period of 100 years or more, or a date that isn't `YYYY-MM-DD`.
+
+**A fixed range** (used by Home), when there's no `from`/`to`:
 
 | `range` | Period | Buckets |
 | --- | --- | --- |
@@ -422,6 +435,8 @@ One response drives the whole dashboard. `range` is the page's "Show by" filter:
 | `12months` (default) | The last 12 calendar months | One per month |
 
 Revenue and expenses are grouped by each record's **first tag** (records without tags count as `"Untagged"`): the top 3 tags by value, with the rest combined as `"Other"`. Days and months are UTC.
+
+**A channel** (the Analytics page's channel filter, with either of the above): `channelId` counts only that channel's sales, in `totalRevenueCents`, `revenueSeries`, `salesByTag` and `revenueByChannel`. Expenses aren't recorded per channel, so `totalExpensesCents` and `expenseSeries` still cover every expense, and `netProfitCents` is then that channel's revenue minus all expenses (the page doesn't show it). Another business's channel matches no sales. `400` validation error for a `channelId` below 1.
 
 ```json
 {
@@ -442,13 +457,27 @@ Revenue and expenses are grouped by each record's **first tag** (records without
   "salesByTag": [
     { "label": "print", "valueCents": 35000 },
     { "label": "Other", "valueCents": 5500 }
+  ],
+  "revenueByChannel": [
+    { "label": "Online", "valueCents": 30000 },
+    { "label": "In person", "valueCents": 10500 }
   ]
 }
 ```
 
-- `buckets` are `YYYY-MM` (monthly) or `YYYY-MM-DD` (daily), oldest first. Each series' `values` line up with `buckets`.
-- The totals cover the selected range, not all time. `netProfitCents` = `totalRevenueCents − totalExpensesCents`.
+- `granularity` is `"day"`, `"week"` (chosen periods only) or `"month"`.
+- `buckets` are `YYYY-MM` (monthly) or `YYYY-MM-DD` (daily, or a week's Monday), oldest first. Each series' `values` line up with `buckets`.
+- The totals cover the selected range or period, not all time. For a fixed range they also include records dated after it (as the demo); for a chosen period they don't. `netProfitCents` = `totalRevenueCents − totalExpensesCents`.
 - A series appears only if it has at least one record in the range.
+- `revenueByChannel` has one entry per channel (by name) with revenue in the range or period, largest first, then by name. Channels aren't folded into `"Other"`, since a business has only a few.
+
+### `GET /api/analytics/date-range`
+
+The first and last day (UTC) with a sale or expense, which are the two ends of the date filter's slider. Both are `null` when the business has no sales or expenses. `today` is the server's UTC date.
+
+```json
+{ "firstDate": "2025-08-01", "lastDate": "2026-10-29", "today": "2026-11-01" }
+```
 
 ### `GET /api/analytics/inventory`
 
