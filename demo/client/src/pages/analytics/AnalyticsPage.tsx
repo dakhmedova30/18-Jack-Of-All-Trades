@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAnalyticsSummary } from '../../hooks/useAnalyticsSummary';
 import { useInventoryByTag } from '../../hooks/useInventoryByTag';
+import { useCurrency } from '../../hooks/useCurrency';
 import { formatCents, formatCentsCompact } from '../../utils/money';
 import {
   ChartLegend,
@@ -87,6 +88,7 @@ interface AnalyticsContentProps {
 }
 
 function AnalyticsContent({ data, range }: AnalyticsContentProps) {
+  const currency = useCurrency();
   const netProfitTone = data.netProfitCents >= 0 ? 'positive' : 'negative';
 
   const topRevenueTag = topSeriesLabel(data.revenueSeries);
@@ -98,17 +100,17 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
       <div className="analytics-stats">
         <StatCard
           label="Net Profit"
-          value={formatCents(data.netProfitCents)}
+          value={formatCents(data.netProfitCents, currency)}
           tone={netProfitTone}
         />
         <StatCard
           label="Total Revenue"
-          value={formatCents(data.totalRevenueCents)}
+          value={formatCents(data.totalRevenueCents, currency)}
           tone="neutral"
         />
         <StatCard
           label="Total Expenses"
-          value={formatCents(data.totalExpensesCents)}
+          value={formatCents(data.totalExpensesCents, currency)}
           tone="neutral"
         />
       </div>
@@ -125,8 +127,8 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
                 series={data.revenueSeries}
                 ariaLabel="Revenue overview"
                 height={190}
-                formatValue={formatCentsCompact}
-                formatTooltip={formatCents}
+                formatValue={(cents) => formatCentsCompact(cents, currency)}
+                formatTooltip={(cents) => formatCents(cents, currency)}
               />
               <div className="analytics-card__footer">
                 <span className="muted">{axisLabel}</span>
@@ -153,8 +155,8 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
                 series={data.expenseSeries}
                 ariaLabel="Expenses overview"
                 height={190}
-                formatValue={formatCentsCompact}
-                formatTooltip={formatCents}
+                formatValue={(cents) => formatCentsCompact(cents, currency)}
+                formatTooltip={(cents) => formatCents(cents, currency)}
               />
               <div className="analytics-card__footer">
                 <span className="muted">{axisLabel}</span>

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { AnalyticsSummary, AnalyticsTagSeries } from '../types';
+import { useCurrency } from '../hooks/useCurrency';
 import { formatCents } from '../utils/money';
 import { SERIES_COLORS } from './analytics/charts';
 
@@ -129,6 +130,7 @@ export function SalesPreview({ summary }: { summary: PreviewState<AnalyticsSumma
 
 /** Expenses: the top categories (first tag) this month, as proportional bars. */
 export function ExpensesPreview({ summary }: { summary: PreviewState<AnalyticsSummary> }) {
+  const currency = useCurrency();
   return (
     <PreviewFrame caption="Top expense categories, this month">
       {renderState(summary, (data) => {
@@ -152,7 +154,7 @@ export function ExpensesPreview({ summary }: { summary: PreviewState<AnalyticsSu
                     style={{ width: `${(total / max) * 100}%`, background: EXPENSE_COLOR }}
                   />
                 </span>
-                <span className="home-bars__value">{formatCents(total)}</span>
+                <span className="home-bars__value">{formatCents(total, currency)}</span>
               </li>
             ))}
           </ul>

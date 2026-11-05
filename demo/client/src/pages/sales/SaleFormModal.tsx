@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { createChannel, listChannels } from '../../api/channels';
 import { usePreferences } from '../../hooks/usePreferences';
+import { useCurrency } from '../../hooks/useCurrency';
 import { listItems } from '../../api/items';
 import { getErrorMessage } from '../../api/http';
 import { Modal } from '../../components/Modal';
@@ -40,6 +41,7 @@ function linesFromSale(sale?: Sale): LineState[] {
 
 export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) {
   const isEditing = sale !== undefined;
+  const currency = useCurrency();
 
   const [items, setItems] = useState<Item[] | null>(null);
   const [itemsError, setItemsError] = useState<string | null>(null);
@@ -242,8 +244,8 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
                       <option value="">Select…</option>
                       {items.map((item) => (
                         <option key={item.id} value={item.id}>
-                          {item.name} — {formatCents(item.unitPriceCents)} ({item.quantity} in
-                          stock)
+                          {item.name} — {formatCents(item.unitPriceCents, currency)} (
+                          {item.quantity} in stock)
                         </option>
                       ))}
                     </select>
@@ -270,7 +272,7 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
 
                   <div className="sale-line__field sale-line__field--total">
                     <span className="sale-line__total-label">Total</span>
-                    <span>{total === null ? '—' : formatCents(total)}</span>
+                    <span>{total === null ? '—' : formatCents(total, currency)}</span>
                   </div>
 
                   <button
@@ -305,7 +307,7 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
 
         <div className="sale-total">
           <span>Total</span>
-          <span>{formatCents(grandTotalCents)}</span>
+          <span>{formatCents(grandTotalCents, currency)}</span>
         </div>
 
         <div className="form-row">

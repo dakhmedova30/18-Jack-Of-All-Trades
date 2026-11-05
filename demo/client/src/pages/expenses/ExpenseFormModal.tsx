@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { createExpenseTag, listExpenseTags } from '../../api/expenseTags';
 import { usePreferences } from '../../hooks/usePreferences';
+import { useCurrency } from '../../hooks/useCurrency';
 import { listItems } from '../../api/items';
 import { getErrorMessage } from '../../api/http';
 import { Modal } from '../../components/Modal';
@@ -54,6 +55,7 @@ function linesFromExpense(expense?: Expense): LineState[] {
 
 export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormModalProps) {
   const isEditing = expense !== undefined;
+  const currency = useCurrency();
 
   const [items, setItems] = useState<Item[] | null>(null);
   const [itemsError, setItemsError] = useState<string | null>(null);
@@ -345,7 +347,7 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
 
                   <div className="sale-line__field sale-line__field--total">
                     <span className="sale-line__total-label">Total</span>
-                    <span>{total === null ? '—' : formatCents(total)}</span>
+                    <span>{total === null ? '—' : formatCents(total, currency)}</span>
                   </div>
 
                   <button
@@ -380,7 +382,7 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
 
         <div className="sale-total">
           <span>Total</span>
-          <span>{formatCents(grandTotalCents)}</span>
+          <span>{formatCents(grandTotalCents, currency)}</span>
         </div>
 
         <div className="form-row">

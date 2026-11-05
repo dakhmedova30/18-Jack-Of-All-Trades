@@ -1,4 +1,5 @@
 import type { ExpenseMonthBreakdown } from '../../types';
+import { useCurrency } from '../../hooks/useCurrency';
 import { formatCents } from '../../utils/money';
 import { SummaryPanel } from '../../components/SummaryPanel';
 
@@ -11,6 +12,7 @@ export interface MoneyBreakdownPanelProps {
 
 /** This month's spending split into restocks (inventory) vs running costs. */
 export function MoneyBreakdownPanel({ data, error, loading, reload }: MoneyBreakdownPanelProps) {
+  const currency = useCurrency();
   const month = data
     ? new Date(data.periodStart).toLocaleDateString('en-CA', { month: 'long', timeZone: 'UTC' })
     : '';
@@ -24,7 +26,7 @@ export function MoneyBreakdownPanel({ data, error, loading, reload }: MoneyBreak
   return (
     <SummaryPanel
       title="Where the money goes"
-      context={data && `${month} · ${formatCents(data.totalCents)} total`}
+      context={data && `${month} · ${formatCents(data.totalCents, currency)} total`}
     >
       {error ? (
         <div className="banner banner--error" role="alert">
@@ -45,7 +47,7 @@ export function MoneyBreakdownPanel({ data, error, loading, reload }: MoneyBreak
               <li key={key} className="summary-panel__row">
                 <span className="summary-panel__name">{label}</span>
                 <span className="summary-panel__detail">
-                  {formatCents(cents)} · {percent}%
+                  {formatCents(cents, currency)} · {percent}%
                 </span>
               </li>
             );

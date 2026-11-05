@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { ApiError, getErrorMessage } from '../../api/http';
 import { Modal } from '../../components/Modal';
+import { useCurrency } from '../../hooks/useCurrency';
 import type { Item, ItemInput } from '../../types';
 import {
   centsToInputValue,
@@ -85,6 +86,7 @@ function validate(
 }
 
 export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) {
+  const currency = useCurrency();
   const isEditing = item !== undefined;
   const [values, setValues] = useState<FormValues>(() => toFormValues(item));
   const [isPublic, setIsPublic] = useState(item?.isPublic ?? false);
@@ -171,7 +173,7 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
         </FormRow>
 
         <FormRow
-          label="Unit price (CAD)"
+          label={`Unit price (${currency})`}
           hint={`0.00–${MAX_AMOUNT_DISPLAY}`}
           htmlFor="item-unitPrice"
           error={errors.unitPrice}
