@@ -3,14 +3,15 @@
    1. Design tokens
    2. Themes, accents & display options (Settings > Appearance)
    3. Base
-   4. App shell (sidebar, account menu, notifications, content)
-   5. Shared components (buttons, toolbar, cards, avatar, tables, pagination,
-      modal, forms, line items, banners)
+   4. App shell: sidebar (rail, collapsed strip, nav, account), account menu,
+      notifications, content
+   5. Shared components: toolbar/search, buttons, avatar, cards, tables/tags,
+      empty states/pagination, modal, forms/line items, validation/banners
    6. Auth
-   7. Pages: Home, Inventory, Summary panels, Analytics, Settings,
+   7. Pages: Home, Summary panels & ranked lists, Analytics, Settings,
       Help & legal
    8. SVG charts
-   9. Responsive (<= 720px)
+   9. Responsive (<= 896px, <= 720px, reduced motion)
    ========================================================================== */
 
 /* ==========================================================================
@@ -43,7 +44,7 @@
 
   /* Text */
   --color-text: hsl(var(--hue) 50% 10%);
-  --color-muted: hsl(var(--hue) 8% 44%);
+  --color-muted: hsl(var(--hue) 8% 35%);
   --color-placeholder: hsl(var(--hue) 12% 70%);
 
   /* Brand (overridden per accent) */
@@ -277,13 +278,41 @@ code {
   display: grid;
   grid-template-columns: var(--sidebar-width) 1fr;
   height: 100vh;
+  transition: grid-template-columns 220ms ease;
 }
 
 .app--sidebar-hidden {
   grid-template-columns: var(--sidebar-mini-width) 1fr;
 }
 
-/* ---------- Sidebar ---------- */
+/* ---------- Sidebar rail: the expanded and collapsed views share one grid cell
+   and cross-fade/slide between each other ---------- */
+
+.sidebar-rail {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+}
+
+.sidebar-view {
+  grid-area: 1 / 1;
+  min-width: 0;
+  transition:
+    transform 220ms ease,
+    visibility 0s;
+}
+
+.sidebar-view--inactive {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-0.75rem);
+  transition:
+    transform 220ms ease,
+    visibility 0s linear 220ms;
+}
+
+/* ---------- Sidebar (expanded) ---------- */
 
 .sidebar {
   background: var(--color-sidebar);
@@ -293,6 +322,7 @@ code {
   flex-direction: column;
   gap: 2rem;
   font-family: var(--font-header);
+  height: -webkit-fill-available;
   /* Above sticky table headers (1), below the modal backdrop (10). */
   z-index: 5;
 }
@@ -300,13 +330,16 @@ code {
 .sidebar__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  width: -webkit-fill-available;
 }
 
 .sidebar__header-actions {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.15rem;
+  gap: 0.5rem;
+  height: 60px;
 }
 
 .sidebar__logo {
@@ -321,34 +354,66 @@ code {
   text-decoration: none;
 }
 
+/* Icon buttons on the dark sidebar: collapse arrow, expand arrow, bell. */
+.sidebar__toggle,
+.sidebar-show,
+.sidebar__bell {
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--color-sidebar-text);
+  line-height: 0;
+  cursor: pointer;
+}
+
 .sidebar__toggle,
 .sidebar-show {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1.25rem;
   padding: 0.25rem 0.5rem;
+  font-size: 1.25rem;
 }
 
-.sidebar__toggle {
-  color: var(--color-surface);
+.sidebar__toggle:hover,
+.sidebar-show:hover,
+.sidebar__bell:hover,
+.sidebar__bell[aria-expanded='true'] {
+  background: rgb(255 255 255 / 0.1);
 }
 
-.sidebar-show {
-  margin-bottom: 0.5rem;
+.sidebar__toggle svg,
+.sidebar-show svg,
+.sidebar__bell svg {
+  width: 1.25rem;
+  height: 1.25rem;
 }
 
-/* Collapsed sidebar strip */
+/* ---------- Sidebar (collapsed strip) ---------- */
+
 .sidebar-show-container {
-  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
   height: 100%;
+  padding: 1.25rem 1rem;
   background: var(--color-sidebar);
-  width: var(--sidebar-mini-width);
+  color: var(--color-sidebar-text);
+  font-family: var(--font-header);
 }
 
-.sidebar-show-container button {
-  color: var(--color-sidebar-text);
+.sidebar-rail--closed .sidebar__link {
+  justify-content: center;
+  padding-inline: 0.65rem;
 }
+
+.sidebar-rail--closed .sidebar__link-label {
+  display: none;
+}
+
+.sidebar-rail--closed .sidebar__account {
+  margin-top: auto;
+}
+
+/* ---------- Sidebar nav ---------- */
 
 .sidebar__nav {
   display: flex;
@@ -383,7 +448,7 @@ code {
   border-color: var(--color-sidebar-text);
 }
 
-/* ---------- Sidebar account (avatar pill + menu) ---------- */
+/* ---------- Sidebar account (avatar pill) ---------- */
 
 .sidebar__account {
   display: flex;
@@ -406,6 +471,12 @@ code {
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.sidebar__avatar--compact {
+  flex: 0 0 auto;
+  justify-content: center;
+  padding: 0.25rem;
 }
 
 .sidebar__avatar:hover,
@@ -442,7 +513,9 @@ code {
   flex-shrink: 0;
 }
 
-/* Rendered into <body> (see AccountMenu), so it's styled on its own, not as part of the sidebar. */
+/* ---------- Account menu ----------
+   Rendered into <body> (see AccountMenu), so it's styled on its own, not as
+   part of the sidebar. */
 
 .account-menu {
   position: fixed;
@@ -476,17 +549,26 @@ code {
   opacity: 0.6;
   cursor: default;
 }
+
 .account-menu__item--disabled:hover {
   background: none;
 }
+
 .account-menu__soon {
   margin-left: auto;
   padding: 0.05rem 0.45rem;
-  border: 1px solid var(--color-border);
+  border: var(--border-default) var(--color-border);
   border-radius: 999px;
   font-size: 0.7rem;
   white-space: nowrap;
 }
+
+.account-menu__divider {
+  height: 1px;
+  margin: 0.3rem 0.35rem;
+  background: var(--color-border);
+}
+
 .account-menu__legal {
   display: flex;
   justify-content: center;
@@ -494,42 +576,24 @@ code {
   padding: 0.4rem 0.65rem 0.2rem;
   font-size: 0.78rem;
 }
+
 .account-menu__legal a {
   color: var(--color-muted);
   text-decoration: none;
 }
+
 .account-menu__legal a:hover,
 .account-menu__legal a:focus-visible {
   text-decoration: underline;
 }
-.account-menu__divider {
-  height: 1px;
-  margin: 0.3rem 0.35rem;
-  background: var(--color-border);
-}
 
 /* ---------- Notifications: the bell and its panel ---------- */
 
-/* The bell sits in the sidebar header next to the collapse arrow: icon only, count on top. */
+/* The bell sits in the sidebar header next to the collapse arrow: icon only, count on top.
+   Colour, hover and icon size come from the shared sidebar icon-button rules above. */
 .sidebar__bell {
   position: relative;
   padding: 0.35rem;
-  border: none;
-  border-radius: var(--radius);
-  background: none;
-  color: var(--color-surface);
-  line-height: 0;
-  cursor: pointer;
-}
-
-.sidebar__bell:hover,
-.sidebar__bell[aria-expanded='true'] {
-  background: rgb(255 255 255 / 0.1);
-}
-
-.sidebar__bell svg {
-  width: 1.25rem;
-  height: 1.25rem;
 }
 
 .notification-badge {
@@ -1082,7 +1146,8 @@ code {
   border-radius: 2px;
 }
 
-.form-row label {
+.form-row label,
+.form-row__label {
   font-weight: 600;
   padding-top: 0.15rem;
 }
@@ -1272,12 +1337,37 @@ code {
   text-align: right;
 }
 
-.sale-line__field--total span {
+.sale-line__field--total > span:last-child {
   display: block;
   padding: 0.3rem 0;
   font-weight: 600;
   text-align: right;
   color: var(--color-accent);
+}
+
+.sale-line__total-label {
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+.sale-line,
+.expense-line {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .expense-line .sale-line__field input:disabled {
@@ -1597,26 +1687,7 @@ code {
   font-weight: 600;
 }
 
-/* ---------- Inventory ---------- */
-
-.inventory-stat {
-  align-self: flex-start;
-  min-width: 260px;
-}
-
-/* About 15 rows tall, then the table scrolls inside itself with the header pinned. */
-.inventory-table {
-  max-height: calc(15 * 2.6rem + 2.8rem);
-  overflow-y: auto;
-  border-bottom: var(--border-default) var(--color-border);
-}
-
-.inventory-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--color-bg-solid);
-}
+/* ---------- Summary panels & ranked lists (Inventory, Sales, Expenses) ---------- */
 
 .best-sellers__rank {
   display: inline-block;
@@ -1624,8 +1695,6 @@ code {
   color: var(--color-muted);
   font-variant-numeric: tabular-nums;
 }
-
-/* ---------- Summary panels (shared by Inventory and the panel row) ---------- */
 
 .summary-panel {
   gap: 0.6rem;
@@ -2398,7 +2467,7 @@ textarea.settings-row__input {
 }
 
 /* ==========================================================================
-   9. Responsive (<= 720px, <= 896px)
+   9. Responsive
    ========================================================================== */
 
 @media (max-width: 896px) {
@@ -2416,10 +2485,32 @@ textarea.settings-row__input {
 }
 
 @media (max-width: 720px) {
-  /* Shell */
+  /* ---------- Shell ---------- */
+
   .app,
   .app--sidebar-hidden {
     grid-template-columns: 1fr;
+  }
+
+  /* Sidebar becomes a top bar. The inactive view is taken out of flow and
+     slides down/up instead of sideways, and the rail clips it as it leaves. */
+  .sidebar-rail {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .sidebar-rail--closed {
+    height: fit-content;
+    align-self: start;
+  }
+
+  .sidebar-view--inactive {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    transform: translateY(-0.75rem);
   }
 
   .sidebar {
@@ -2430,15 +2521,14 @@ textarea.settings-row__input {
     height: fit-content;
   }
 
+  .sidebar__header-actions {
+    flex-direction: row;
+  }
+
   .sidebar__nav {
     flex-direction: row;
     flex-wrap: wrap;
     margin-block: 0;
-  }
-
-  .sidebar-show-container {
-    height: fit-content;
-    width: 100%;
   }
 
   /* In the phone top bar, the avatar sits at the far end instead of the bottom. */
@@ -2449,7 +2539,29 @@ textarea.settings-row__input {
     flex-shrink: 0;
   }
 
-  /* Line items: stack each field full-width instead of squeezing them side by side. */
+  .sidebar-show-container {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    height: auto;
+    overflow-x: auto;
+  }
+
+  .sidebar-rail--closed .sidebar__nav {
+    flex: 1;
+    flex-wrap: nowrap;
+    justify-content: center;
+    margin-block: 0;
+  }
+
+  .sidebar-rail--closed .sidebar__account {
+    margin-top: 0;
+    margin-left: auto;
+  }
+
+  /* ---------- Line items: stack each field full-width instead of squeezing them side by side ---------- */
+
   .sale-line,
   .expense-line {
     grid-template-columns: 1fr;
@@ -2462,11 +2574,18 @@ textarea.settings-row__input {
     padding-bottom: 0;
   }
 
-  .sale-line__field--total span {
+  .sale-line__field--total > span:last-child {
     text-align: left;
   }
 
-  /* Analytics: stacked one per row, so natural heights are fine again. */
+  /* ---------- Summary panels ---------- */
+
+  .panel-row {
+    grid-template-columns: 1fr;
+  }
+
+  /* ---------- Analytics: stacked one per row, so natural heights are fine again ---------- */
+
   .analytics-header {
     flex-direction: column;
     align-items: stretch;
@@ -2492,9 +2611,12 @@ textarea.settings-row__input {
     width: 160px;
     height: auto;
   }
+}
 
-  /* Panel row stacking */
-  .panel-row {
-    grid-template-columns: 1fr;
+@media (prefers-reduced-motion: reduce) {
+  .app,
+  .sidebar-view,
+  .sidebar-view--inactive {
+    transition: none;
   }
 }

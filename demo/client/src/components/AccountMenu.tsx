@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { Avatar } from './Avatar';
+import { FOCUSABLE } from './focusable';
 import { HelpCircleIcon, LogOutIcon, MoreIcon, SettingsIcon, UserPlusIcon } from './icons';
 
 interface AccountMenuProps {
@@ -10,6 +11,7 @@ interface AccountMenuProps {
   imageUrl?: string | null;
   /** Shown under the name in the sidebar pill. */
   email?: string;
+  compact?: boolean;
   onLogout: () => void;
 }
 
@@ -22,7 +24,13 @@ const MENU_GAP = 8;
  * switch account, Log out. The menu is rendered into <body> and positioned by hand, because
  * the sidebar clips overflow on phones and would cut a normally-positioned popup off.
  */
-export function AccountMenu({ name, imageUrl, email, onLogout }: AccountMenuProps) {
+export function AccountMenu({
+  name,
+  imageUrl,
+  email,
+  compact = false,
+  onLogout,
+}: AccountMenuProps) {
   const [position, setPosition] = useState<Position | null>(null);
   const navigate = useNavigate();
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -32,6 +40,19 @@ export function AccountMenu({ name, imageUrl, email, onLogout }: AccountMenuProp
   function close(returnFocus = false) {
     setPosition(null);
     if (returnFocus) buttonRef.current?.focus();
+  }
+
+  function moveFocusFromButton(backwards: boolean) {
+    const focusable = [...document.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+      (element) =>
+        !menuRef.current?.contains(element) &&
+        !element.closest('[inert], [aria-hidden="true"]') &&
+        element.getClientRects().length > 0,
+    );
+    const buttonIndex = buttonRef.current ? focusable.indexOf(buttonRef.current) : -1;
+    if (buttonIndex < 0 || focusable.length === 0) return;
+    const nextIndex = (buttonIndex + (backwards ? -1 : 1) + focusable.length) % focusable.length;
+    focusable[nextIndex]?.focus();
   }
 
   function toggle() {
@@ -94,7 +115,9 @@ export function AccountMenu({ name, imageUrl, email, onLogout }: AccountMenuProp
         focusItem(items.length - 1);
         break;
       case 'Tab':
+        event.preventDefault();
         close();
+        moveFocusFromButton(event.shiftKey);
         break;
     }
   }
@@ -104,7 +127,7 @@ export function AccountMenu({ name, imageUrl, email, onLogout }: AccountMenuProp
       <button
         ref={buttonRef}
         type="button"
-        className="sidebar__avatar"
+        className={`sidebar__avatar${compact ? ' sidebar__avatar--compact' : ''}`}
         onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -112,13 +135,17 @@ export function AccountMenu({ name, imageUrl, email, onLogout }: AccountMenuProp
         title={name}
       >
         <Avatar key={imageUrl ?? 'initials'} name={name} imageUrl={imageUrl} />
-        <span className="sidebar__avatar-text">
-          <span className="sidebar__avatar-name">{name}</span>
-          {email && <span className="sidebar__avatar-email">{email}</span>}
-        </span>
-        <span className="sidebar__avatar-more" aria-hidden="true">
-          <MoreIcon />
-        </span>
+        {!compact && (
+          <>
+            <span className="sidebar__avatar-text">
+              <span className="sidebar__avatar-name">{name}</span>
+              {email && <span className="sidebar__avatar-email">{email}</span>}
+            </span>
+            <span className="sidebar__avatar-more" aria-hidden="true">
+              <MoreIcon />
+            </span>
+          </>
+        )}
       </button>
 
       {open &&

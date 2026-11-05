@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { NotificationsProvider } from '../hooks/useNotifications';
 import { PreferencesProvider } from '../hooks/usePreferences';
+import { ClosedSidebar } from './ClosedSidebar';
 import { Sidebar } from './Sidebar';
 
 export function AppLayout() {
@@ -11,22 +12,22 @@ export function AppLayout() {
     <PreferencesProvider>
       <NotificationsProvider>
         <div className={`app${sidebarOpen ? '' : ' app--sidebar-hidden'}`}>
-          {sidebarOpen ? (
-            <Sidebar onClose={() => setSidebarOpen(false)} />
-          ) : (
-            <div className="sidebar-show-container">
-              <button
-                type="button"
-                className="sidebar-show"
-                onClick={() => setSidebarOpen(true)}
-                aria-label="Show sidebar"
-                aria-controls="main-sidebar"
-                aria-expanded={false}
-              >
-                ☰
-              </button>
+          <div className={`sidebar-rail${sidebarOpen ? '' : ' sidebar-rail--closed'}`}>
+            <div
+              className={`sidebar-view sidebar-view--open${sidebarOpen ? '' : ' sidebar-view--inactive'}`}
+              aria-hidden={!sidebarOpen}
+              inert={!sidebarOpen}
+            >
+              <Sidebar onClose={() => setSidebarOpen(false)} active={sidebarOpen} />
             </div>
-          )}
+            <div
+              className={`sidebar-view sidebar-view--closed${sidebarOpen ? ' sidebar-view--inactive' : ''}`}
+              aria-hidden={sidebarOpen}
+              inert={sidebarOpen}
+            >
+              <ClosedSidebar onOpen={() => setSidebarOpen(true)} active={!sidebarOpen} />
+            </div>
+          </div>
           <main className="content">
             <Outlet />
           </main>
