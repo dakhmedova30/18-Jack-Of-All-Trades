@@ -4,11 +4,14 @@ import ca.jackofalltrades.analytics.AnalyticsQueries.TaggedLine;
 import ca.jackofalltrades.analytics.AnalyticsSummary.TagSeries;
 import ca.jackofalltrades.analytics.AnalyticsSummary.TagTotal;
 import ca.jackofalltrades.analytics.AnalyticsWindow.Bucket;
+import ca.jackofalltrades.common.api.BadRequestException;
 import ca.jackofalltrades.common.security.CurrentBusiness;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -31,6 +34,10 @@ public class AnalyticsService {
     static final int MAX_TAG_SERIES = 3;
     /** Horizontal bars have room for more categories than the stacked and donut charts. */
     static final int MAX_INVENTORY_TAGS = 7;
+    /** The summary's {@code range} for a chosen period. */
+    static final String CUSTOM_RANGE = "custom";
+    /** A chosen period must be shorter than this, which also caps the number of month buckets. */
+    static final int MAX_PERIOD_YEARS = 100;
 
     private final AnalyticsQueries queries;
     private final CurrentBusiness currentBusiness;
@@ -40,12 +47,39 @@ public class AnalyticsService {
         this.currentBusiness = currentBusiness;
     }
 
+    /** @param channelId only this channel's sales count; null for every channel */
     @Transactional(readOnly = true)
-    public AnalyticsSummary summary(String range, Instant now) {
+    public AnalyticsSummary summary(String range, Instant now, Integer channelId) {
+        return summarize(range, AnalyticsWindow.forRange(range, now), channelId);
+    }
+
+    /** The chosen period {@code from} to {@code to}, both included; 400 if it's backwards or too long. */
+    @Transactional(readOnly = true)
+    public AnalyticsSummary summary(LocalDate from, LocalDate to, Integer channelId) {
+        if (from.isAfter(to)) {
+            throw new BadRequestException("'from' must be on or before 'to'");
+        }
+        if (!to.isBefore(from.plusYears(MAX_PERIOD_YEARS))) {
+            throw new BadRequestException("The period must be shorter than " + MAX_PERIOD_YEARS + " years");
+        }
+        return summarize(CUSTOM_RANGE, AnalyticsWindow.between(from, to), channelId);
+    }
+
+    /** The first and last day with a sale or expense, for the date filter, and today (all UTC). */
+    @Transactional(readOnly = true)
+    public AnalyticsDateRange dateRange(LocalDate today) {
+        AnalyticsQueries.RecordSpan span = queries.recordSpan(currentBusiness.id());
+        return new AnalyticsDateRange(span.first(), span.last(), today);
+    }
+
+    /**
+     * Expenses aren't recorded per channel, so {@code channelId} narrows only the revenue figures;
+     * the expense figures, and so net profit, still cover every expense.
+     */
+    private AnalyticsSummary summarize(String range, AnalyticsWindow window, Integer channelId) {
         int businessId = currentBusiness.id();
-        AnalyticsWindow window = AnalyticsWindow.forRange(range, now);
-        List<TaggedLine> revenue = queries.revenueLines(businessId, window.start());
-        List<TaggedLine> expenses = queries.expenseLines(businessId, window.start());
+        List<TaggedLine> revenue = queries.revenueLines(businessId, window.start(), window.end(), channelId);
+        List<TaggedLine> expenses = queries.expenseLines(businessId, window.start(), window.end());
 
         // Revenue and the sales-by-tag donut share one top-tag cut, so a tag means the same in both charts.
         List<String> revenueTags = topTags(revenue, MAX_TAG_SERIES);
@@ -71,7 +105,8 @@ public class AnalyticsService {
                 salesByTag.entrySet().stream()
                         .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
                         .map(entry -> new TagTotal(entry.getKey(), entry.getValue()))
-                        .toList());
+                        .toList(),
+                queries.revenueByChannel(businessId, window.start(), window.end(), channelId));
     }
 
     /** Current stock by first tag; tags past the top 7 fold into "Other", listed last. */
@@ -137,9 +172,14 @@ public class AnalyticsService {
                 .toList();
     }
 
+    /** The key of the bucket {@code at} falls in: its month, its week's Monday, or its day. */
     private static String bucketKey(Instant at, String granularity) {
         LocalDate day = LocalDate.ofInstant(at, ZoneOffset.UTC);
-        return "month".equals(granularity) ? YearMonth.from(day).toString() : day.toString();
+        return switch (granularity) {
+            case "month" -> YearMonth.from(day).toString();
+            case "week" -> day.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).toString();
+            default -> day.toString();
+        };
     }
 
     private static long total(List<TaggedLine> lines) {
