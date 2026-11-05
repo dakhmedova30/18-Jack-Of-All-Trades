@@ -26,7 +26,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="auth-page">
+    <main className="auth-page">
       <form className="auth-card" onSubmit={handleSubmit} noValidate>
         <div className="auth-card__logo">Jack-Of-All-Trades</div>
         <h1>Welcome back</h1>
@@ -37,6 +37,7 @@ export function LoginPage() {
           <input
             id="login-email"
             type="email"
+            autoComplete="username"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             autoFocus
@@ -50,6 +51,7 @@ export function LoginPage() {
             <input
               id="login-password"
               type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
@@ -58,6 +60,7 @@ export function LoginPage() {
               type="button"
               className="auth-password-toggle"
               aria-pressed={showPassword}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
               onClick={() => setShowPassword((visible) => !visible)}
             >
               {showPassword ? 'Hide password' : 'Show password'}
@@ -65,7 +68,11 @@ export function LoginPage() {
           </div>
         </div>
 
-        {error && <p className="form-error">{error}</p>}
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
 
         <button type="submit" className="button" disabled={submitting}>
           {submitting ? 'Logging in…' : 'Log in'}
@@ -75,6 +82,6 @@ export function LoginPage() {
           Don&rsquo;t have a business account yet? <Link to="/register">Register</Link>
         </p>
       </form>
-    </div>
+    </main>
   );
 }

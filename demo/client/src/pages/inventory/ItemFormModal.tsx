@@ -88,13 +88,25 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
   const isEditing = item !== undefined;
   const [values, setValues] = useState<FormValues>(() => toFormValues(item));
   const [isPublic, setIsPublic] = useState(item?.isPublic ?? false);
+  const [hasUnsavedInput, setHasUnsavedInput] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   function setField(field: FieldName, value: string) {
+    setHasUnsavedInput(true);
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined }));
+  }
+
+  function handleCancel() {
+    if (
+      hasUnsavedInput &&
+      !window.confirm('You have unsaved information. Are you sure you want to discard it?')
+    ) {
+      return;
+    }
+    onCancel();
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -126,15 +138,16 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
     value: values[field],
     onChange: (event: { target: { value: string } }) => setField(field, event.target.value),
     'aria-invalid': errors[field] ? true : undefined,
+    'aria-describedby': errors[field] ? `item-${field}-error` : undefined,
   });
 
   return (
     <Modal
       title={isEditing ? 'Modify item' : 'Add new item'}
-      onClose={onCancel}
+      onClose={handleCancel}
       footer={
         <>
-          <button type="button" className="button button--ghost" onClick={onCancel}>
+          <button type="button" className="button button--ghost" onClick={handleCancel}>
             Cancel
           </button>
           <button type="submit" form="item-form" className="button" disabled={submitting}>
@@ -145,16 +158,16 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
     >
       <form id="item-form" className="item-form" onSubmit={handleSubmit} noValidate>
         <div className="form-row">
-          <label>ID</label>
+          <span className="form-row__label">ID</span>
           <span className="form-row__static">{item?.id ?? 'Assigned on save'}</span>
         </div>
 
         <FormRow label="Name" htmlFor="item-name" error={errors.name} required>
-          <input {...fieldProps('name')} placeholder="Item 1" autoFocus maxLength={120} />
+          <input {...fieldProps('name')} placeholder="Item 1" maxLength={120} required />
         </FormRow>
 
         <FormRow label="Qty" htmlFor="item-quantity" error={errors.quantity} required>
-          <input {...fieldProps('quantity')} inputMode="numeric" placeholder="100" />
+          <input {...fieldProps('quantity')} inputMode="numeric" placeholder="100" required />
         </FormRow>
 
         <FormRow
@@ -164,7 +177,7 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
           error={errors.unitPrice}
           required
         >
-          <input {...fieldProps('unitPrice')} inputMode="decimal" placeholder="5.00" />
+          <input {...fieldProps('unitPrice')} inputMode="decimal" placeholder="5.00" required />
         </FormRow>
 
         <FormRow label="Tags" htmlFor="item-tags" error={errors.tags}>
@@ -177,7 +190,10 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
               id="item-isPublic"
               type="checkbox"
               checked={isPublic}
-              onChange={(event) => setIsPublic(event.target.checked)}
+              onChange={(event) => {
+                setHasUnsavedInput(true);
+                setIsPublic(event.target.checked);
+              }}
             />
             Show on my public profile
           </label>
@@ -188,7 +204,11 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
           <textarea {...fieldProps('note')} rows={4} maxLength={1000} />
         </div>
 
-        {submitError && <p className="form-error">{submitError}</p>}
+        {submitError && (
+          <p className="form-error" role="alert">
+            {submitError}
+          </p>
+        )}
       </form>
     </Modal>
   );
@@ -220,7 +240,15 @@ function FormRow({ label, hint, htmlFor, error, required = false, children }: Fo
       </label>
       <div className="form-row__control">
         {children}
-        {error && <span className="field-error">{error}</span>}
+        {error && (
+          <span
+            id={`item-${htmlFor.replace('item-', '')}-error`}
+            className="field-error"
+            aria-live="polite"
+          >
+            {error}
+          </span>
+        )}
       </div>
     </div>
   );

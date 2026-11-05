@@ -1,3 +1,4 @@
+import { useRef, type KeyboardEvent } from 'react';
 import {
   ACCENTS,
   DENSITIES,
@@ -41,17 +42,42 @@ function Choice<T extends string>({
   value: T;
   onChange: (value: T) => void;
 }) {
+  const groupRef = useRef<HTMLDivElement>(null);
+
+  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, currentIndex: number) {
+    let nextIndex: number | undefined;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      nextIndex = (currentIndex + 1) % options.length;
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      nextIndex = (currentIndex - 1 + options.length) % options.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = options.length - 1;
+    }
+
+    if (nextIndex === undefined) return;
+    event.preventDefault();
+    const option = options[nextIndex];
+    if (option !== undefined) {
+      groupRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[nextIndex]?.focus();
+      onChange(option);
+    }
+  }
+
   return (
     <SettingsRow label={label}>
-      <div className="choice-group" role="radiogroup" aria-label={label}>
-        {options.map((option) => (
+      <div ref={groupRef} className="choice-group" role="radiogroup" aria-label={label}>
+        {options.map((option, index) => (
           <button
             key={option}
             type="button"
             role="radio"
             aria-checked={option === value}
+            tabIndex={option === value ? 0 : -1}
             className={`choice${option === value ? ' is-selected' : ''}`}
             onClick={() => onChange(option)}
+            onKeyDown={(event) => handleKeyDown(event, index)}
           >
             {LABELS[option]}
           </button>
@@ -64,6 +90,7 @@ function Choice<T extends string>({
 /** Theme, accent colour, text size and table density. Every change applies at once, everywhere. */
 export function AppearanceTab() {
   const { appearance, update, reset } = useAppearance();
+  const accentGroupRef = useRef<HTMLDivElement>(null);
 
   return (
     <>
@@ -77,18 +104,45 @@ export function AppearanceTab() {
         onChange={(theme) => update({ theme })}
       />
       <SettingsRow label="Accent colour">
-        <div className="swatch-group" role="radiogroup" aria-label="Accent colour">
-          {ACCENTS.map((accent) => (
+        <div
+          ref={accentGroupRef}
+          className="swatch-group"
+          role="radiogroup"
+          aria-label="Accent colour"
+        >
+          {ACCENTS.map((accent, index) => (
             <button
               key={accent}
               type="button"
               role="radio"
               aria-checked={accent === appearance.accent}
+              tabIndex={accent === appearance.accent ? 0 : -1}
               aria-label={accent[0]!.toUpperCase() + accent.slice(1)}
               title={accent[0]!.toUpperCase() + accent.slice(1)}
               className={`swatch${accent === appearance.accent ? ' is-selected' : ''}`}
               style={{ background: ACCENT_SWATCH[accent] }}
               onClick={() => update({ accent })}
+              onKeyDown={(event) => {
+                let nextIndex: number | undefined;
+                if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+                  nextIndex = (index + 1) % ACCENTS.length;
+                } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+                  nextIndex = (index - 1 + ACCENTS.length) % ACCENTS.length;
+                } else if (event.key === 'Home') {
+                  nextIndex = 0;
+                } else if (event.key === 'End') {
+                  nextIndex = ACCENTS.length - 1;
+                }
+                if (nextIndex === undefined) return;
+                event.preventDefault();
+                const nextAccent = ACCENTS[nextIndex];
+                if (nextAccent !== undefined) {
+                  accentGroupRef.current
+                    ?.querySelectorAll<HTMLButtonElement>('[role="radio"]')
+                    [nextIndex]?.focus();
+                  update({ accent: nextAccent });
+                }
+              }}
             />
           ))}
         </div>
