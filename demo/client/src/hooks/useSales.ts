@@ -13,16 +13,20 @@ interface SalesResult {
  * Loads one page of sales. While a new page loads, the previous data stays on
  * screen (no flicker) and `loading` is true. Call `reload()` after a mutation.
  */
-export function useSales({ page, pageSize, search, sort, order, channelId, from, to }: ListSalesParams) {
+export function useSales({
+  page, pageSize, search, sort, order, channelId, tag, currency, from, to,
+}: ListSalesParams) {
   const [reloadToken, setReloadToken] = useState(0);
   const [result, setResult] = useState<SalesResult | null>(null);
   const [lastData, setLastData] = useState<Paginated<Sale> | undefined>(undefined);
 
-  const requestKey = JSON.stringify([page, pageSize, search, sort, order, channelId, from, to, reloadToken]);
+  const requestKey = JSON.stringify([
+    page, pageSize, search, sort, order, channelId, tag, currency, from, to, reloadToken,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
-    listSales({ page, pageSize, search, sort, order, channelId, from, to })
+    listSales({ page, pageSize, search, sort, order, channelId, tag, currency, from, to })
       .then((data) => {
         if (cancelled) return;
         setResult({ key: requestKey, data });
@@ -34,7 +38,7 @@ export function useSales({ page, pageSize, search, sort, order, channelId, from,
     return () => {
       cancelled = true;
     };
-  }, [requestKey, page, pageSize, search, sort, order, channelId, from, to]);
+  }, [requestKey, page, pageSize, search, sort, order, channelId, tag, currency, from, to]);
 
   const reload = useCallback(() => setReloadToken((token) => token + 1), []);
   const isCurrent = result?.key === requestKey;

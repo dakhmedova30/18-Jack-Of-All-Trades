@@ -93,6 +93,7 @@ export function MarketSaleModal({ market, sale, initialTipOnly = false, onCancel
   const [itemsError, setItemsError] = useState<string | null>(null);
   const [currencyRates, setCurrencyRates] = useState<CurrencyRates | null>(null);
   const [currencyError, setCurrencyError] = useState<string | null>(null);
+  const [currency, setCurrency] = useState(sale?.currency ?? market.currency);
   const [catalogAdjustments, setCatalogAdjustments] = useState<Adjustment[] | null>(null);
   const [catalogAdjustmentsError, setCatalogAdjustmentsError] = useState<string | null>(null);
   const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
@@ -135,7 +136,7 @@ export function MarketSaleModal({ market, sale, initialTipOnly = false, onCancel
   function defaultMarketPrice(item?: Item) {
     if (!item) return 'Inventory price';
     const itemRate = currencyRates?.cadPerUnit[item.currency];
-    const marketRate = currencyRates?.cadPerUnit[market.currency];
+    const marketRate = currencyRates?.cadPerUnit[currency];
     if (itemRate === undefined || marketRate === undefined) return `Rate unavailable (${item.currency})`;
     return centsToInputValue(Math.round(item.unitPriceCents * itemRate / marketRate));
   }
@@ -161,6 +162,8 @@ export function MarketSaleModal({ market, sale, initialTipOnly = false, onCancel
   function submitInput(): MarketSaleInput | null {
     const soldAt = new Date(date);
     if (!Number.isFinite(soldAt.getTime())) return setError('Choose a valid sale date and time.'), null;
+    if (!currencyRates?.cadPerUnit[currency])
+      return setError(`No exchange rate is available for ${currency}.`), null;
     const tipCents = parseDollarsToCents(tip);
     if (tipCents === null || tipCents < 0 || tipCents > MAX_AMOUNT_CENTS)
       return setError('Enter a valid tip amount.'), null;
@@ -228,6 +231,7 @@ export function MarketSaleModal({ market, sale, initialTipOnly = false, onCancel
       return setError('Add an item or enter a tip for the sale.'), null;
     return {
       soldAt: soldAt.toISOString(),
+      currency,
       tipCents,
       items: parsedLines,
       adjustments: parsedAdjustments,
@@ -257,7 +261,7 @@ export function MarketSaleModal({ market, sale, initialTipOnly = false, onCancel
       footer={
         <>
           <button type="button" className="button button--ghost" onClick={onCancel}>Cancel</button>
-          <button type="submit" form="market-sale-form" className="button" disabled={submitting || (!tipOnly && (!!itemsError || !!currencyError || !!catalogAdjustmentsError || !currencyRates || !catalogAdjustments || sale?.items.some((line) => line.itemId === null)))}>
+          <button type="submit" form="market-sale-form" className="button" disabled={submitting || !!currencyError || !currencyRates || (!tipOnly && (!!itemsError || !!catalogAdjustmentsError || !catalogAdjustments || sale?.items.some((line) => line.itemId === null)))}>
             {submitting ? 'Saving…' : tipOnly ? 'Save tip' : 'Save sale'}
           </button>
         </>
@@ -277,9 +281,18 @@ export function MarketSaleModal({ market, sale, initialTipOnly = false, onCancel
             Date and time
             <input type="datetime-local" value={date} onChange={(event) => setDate(event.target.value)} />
           </label>
+          <label>
+            Currency
+            <select value={currency} onChange={(event) => setCurrency(event.target.value)} disabled={!currencyRates}>
+              {(currencyRates?.currencies ?? []).map(({ code, name }) => (
+                <option key={code} value={code} disabled={!currencyRates?.cadPerUnit[code]}>{code} — {name}</option>
+              ))}
+            </select>
+          </label>
         </div>
+        {currencyError && <p className="form-error" role="alert">Could not load currencies: {currencyError}</p>}
         <label className="market-sale__tip">
-          {tipOnly ? `Tip amount (${market.currency})` : `Add tip to this sale (${market.currency})`}
+          {tipOnly ? `Tip amount (${currency})` : `Add tip to this sale (${currency})`}
           <input inputMode="decimal" value={tip} onChange={(event) => setTip(event.target.value)} />
           {tipOnly && <span className="muted">Record a tip without adding an inventory item.</span>}
         </label>
@@ -287,7 +300,6 @@ export function MarketSaleModal({ market, sale, initialTipOnly = false, onCancel
         <>
         <h3>Items sold</h3>
         {itemsError && <p className="form-error">Could not load inventory: {itemsError}</p>}
-        {currencyError && <p className="form-error">Could not load currencies: {currencyError}</p>}
         {sale?.items.some((line) => line.itemId === null) && (
           <p className="form-error">This sale includes a deleted inventory item and cannot be edited.</p>
         )}
@@ -320,7 +332,7 @@ export function MarketSaleModal({ market, sale, initialTipOnly = false, onCancel
                     />
                   </label>
                   <label>
-                    Unit price ({market.currency})
+                    Unit price ({currency})
                     <input
                       inputMode="decimal"
                       placeholder={defaultMarketPrice(item)}

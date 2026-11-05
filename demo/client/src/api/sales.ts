@@ -16,6 +16,8 @@ export interface ListSalesParams {
   sort?: SaleSortField;
   order?: SortOrder;
   channelId?: number;
+  tag?: string;
+  currency?: string;
   from?: string;
   to?: string;
 }
@@ -27,6 +29,8 @@ export function listSales({
   sort,
   order,
   channelId,
+  tag,
+  currency,
   from,
   to,
 }: ListSalesParams): Promise<Paginated<Sale>> {
@@ -35,6 +39,8 @@ export function listSales({
   if (sort) query.set('sort', sort);
   if (order) query.set('order', order);
   if (channelId !== undefined) query.set('channelId', String(channelId));
+  if (tag) query.set('tag', tag);
+  if (currency) query.set('currency', currency);
   if (from) query.set('from', from);
   if (to) query.set('to', to);
   return apiRequest(`/sales?${query}`);

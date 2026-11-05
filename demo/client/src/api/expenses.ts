@@ -16,6 +16,9 @@ export interface ListExpensesParams {
   sort?: ExpenseSortField;
   order?: SortOrder;
   tag?: string;
+  partyName?: string;
+  subcategory?: string;
+  currency?: string;
   from?: string;
   to?: string;
 }
@@ -27,6 +30,9 @@ export function listExpenses({
   sort,
   order,
   tag,
+  partyName,
+  subcategory,
+  currency,
   from,
   to,
 }: ListExpensesParams): Promise<Paginated<Expense>> {
@@ -35,6 +41,9 @@ export function listExpenses({
   if (sort) query.set('sort', sort);
   if (order) query.set('order', order);
   if (tag) query.set('tag', tag);
+  if (partyName) query.set('partyName', partyName);
+  if (subcategory) query.set('subcategory', subcategory);
+  if (currency) query.set('currency', currency);
   if (from) query.set('from', from);
   if (to) query.set('to', to);
   return apiRequest(`/expenses?${query}`);

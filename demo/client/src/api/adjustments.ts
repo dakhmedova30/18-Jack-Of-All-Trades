@@ -18,3 +18,7 @@ export function updateAdjustment(id: number, input: AdjustmentInput): Promise<Ad
 export function deactivateAdjustment(id: number): Promise<void> {
   return apiRequest(`/adjustments/${id}`, { method: 'DELETE' });
 }
+
+export function bulkArchiveAdjustments(ids: number[]): Promise<{ archived: number }> {
+  return apiRequest('/adjustments/bulk-archive', { method: 'POST', json: { ids } });
+}

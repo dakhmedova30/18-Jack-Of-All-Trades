@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { createAdjustment, deactivateAdjustment, listAdjustments, updateAdjustment, type AdjustmentInput } from '../../api/adjustments';
+import { bulkArchiveAdjustments, createAdjustment, deactivateAdjustment, listAdjustments, updateAdjustment, type AdjustmentInput } from '../../api/adjustments';
 import { getErrorMessage } from '../../api/http';
 import { listItems } from '../../api/items';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { PlusIcon } from '../../components/icons';
+import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { Modal } from '../../components/Modal';
 import type { Adjustment, Item } from '../../types';
 import { centsToInputValue, formatCents, MAX_AMOUNT_CENTS, parseDollarsToCents } from '../../utils/money';
+import { useReportingCurrency } from '../../hooks/useReportingCurrency';
 
 type FormState = 'create' | { mode: 'edit'; adjustment: Adjustment } | null;
-type DeleteState = Adjustment | null;
+type DeleteState = { kind: 'single'; adjustment: Adjustment } | { kind: 'bulk'; ids: number[] } | null;
 
 const blankAdjustment: AdjustmentInput = {
   name: '',
@@ -222,10 +223,17 @@ function AdjustmentFormModal({ adjustment, items, onCancel, onSubmit }: Adjustme
 }
 
 export function AdjustmentsPage() {
+  const { currency: reportingCurrency, error: currencyError, formatCad } = useReportingCurrency();
   const [adjustments, setAdjustments] = useState<Adjustment[] | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [form, setForm] = useState<FormState>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteState>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [search, setSearch] = useState('');
+  const [kindFilter, setKindFilter] = useState('');
+  const [scopeFilter, setScopeFilter] = useState('');
+  const [operationFilter, setOperationFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -257,12 +265,28 @@ export function AdjustmentsPage() {
 
   async function archive() {
     if (!deleteTarget) return;
-    await deactivateAdjustment(deleteTarget.id);
-    setDeleteTarget(null);
-    await reload();
+    try {
+      if (deleteTarget.kind === 'single') await deactivateAdjustment(deleteTarget.adjustment.id);
+      else await bulkArchiveAdjustments(deleteTarget.ids);
+      setSelectedIds(new Set());
+      setDeleteTarget(null);
+      await reload();
+    } catch (reason) {
+      setError(getErrorMessage(reason));
+    }
   }
 
   const active = (adjustments ?? []).filter((adjustment) => adjustment.active);
+  const filteredAdjustments = (adjustments ?? []).filter((adjustment) => {
+    const text = `${adjustment.id} ${adjustment.name} ${adjustment.kind} ${ruleDescription(adjustment)} ${targetDescription(adjustment, items)}`.toLowerCase();
+    return (!search || text.includes(search.trim().toLowerCase()))
+      && (!kindFilter || adjustment.kind === kindFilter)
+      && (!scopeFilter || adjustment.scope === scopeFilter)
+      && (!operationFilter || adjustment.operation === operationFilter)
+      && (!statusFilter || (statusFilter === 'active' ? adjustment.active : !adjustment.active));
+  });
+  const visibleActive = filteredAdjustments.filter((adjustment) => adjustment.active);
+  const allVisibleSelected = visibleActive.length > 0 && visibleActive.every((adjustment) => selectedIds.has(adjustment.id));
   const mostUsed = useMemo(
     () => [...active].sort((a, b) => b.useCount - a.useCount || b.amountAppliedCadCents - a.amountAppliedCadCents)[0],
     [active],
@@ -279,42 +303,61 @@ export function AdjustmentsPage() {
           <h1>Discounts &amp; Charges</h1>
           <p className="muted">Create reusable rules for sales and in-person markets. Fixed amounts are entered in CAD.</p>
         </div>
-        <button type="button" className="button" onClick={() => setForm('create')}>Add adjustment <PlusIcon /></button>
+        <div className="toolbar__actions">
+          <button type="button" className="button button--secondary" disabled={selectedIds.size === 0} onClick={() => setDeleteTarget({ kind: 'bulk', ids: [...selectedIds] })}>Bulk archive{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon /></button>
+          <button type="button" className="button" onClick={() => setForm('create')}>Add adjustment <PlusIcon /></button>
+        </div>
       </header>
       {error && <div className="banner banner--error" role="alert">{error}{' '}
         <button type="button" className="link-button" onClick={() => void reload()}>Retry</button>
       </div>}
+      {currencyError && <div className="banner banner--error" role="alert">Could not load reporting currency rates: {currencyError}</div>}
       <div className="market-summary">
         <article className="summary-panel"><span>Most used</span><strong>{mostUsed ? `${mostUsed.name} · ${mostUsed.useCount} uses` : 'No uses yet'}</strong></article>
-        <article className="summary-panel"><span>Largest total impact</span><strong>{mostImpact ? `${mostImpact.name} · ${formatCents(mostImpact.amountAppliedCadCents)}` : 'No uses yet'}</strong></article>
+        <article className="summary-panel"><span>Largest total impact ({reportingCurrency})</span><strong>{mostImpact ? `${mostImpact.name} · ${formatCad(mostImpact.amountAppliedCadCents)}` : 'No uses yet'}</strong></article>
+      </div>
+      <div className="toolbar">
+        <div className="search-field">
+          <label htmlFor="adjustments-search">Search adjustments</label>
+          <div className="search"><input id="adjustments-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, rule, target, or ID" /><SearchIcon /></div>
+        </div>
+        <div className="toolbar__filters" aria-label="Filter adjustments">
+          <label>Kind<select value={kindFilter} onChange={(event) => setKindFilter(event.target.value)}><option value="">All kinds</option><option value="DISCOUNT">Discount</option><option value="CHARGE">Charge</option></select></label>
+          <label>Scope<select value={scopeFilter} onChange={(event) => setScopeFilter(event.target.value)}><option value="">All scopes</option><option value="SALE">Whole sale</option><option value="ITEMS">Selected items</option><option value="TAGS">Tags</option></select></label>
+          <label>Rule<select value={operationFilter} onChange={(event) => setOperationFilter(event.target.value)}><option value="">All rules</option><option value="AMOUNT">Fixed amount</option><option value="PERCENTAGE">Percentage</option><option value="BUY_GET">Buy/get</option></select></label>
+          <label>Status<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">All statuses</option><option value="active">Active</option><option value="archived">Archived</option></select></label>
+          {(search || kindFilter || scopeFilter || operationFilter || statusFilter) && <button type="button" className="button button--secondary" onClick={() => { setSearch(''); setKindFilter(''); setScopeFilter(''); setOperationFilter(''); setStatusFilter(''); setSelectedIds(new Set()); }}>Clear filters</button>}
+        </div>
       </div>
       <section className="panel adjustment-page__panel">
-        <div className="market-list__header"><h2>Reusable adjustments</h2><span className="muted">{adjustments?.length ?? 0} total</span></div>
+        <div className="market-list__header"><h2>Reusable adjustments</h2><span className="muted">{filteredAdjustments.length} shown · {adjustments?.length ?? 0} total</span></div>
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Name</th><th>Kind</th><th>Rule</th><th>Applies to</th><th className="numeric">Uses</th><th className="numeric">Impact (CAD)</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th className="table__check"><input type="checkbox" checked={allVisibleSelected} onChange={() => setSelectedIds((current) => { const next = new Set(current); for (const adjustment of visibleActive) allVisibleSelected ? next.delete(adjustment.id) : next.add(adjustment.id); return next; })} aria-label="Select all active adjustments shown" /></th><th>ID</th><th>Name</th><th>Kind</th><th>Rule</th><th>Applies to</th><th className="numeric">Uses</th><th className="numeric">Impact ({reportingCurrency})</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
-              {adjustments?.map((adjustment) => (
+              {filteredAdjustments.map((adjustment) => (
                 <tr key={adjustment.id}>
+                  <td className="table__check"><input type="checkbox" checked={selectedIds.has(adjustment.id)} disabled={!adjustment.active} onChange={() => setSelectedIds((current) => { const next = new Set(current); next.has(adjustment.id) ? next.delete(adjustment.id) : next.add(adjustment.id); return next; })} aria-label={`Select adjustment ${adjustment.id}`} /></td>
+                  <td>{adjustment.id}</td>
                   <td>{adjustment.name}</td>
                   <td>{adjustment.kind === 'DISCOUNT' ? 'Discount' : 'Charge'}</td>
                   <td>{ruleDescription(adjustment)}</td>
                   <td>{targetDescription(adjustment, items)}</td>
                   <td className="numeric">{adjustment.useCount}</td>
-                  <td className="numeric">{formatCents(adjustment.amountAppliedCadCents)}</td>
+                  <td className="numeric">{formatCad(adjustment.amountAppliedCadCents)}</td>
                   <td>{adjustment.active ? 'Active' : 'Archived'}</td>
                   <td className="market-table__actions">
                     <button type="button" className="link-button" onClick={() => setForm({ mode: 'edit', adjustment })}>Edit</button>
-                    {adjustment.active && <button type="button" className="link-button danger-link" onClick={() => setDeleteTarget(adjustment)}>Archive</button>}
+                    {adjustment.active && <button type="button" className="link-button danger-link" onClick={() => setDeleteTarget({ kind: 'single', adjustment })}>Archive</button>}
                   </td>
                 </tr>
               ))}
-              {!loading && adjustments?.length === 0 && <tr><td colSpan={8} className="muted">No adjustments yet. Add one to reuse it in a sale.</td></tr>}
-              {loading && <tr><td colSpan={8} className="muted">Loading adjustments…</td></tr>}
+              {!loading && filteredAdjustments.length === 0 && <tr><td colSpan={10} className="muted">No adjustments match the selected filters.</td></tr>}
+              {loading && <tr><td colSpan={10} className="muted">Loading adjustments…</td></tr>}
             </tbody>
           </table>
         </div>
-        <p className="muted">Impact is the sum of adjustments actually applied, converted to CAD. Archived adjustments remain on past sales.</p>
+        <p className="muted">Impact is the sum of adjustments actually applied, converted to {reportingCurrency}. Archived adjustments remain on past sales.</p>
       </section>
       {form && (
         <AdjustmentFormModal
@@ -326,8 +369,10 @@ export function AdjustmentsPage() {
       )}
       {deleteTarget && (
         <ConfirmDialog
-          title="Archive adjustment?"
-          message="It will no longer be offered for new sales, but stays on historical transactions."
+          title={deleteTarget.kind === 'single' ? 'Archive adjustment?' : 'Archive selected adjustments?'}
+          message={deleteTarget.kind === 'single'
+            ? 'It will no longer be offered for new sales, but stays on historical transactions.'
+            : `${deleteTarget.ids.length} selected adjustment(s) will no longer be offered for new sales, but stay on historical transactions.`}
           onCancel={() => setDeleteTarget(null)}
           onConfirm={archive}
         />

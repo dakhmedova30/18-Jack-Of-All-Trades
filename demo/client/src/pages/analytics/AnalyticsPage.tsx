@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useAnalyticsSummary } from '../../hooks/useAnalyticsSummary';
 import { useInventoryByTag } from '../../hooks/useInventoryByTag';
-import { formatCents, formatCentsCompact } from '../../utils/money';
+import { formatCentsCompact } from '../../utils/money';
+import { useReportingCurrency } from '../../hooks/useReportingCurrency';
 import {
   ChartLegend,
   DonutChart,
@@ -36,6 +37,7 @@ function rangeDescription(range: AnalyticsRange): string {
 export function AnalyticsPage() {
   const [range, setRange] = useState<AnalyticsRange>(DEFAULT_RANGE);
   const { data, error, loading, reload } = useAnalyticsSummary(range);
+  const { currency, error: currencyError, formatCad, fromCad } = useReportingCurrency();
 
   return (
     <section className="page">
@@ -73,10 +75,11 @@ export function AnalyticsPage() {
           </button>
         </div>
       )}
+      {currencyError && <div className="banner banner--error" role="alert">Could not load reporting currency rates: {currencyError}</div>}
 
       {loading && !data && <p className="empty-state">Loading analytics…</p>}
 
-      {data && <AnalyticsContent data={data} range={range} />}
+      {data && <AnalyticsContent data={data} range={range} currency={currency} formatCad={formatCad} fromCad={fromCad} />}
     </section>
   );
 }
@@ -84,9 +87,16 @@ export function AnalyticsPage() {
 interface AnalyticsContentProps {
   data: AnalyticsSummary;
   range: AnalyticsRange;
+  currency: string;
+  formatCad: (cents: number) => string;
+  fromCad: (cents: number) => number | null;
 }
 
-function AnalyticsContent({ data, range }: AnalyticsContentProps) {
+function AnalyticsContent({ data, range, currency, formatCad, fromCad }: AnalyticsContentProps) {
+  const formatCompactCad = (cents: number) => {
+    const converted = fromCad(cents);
+    return converted === null ? '—' : formatCentsCompact(converted);
+  };
   const netProfitTone = data.netProfitCents >= 0 ? 'positive' : 'negative';
 
   const topRevenueTag = topSeriesLabel(data.revenueSeries);
@@ -97,18 +107,18 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
     <>
       <div className="analytics-stats">
         <StatCard
-          label="Net Profit"
-          value={formatCents(data.netProfitCents)}
+          label={`Net Profit (${currency})`}
+          value={formatCad(data.netProfitCents)}
           tone={netProfitTone}
         />
         <StatCard
-          label="Total Revenue"
-          value={formatCents(data.totalRevenueCents)}
+          label={`Total Revenue (${currency})`}
+          value={formatCad(data.totalRevenueCents)}
           tone="neutral"
         />
         <StatCard
-          label="Total Expenses"
-          value={formatCents(data.totalExpensesCents)}
+          label={`Total Expenses (${currency})`}
+          value={formatCad(data.totalExpensesCents)}
           tone="neutral"
         />
       </div>
@@ -125,8 +135,8 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
                 series={data.revenueSeries}
                 ariaLabel="Revenue overview"
                 height={190}
-                formatValue={formatCentsCompact}
-                formatTooltip={formatCents}
+                formatValue={formatCompactCad}
+                formatTooltip={formatCad}
               />
               <div className="analytics-card__footer">
                 <span className="muted">{axisLabel}</span>
@@ -153,8 +163,8 @@ function AnalyticsContent({ data, range }: AnalyticsContentProps) {
                 series={data.expenseSeries}
                 ariaLabel="Expenses overview"
                 height={190}
-                formatValue={formatCentsCompact}
-                formatTooltip={formatCents}
+                formatValue={formatCompactCad}
+                formatTooltip={formatCad}
               />
               <div className="analytics-card__footer">
                 <span className="muted">{axisLabel}</span>

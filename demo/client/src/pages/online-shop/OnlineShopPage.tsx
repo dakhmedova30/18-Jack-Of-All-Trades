@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
 import { listChannels } from '../../api/channels';
-import { deleteExpense, updateExpense, createExpense } from '../../api/expenses';
-import { deleteSale, updateSale, createSale } from '../../api/sales';
+import { bulkDeleteExpenses, deleteExpense, updateExpense, createExpense } from '../../api/expenses';
+import { bulkDeleteSales, deleteSale, updateSale, createSale } from '../../api/sales';
 import { getOnlineShopMonthlySummary } from '../../api/onlineShop';
+import { getCurrencyRates } from '../../api/currencies';
 import { getErrorMessage } from '../../api/http';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Pagination } from '../../components/Pagination';
-import { PlusIcon, TrashIcon } from '../../components/icons';
+import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { useExpenses } from '../../hooks/useExpenses';
 import { useSales } from '../../hooks/useSales';
 import { usePreferences } from '../../hooks/usePreferences';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useReportingCurrency } from '../../hooks/useReportingCurrency';
 import { ExpenseFormModal } from '../expenses/ExpenseFormModal';
 import { SaleFormModal } from '../sales/SaleFormModal';
 import type {
@@ -17,10 +20,11 @@ import type {
   Expense,
   ExpenseInput,
   OnlineShopSummary,
+  CurrencyRates,
   Sale,
   SaleInput,
 } from '../../types';
-import { formatCents } from '../../utils/money';
+import { convertCents, formatCentsIn } from '../../utils/money';
 
 const ONLINE_SHOP_TAG = 'online shop';
 const PAGE_SIZE = 10;
@@ -31,7 +35,12 @@ type FormState =
   | { kind: 'expense'; mode: 'create' }
   | { kind: 'expense'; mode: 'edit'; expense: Expense }
   | null;
-type DeleteTarget = { kind: 'sale'; sale: Sale } | { kind: 'expense'; expense: Expense } | null;
+type DeleteTarget =
+  | { kind: 'sale'; sale: Sale }
+  | { kind: 'expense'; expense: Expense }
+  | { kind: 'sales'; ids: number[] }
+  | { kind: 'expenses'; ids: number[] }
+  | null;
 
 function monthRange(month: string) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
@@ -45,7 +54,13 @@ function monthRange(month: string) {
 
 export function OnlineShopPage() {
   const { formatDate } = usePreferences();
+  const { currency: reportingCurrency, error: reportingCurrencyError, formatCad } = useReportingCurrency();
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [searchInput, setSearchInput] = useState('');
+  const search = useDebouncedValue(searchInput.trim());
+  const [currencyFilter, setCurrencyFilter] = useState('');
+  const [currencyRates, setCurrencyRates] = useState<CurrencyRates | null>(null);
+  const [currencyError, setCurrencyError] = useState<string | null>(null);
   const [channels, setChannels] = useState<Channel[] | null>(null);
   const [channelsError, setChannelsError] = useState<string | null>(null);
   const [summary, setSummary] = useState<OnlineShopSummary | null>(null);
@@ -56,6 +71,8 @@ export function OnlineShopPage() {
   const [expensesPage, setExpensesPage] = useState(1);
   const [formState, setFormState] = useState<FormState>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
+  const [selectedSaleIds, setSelectedSaleIds] = useState<Set<number>>(new Set());
+  const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<number>>(new Set());
 
   const onlineChannel = channels?.find((channel) => channel.name.toLowerCase() === 'online');
   const { from, to } = monthRange(month);
@@ -65,6 +82,8 @@ export function OnlineShopPage() {
     sort: 'soldAt',
     order: 'desc',
     channelId: onlineChannel?.id ?? 0,
+    search,
+    currency: currencyFilter || undefined,
     from,
     to,
   });
@@ -74,9 +93,17 @@ export function OnlineShopPage() {
     sort: 'incurredAt',
     order: 'desc',
     tag: ONLINE_SHOP_TAG,
+    search,
+    currency: currencyFilter || undefined,
     from,
     to,
   });
+
+  useEffect(() => {
+    getCurrencyRates()
+      .then(setCurrencyRates)
+      .catch((error: unknown) => setCurrencyError(getErrorMessage(error)));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -140,7 +167,11 @@ export function OnlineShopPage() {
   async function handleDelete() {
     if (!deleteTarget) return;
     if (deleteTarget.kind === 'sale') await deleteSale(deleteTarget.sale.id);
-    else await deleteExpense(deleteTarget.expense.id);
+    else if (deleteTarget.kind === 'expense') await deleteExpense(deleteTarget.expense.id);
+    else if (deleteTarget.kind === 'sales') await bulkDeleteSales(deleteTarget.ids);
+    else await bulkDeleteExpenses(deleteTarget.ids);
+    if (deleteTarget.kind === 'sale' || deleteTarget.kind === 'sales') setSelectedSaleIds(new Set());
+    else setSelectedExpenseIds(new Set());
     setDeleteTarget(null);
     reload();
   }
@@ -150,6 +181,29 @@ export function OnlineShopPage() {
     setMonth(value);
     setSalesPage(1);
     setExpensesPage(1);
+    setSelectedSaleIds(new Set());
+    setSelectedExpenseIds(new Set());
+  }
+
+  const salesOnPage = sales.data?.data ?? [];
+  const expensesOnPage = expenses.data?.data ?? [];
+  const allSalesSelected = salesOnPage.length > 0 && salesOnPage.every((sale) => selectedSaleIds.has(sale.id));
+  const allExpensesSelected = expensesOnPage.length > 0 && expensesOnPage.every((expense) => selectedExpenseIds.has(expense.id));
+
+  function togglePageSelection(kind: 'sale' | 'expense') {
+    if (kind === 'sale') {
+      setSelectedSaleIds((current) => {
+        const next = new Set(current);
+        for (const sale of salesOnPage) allSalesSelected ? next.delete(sale.id) : next.add(sale.id);
+        return next;
+      });
+    } else {
+      setSelectedExpenseIds((current) => {
+        const next = new Set(current);
+        for (const expense of expensesOnPage) allExpensesSelected ? next.delete(expense.id) : next.add(expense.id);
+        return next;
+      });
+    }
   }
 
   return (
@@ -189,6 +243,60 @@ export function OnlineShopPage() {
         </div>
       )}
 
+      <div className="toolbar">
+        <div className="search-field">
+          <label htmlFor="online-shop-search">Search records</label>
+          <div className="search">
+            <input
+              id="online-shop-search"
+              type="search"
+              value={searchInput}
+              onChange={(event) => {
+                setSearchInput(event.target.value);
+                setSalesPage(1);
+                setExpensesPage(1);
+                setSelectedSaleIds(new Set());
+                setSelectedExpenseIds(new Set());
+              }}
+              placeholder="Search descriptions, people, items, or tags"
+            />
+            <SearchIcon />
+          </div>
+        </div>
+        <label>
+          Currency
+          <select
+            value={currencyFilter}
+            onChange={(event) => {
+              setCurrencyFilter(event.target.value);
+              setSalesPage(1);
+              setExpensesPage(1);
+              setSelectedSaleIds(new Set());
+              setSelectedExpenseIds(new Set());
+            }}
+          >
+            <option value="">All currencies</option>
+            {(currencyRates?.currencies ?? []).map(({ code, name }) => (
+              <option key={code} value={code}>{code} — {name}</option>
+            ))}
+          </select>
+        </label>
+        {(searchInput || currencyFilter) && (
+          <button type="button" className="button button--secondary" onClick={() => {
+            setSearchInput('');
+            setCurrencyFilter('');
+            setSalesPage(1);
+            setExpensesPage(1);
+            setSelectedSaleIds(new Set());
+            setSelectedExpenseIds(new Set());
+          }}>
+            Clear filters
+          </button>
+        )}
+      </div>
+      {currencyError && <div className="banner banner--error" role="alert">Could not load currencies: {currencyError}</div>}
+      {reportingCurrencyError && <div className="banner banner--error" role="alert">Could not load reporting currency rates: {reportingCurrencyError}</div>}
+
       {summaryError && (
         <div className="banner banner--error" role="alert">
           Could not load this month’s totals: {summaryError}{' '}
@@ -200,11 +308,11 @@ export function OnlineShopPage() {
 
       <div className="online-shop__stats" aria-busy={summaryLoading}>
         <SummaryCard label="Sales" value={summary ? String(summary.saleCount) : summaryLoading ? '…' : '—'} />
-        <SummaryCard label="Net revenue" value={summary ? formatCents(summary.revenueCents) : summaryLoading ? '…' : '—'} />
-        <SummaryCard label="Expenses" value={summary ? formatCents(summary.expenseCents) : summaryLoading ? '…' : '—'} />
+        <SummaryCard label={`Net revenue (${reportingCurrency})`} value={summary ? formatCad(summary.revenueCents) : summaryLoading ? '…' : '—'} />
+        <SummaryCard label={`Expenses (${reportingCurrency})`} value={summary ? formatCad(summary.expenseCents) : summaryLoading ? '…' : '—'} />
         <SummaryCard
-          label="Profit"
-          value={summary ? formatCents(summary.profitCents) : summaryLoading ? '…' : '—'}
+          label={`Profit (${reportingCurrency})`}
+          value={summary ? formatCad(summary.profitCents) : summaryLoading ? '…' : '—'}
           tone={summary && summary.profitCents < 0 ? 'negative' : 'positive'}
           detail="Net revenue less expenses tagged Online Shop"
         />
@@ -238,19 +346,19 @@ export function OnlineShopPage() {
       <section className="card online-shop__records">
         <div className="online-shop__section-heading">
           <div><h2>Sales</h2><p className="muted">Shop orders reduce inventory.</p></div>
-          <button
-            type="button"
-            className="button"
-            disabled={!onlineChannel}
-            onClick={() => setFormState({ kind: 'sale', mode: 'create' })}
-          >
-            Add sale <PlusIcon />
-          </button>
+          <div className="toolbar__actions">
+            <button type="button" className="button button--secondary" disabled={selectedSaleIds.size === 0} onClick={() => setDeleteTarget({ kind: 'sales', ids: [...selectedSaleIds] })}>
+              Bulk delete{selectedSaleIds.size > 0 && ` (${selectedSaleIds.size})`} <TrashIcon />
+            </button>
+            <button type="button" className="button" disabled={!onlineChannel} onClick={() => setFormState({ kind: 'sale', mode: 'create' })}>
+              Add sale <PlusIcon />
+            </button>
+          </div>
         </div>
         {sales.error && <div className="banner banner--error" role="alert">{sales.error} <button type="button" className="link-button" onClick={sales.reload}>Retry</button></div>}
         <div className={`table-wrap${sales.loading && sales.data ? ' is-loading' : ''}`}>
           <table className="table">
-            <thead><tr><th>Date</th><th>Description</th><th className="numeric">Net received</th><th className="table__action">Delete</th></tr></thead>
+            <thead><tr><th className="table__check"><input type="checkbox" checked={allSalesSelected} onChange={() => togglePageSelection('sale')} aria-label="Select all online sales on this page" /></th><th>ID</th><th>Date</th><th>Description</th><th className="numeric">Net received</th><th>Currency</th><th className="table__action">Delete</th></tr></thead>
             <tbody>
               {sales.data?.data.map((sale) => (
                 <tr
@@ -267,9 +375,18 @@ export function OnlineShopPage() {
                     }
                   }}
                 >
+                  <td className="table__check" onClick={(event) => event.stopPropagation()}>
+                    <input type="checkbox" checked={selectedSaleIds.has(sale.id)} onChange={() => setSelectedSaleIds((current) => {
+                      const next = new Set(current);
+                      next.has(sale.id) ? next.delete(sale.id) : next.add(sale.id);
+                      return next;
+                    })} aria-label={`Select online sale ${sale.id}`} />
+                  </td>
+                  <td>{sale.id}</td>
                   <td>{formatDate(sale.soldAt)}</td>
                   <td>{sale.description || <span className="muted">—</span>}</td>
-                  <td className="numeric">{formatCents(sale.totalCents)}</td>
+                  <td className="numeric">{formatSaleTotal(sale, currencyRates)}</td>
+                  <td>{sale.currency}</td>
                   <td className="table__action" onClick={(event) => event.stopPropagation()}>
                     <button type="button" className="icon-button" aria-label={`Delete online sale ${sale.id}`} onClick={() => setDeleteTarget({ kind: 'sale', sale })}><TrashIcon /></button>
                   </td>
@@ -278,7 +395,7 @@ export function OnlineShopPage() {
             </tbody>
           </table>
           {!sales.data && sales.loading && <p className="empty-state">Loading online sales…</p>}
-          {sales.data?.total === 0 && <p className="empty-state">No online sales for this month.</p>}
+          {sales.data?.total === 0 && <p className="empty-state">No online sales match the selected filters.</p>}
         </div>
         {sales.data && <Pagination page={sales.data.page} totalPages={sales.data.totalPages} onPageChange={setSalesPage} />}
       </section>
@@ -286,14 +403,19 @@ export function OnlineShopPage() {
       <section className="card online-shop__records">
         <div className="online-shop__section-heading">
           <div><h2>Expenses</h2><p className="muted">Only expenses tagged Online Shop are included in these totals.</p></div>
-          <button type="button" className="button" onClick={() => setFormState({ kind: 'expense', mode: 'create' })}>
-            Add expense <PlusIcon />
-          </button>
+          <div className="toolbar__actions">
+            <button type="button" className="button button--secondary" disabled={selectedExpenseIds.size === 0} onClick={() => setDeleteTarget({ kind: 'expenses', ids: [...selectedExpenseIds] })}>
+              Bulk delete{selectedExpenseIds.size > 0 && ` (${selectedExpenseIds.size})`} <TrashIcon />
+            </button>
+            <button type="button" className="button" onClick={() => setFormState({ kind: 'expense', mode: 'create' })}>
+              Add expense <PlusIcon />
+            </button>
+          </div>
         </div>
         {expenses.error && <div className="banner banner--error" role="alert">{expenses.error} <button type="button" className="link-button" onClick={expenses.reload}>Retry</button></div>}
         <div className={`table-wrap${expenses.loading && expenses.data ? ' is-loading' : ''}`}>
           <table className="table">
-            <thead><tr><th>Date</th><th>Description</th><th className="numeric">Total</th><th className="table__action">Delete</th></tr></thead>
+            <thead><tr><th className="table__check"><input type="checkbox" checked={allExpensesSelected} onChange={() => togglePageSelection('expense')} aria-label="Select all Online Shop expenses on this page" /></th><th>ID</th><th>Date</th><th>Description</th><th className="numeric">Total</th><th>Currency</th><th className="table__action">Delete</th></tr></thead>
             <tbody>
               {expenses.data?.data.map((expense) => (
                 <tr
@@ -310,9 +432,18 @@ export function OnlineShopPage() {
                     }
                   }}
                 >
+                  <td className="table__check" onClick={(event) => event.stopPropagation()}>
+                    <input type="checkbox" checked={selectedExpenseIds.has(expense.id)} onChange={() => setSelectedExpenseIds((current) => {
+                      const next = new Set(current);
+                      next.has(expense.id) ? next.delete(expense.id) : next.add(expense.id);
+                      return next;
+                    })} aria-label={`Select Online Shop expense ${expense.id}`} />
+                  </td>
+                  <td>{expense.id}</td>
                   <td>{formatDate(expense.incurredAt)}</td>
                   <td>{expense.description || <span className="muted">—</span>}</td>
-                  <td className="numeric">{formatCents(expense.totalCents)}</td>
+                  <td className="numeric">{formatExpenseTotal(expense, currencyRates)}</td>
+                  <td>{expense.currency}</td>
                   <td className="table__action" onClick={(event) => event.stopPropagation()}>
                     <button type="button" className="icon-button" aria-label={`Delete online shop expense ${expense.id}`} onClick={() => setDeleteTarget({ kind: 'expense', expense })}><TrashIcon /></button>
                   </td>
@@ -321,7 +452,7 @@ export function OnlineShopPage() {
             </tbody>
           </table>
           {!expenses.data && expenses.loading && <p className="empty-state">Loading online shop expenses…</p>}
-          {expenses.data?.total === 0 && <p className="empty-state">No Online Shop expenses for this month.</p>}
+          {expenses.data?.total === 0 && <p className="empty-state">No Online Shop expenses match the selected filters.</p>}
         </div>
         {expenses.data && <Pagination page={expenses.data.page} totalPages={expenses.data.totalPages} onPageChange={setExpensesPage} />}
       </section>
@@ -349,13 +480,29 @@ export function OnlineShopPage() {
           title="Delete confirmation"
           message={deleteTarget.kind === 'sale'
             ? `Delete online sale #${deleteTarget.sale.id}? Its items will be returned to inventory.`
-            : `Delete Online Shop expense #${deleteTarget.expense.id}?`}
+            : deleteTarget.kind === 'expense'
+              ? `Delete Online Shop expense #${deleteTarget.expense.id}?`
+              : deleteTarget.kind === 'sales'
+                ? `Delete ${deleteTarget.ids.length} selected online sale(s)? Their items will be returned to inventory.`
+                : `Delete ${deleteTarget.ids.length} selected Online Shop expense(s)?`}
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}
         />
       )}
     </section>
   );
+}
+
+function formatSaleTotal(sale: Sale, rates: CurrencyRates | null) {
+  const converted = rates ? convertCents(sale.totalCents, 'CAD', sale.currency, rates.cadPerUnit) : null;
+  return converted === null ? '—' : formatCentsIn(converted, sale.currency);
+}
+
+function formatExpenseTotal(expense: Expense, rates: CurrencyRates | null) {
+  const sourceTotal = expense.items.reduce((sum, item) => sum + item.sourceTotalCents, 0);
+  if (expense.items.length > 0) return formatCentsIn(sourceTotal, expense.currency);
+  const converted = rates ? convertCents(expense.totalCents, 'CAD', expense.currency, rates.cadPerUnit) : null;
+  return converted === null ? '—' : formatCentsIn(converted, expense.currency);
 }
 
 function SummaryCard({

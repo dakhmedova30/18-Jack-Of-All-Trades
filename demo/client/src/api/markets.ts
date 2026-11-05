@@ -17,6 +17,10 @@ export function deleteMarket(id: number): Promise<void> {
   return apiRequest(`/markets/${id}`, { method: 'DELETE' });
 }
 
+export function bulkDeleteMarkets(ids: number[]): Promise<{ deleted: number }> {
+  return apiRequest('/markets/bulk-delete', { method: 'POST', json: { ids } });
+}
+
 export function createMarketSale(marketId: number, input: MarketSaleInput): Promise<MarketSale> {
   return apiRequest(`/markets/${marketId}/sales`, { method: 'POST', json: input });
 }
@@ -31,4 +35,8 @@ export function updateMarketSale(
 
 export function deleteMarketSale(marketId: number, saleId: number): Promise<void> {
   return apiRequest(`/markets/${marketId}/sales/${saleId}`, { method: 'DELETE' });
+}
+
+export function bulkDeleteMarketSales(marketId: number, ids: number[]): Promise<{ deleted: number }> {
+  return apiRequest(`/markets/${marketId}/sales/bulk-delete`, { method: 'POST', json: { ids } });
 }
