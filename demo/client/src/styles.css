@@ -641,6 +641,50 @@ code {
   padding: 0;
 }
 
+.speech-reader {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.6rem;
+  border: var(--border-default) var(--color-border-chart);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-popover);
+}
+
+.speech-reader__rate {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.speech-reader__rate select {
+  padding: 0.35rem;
+  border: var(--border-default) var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.speech-reader__status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .page {
   display: flex;
   flex-direction: column;
@@ -2333,6 +2377,15 @@ textarea.settings-row__input {
 }
 
 @media (max-width: 720px) {
+  .speech-reader {
+    right: 0.5rem;
+    bottom: 0.5rem;
+    left: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    max-width: none;
+  }
+
   .public-profile__hero {
     flex-direction: column;
   }
