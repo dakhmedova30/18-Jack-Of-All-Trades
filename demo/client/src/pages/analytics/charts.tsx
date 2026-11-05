@@ -310,6 +310,56 @@ export function HorizontalBarChart({
   );
 }
 
+interface CompactBarListProps {
+  bars: HorizontalBar[];
+  ariaLabel: string;
+  /** Formats the value beside each label, e.g. compact money ("$1.2k"). */
+  formatValue?: (value: number) => string;
+  /** Formats the value in hover text, e.g. full money ("$1,234.56"). */
+  formatTooltip?: (value: number) => string;
+}
+
+/**
+ * HorizontalBarChart for narrow spaces like the filter side bar: each label and value sit on
+ * their own line above a full-width bar, so the bars don't lose their width to the labels.
+ */
+export function CompactBarList({
+  bars,
+  ariaLabel,
+  formatValue = formatNumber,
+  formatTooltip = formatNumber,
+}: CompactBarListProps) {
+  const max = Math.max(...bars.map((b) => b.value), 1);
+
+  return (
+    <ul className="viz-bar-list" aria-label={ariaLabel}>
+      {bars.map((bar) => (
+        <li
+          key={bar.label}
+          className="viz-bar-list__item"
+          title={`${bar.label}: ${formatTooltip(bar.value)}${bar.detail ? ` (${bar.detail})` : ''}`}
+        >
+          <div className="viz-bar-list__row">
+            <span className="viz-bar-list__label">{bar.label}</span>
+            <span className="viz-bar-list__value">{formatValue(bar.value)}</span>
+          </div>
+          <div className="viz-bar-list__track">
+            {bar.value > 0 && (
+              <div
+                className="viz-bar-list__bar"
+                style={{
+                  width: `${Math.max((bar.value / max) * 100, 1)}%`,
+                  background: bar.label === OTHER_LABEL ? OTHER_COLOR : SERIES_COLORS[2],
+                }}
+              />
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export interface DonutSegment {
   label: string;
   value: number;

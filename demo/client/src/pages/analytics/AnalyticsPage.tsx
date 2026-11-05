@@ -9,6 +9,7 @@ import { formatCents, formatCentsCompact } from '../../utils/money';
 import { AnalyticsFilters } from './AnalyticsFilters';
 import {
   ChartLegend,
+  CompactBarList,
   DonutChart,
   HorizontalBarChart,
   LineChart,
@@ -106,20 +107,30 @@ function AnalyticsDashboard({ dates }: { dates: AnalyticsDateRange }) {
       <AnalyticsHeader />
 
       <div className="analytics-layout">
-        <AnalyticsFilters
-          dates={dates}
-          value={period}
-          onChange={setPeriod}
-          channels={channels.data}
-          channelsError={channels.error}
-          channelId={channelId}
-          onChannelChange={setChannelId}
-          onReset={() => {
-            setPeriod(initial);
-            setChannelId('');
-          }}
-          isDefault={period.from === initial.from && period.to === initial.to && !channelId}
-        />
+        <div className="analytics-side">
+          <AnalyticsFilters
+            dates={dates}
+            value={period}
+            onChange={setPeriod}
+            channels={channels.data}
+            channelsError={channels.error}
+            channelId={channelId}
+            onChannelChange={setChannelId}
+            onReset={() => {
+              setPeriod(initial);
+              setChannelId('');
+            }}
+            isDefault={period.from === initial.from && period.to === initial.to && !channelId}
+          />
+
+          <RevenueByChannelCard
+            data={data}
+            period={requested}
+            channelName={channelName}
+            refreshing={refreshing}
+            error={error}
+          />
+        </div>
 
         <div className="analytics-main">
           {error && (
@@ -161,7 +172,7 @@ interface AnalyticsContentProps {
   channelName: string | null;
 }
 
-/** The totals, the overview charts and revenue by channel: everything the filters move. */
+/** The totals and the overview charts: the main column's part of what the filters move. */
 function AnalyticsContent({ data, period, channelName }: AnalyticsContentProps) {
   const netProfitTone = data.netProfitCents >= 0 ? 'positive' : 'negative';
   const phrase = periodPhrase(period);
@@ -261,25 +272,35 @@ function AnalyticsContent({ data, period, channelName }: AnalyticsContentProps) 
           </p>
         </div>
       </div>
-
-      <RevenueByChannelCard
-        channels={data.revenueByChannel}
-        phrase={phrase}
-        channelName={channelName}
-      />
     </>
   );
 }
 
 interface RevenueByChannelCardProps {
-  channels: AnalyticsSummary['revenueByChannel'];
-  /** "from Oct 1, 2026 to Oct 31, 2026", for the insight line. */
-  phrase: string;
+  /** The page's summary for the filtered period; undefined until it first loads. */
+  data: AnalyticsSummary | undefined;
+  /** The period `data` was loaded for. */
+  period: DateRange;
   channelName: string | null;
+  /** A new period or channel is loading, so `data` is about to change. */
+  refreshing: boolean;
+  /** Why the summary didn't load (the page shows it, with Retry, beside this). */
+  error: string | undefined;
 }
 
-/** Where the money comes from: one bar per sales channel with revenue in the period. */
-function RevenueByChannelCard({ channels, phrase, channelName }: RevenueByChannelCardProps) {
+/**
+ * Where the money comes from: one bar per sales channel with revenue in the period. It sits in
+ * the side bar under the filters, so it loads and dims on its own, like the breakdown card.
+ */
+function RevenueByChannelCard({
+  data,
+  period,
+  channelName,
+  refreshing,
+  error,
+}: RevenueByChannelCardProps) {
+  const channels = data?.revenueByChannel ?? [];
+  const phrase = periodPhrase(period);
   const total = channels.reduce((sum, channel) => sum + channel.valueCents, 0);
   const top = channels[0];
   const insight = channelName
@@ -289,26 +310,36 @@ function RevenueByChannelCard({ channels, phrase, channelName }: RevenueByChanne
       : `No sales recorded ${phrase}.`;
 
   return (
-    <div className="card analytics-card">
+    <div
+      className={`card analytics-card analytics-card--side${refreshing ? ' is-loading' : ''}`}
+      aria-busy={refreshing}
+    >
       <h2>Revenue by Channel</h2>
-      {channels.length === 0 ? (
+      {!data ? (
         <p className="empty-state">
-          No {channelName ? `${channelName} sales` : 'sales'} {phrase}.
+          {error ? "Couldn't load revenue by channel." : 'Loading channels…'}
         </p>
       ) : (
-        <HorizontalBarChart
-          bars={channels.map((channel) => ({
-            label: channel.label,
-            value: channel.valueCents,
-            detail: `${percentOf(channel.valueCents, total)}% of revenue`,
-          }))}
-          width={900}
-          ariaLabel="Revenue by sales channel"
-          formatValue={formatCentsCompact}
-          formatTooltip={formatCents}
-        />
+        <>
+          {channels.length === 0 ? (
+            <p className="empty-state">
+              No {channelName ? `${channelName} sales` : 'sales'} {phrase}.
+            </p>
+          ) : (
+            <CompactBarList
+              bars={channels.map((channel) => ({
+                label: channel.label,
+                value: channel.valueCents,
+                detail: `${percentOf(channel.valueCents, total)}% of revenue`,
+              }))}
+              ariaLabel="Revenue by sales channel"
+              formatValue={formatCentsCompact}
+              formatTooltip={formatCents}
+            />
+          )}
+          <p className="analytics-insight">{insight}</p>
+        </>
       )}
-      <p className="analytics-insight">{insight}</p>
     </div>
   );
 }

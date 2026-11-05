@@ -1864,10 +1864,16 @@ code {
   opacity: 0.55;
 }
 
-/* Stays in view while the dashboard scrolls. */
+/* The filters with Revenue by Channel under them. Not sticky: together they can be taller than
+   the window, and a sticky column that tall would hide its bottom until the page ends. */
+.analytics-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
 .analytics-filters {
-  position: sticky;
-  top: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
@@ -1970,14 +1976,65 @@ code {
   font-size: 0.8rem;
 }
 
+/* Revenue by Channel under the filters: padded like them so the two line up. */
+.analytics-card--side {
+  padding: 1rem;
+}
+
+/* ---------- Compact bar list (narrow bar chart) ---------- */
+
+.viz-bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.viz-bar-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.viz-bar-list__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.viz-bar-list__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viz-bar-list__value {
+  flex: none;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.viz-bar-list__track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.viz-bar-list__bar {
+  height: 100%;
+  border-radius: 4px;
+}
+
 /* Too narrow for a side bar next to the charts: the filters go above them instead. */
 @media (max-width: 1100px) {
   .analytics-layout {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .analytics-filters {
-    position: static;
   }
 
   .analytics-filters__fields {
