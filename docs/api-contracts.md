@@ -248,7 +248,7 @@ Deleting an item doesn't change past sales or expenses: their lines keep the ite
 
 | Method | Path | Request body | Success |
 | --- | --- | --- | --- |
-| `GET` | `/api/sales?page&pageSize&search&sort&order` | — | `200` `Paginated<Sale>` |
+| `GET` | `/api/sales?page&pageSize&search&sort&order&channelId&from&to` | — | `200` `Paginated<Sale>` |
 | `GET` | `/api/sales/month-summary` | — | `200` `SalesMonthSummary` |
 | `GET` | `/api/sales/{id}` | — | `200` `Sale` |
 | `POST` | `/api/sales` | `SaleInput` | `201` `Sale` |
@@ -257,6 +257,7 @@ Deleting an item doesn't change past sales or expenses: their lines keep the ite
 | `POST` | `/api/sales/bulk-delete` | `{ "ids": [1, 2] }` (1–100 ids) | `200` `{ "deleted": 2 }` |
 
 - **List:** `search` matches tags, the description, the channel's name, or item names on the sale's lines. `sort` is `soldAt` (default), `id`, `total`, `tags` (first tag) or `channel` (channel name); `order` is `desc` (default) or `asc`. Sorting by `tags` or `channel` ignores case; untagged sales go last either way.
+- **Filters** (all optional, combined with each other and with `search`): `channelId` keeps one channel's sales (another business's channel matches nothing). `from` and `to` are dates (`2026-10-01`) and both ends are inclusive whole UTC days, as the app displays dates; either may be given alone. `400 'from' must be on or before 'to'` for a backwards range, `400 Invalid value for 'from'` for a value that isn't a real date, `400 'from' must be a date between the years 1 and 9999` outside those years, and a validation error on `channelId` below 1.
 
 ```json
 // Sale

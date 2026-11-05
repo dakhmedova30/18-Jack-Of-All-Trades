@@ -766,6 +766,48 @@ code {
   color: inherit;
 }
 
+.toolbar__filters,
+.sales-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.filter-field select,
+.filter-field input {
+  font: inherit;
+  font-weight: 400;
+  color: inherit;
+  background: var(--color-search);
+  border: var(--border-default) var(--color-border-strong);
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+}
+
+.sales-filters__clear {
+  font-size: 0.85rem;
+  padding-bottom: 0.5rem;
+}
+
+/* Under the fields, on a line of its own. */
+.sales-filters__error {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.filter-field input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
 /* ---------- Buttons ---------- */
 
 .button {
