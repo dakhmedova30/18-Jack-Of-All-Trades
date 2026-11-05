@@ -1,10 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ApiError, getErrorMessage } from '../../api/http';
 import { useAuth } from '../../hooks/useAuth';
-
-type FieldName = 'name' | 'email' | 'password';
-type FieldErrors = Partial<Record<FieldName, string>>;
+import { checkAuthFields, describeAuthError, fieldsMessage } from '../../utils/authErrors';
 
 export function RegisterPage() {
   const { register } = useAuth();
@@ -13,64 +10,87 @@ export function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<FieldErrors>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | undefined>();
   const [submitting, setSubmitting] = useState(false);
 
+  function clearFieldError(field: string) {
+    setErrors((current) => ({ ...current, [field]: '' }));
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    setErrors({});
+    const fieldErrors = checkAuthFields('register', { name, email, password });
+    setErrors(fieldErrors);
+    if (Object.keys(fieldErrors).length > 0) {
+      setSubmitError(fieldsMessage('register'));
+      return;
+    }
+
     setSubmitError(undefined);
     setSubmitting(true);
     try {
-      await register(name, email, password);
+      await register(name.trim(), email.trim(), password);
       navigate('/', { replace: true });
     } catch (error) {
-      if (error instanceof ApiError && error.fieldErrors.length > 0) {
-        const fieldErrors: FieldErrors = {};
-        for (const { field, message } of error.fieldErrors) {
-          if (field === 'name' || field === 'email' || field === 'password') {
-            fieldErrors[field] = message;
-          }
-        }
-        setErrors(fieldErrors);
-      }
-      setSubmitError(getErrorMessage(error));
+      const display = describeAuthError('register', error);
+      setErrors(display.fieldErrors);
+      setSubmitError(display.message);
       setSubmitting(false);
     }
   }
 
   return (
-    <div className="auth-page">
+    <main className="auth-page">
       <form className="auth-card" onSubmit={handleSubmit} noValidate>
         <div className="auth-card__logo">Jack-Of-All-Trades</div>
         <h1>Register your business</h1>
         <p className="muted">Create an account to get started.</p>
 
-        <label className="auth-field" htmlFor="register-name">
-          Business name
+        <div className="auth-field">
+          <label htmlFor="register-name">Business name</label>
           <input
             id="register-name"
+            autoComplete="organization"
             value={name}
-            onChange={(event) => setName(event.target.value)}
+            onChange={(event) => {
+              setName(event.target.value);
+              clearFieldError('name');
+            }}
             autoFocus
             maxLength={120}
             required
+            aria-invalid={errors.name ? true : undefined}
+            aria-describedby={errors.name ? 'register-name-error' : undefined}
           />
-          {errors.name && <span className="field-error">{errors.name}</span>}
-        </label>
+          {errors.name && (
+            <span id="register-name-error" className="field-error" aria-live="polite">
+              {errors.name}
+            </span>
+          )}
+        </div>
 
-        <label className="auth-field" htmlFor="register-email">
-          Email
+        <div className="auth-field">
+          <label htmlFor="register-email">Email</label>
           <input
             id="register-email"
             type="email"
+            autoComplete="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) => {
+              setEmail(event.target.value);
+              clearFieldError('email');
+            }}
             required
+            aria-invalid={errors.email ? true : undefined}
+            aria-describedby={errors.email ? 'register-email-error' : undefined}
           />
-          {errors.email && <span className="field-error">{errors.email}</span>}
-        </label>
+          {errors.email && (
+            <span id="register-email-error" className="field-error" aria-live="polite">
+              {errors.email}
+            </span>
+          )}
+        </div>
 
         <div className="auth-field">
           <label htmlFor="register-password">Password</label>
@@ -78,24 +98,47 @@ export function RegisterPage() {
             <input
               id="register-password"
               type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                clearFieldError('password');
+              }}
               minLength={8}
+              maxLength={200}
               required
+              aria-invalid={errors.password ? true : undefined}
+              aria-describedby={
+                errors.password
+                  ? 'register-password-hint register-password-error'
+                  : 'register-password-hint'
+              }
             />
             <button
               type="button"
               className="auth-password-toggle"
               aria-pressed={showPassword}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
               onClick={() => setShowPassword((visible) => !visible)}
             >
               {showPassword ? 'Hide password' : 'Show password'}
             </button>
           </div>
-          {errors.password && <span className="field-error">{errors.password}</span>}
+          <span id="register-password-hint" className="field-label__hint">
+            Use at least 8 characters.
+          </span>
+          {errors.password && (
+            <span id="register-password-error" className="field-error" aria-live="polite">
+              {errors.password}
+            </span>
+          )}
         </div>
 
-        {submitError && <p className="form-error">{submitError}</p>}
+        {submitError && (
+          <p className="form-error" role="alert">
+            {submitError}
+          </p>
+        )}
 
         <button type="submit" className="button" disabled={submitting}>
           {submitting ? 'Creating account…' : 'Create account'}
@@ -105,6 +148,6 @@ export function RegisterPage() {
           Already have an account? <Link to="/login">Log in</Link>
         </p>
       </form>
-    </div>
+    </main>
   );
 }

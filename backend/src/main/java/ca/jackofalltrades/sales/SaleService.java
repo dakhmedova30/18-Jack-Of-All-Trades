@@ -53,8 +53,8 @@ public class SaleService {
     }
 
     @Transactional(readOnly = true)
-    public Paginated<SaleResponse> list(String search, String sort, String order, int page, int pageSize) {
-        return queries.findPage(currentBusiness.id(), search, sort, order, page, pageSize);
+    public Paginated<SaleResponse> list(SaleFilters filters, String sort, String order, int page, int pageSize) {
+        return queries.findPage(currentBusiness.id(), filters, sort, order, page, pageSize);
     }
 
     @Transactional(readOnly = true)

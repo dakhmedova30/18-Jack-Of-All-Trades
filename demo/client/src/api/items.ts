@@ -59,6 +59,11 @@ export function bulkDeleteItems(ids: number[]): Promise<{ deleted: number }> {
   return apiRequest('/items/bulk-delete', { method: 'POST', json: { ids } });
 }
 
+/** Shows the items on the public profile (true) or hides them (false); skips ids that aren't yours. */
+export function bulkSetItemsPublic(ids: number[], isPublic: boolean): Promise<{ updated: number }> {
+  return apiRequest('/items/bulk-visibility', { method: 'POST', json: { ids, isPublic } });
+}
+
 /** The tags in use on items, most used first. */
 export function listItemTags(): Promise<ItemTagCount[]> {
   return apiRequest('/items/tags');

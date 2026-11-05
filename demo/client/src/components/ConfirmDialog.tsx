@@ -6,6 +6,10 @@ interface ConfirmDialogProps {
   title: string;
   message: string;
   confirmLabel?: string;
+  /** Shown on the confirm button while onConfirm runs. */
+  pendingLabel?: string;
+  /** Red confirm button, for actions that can't be undone. */
+  danger?: boolean;
   onConfirm: () => Promise<void>;
   onCancel: () => void;
 }
@@ -14,6 +18,8 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel = 'Delete',
+  pendingLabel = 'Deleting…',
+  danger = true,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -43,12 +49,11 @@ export function ConfirmDialog({
           </button>
           <button
             type="button"
-            className="button button--danger"
+            className={danger ? 'button button--danger' : 'button'}
             onClick={handleConfirm}
             disabled={pending}
-            autoFocus
           >
-            {pending ? 'Deleting…' : confirmLabel}
+            {pending ? pendingLabel : confirmLabel}
           </button>
         </>
       }

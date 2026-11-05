@@ -201,6 +201,73 @@ class PublicProfileTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.data[0].isPublic").value(true));
     }
 
+    private ResultActions bulkVisibility(Cookie cookie, String json) throws Exception {
+        return mockMvc.perform(post("/api/items/bulk-visibility").cookie(cookie)
+                .contentType(MediaType.APPLICATION_JSON).content(json));
+    }
+
+    @Test
+    void bulkVisibilityShowsAndHidesSeveralItemsAtOnce() throws Exception {
+        String slug = uniqueSlug();
+        Cookie cookie = businessWithProfile(slug);
+        int ring = createItem(cookie, "Ring", 1, false);
+        int necklace = createItem(cookie, "Necklace", 1, false);
+        createItem(cookie, "Bracelet", 1, false);
+
+        bulkVisibility(cookie, """
+                        {"ids": [%d, %d], "isPublic": true}
+                        """.formatted(ring, necklace))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.updated").value(2));
+        mockMvc.perform(get("/api/public/businesses/" + slug))
+                .andExpect(jsonPath("$.items[*].name", contains("Necklace", "Ring")));
+
+        bulkVisibility(cookie, """
+                        {"ids": [%d], "isPublic": false}
+                        """.formatted(ring))
+                .andExpect(jsonPath("$.updated").value(1));
+        mockMvc.perform(get("/api/public/businesses/" + slug))
+                .andExpect(jsonPath("$.items[*].name", contains("Necklace")));
+    }
+
+    @Test
+    void bulkVisibilitySkipsAnotherBusinessesItems() throws Exception {
+        Cookie mine = registerAndLogin();
+        String theirSlug = uniqueSlug();
+        Cookie theirs = businessWithProfile(theirSlug);
+        int myItem = createItem(mine, "Mine", 1, false);
+        int theirItem = createItem(theirs, "Theirs", 1, false);
+
+        bulkVisibility(mine, """
+                        {"ids": [%d, %d, 999999999], "isPublic": true}
+                        """.formatted(myItem, theirItem))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.updated").value(1));
+        mockMvc.perform(get("/api/public/businesses/" + theirSlug))
+                .andExpect(jsonPath("$.items", hasSize(0)));
+    }
+
+    @Test
+    void bulkVisibilityValidatesItsBody() throws Exception {
+        Cookie cookie = registerAndLogin();
+
+        bulkVisibility(cookie, """
+                        {"ids": [], "isPublic": true}
+                        """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].field").value("ids"));
+        bulkVisibility(cookie, """
+                        {"ids": [1]}
+                        """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].field").value("isPublic"));
+        mockMvc.perform(post("/api/items/bulk-visibility").contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"ids": [1], "isPublic": true}
+                                """))
+                .andExpect(status().isUnauthorized());
+    }
+
     // ---- Owner settings: the public link ----
 
     @Test

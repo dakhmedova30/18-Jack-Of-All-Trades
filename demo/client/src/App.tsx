@@ -1,4 +1,5 @@
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { AppLayout } from './components/AppLayout';
 import { useAuth } from './hooks/useAuth';
 import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
@@ -36,6 +37,37 @@ import '@fontsource-variable/fraunces';
 import '@fontsource-variable/inter';
 
 export function App() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    const titles: Record<string, string> = {
+      '/': 'Home',
+      '/login': 'Log in',
+      '/register': 'Register your business',
+      '/terms': 'Terms of service',
+      '/privacy': 'Privacy policy',
+      '/inventory': 'Inventory',
+      '/sales': 'Sales',
+      '/expenses': 'Expenses',
+      '/analytics': 'Analytics',
+      '/help': 'Help and Support',
+    };
+    const settingsTab = pathname.match(/^\/settings\/([^/]+)$/)?.[1];
+    const settingsLabels: Record<string, string> = {
+      account: 'Account settings',
+      profile: 'Profile settings',
+      security: 'Security settings',
+      preferences: 'Preferences',
+      notifications: 'Notifications',
+      appearance: 'Appearance',
+    };
+    const title =
+      titles[pathname] ??
+      (settingsTab ? settingsLabels[settingsTab] : undefined) ??
+      (pathname.startsWith('/p/') ? 'Public profile' : 'Page not found');
+    document.title = `${title} | Jack-Of-All-Trades`;
+  }, [pathname]);
+
   return (
     <Routes>
       {/* Public: linked from the account menu, and readable without logging in. */}
