@@ -77,6 +77,7 @@ Frontend (run from `demo/`, not the repo root — there is no root `package.json
 | Command             | What it does                      |
 | ------------------- | ---------------------------------- |
 | `npm run dev`       | Runs the web app with hot reload   |
+| `npm test`          | Runs the frontend tests (Vitest)   |
 | `npm run typecheck` | Type-checks the client             |
 | `npm run lint`      | Runs ESLint                        |
 | `npm run format`    | Formats everything with Prettier   |
@@ -109,12 +110,19 @@ A passing run ends with `Failures: 0, Errors: 0` and `BUILD SUCCESS`. The first 
 Maven dependencies and the Postgres image, so it takes a few minutes; after that it's about a
 minute.
 
-There's no `npm test`; the frontend is checked with `npm run lint`, `npm run typecheck` and
-`npm run build` instead.
+The frontend has a Vitest suite with React Testing Library, covering login and registration,
+protected routes, the inventory, sale and expense forms, Analytics, and the date and money
+helpers. It runs in a simulated browser (jsdom) with the API mocked, so it needs neither
+Docker nor the backend:
 
-The same suite runs in GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
-on every pull request into `main` and every push to `main`, and a merge only deploys if it
-passes. See recent runs in the [Actions tab](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/actions).
+```bash
+cd demo
+npm test
+```
+
+Both suites run in GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
+on every pull request into `main` and every push to `main`, and a merge only deploys if they
+pass. See recent runs in the [Actions tab](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/actions).
 
 ### Project structure
 
