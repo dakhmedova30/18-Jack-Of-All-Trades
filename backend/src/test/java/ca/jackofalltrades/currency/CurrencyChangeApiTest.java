@@ -87,7 +87,7 @@ class CurrencyChangeApiTest extends PostgresTestBase {
 
     @Test
     @DirtiesContext(methodMode = DirtiesContext.MethodMode.BEFORE_METHOD)
-    void exchangeFailureDoesNotChangePricesOrAccountCurrency() throws Exception {
+    void exchangeFailureUsesBundledFallbackRatesForConversion() throws Exception {
         Cookie cookie = registerAndLogin();
         int businessId = businessId(cookie);
         int itemId = insertItem(businessId);
@@ -98,19 +98,20 @@ class CurrencyChangeApiTest extends PostgresTestBase {
                             .cookie(cookie)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"currency\":\"USD\",\"convertPrices\":true}"))
-                    .andExpect(status().isServiceUnavailable())
-                    .andExpect(jsonPath("$.error.message").value(
-                            "Exchange rates are currently unavailable. Please try again shortly."));
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.business.currency").value("USD"))
+                    .andExpect(jsonPath("$.source").value("FALLBACK"))
+                    .andExpect(jsonPath("$.asOf").isNotEmpty());
         } finally {
             rates.fail = false;
         }
 
         assertThat(jdbc.sql("SELECT currency FROM businesses WHERE id = :id")
-                .param("id", businessId).query(String.class).single()).isEqualTo("CAD");
+                .param("id", businessId).query(String.class).single()).isEqualTo("USD");
         assertThat(jdbc.sql("SELECT unit_price_cents FROM items WHERE id = :id")
-                .param("id", itemId).query(Integer.class).single()).isEqualTo(1250);
+                .param("id", itemId).query(Integer.class).single()).isNotEqualTo(1250);
         assertThat(jdbc.sql("SELECT currency FROM items WHERE id = :id")
-                .param("id", itemId).query(String.class).single()).isEqualTo("CAD");
+                .param("id", itemId).query(String.class).single()).isEqualTo("USD");
     }
 
     @Test
@@ -127,7 +128,9 @@ class CurrencyChangeApiTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.productsAffected").value(1))
                 .andExpect(jsonPath("$.samples[0].beforePrice").value(12.5))
                 .andExpect(jsonPath("$.samples[0].afterPrice").value(15.63))
-                .andExpect(jsonPath("$.rate").value(1.25));
+                .andExpect(jsonPath("$.rate").value(1.25))
+                .andExpect(jsonPath("$.source").value("CACHED"))
+                .andExpect(jsonPath("$.asOf").isNotEmpty());
 
         assertThat(jdbc.sql("SELECT unit_price_cents FROM items WHERE id = :id")
                 .param("id", itemId).query(Integer.class).single()).isEqualTo(1250);
@@ -143,7 +146,7 @@ class CurrencyChangeApiTest extends PostgresTestBase {
                         .content("{\"currency\":\"JPY\",\"convertPrices\":true}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value(
-                        "Currency conversion is available only for CAD, USD, EUR, GBP, and AUD"));
+                        "Currency must be one of: CAD, USD, EUR, GBP, AUD"));
     }
 
     @Test
@@ -240,10 +243,13 @@ class CurrencyChangeApiTest extends PostgresTestBase {
                     "success",
                     Instant.parse("2026-11-01T00:00:00Z").getEpochSecond(),
                     Instant.parse("2100-01-01T00:00:00Z").getEpochSecond(),
-                    baseCurrency,
-                    baseCurrency.equals("CAD")
-                            ? Map.of("CAD", BigDecimal.ONE, "USD", new BigDecimal("1.25"))
-                            : Map.of("USD", BigDecimal.ONE, "CAD", new BigDecimal("0.80")));
+                    "USD",
+                    Map.of(
+                            "USD", BigDecimal.ONE,
+                            "CAD", new BigDecimal("0.80"),
+                            "EUR", new BigDecimal("0.90"),
+                            "GBP", new BigDecimal("0.70"),
+                            "AUD", new BigDecimal("1.40")));
         }
     }
 }

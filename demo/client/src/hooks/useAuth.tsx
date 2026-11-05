@@ -59,7 +59,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const changeCurrency = useCallback(async (request: authApi.CurrencyChangeRequest) => {
     const response = await authApi.changeCurrency(request);
     setBusiness(response.business);
-    return { rate: response.rate, rateDate: response.rateDate };
+    return {
+      rate: response.rate,
+      rateDate: response.rateDate,
+      source: response.source,
+      asOf: response.asOf,
+    };
   }, []);
 
   const setAvatar = useCallback(async (image: Blob) => {

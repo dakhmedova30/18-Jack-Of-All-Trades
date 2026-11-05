@@ -72,12 +72,16 @@ export interface CurrencyPreview {
   samples: CurrencyPriceSample[];
   rate: number;
   rateDate: string | null;
+  source: 'LIVE' | 'CACHED' | 'STALE' | 'FALLBACK' | null;
+  asOf: string | null;
 }
 
 export interface CurrencyChangeResponse {
   business: Business;
   rate: number | null;
   rateDate: string | null;
+  source: 'LIVE' | 'CACHED' | 'STALE' | 'FALLBACK' | null;
+  asOf: string | null;
 }
 
 export function previewCurrencyChange(request: CurrencyChangeRequest): Promise<CurrencyPreview> {

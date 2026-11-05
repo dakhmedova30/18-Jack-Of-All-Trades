@@ -54,6 +54,9 @@ Docker must be running. Testcontainers starts one throwaway Postgres for the who
 | `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | `jack` / `jack` | Neon credentials (Render secrets) |
 | `SPRING_PROFILES_ACTIVE` | none | `demo` (creates the demo business) |
 | `EXCHANGE_RATE_API_BASE_URL` | `https://open.er-api.com/v6/latest` | Optional ExchangeRate-API endpoint base |
+| `EXCHANGE_RATES_SOURCE` | `live` | `live` tries the API before stale/snapshot rates; `fallback` uses only the bundled snapshot |
+| `EXCHANGE_SUPPORTED_CURRENCIES` | `CAD,USD,EUR,GBP,AUD` | Configured conversion currency allowlist |
+| `EXCHANGE_RATES_SNAPSHOT_LOCATION` | `classpath:exchange-rates-fallback.json` | Snapshot resource location; supported currencies are checked at startup |
 | `PORT` | `4000` | Set by Render |
 
 **Never commit real credentials.** The defaults only work with the Docker database.
@@ -62,7 +65,9 @@ Currency changes are handled by `POST /api/auth/me/currency/preview` and
 `POST /api/auth/me/currency`. Product prices can be converted transactionally, or all account
 currency labels can be corrected without changing amounts. Sales and expenses retain their
 recorded amounts and currency; account-level totals convert at read time. Exchange rates are
-cached until the API's next-update time, with stale rates used if refresh fails.
+cached until the API's next-update time, with last-known stale rates and then the bundled
+USD-based `exchange-rates-fallback.json` snapshot used if refresh fails. Preview responses
+include the rate source and timestamp so stale or fallback rates can be flagged before confirmation.
 
 ## Docker image
 

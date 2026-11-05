@@ -1,6 +1,7 @@
 package ca.jackofalltrades.currency;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -10,7 +11,9 @@ public record CurrencyPreview(
         int productsAffected,
         List<PriceSample> samples,
         BigDecimal rate,
-        LocalDate rateDate) {
+        LocalDate rateDate,
+        ExchangeRateService.RateSource source,
+        Instant asOf) {
 
     public record PriceSample(Integer itemId, String name, BigDecimal beforePrice, BigDecimal afterPrice) {}
 }

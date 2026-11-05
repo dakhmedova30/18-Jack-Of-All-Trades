@@ -40,7 +40,7 @@ public class CurrencyChangeService {
 
     @Transactional(readOnly = true)
     public CurrencyPreview preview(String currency, boolean convertPrices) {
-        String target = ExchangeRateService.validateConversionCurrency(currency);
+        String target = rates.validateConversionCurrency(currency);
         Business business = findBusiness();
         String source = business.getCurrency();
         ExchangeRateService.LocalRate rate = convertPrices
@@ -53,16 +53,23 @@ public class CurrencyChangeService {
                     BigDecimal before = BigDecimal.valueOf(item.getUnitPriceCents(), 2);
                     return new CurrencyPreview.PriceSample(
                             item.getId(), item.getName(), before,
-                            convertPrices ? rates.convert(before, source, target) : before);
+                            convertPrices ? rates.convert(before, source, target, rate.lookup()) : before);
                 })
                 .toList();
         return new CurrencyPreview(
-                source, target, source.equals(target) ? 0 : products.size(), samples, rate.rate(), rate.asOfDate());
+                source,
+                target,
+                source.equals(target) ? 0 : products.size(),
+                samples,
+                rate.rate(),
+                rate.asOfDate(),
+                rate.source(),
+                rate.asOf());
     }
 
     @Transactional
     public CurrencyChangeResult change(CurrencyChangeRequest request) {
-        String target = ExchangeRateService.validateConversionCurrency(request.currency());
+        String target = rates.validateConversionCurrency(request.currency());
         Integer businessId = currentBusiness.id();
         Business business = businesses.findLockedById(businessId)
                 .orElseThrow(() -> new NotFoundException("Business", businessId));
@@ -79,7 +86,7 @@ public class CurrencyChangeService {
                     continue;
                 }
                 BigDecimal before = BigDecimal.valueOf(item.getUnitPriceCents(), 2);
-                BigDecimal converted = rates.convert(before, source, target);
+                BigDecimal converted = rates.convert(before, source, target, appliedRate.lookup());
                 int cents;
                 try {
                     cents = converted.movePointRight(2).intValueExact();
@@ -122,8 +129,12 @@ public class CurrencyChangeService {
 
         business.setCurrency(target);
         entityManager.flush();
-        return new CurrencyChangeResult(business, appliedRate == null ? null : appliedRate.rate(),
-                appliedRate == null ? null : appliedRate.asOfDate());
+        return new CurrencyChangeResult(
+                business,
+                appliedRate == null ? null : appliedRate.rate(),
+                appliedRate == null ? null : appliedRate.asOfDate(),
+                appliedRate == null ? null : appliedRate.source(),
+                appliedRate == null ? null : appliedRate.asOf());
     }
 
     private Business findBusiness() {

@@ -377,8 +377,19 @@ function BusinessDetailsForm({ business }: { business: Business }) {
                   <p>
                     {preview.productsAffected} product{preview.productsAffected === 1 ? '' : 's'} affected. Rate:{' '}
                     {preview.rate} {preview.toCurrency} per {preview.fromCurrency}
-                    {preview.rateDate ? ` (as of ${preview.rateDate})` : ''}.
+                    {preview.asOf
+                      ? ` (Rates as of ${new Date(preview.asOf).toLocaleString()})`
+                      : preview.rateDate
+                        ? ` (Rates as of ${preview.rateDate})`
+                        : ''}
+                    {preview.source ? ` · Source: ${preview.source.toLowerCase()}` : ''}.
                   </p>
+                  {(preview.source === 'STALE' || preview.source === 'FALLBACK') && (
+                    <p className="form-error" role="status">
+                      Warning: {preview.source === 'STALE' ? 'stale cached' : 'bundled fallback'} exchange rates are being used.
+                      Review the rate before confirming.
+                    </p>
+                  )}
                   {preview.samples.map((sample) => (
                     <p key={sample.itemId}>
                       {sample.name}: {new Intl.NumberFormat(undefined, {

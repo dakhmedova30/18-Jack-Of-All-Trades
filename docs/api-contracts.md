@@ -108,13 +108,19 @@ One account is one business. Login sets a `jack_session` cookie that the browser
 // convertPrices=true converts product prices; false relabels currency codes without changing amounts.
 { "currency": "USD", "convertPrices": true }
 
-// CurrencyPreview (rateDate is null for a label-only preview)
+// CurrencyPreview (rateDate/source/asOf are null for a label-only preview)
 { "fromCurrency": "CAD", "toCurrency": "USD", "productsAffected": 8,
   "samples": [{ "itemId": 7, "name": "Flower Print", "beforePrice": 12.00, "afterPrice": 8.82 }],
-  "rate": 0.735, "rateDate": "2026-10-29" }
+  "rate": 0.735, "rateDate": "2026-10-29", "source": "LIVE",
+  "asOf": "2026-10-29T00:00:00Z" }
 
-// CurrencyChangeResponse; rate and rateDate are null for a label-only change.
-{ "business": { "id": 1, "currency": "USD" }, "rate": 0.735, "rateDate": "2026-10-29" }
+// CurrencyChangeResponse; rate metadata is null for a label-only change.
+{ "business": { "id": 1, "currency": "USD" }, "rate": 0.735,
+  "rateDate": "2026-10-29", "source": "LIVE", "asOf": "2026-10-29T00:00:00Z" }
+
+// source is LIVE (fresh API response), CACHED (still-valid response), STALE
+// (last successful response after refresh failure), or FALLBACK (bundled snapshot).
+// Currency previews include source/asOf so the client can warn for STALE and FALLBACK rates.
 
 // ChangeEmailInput
 { "email": "new@example.com", "currentPassword": "correct-horse" }

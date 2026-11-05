@@ -6,7 +6,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/auth/me/currency")
@@ -27,6 +26,10 @@ public class CurrencyController {
     public CurrencyChangeResponse change(@Valid @RequestBody CurrencyChangeRequest request) {
         CurrencyChangeResult result = currencies.change(request);
         return new CurrencyChangeResponse(
-                BusinessResponse.from(result.business()), result.rate(), result.rateDate());
+                BusinessResponse.from(result.business()),
+                result.rate(),
+                result.rateDate(),
+                result.source(),
+                result.asOf());
     }
 }
