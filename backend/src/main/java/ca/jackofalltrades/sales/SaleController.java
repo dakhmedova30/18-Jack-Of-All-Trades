@@ -7,7 +7,9 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
 import java.util.Map;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,9 +46,14 @@ public class SaleController {
             @Pattern(regexp = "id|soldAt|total|tags|channel",
                     message = "Must be one of id, soldAt, total, tags, channel") String sort,
             @RequestParam(defaultValue = "desc")
-            @Pattern(regexp = "asc|desc", message = "Must be one of asc, desc") String order) {
+            @Pattern(regexp = "asc|desc", message = "Must be one of asc, desc") String order,
+            @RequestParam(required = false)
+            @Min(value = 1, message = "Must be at least 1") Integer channelId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         String trimmed = search == null ? null : search.strip();
-        return saleService.list(trimmed == null || trimmed.isEmpty() ? null : trimmed, sort, order, page, pageSize);
+        SaleFilters filters = new SaleFilters(trimmed == null || trimmed.isEmpty() ? null : trimmed, channelId, from, to);
+        return saleService.list(filters, sort, order, page, pageSize);
     }
 
     /** A literal path, so Spring matches it before {@code /{id}}; "month-summary" is never parsed as an id. */

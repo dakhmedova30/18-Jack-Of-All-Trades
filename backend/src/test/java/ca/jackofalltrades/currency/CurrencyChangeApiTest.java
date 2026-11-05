@@ -232,7 +232,36 @@ class CurrencyChangeApiTest extends PostgresTestBase {
         mockMvc.perform(get("/api/analytics/summary?range=month").cookie(cookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalRevenueCents").value(1563))
-                .andExpect(jsonPath("$.totalExpensesCents").value(1063));
+                .andExpect(jsonPath("$.totalExpensesCents").value(1063))
+                .andExpect(jsonPath("$.revenueByChannel[0].label").value("Online"))
+                .andExpect(jsonPath("$.revenueByChannel[0].valueCents").value(1563));
+    }
+
+    @Test
+    void rejectsAConversionThatWouldPutAPriceOverTheLimit() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int businessId = businessId(cookie);
+        // 9,000,000.00 CAD is allowed, but CAD to AUD multiplies by 1.75 at the test rates.
+        int itemId = jdbc.sql("""
+                        INSERT INTO items (business_id, name, quantity, unit_price_cents)
+                        VALUES (:business, 'Gold ring', 1, 900000000) RETURNING id
+                        """)
+                .param("business", businessId).query(Integer.class).single();
+
+        mockMvc.perform(post("/api/auth/me/currency")
+                        .cookie(cookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currency\":\"AUD\",\"convertPrices\":true}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value(
+                        "Converting would put \"Gold ring\" over the 9,999,999.99 price limit."
+                                + " Lower its price first, or re-label instead."));
+
+        // Nothing changed: the price, the item's currency and the account's currency.
+        assertThat(jdbc.sql("SELECT unit_price_cents FROM items WHERE id = :id")
+                .param("id", itemId).query(Integer.class).single()).isEqualTo(900000000);
+        assertThat(jdbc.sql("SELECT currency FROM businesses WHERE id = :id")
+                .param("id", businessId).query(String.class).single()).isEqualTo("CAD");
     }
 
     private int insertItem(int businessId) {

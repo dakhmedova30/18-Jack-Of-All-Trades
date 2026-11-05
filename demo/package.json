@@ -13,6 +13,7 @@
   "scripts": {
     "dev": "npm run dev -w client",
     "build": "npm run build -w client",
+    "test": "npm run test -w client",
     "typecheck": "npm run typecheck -w client",
     "lint": "eslint .",
     "format": "prettier --write .",

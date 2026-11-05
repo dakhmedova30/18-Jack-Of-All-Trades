@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
@@ -50,18 +51,30 @@ public class SaleQueries {
     }
 
     /**
-     * @param search already trimmed; null for no search
-     * @param sort   a key of {@link #SORT_EXPRESSIONS}
-     * @param order  "asc" or "desc"
+     * @param sort  a key of {@link #SORT_EXPRESSIONS}
+     * @param order "asc" or "desc"
      */
     public Paginated<SaleResponse> findPage(
-            int businessId, String search, String sort, String order, int page, int pageSize) {
+            int businessId, SaleFilters filters, String sort, String order, int page, int pageSize) {
         Map<String, Object> params = new HashMap<>();
         params.put("businessId", businessId);
         String where = "WHERE s.business_id = :businessId";
-        if (search != null) {
-            params.put("pattern", LikePatterns.contains(search));
+        if (filters.search() != null) {
+            params.put("pattern", LikePatterns.contains(filters.search()));
             where += SEARCH;
+        }
+        if (filters.channelId() != null) {
+            params.put("channelId", filters.channelId());
+            where += " AND s.channel_id = :channelId";
+        }
+        // Whole UTC days: from the start of `from` up to (not including) the day after `to`.
+        if (filters.from() != null) {
+            params.put("from", startOfUtcDay(filters.from()));
+            where += " AND s.sold_at >= :from";
+        }
+        if (filters.to() != null) {
+            params.put("to", startOfUtcDay(filters.to().plusDays(1)));
+            where += " AND s.sold_at < :to";
         }
 
         long total = jdbcClient.sql("SELECT COUNT(*)" + FROM + where)
@@ -151,6 +164,10 @@ public class SaleQueries {
                 .list().stream()
                 .collect(Collectors.groupingBy(Map.Entry::getKey,
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
+    }
+
+    private static OffsetDateTime startOfUtcDay(LocalDate day) {
+        return day.atStartOfDay().atOffset(ZoneOffset.UTC);
     }
 
     private record SaleRow(Integer id, Instant soldAt, ChannelResponse channel, String description,

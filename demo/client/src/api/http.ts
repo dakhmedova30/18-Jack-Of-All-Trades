@@ -33,7 +33,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       body: blob ?? (json === undefined ? undefined : JSON.stringify(json)),
     });
   } catch {
-    throw new ApiError(0, 'Could not reach the server. Is the API running (npm run dev)?');
+    throw new ApiError(0, UNREACHABLE_MESSAGE);
   }
 
   if (response.status === 204) return undefined as T;
@@ -43,11 +43,16 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   return body as T;
 }
 
+const UNREACHABLE_MESSAGE = 'Could not reach the server. Check your connection and try again.';
+
 function toApiError(status: number, body: unknown): ApiError {
   const error =
     typeof body === 'object' && body !== null && 'error' in body
       ? (body as { error: { message?: string; details?: unknown } }).error
       : undefined;
+  // A 5xx without our error JSON came from a proxy in front of the API (in development, Vite's
+  // when the backend isn't running), so the server itself was never reached.
+  if (!error && status >= 500) return new ApiError(0, UNREACHABLE_MESSAGE);
   const fieldErrors = Array.isArray(error?.details) ? (error.details as FieldError[]) : [];
   return new ApiError(status, error?.message ?? `Request failed (${status})`, fieldErrors);
 }

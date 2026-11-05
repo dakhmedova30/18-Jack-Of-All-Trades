@@ -61,9 +61,9 @@ public class SaleService {
     }
 
     @Transactional(readOnly = true)
-    public Paginated<SaleResponse> list(String search, String sort, String order, int page, int pageSize) {
+    public Paginated<SaleResponse> list(SaleFilters filters, String sort, String order, int page, int pageSize) {
         String targetCurrency = accountCurrency();
-        Paginated<SaleResponse> result = queries.findPage(currentBusiness.id(), search, sort, order, page, pageSize);
+        Paginated<SaleResponse> result = queries.findPage(currentBusiness.id(), filters, sort, order, page, pageSize);
         return new Paginated<>(result.data().stream()
                 .map(sale -> displayedIn(sale, targetCurrency))
                 .toList(), result.page(), result.pageSize(), result.total(), result.totalPages());

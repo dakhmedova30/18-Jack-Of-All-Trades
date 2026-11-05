@@ -2,6 +2,7 @@ package ca.jackofalltrades.currency;
 
 import ca.jackofalltrades.auth.Business;
 import ca.jackofalltrades.auth.BusinessRepository;
+import ca.jackofalltrades.common.api.BadRequestException;
 import ca.jackofalltrades.common.api.NotFoundException;
 import ca.jackofalltrades.common.security.CurrentBusiness;
 import ca.jackofalltrades.items.Item;
@@ -15,6 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class CurrencyChangeService {
+
+    /** The highest price the item form and API accept (9,999,999.99), as in ItemInput. */
+    static final int MAX_PRICE_CENTS = 999_999_999;
 
     private final BusinessRepository businesses;
     private final ItemRepository items;
@@ -72,6 +76,14 @@ public class CurrencyChangeService {
     public CurrencyChangeResult change(CurrencyChangeRequest request) {
         String target = rates.validateConversionCurrency(request.currency());
         Integer businessId = currentBusiness.id();
+        if (Boolean.TRUE.equals(request.convertPrices())) {
+            // Look the rate up before taking the row locks below, so a slow exchange-rate service
+            // never holds them; the locked lookup then reuses the cached rate.
+            String current = findBusiness().getCurrency();
+            if (!current.equals(target)) {
+                rates.rateWithDate(current, target);
+            }
+        }
         Business business = businesses.findLockedById(businessId)
                 .orElseThrow(() -> new NotFoundException("Business", businessId));
         String source = business.getCurrency();
@@ -88,13 +100,13 @@ public class CurrencyChangeService {
                 }
                 BigDecimal before = BigDecimal.valueOf(item.getUnitPriceCents(), 2);
                 BigDecimal converted = rates.convert(before, source, target, appliedRate.lookup());
-                int cents;
-                try {
-                    cents = converted.movePointRight(2).intValueExact();
-                } catch (ArithmeticException ex) {
-                    throw new ca.jackofalltrades.common.api.BadRequestException("Converted price is out of range");
+                BigDecimal cents = converted.movePointRight(2);
+                if (cents.compareTo(BigDecimal.valueOf(MAX_PRICE_CENTS)) > 0) {
+                    // Nothing is saved: the transaction rolls back every price changed so far.
+                    throw new BadRequestException("Converting would put \"" + item.getName()
+                            + "\" over the 9,999,999.99 price limit. Lower its price first, or re-label instead.");
                 }
-                item.convertPrice(cents, target);
+                item.convertPrice(cents.intValueExact(), target);
             }
         } else {
             items.findAllLockedByBusinessId(businessId).forEach(item -> item.relabelCurrency(target));
