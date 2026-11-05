@@ -127,9 +127,54 @@ describe('InventoryPage', () => {
 
     await screen.findByText('Tea');
     await user.click(screen.getByRole('checkbox', { name: 'Select Tea' }));
-    await user.click(screen.getByRole('button', { name: 'Hide from profile (1)' }));
+    await user.click(screen.getByRole('button', { name: 'Show on profile (1)' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not update items');
-    expect(itemApi.bulkSetItemsPublic).toHaveBeenCalledWith([testItem.id], false);
+    expect(itemApi.bulkSetItemsPublic).toHaveBeenCalledWith([testItem.id], true);
+  });
+
+  it('only enables the visibility action that would change something', async () => {
+    const user = userEvent.setup();
+    render(<InventoryPage />, { wrapper: RoutedPageProviders });
+
+    await screen.findByText('Tea');
+    await user.click(screen.getByRole('checkbox', { name: 'Select Tea' }));
+
+    // Tea is private: it can be shown, but there's nothing to hide.
+    expect(screen.getByRole('button', { name: 'Show on profile (1)' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Hide from profile' })).toBeDisabled();
+  });
+
+  it('lists the items a mixed selection skips, and changes only the others', async () => {
+    const user = userEvent.setup();
+    const coffee = { ...testItem, id: 2, name: 'Coffee', isPublic: true };
+    const juice = { ...testItem, id: 3, name: 'Juice' };
+    vi.mocked(itemApi.listItems).mockResolvedValue({
+      data: [testItem, coffee, juice],
+      page: 1,
+      pageSize: 15,
+      total: 3,
+      totalPages: 1,
+    });
+    vi.mocked(itemApi.bulkSetItemsPublic).mockResolvedValue({ updated: 2 });
+    render(<InventoryPage />, { wrapper: RoutedPageProviders });
+
+    await screen.findByText('Tea');
+    await user.click(screen.getByRole('checkbox', { name: 'Select all items on this page' }));
+    expect(screen.getByRole('button', { name: 'Hide from profile (1)' })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Show on profile (2)' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Show on public profile' });
+    expect(dialog).toHaveTextContent(
+      '“Coffee” is already on your public profile, so it stays as it is. Show the other 2 items?',
+    );
+    expect(itemApi.bulkSetItemsPublic).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Show 2 items' }));
+    expect(itemApi.bulkSetItemsPublic).toHaveBeenCalledWith([testItem.id, juice.id], true);
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      '2 items now on your public profile.',
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

@@ -46,8 +46,33 @@ type DeleteTarget = { kind: 'single'; item: Item } | { kind: 'bulk'; ids: number
 /** What the last bulk show/hide did, shown under the toolbar. */
 type VisibilityResult = { message: string; profileOff: boolean } | { error: string } | null;
 
+/** A bulk show/hide waiting for confirmation, because some selected items already have that status. */
+type VisibilityTarget = { isPublic: boolean; change: Item[]; skipped: Item[] } | null;
+
+/** How many names a confirmation lists before "and N more". */
+const MAX_LISTED_NAMES = 5;
+
 function itemCount(count: number): string {
   return count === 1 ? '1 item' : `${count} items`;
+}
+
+/** “Ring”, “Necklace” and 3 more */
+function listNames(items: Item[]): string {
+  const names = items.slice(0, MAX_LISTED_NAMES).map((item) => `“${item.name}”`);
+  const rest = items.length - names.length;
+  if (rest > 0) return `${names.join(', ')} and ${rest} more`;
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0];
+}
+
+/** Why a mixed selection is asked about: which items keep their status. */
+function skippedMessage({ isPublic, change, skipped }: NonNullable<VisibilityTarget>): string {
+  const one = skipped.length === 1;
+  const where = isPublic ? 'already on' : 'already hidden from';
+  return (
+    `${listNames(skipped)} ${one ? 'is' : 'are'} ${where} your public profile, so ` +
+    `${one ? 'it stays as it is' : 'they stay as they are'}. ` +
+    `${isPublic ? 'Show' : 'Hide'} the other ${itemCount(change.length)}?`
+  );
 }
 
 export function InventoryPage() {
@@ -92,30 +117,37 @@ export function InventoryPage() {
     setPage(1);
   }
 
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  // Selected items by id, as they were when selected; the selection can span pages.
+  const [selected, setSelected] = useState<Map<number, Item>>(new Map());
   const [formState, setFormState] = useState<FormState>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
   const [visibilityBusy, setVisibilityBusy] = useState(false);
   const [visibilityResult, setVisibilityResult] = useState<VisibilityResult>(null);
+  const [visibilityTarget, setVisibilityTarget] = useState<VisibilityTarget>(null);
 
   const items = data?.data ?? [];
-  const allOnPageSelected = items.length > 0 && items.every((item) => selectedIds.has(item.id));
+  const allOnPageSelected = items.length > 0 && items.every((item) => selected.has(item.id));
+  // An item on the page just loaded is fresher than its copy from when it was selected.
+  const pageItems = new Map(items.map((item) => [item.id, item]));
+  const selectedItems = [...selected.values()].map((item) => pageItems.get(item.id) ?? item);
+  const toShow = selectedItems.filter((item) => !item.isPublic);
+  const toHide = selectedItems.filter((item) => item.isPublic);
 
-  function toggleSelected(id: number) {
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+  function toggleSelected(item: Item) {
+    setSelected((current) => {
+      const next = new Map(current);
+      if (next.has(item.id)) next.delete(item.id);
+      else next.set(item.id, item);
       return next;
     });
   }
 
   function toggleSelectAllOnPage() {
-    setSelectedIds((current) => {
-      const next = new Set(current);
+    setSelected((current) => {
+      const next = new Map(current);
       for (const item of items) {
         if (allOnPageSelected) next.delete(item.id);
-        else next.add(item.id);
+        else next.set(item.id, item);
       }
       return next;
     });
@@ -135,7 +167,11 @@ export function InventoryPage() {
     if (deleteTarget.kind === 'single') await deleteItem(deleteTarget.item.id);
     else await bulkDeleteItems(ids);
 
-    setSelectedIds((current) => new Set([...current].filter((id) => !ids.includes(id))));
+    setSelected((current) => {
+      const next = new Map(current);
+      for (const id of ids) next.delete(id);
+      return next;
+    });
     setDeleteTarget(null);
 
     // If we just emptied the last page, step back one page instead of showing nothing.
@@ -147,20 +183,38 @@ export function InventoryPage() {
     } else reload();
   }
 
-  /** Shows or hides every selected item on the public profile. Easy to undo, so no confirmation. */
+  /** Sends only the items that change; throws on failure, so the caller shows the error. */
+  async function applyVisibility(isPublic: boolean, change: Item[]) {
+    const { updated } = await bulkSetItemsPublic(
+      change.map((item) => item.id),
+      isPublic,
+    );
+    setVisibilityResult({
+      message: isPublic
+        ? `${itemCount(updated)} now on your public profile.`
+        : `${itemCount(updated)} hidden from your public profile.`,
+      profileOff: isPublic && !business?.publicSlug,
+    });
+    setSelected(new Map());
+    setVisibilityTarget(null);
+    reloadItems();
+  }
+
+  /**
+   * Shows or hides the selected items. If some already have that status, asks first and lists
+   * them; otherwise it's easy to undo, so it just happens.
+   */
   async function setSelectedPublic(isPublic: boolean) {
-    setVisibilityBusy(true);
+    const change = isPublic ? toShow : toHide;
+    const skipped = isPublic ? toHide : toShow;
     setVisibilityResult(null);
+    if (skipped.length > 0) {
+      setVisibilityTarget({ isPublic, change, skipped });
+      return;
+    }
+    setVisibilityBusy(true);
     try {
-      const { updated } = await bulkSetItemsPublic([...selectedIds], isPublic);
-      setVisibilityResult({
-        message: isPublic
-          ? `${itemCount(updated)} now on your public profile.`
-          : `${itemCount(updated)} hidden from your public profile.`,
-        profileOff: isPublic && !business?.publicSlug,
-      });
-      setSelectedIds(new Set());
-      reloadItems();
+      await applyVisibility(isPublic, change);
     } catch (err) {
       setVisibilityResult({ error: getErrorMessage(err) });
     } finally {
@@ -189,26 +243,27 @@ export function InventoryPage() {
           <button
             type="button"
             className="button button--secondary"
-            disabled={selectedIds.size === 0}
-            onClick={() => setDeleteTarget({ kind: 'bulk', ids: [...selectedIds] })}
+            disabled={selected.size === 0}
+            onClick={() => setDeleteTarget({ kind: 'bulk', ids: [...selected.keys()] })}
           >
-            Bulk delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
+            Bulk delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
           </button>
+          {/* Each is enabled only when some selected item would change; the count is how many. */}
           <button
             type="button"
             className="button button--secondary"
-            disabled={selectedIds.size === 0 || visibilityBusy}
+            disabled={toShow.length === 0 || visibilityBusy}
             onClick={() => void setSelectedPublic(true)}
           >
-            Show on profile{selectedIds.size > 0 && ` (${selectedIds.size})`}
+            Show on profile{toShow.length > 0 && ` (${toShow.length})`}
           </button>
           <button
             type="button"
             className="button button--secondary"
-            disabled={selectedIds.size === 0 || visibilityBusy}
+            disabled={toHide.length === 0 || visibilityBusy}
             onClick={() => void setSelectedPublic(false)}
           >
-            Hide from profile{selectedIds.size > 0 && ` (${selectedIds.size})`}
+            Hide from profile{toHide.length > 0 && ` (${toHide.length})`}
           </button>
         </div>
         <div className="search-field">
@@ -315,8 +370,8 @@ export function InventoryPage() {
                 <td className="table__check" onClick={(event) => event.stopPropagation()}>
                   <input
                     type="checkbox"
-                    checked={selectedIds.has(item.id)}
-                    onChange={() => toggleSelected(item.id)}
+                    checked={selected.has(item.id)}
+                    onChange={() => toggleSelected(item)}
                     aria-label={`Select ${item.name}`}
                   />
                 </td>
@@ -384,6 +439,18 @@ export function InventoryPage() {
           }
           onConfirm={handleConfirmDelete}
           onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {visibilityTarget && (
+        <ConfirmDialog
+          title={visibilityTarget.isPublic ? 'Show on public profile' : 'Hide from public profile'}
+          message={skippedMessage(visibilityTarget)}
+          confirmLabel={`${visibilityTarget.isPublic ? 'Show' : 'Hide'} ${itemCount(visibilityTarget.change.length)}`}
+          pendingLabel="Saving…"
+          danger={false}
+          onConfirm={() => applyVisibility(visibilityTarget.isPublic, visibilityTarget.change)}
+          onCancel={() => setVisibilityTarget(null)}
         />
       )}
     </section>
