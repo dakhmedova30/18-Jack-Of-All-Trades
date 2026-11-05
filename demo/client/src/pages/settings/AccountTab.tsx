@@ -269,9 +269,7 @@ function BusinessDetailsForm({ business }: { business: Business }) {
       if (currencyChanged) {
         const result = await changeCurrency({ currency, convertPrices });
         setRateNotice(
-          result.rateDate
-            ? `Conversion completed using rates as of ${result.rateDate}.`
-            : null,
+          result.rateDate ? `Conversion completed using rates as of ${result.rateDate}.` : null,
         );
       }
       setBusinessType(trimmedType);
@@ -282,7 +280,6 @@ function BusinessDetailsForm({ business }: { business: Business }) {
     } finally {
       setSaving(false);
     }
-
   }
 
   async function handlePreview() {
@@ -369,14 +366,19 @@ function BusinessDetailsForm({ business }: { business: Business }) {
           </label>
           {convertPrices ? (
             <>
-              <button type="button" className="button button--secondary" disabled={saving} onClick={handlePreview}>
+              <button
+                type="button"
+                className="button button--secondary"
+                disabled={saving}
+                onClick={handlePreview}
+              >
                 Preview conversion
               </button>
               {preview?.toCurrency === currency && (
                 <div className="settings-currency__preview" aria-live="polite">
                   <p>
-                    {preview.productsAffected} product{preview.productsAffected === 1 ? '' : 's'} affected. Rate:{' '}
-                    {preview.rate} {preview.toCurrency} per {preview.fromCurrency}
+                    {preview.productsAffected} product{preview.productsAffected === 1 ? '' : 's'}{' '}
+                    affected. Rate: {preview.rate} {preview.toCurrency} per {preview.fromCurrency}
                     {preview.asOf
                       ? ` (Rates as of ${new Date(preview.asOf).toLocaleString()})`
                       : preview.rateDate
@@ -386,13 +388,14 @@ function BusinessDetailsForm({ business }: { business: Business }) {
                   </p>
                   {(preview.source === 'STALE' || preview.source === 'FALLBACK') && (
                     <p className="form-error" role="status">
-                      Warning: {preview.source === 'STALE' ? 'stale cached' : 'bundled fallback'} exchange rates are being used.
-                      Review the rate before confirming.
+                      Warning: {preview.source === 'STALE' ? 'stale cached' : 'bundled fallback'}{' '}
+                      exchange rates are being used. Review the rate before confirming.
                     </p>
                   )}
                   {preview.samples.map((sample) => (
                     <p key={sample.itemId}>
-                      {sample.name}: {new Intl.NumberFormat(undefined, {
+                      {sample.name}:{' '}
+                      {new Intl.NumberFormat(undefined, {
                         style: 'currency',
                         currency: preview.fromCurrency,
                       }).format(sample.beforePrice)}{' '}
@@ -407,7 +410,9 @@ function BusinessDetailsForm({ business }: { business: Business }) {
               )}
             </>
           ) : (
-            <p className="muted">Amounts stay unchanged; currency labels are updated throughout the account.</p>
+            <p className="muted">
+              Amounts stay unchanged; currency labels are updated throughout the account.
+            </p>
           )}
         </fieldset>
       )}
@@ -415,14 +420,22 @@ function BusinessDetailsForm({ business }: { business: Business }) {
         <button
           type="submit"
           className="button"
-          disabled={!changed || saving || (currency !== business.currency && convertPrices && preview?.toCurrency !== currency)}
+          disabled={
+            !changed ||
+            saving ||
+            (currency !== business.currency && convertPrices && preview?.toCurrency !== currency)
+          }
         >
           {saving ? 'Saving…' : 'Save changes'}
         </button>
         {saved && <span className="muted">Saved.</span>}
       </SettingsRow>
       {error && <p className="form-error settings-row__error">{error}</p>}
-      {rateNotice && <p className="muted" aria-live="polite">{rateNotice}</p>}
+      {rateNotice && (
+        <p className="muted" aria-live="polite">
+          {rateNotice}
+        </p>
+      )}
       <p className="muted">
         Exchange rates provided by{' '}
         <a href="https://www.exchangerate-api.com" target="_blank" rel="noopener noreferrer">

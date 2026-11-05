@@ -48,16 +48,16 @@ Docker must be running. Testcontainers starts one throwaway Postgres for the who
 
 ## Environment variables
 
-| Variable | Local default | On Render |
-| --- | --- | --- |
-| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5433/jack` | Neon JDBC URL ending in `?sslmode=require` |
-| `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | `jack` / `jack` | Neon credentials (Render secrets) |
-| `SPRING_PROFILES_ACTIVE` | none | `demo` (creates the demo business) |
-| `EXCHANGE_RATE_API_BASE_URL` | `https://open.er-api.com/v6/latest` | Optional ExchangeRate-API endpoint base |
-| `EXCHANGE_RATES_SOURCE` | `live` | `live` tries the API before stale/snapshot rates; `fallback` uses only the bundled snapshot |
-| `EXCHANGE_SUPPORTED_CURRENCIES` | `CAD,USD,EUR,GBP,AUD` | Configured conversion currency allowlist |
-| `EXCHANGE_RATES_SNAPSHOT_LOCATION` | `classpath:exchange-rates-fallback.json` | Snapshot resource location; supported currencies are checked at startup |
-| `PORT` | `4000` | Set by Render |
+| Variable                                   | Local default                            | On Render                                                                                   |
+| ------------------------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `SPRING_DATASOURCE_URL`                    | `jdbc:postgresql://localhost:5433/jack`  | Neon JDBC URL ending in `?sslmode=require`                                                  |
+| `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | `jack` / `jack`                          | Neon credentials (Render secrets)                                                           |
+| `SPRING_PROFILES_ACTIVE`                   | none                                     | `demo` (creates the demo business)                                                          |
+| `EXCHANGE_RATE_API_BASE_URL`               | `https://open.er-api.com/v6/latest`      | Optional ExchangeRate-API endpoint base                                                     |
+| `EXCHANGE_RATES_SOURCE`                    | `live`                                   | `live` tries the API before stale/snapshot rates; `fallback` uses only the bundled snapshot |
+| `EXCHANGE_SUPPORTED_CURRENCIES`            | `CAD,USD,EUR,GBP,AUD`                    | Configured conversion currency allowlist                                                    |
+| `EXCHANGE_RATES_SNAPSHOT_LOCATION`         | `classpath:exchange-rates-fallback.json` | Snapshot resource location; supported currencies are checked at startup                     |
+| `PORT`                                     | `4000`                                   | Set by Render                                                                               |
 
 **Never commit real credentials.** The defaults only work with the Docker database.
 

@@ -2535,7 +2535,7 @@ textarea.settings-row__input {
    9. Responsive
    ========================================================================== */
 
-   @media (max-width: 900px) {
+@media (max-width: 900px) {
   .analytics-stats {
     display: flex;
     flex-wrap: wrap;
