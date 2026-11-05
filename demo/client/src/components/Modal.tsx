@@ -1,4 +1,5 @@
-import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { FOCUSABLE } from './focusable';
 import { CloseIcon } from './icons';
 
 interface ModalProps {
@@ -12,14 +13,16 @@ interface ModalProps {
 /** Centered dialog over a dimmed backdrop. Closes on Escape or backdrop click. */
 export function Modal({ title, onClose, children, footer, size = 'medium' }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
     const previouslyFocused = document.activeElement;
     const dialog = dialogRef.current;
-    const focusable = dialog?.querySelector<HTMLElement>(
-      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    );
-    (focusable ?? dialog)?.focus();
+    const firstField = dialog
+      ?.querySelector<HTMLElement>('.modal__body')
+      ?.querySelector<HTMLElement>(FOCUSABLE);
+    const firstFocusable = dialog?.querySelector<HTMLElement>(FOCUSABLE);
+    (firstField ?? firstFocusable ?? dialog)?.focus();
 
     return () => {
       if (previouslyFocused instanceof HTMLElement && previouslyFocused.isConnected) {
@@ -37,9 +40,7 @@ export function Modal({ title, onClose, children, footer, size = 'medium' }: Mod
 
     if (event.key !== 'Tab') return;
     const focusable = [
-      ...(dialogRef.current?.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      ) ?? []),
+      ...(dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []),
     ].filter((element) => element.getClientRects().length > 0);
 
     if (focusable.length === 0) {
@@ -72,13 +73,13 @@ export function Modal({ title, onClose, children, footer, size = 'medium' }: Mod
         className={`modal modal--${size}`}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
+        aria-labelledby={titleId}
         tabIndex={-1}
         onMouseDown={(event) => event.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
         <header className="modal__header">
-          <h2 id="modal-title">{title}</h2>
+          <h2 id={titleId}>{title}</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
             <CloseIcon />
           </button>

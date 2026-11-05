@@ -243,7 +243,11 @@ function FormRow({ label, hint, htmlFor, error, required = false, children }: Fo
       <div className="form-row__control">
         {children}
         {error && (
-          <span id={`item-${htmlFor.replace('item-', '')}-error`} className="field-error">
+          <span
+            id={`item-${htmlFor.replace('item-', '')}-error`}
+            className="field-error"
+            aria-live="polite"
+          >
             {error}
           </span>
         )}

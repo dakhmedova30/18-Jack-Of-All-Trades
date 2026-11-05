@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../hooks/useNotifications';
 import type { AppNotification } from '../types';
 import { describeUserAgent } from '../utils/userAgent';
+import { FOCUSABLE } from './focusable';
 import { BellIcon } from './icons';
 
 type Position = { top?: number; bottom?: number; left?: number; right?: number };
@@ -37,11 +38,7 @@ export function NotificationBell() {
   const open = position !== null;
 
   function moveFocusFromButton(backwards: boolean) {
-    const focusable = [
-      ...document.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      ),
-    ].filter(
+    const focusable = [...document.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
       (element) =>
         !panelRef.current?.contains(element) &&
         !element.closest('[inert], [aria-hidden="true"]') &&
@@ -104,9 +101,7 @@ export function NotificationBell() {
   function handlePanelKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (event.key !== 'Tab') return;
     const focusable = [
-      ...(panelRef.current?.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      ) ?? []),
+      ...(panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []),
     ].filter((element) => element.getClientRects().length > 0);
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
