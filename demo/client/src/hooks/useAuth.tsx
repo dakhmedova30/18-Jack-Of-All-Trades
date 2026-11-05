@@ -64,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       rateDate: response.rateDate,
       source: response.source,
       asOf: response.asOf,
+      notice: response.notice,
     };
   }, []);
 

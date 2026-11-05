@@ -64,7 +64,8 @@ public class CurrencyChangeService {
                 rate.rate(),
                 rate.asOfDate(),
                 rate.source(),
-                rate.asOf());
+                rate.asOf(),
+                rate.lookup() == null ? null : rate.lookup().notice());
     }
 
     @Transactional
@@ -134,7 +135,8 @@ public class CurrencyChangeService {
                 appliedRate == null ? null : appliedRate.rate(),
                 appliedRate == null ? null : appliedRate.asOfDate(),
                 appliedRate == null ? null : appliedRate.source(),
-                appliedRate == null ? null : appliedRate.asOf());
+                appliedRate == null ? null : appliedRate.asOf(),
+                appliedRate == null || appliedRate.lookup() == null ? null : appliedRate.lookup().notice());
     }
 
     private Business findBusiness() {

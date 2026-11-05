@@ -101,7 +101,9 @@ class CurrencyChangeApiTest extends PostgresTestBase {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.business.currency").value("USD"))
                     .andExpect(jsonPath("$.source").value("FALLBACK"))
-                    .andExpect(jsonPath("$.asOf").isNotEmpty());
+                    .andExpect(jsonPath("$.asOf").isNotEmpty())
+                    .andExpect(jsonPath("$.notice").value(
+                            org.hamcrest.Matchers.containsString("Live exchange rates couldn't be loaded")));
         } finally {
             rates.fail = false;
         }
@@ -112,6 +114,29 @@ class CurrencyChangeApiTest extends PostgresTestBase {
                 .param("id", itemId).query(Integer.class).single()).isNotEqualTo(1250);
         assertThat(jdbc.sql("SELECT currency FROM items WHERE id = :id")
                 .param("id", itemId).query(String.class).single()).isEqualTo("USD");
+    }
+
+    @Test
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.BEFORE_METHOD)
+    void fallbackPreviewHasInformationalNotice() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int businessId = businessId(cookie);
+        insertItem(businessId);
+        rates.fail = true;
+
+        try {
+            mockMvc.perform(post("/api/auth/me/currency/preview")
+                            .cookie(cookie)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"currency\":\"USD\",\"convertPrices\":true}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.source").value("FALLBACK"))
+                    .andExpect(jsonPath("$.asOf").isNotEmpty())
+                    .andExpect(jsonPath("$.notice").value(
+                            org.hamcrest.Matchers.containsString("Live exchange rates couldn't be loaded")));
+        } finally {
+            rates.fail = false;
+        }
     }
 
     @Test

@@ -15,11 +15,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.core.io.DefaultResourceLoader;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.HttpClientErrorException;
 import tools.jackson.databind.json.JsonMapper;
 
+@ExtendWith(OutputCaptureExtension.class)
 class ExchangeRateServiceTest {
 
     private static final List<String> SUPPORTED = List.of("CAD", "USD", "EUR", "GBP", "AUD");
@@ -38,6 +44,7 @@ class ExchangeRateServiceTest {
         assertThat(service.convert(new BigDecimal("1.02"), "CAD", "USD")).isEqualByComparingTo("1.28");
         assertThat(client.calls()).isEqualTo(1);
         assertThat(client.lastBase).isEqualTo("USD");
+        assertThat(client.lastBaseUrl).isEqualTo("https://rates.example/latest");
     }
 
     @Test
@@ -83,7 +90,7 @@ class ExchangeRateServiceTest {
         FakeClient client = new FakeClient(response(Instant.now().minusSeconds(10), rates()));
         ExchangeRateService service = service(client);
         service.latest();
-        client.fail = true;
+        client.failure = new IllegalStateException("test outage");
 
         ExchangeRateService.RateLookup stale = service.latest();
 
@@ -95,15 +102,39 @@ class ExchangeRateServiceTest {
     @Test
     void apiFailureWithoutPreviousRatesUsesBundledSnapshot() {
         FakeClient client = new FakeClient();
-        client.fail = true;
+        client.failure = new HttpClientErrorException(HttpStatus.TOO_MANY_REQUESTS);
         ExchangeRateService service = service(client);
 
         ExchangeRateService.RateLookup fallback = service.latest();
 
         assertThat(fallback.source()).isEqualTo(ExchangeRateService.RateSource.FALLBACK);
+        assertThat(fallback.notice()).contains("Live exchange rates couldn't be loaded");
         assertThat(fallback.rates().baseCurrency()).isEqualTo("USD");
         assertThat(fallback.rates().rates().keySet()).containsAll(SUPPORTED);
         assertThat(client.calls()).isEqualTo(1);
+    }
+
+    @Test
+    void logsHttpFailureOnlyOnceDuringAnOutage(CapturedOutput output) {
+        FakeClient client = new FakeClient();
+        client.failure = new HttpClientErrorException(HttpStatus.TOO_MANY_REQUESTS);
+        ExchangeRateService service = service(client);
+
+        service.latest();
+        service.latest();
+        service.latest();
+
+        assertThat(output.getOut()).contains("Live rates fetch failed (HTTP 429); using fallback rates from");
+        assertThat(output.getOut().split("Live rates fetch failed \\(HTTP 429\\)", -1)).hasSize(2);
+    }
+
+    @Test
+    void liveAndCachedResultsHaveNoNotice() {
+        FakeClient client = new FakeClient(response(future(), rates()));
+        ExchangeRateService service = service(client);
+
+        assertThat(service.latest().notice()).isNull();
+        assertThat(service.latest().notice()).isNull();
     }
 
     @Test
@@ -140,13 +171,30 @@ class ExchangeRateServiceTest {
             Files.copy(input, snapshotFile);
         }
         FakeClient client = new FakeClient();
-        client.fail = true;
+        client.failure = new IllegalStateException("test outage");
         ExchangeRateService service = service(client, "live", SUPPORTED, snapshotFile.toUri().toString());
         Files.delete(snapshotFile);
 
         assertThatThrownBy(service::latest)
                 .isInstanceOf(ExchangeRateUnavailableException.class)
                 .hasMessage("Exchange rates are currently unavailable. Please try again shortly.");
+    }
+
+    @Test
+    void blankOrSchemeLessBaseUrlFailsValidationClearly() {
+        ExchangeRateProperties blank = properties();
+        blank.getRate().getApi().setBaseUrl(" ");
+        assertThatThrownBy(blank::validateConfiguration)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("exchange.rate.api.base-url")
+                .hasMessageContaining("<blank>");
+
+        ExchangeRateProperties schemeLess = properties();
+        schemeLess.getRate().getApi().setBaseUrl("open.er-api.com/v6/latest");
+        assertThatThrownBy(schemeLess::validateConfiguration)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("exchange.rate.api.base-url")
+                .hasMessageContaining("open.er-api.com/v6/latest");
     }
 
     private static ExchangeRateService service(FakeClient client) {
@@ -157,12 +205,22 @@ class ExchangeRateServiceTest {
             FakeClient client, String source, List<String> supported, String snapshotLocation) {
         return new ExchangeRateService(
                 client,
-                "https://rates.example/latest",
-                source,
-                supported,
-                snapshotLocation,
+                properties(source, supported, snapshotLocation),
                 new DefaultResourceLoader(),
                 JsonMapper.builder().build());
+    }
+
+    private static ExchangeRateProperties properties() {
+        return properties("live", SUPPORTED, snapshotLocation());
+    }
+
+    private static ExchangeRateProperties properties(String source, List<String> supported, String snapshotLocation) {
+        ExchangeRateProperties properties = new ExchangeRateProperties();
+        properties.getRate().getApi().setBaseUrl("https://rates.example/latest");
+        properties.getRates().setSource(source);
+        properties.getRates().setSnapshotLocation(snapshotLocation);
+        properties.setSupportedCurrencies(supported);
+        return properties;
     }
 
     private static String snapshotLocation() {
@@ -198,8 +256,9 @@ class ExchangeRateServiceTest {
 
         private final AtomicInteger calls = new AtomicInteger();
         private final Queue<ExchangeRateResponse> responses = new ArrayDeque<>();
-        private boolean fail;
+        private RuntimeException failure;
         private String lastBase;
+        private String lastBaseUrl;
 
         private FakeClient(ExchangeRateResponse... responses) {
             this.responses.addAll(List.of(responses));
@@ -209,7 +268,11 @@ class ExchangeRateServiceTest {
         public ExchangeRateResponse fetch(String baseUrl, String baseCurrency) {
             calls.incrementAndGet();
             lastBase = baseCurrency;
-            if (fail || responses.isEmpty()) {
+            lastBaseUrl = baseUrl;
+            if (failure != null) {
+                throw failure;
+            }
+            if (responses.isEmpty()) {
                 throw new IllegalStateException("test outage");
             }
             return responses.remove();

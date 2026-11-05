@@ -67,7 +67,9 @@ currency labels can be corrected without changing amounts. Sales and expenses re
 recorded amounts and currency; account-level totals convert at read time. Exchange rates are
 cached until the API's next-update time, with last-known stale rates and then the bundled
 USD-based `exchange-rates-fallback.json` snapshot used if refresh fails. Preview responses
-include the rate source and timestamp so stale or fallback rates can be flagged before confirmation.
+include the rate source, timestamp, and a user-facing notice so stale or fallback rates can
+be flagged before confirmation. `EXCHANGE_RATE_API_BASE_URL` must be a full HTTP(S) URL;
+startup validation rejects blank or scheme-less values.
 
 ## Docker image
 

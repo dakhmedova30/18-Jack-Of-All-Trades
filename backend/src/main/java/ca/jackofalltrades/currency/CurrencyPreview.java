@@ -13,7 +13,8 @@ public record CurrencyPreview(
         BigDecimal rate,
         LocalDate rateDate,
         ExchangeRateService.RateSource source,
-        Instant asOf) {
+        Instant asOf,
+        String notice) {
 
     public record PriceSample(Integer itemId, String name, BigDecimal beforePrice, BigDecimal afterPrice) {}
 }

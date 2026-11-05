@@ -112,11 +112,12 @@ One account is one business. Login sets a `jack_session` cookie that the browser
 { "fromCurrency": "CAD", "toCurrency": "USD", "productsAffected": 8,
   "samples": [{ "itemId": 7, "name": "Flower Print", "beforePrice": 12.00, "afterPrice": 8.82 }],
   "rate": 0.735, "rateDate": "2026-10-29", "source": "LIVE",
-  "asOf": "2026-10-29T00:00:00Z" }
+  "asOf": "2026-10-29T00:00:00Z", "notice": null }
 
 // CurrencyChangeResponse; rate metadata is null for a label-only change.
 { "business": { "id": 1, "currency": "USD" }, "rate": 0.735,
-  "rateDate": "2026-10-29", "source": "LIVE", "asOf": "2026-10-29T00:00:00Z" }
+  "rateDate": "2026-10-29", "source": "LIVE", "asOf": "2026-10-29T00:00:00Z",
+  "notice": null }
 
 // source is LIVE (fresh API response), CACHED (still-valid response), STALE
 // (last successful response after refresh failure), or FALLBACK (bundled snapshot).

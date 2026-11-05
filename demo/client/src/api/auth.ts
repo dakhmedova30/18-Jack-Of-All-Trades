@@ -74,6 +74,7 @@ export interface CurrencyPreview {
   rateDate: string | null;
   source: 'LIVE' | 'CACHED' | 'STALE' | 'FALLBACK' | null;
   asOf: string | null;
+  notice: string | null;
 }
 
 export interface CurrencyChangeResponse {
@@ -82,6 +83,7 @@ export interface CurrencyChangeResponse {
   rateDate: string | null;
   source: 'LIVE' | 'CACHED' | 'STALE' | 'FALLBACK' | null;
   asOf: string | null;
+  notice: string | null;
 }
 
 export function previewCurrencyChange(request: CurrencyChangeRequest): Promise<CurrencyPreview> {

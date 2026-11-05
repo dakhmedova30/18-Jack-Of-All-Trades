@@ -386,10 +386,9 @@ function BusinessDetailsForm({ business }: { business: Business }) {
                         : ''}
                     {preview.source ? ` · Source: ${preview.source.toLowerCase()}` : ''}.
                   </p>
-                  {(preview.source === 'STALE' || preview.source === 'FALLBACK') && (
-                    <p className="form-error" role="status">
-                      Warning: {preview.source === 'STALE' ? 'stale cached' : 'bundled fallback'}{' '}
-                      exchange rates are being used. Review the rate before confirming.
+                  {preview.notice && (
+                    <p className="muted" role="status">
+                      {preview.notice}
                     </p>
                   )}
                   {preview.samples.map((sample) => (

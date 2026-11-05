@@ -7,14 +7,15 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Currency;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,8 @@ public class ExchangeRateService {
     private static final int CURRENCY_SCALE = 2;
     private static final RoundingMode ROUNDING = RoundingMode.HALF_UP;
     private static final String BASE_CURRENCY = "USD";
+    private static final DateTimeFormatter NOTICE_DATE =
+            DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH).withZone(ZoneOffset.UTC);
 
     private final ExchangeRateHttpClient client;
     private final String baseUrl;
@@ -35,25 +38,24 @@ public class ExchangeRateService {
     private final Resource snapshotResource;
     private final ObjectMapper objectMapper;
     private final Map<String, RateLookup> cache = new ConcurrentHashMap<>();
+    private final AtomicBoolean failureWarningLogged = new AtomicBoolean();
+    private final AtomicBoolean fallbackInfoLogged = new AtomicBoolean();
     private volatile ExchangeRates snapshot;
 
     public ExchangeRateService(
             ExchangeRateHttpClient client,
-            @Value("${exchange.rate.api.base-url}") String baseUrl,
-            @Value("${exchange.rates.source:live}") String sourceMode,
-            @Value("${exchange.supported-currencies}") List<String> supportedCurrencies,
-            @Value("${exchange.rates.snapshot-location:classpath:exchange-rates-fallback.json}")
-                    String snapshotLocation,
+            ExchangeRateProperties properties,
             ResourceLoader resourceLoader,
             ObjectMapper objectMapper) {
         this.client = client;
-        this.baseUrl = baseUrl;
-        this.sourceMode = sourceMode.strip().toLowerCase(Locale.ROOT);
-        this.supportedCurrencies = supportedCurrencies.stream()
+        properties.validateConfiguration();
+        this.baseUrl = properties.getRate().getApi().getBaseUrl().strip();
+        this.sourceMode = properties.getRates().getSource();
+        this.supportedCurrencies = properties.getSupportedCurrencies().stream()
                 .map(code -> code.strip().toUpperCase(Locale.ROOT))
                 .distinct()
                 .toList();
-        this.snapshotResource = resourceLoader.getResource(snapshotLocation);
+        this.snapshotResource = resourceLoader.getResource(properties.getRates().getSnapshotLocation());
         this.objectMapper = objectMapper;
         validateConfiguration();
     }
@@ -81,14 +83,15 @@ public class ExchangeRateService {
                 validateRates(fresh);
                 RateLookup result = new RateLookup(fresh, RateSource.LIVE, fresh.asOf());
                 cache.put(BASE_CURRENCY, result);
+                failureWarningLogged.set(false);
+                fallbackInfoLogged.set(false);
                 return result;
             } catch (RuntimeException error) {
-                if (cached != null) {
-                    log.warn("Exchange-rate refresh failed; using rates as of {}", cached.asOf());
-                    return cached.withSource(RateSource.STALE);
-                }
-                log.warn("Live exchange rates are unavailable: {}", error.getMessage());
-                return fromSnapshot();
+                RateLookup result = cached != null
+                        ? cached.withSource(RateSource.STALE)
+                        : fromSnapshot();
+                logFailureOnce(error, result);
+                return result;
             }
         }
     }
@@ -157,11 +160,41 @@ public class ExchangeRateService {
                     }
                 }
             }
-            return new RateLookup(rates, RateSource.FALLBACK, rates.asOf());
+            RateLookup result = new RateLookup(rates, RateSource.FALLBACK, rates.asOf());
+            logFallbackInfoOnce(result);
+            return result;
         } catch (RuntimeException error) {
-            log.error("Fallback exchange rates are unavailable: {}", error.getMessage());
+            log.error("Bundled exchange-rate snapshot is unavailable");
             throw new ExchangeRateUnavailableException();
         }
+    }
+
+    private void logFailureOnce(RuntimeException error, RateLookup result) {
+        if (failureWarningLogged.compareAndSet(false, true)) {
+            log.warn("Live rates fetch failed ({}); using {} rates from {}",
+                    failureReason(error), result.source().name().toLowerCase(Locale.ROOT), formatAsOf(result.asOf()));
+        }
+        if (result.source() == RateSource.STALE) {
+            logFallbackInfoOnce(result);
+        }
+    }
+
+    private void logFallbackInfoOnce(RateLookup result) {
+        if (fallbackInfoLogged.compareAndSet(false, true)) {
+            log.info("Using {} exchange rates from {}",
+                    result.source().name().toLowerCase(Locale.ROOT), formatAsOf(result.asOf()));
+        }
+    }
+
+    private static String failureReason(RuntimeException error) {
+        if (error instanceof org.springframework.web.client.RestClientResponseException responseError) {
+            return "HTTP " + responseError.getStatusCode().value();
+        }
+        return "network failure";
+    }
+
+    private static String formatAsOf(Instant asOf) {
+        return NOTICE_DATE.format(asOf);
     }
 
     private ExchangeRateResponse readSnapshot() {
@@ -221,6 +254,14 @@ public class ExchangeRateService {
     public record RateLookup(ExchangeRates rates, RateSource source, Instant asOf) {
         RateLookup withSource(RateSource nextSource) {
             return new RateLookup(rates, nextSource, asOf);
+        }
+
+        public String notice() {
+            if (source != RateSource.STALE && source != RateSource.FALLBACK) {
+                return null;
+            }
+            return "Live exchange rates couldn't be loaded, so rates from " + formatAsOf(asOf)
+                    + " are being used. Converted prices may differ slightly from today's rates.";
         }
     }
 

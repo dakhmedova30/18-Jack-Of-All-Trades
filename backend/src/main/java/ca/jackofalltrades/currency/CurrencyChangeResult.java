@@ -10,4 +10,5 @@ public record CurrencyChangeResult(
         BigDecimal rate,
         LocalDate rateDate,
         ExchangeRateService.RateSource source,
-        Instant asOf) {}
+        Instant asOf,
+        String notice) {}

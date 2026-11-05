@@ -30,6 +30,7 @@ public class CurrencyController {
                 result.rate(),
                 result.rateDate(),
                 result.source(),
-                result.asOf());
+                result.asOf(),
+                result.notice());
     }
 }
