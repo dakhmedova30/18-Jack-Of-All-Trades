@@ -322,7 +322,7 @@ code {
   flex-direction: column;
   gap: 2rem;
   font-family: var(--font-header);
-  height: -webkit-fill-available;
+  height: 100%;
   /* Above sticky table headers (1), below the modal backdrop (10). */
   z-index: 5;
 }
@@ -735,6 +735,14 @@ code {
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
+}
+
+/* The passage being read aloud, outlined like keyboard focus. The bottom scroll margin
+   keeps it clear of the fixed reader bar when it's scrolled into view. */
+.speech-reader-highlight {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+  scroll-margin: 1rem 1rem 6rem;
 }
 
 .speech-reader__status {
