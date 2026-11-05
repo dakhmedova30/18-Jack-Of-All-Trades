@@ -4,7 +4,51 @@ export interface Business {
   id: number;
   name: string;
   email: string;
+  /** Optional details, null until the owner sets them. */
+  businessType: string | null;
+  country: string | null;
+  /** IANA time zone, e.g. "America/Toronto". */
+  timeZone: string;
+  /** 3-letter code, e.g. "CAD". */
+  currency: string;
+  /** Items with this many or fewer in stock count as low stock. */
+  lowStockThreshold: number;
+  lastLoginAt: string | null;
+  /** URL of the profile picture (with a version for cache busting), or null if there isn't one. */
+  avatarUrl: string | null;
+  /** Owner, contact, description and links: all optional, null until set. */
+  ownerFirstName: string | null;
+  ownerLastName: string | null;
+  phone: string | null;
+  addressLine: string | null;
+  city: string | null;
+  region: string | null;
+  postalCode: string | null;
+  description: string | null;
+  website: string | null;
+  instagram: string | null;
+  facebook: string | null;
+  tiktok: string | null;
+  etsy: string | null;
+  /** URL of the business logo (with a version for cache busting), or null. */
+  logoUrl: string | null;
+  /** The public profile's link name (/p/<slug>), or null while the profile is off. */
+  publicSlug: string | null;
   createdAt: string;
+}
+
+/** One browser or device that is logged in. `userAgent` is null for older sessions. */
+export interface SessionInfo {
+  userAgent: string | null;
+  createdAt: string;
+  lastActiveAt: string;
+  current: boolean;
+}
+
+/** One past login. */
+export interface LoginEvent {
+  at: string;
+  userAgent: string | null;
 }
 
 export interface Item {
@@ -14,11 +58,41 @@ export interface Item {
   unitPriceCents: number;
   tags: string[];
   note: string;
+  /** Shown on the business's public profile. */
+  isPublic: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export type ItemInput = Pick<Item, 'name' | 'quantity' | 'unitPriceCents' | 'tags' | 'note'>;
+export type ItemInput = Pick<
+  Item,
+  'name' | 'quantity' | 'unitPriceCents' | 'tags' | 'note' | 'isPublic'
+>;
+
+/** An item as customers see it: no stock count, note or tags. */
+export interface PublicItem {
+  id: number;
+  name: string;
+  unitPriceCents: number;
+  inStock: boolean;
+}
+
+/** GET /api/public/businesses/:slug, readable without logging in. */
+export interface PublicProfile {
+  slug: string;
+  name: string;
+  description: string | null;
+  city: string | null;
+  region: string | null;
+  currency: string;
+  website: string | null;
+  instagram: string | null;
+  facebook: string | null;
+  tiktok: string | null;
+  etsy: string | null;
+  logoUrl: string | null;
+  items: PublicItem[];
+}
 
 export type ItemSortField = 'id' | 'name' | 'quantity' | 'unitPriceCents';
 export type SaleSortField = 'id' | 'soldAt' | 'total' | 'tags' | 'channel';
@@ -75,6 +149,37 @@ export interface SaleItem {
   quantity: number;
   unitPriceCents: number;
   totalCents: number;
+}
+
+/** One alert that applies right now (GET /api/notifications). */
+export interface AppNotification {
+  type: 'low-stock' | 'out-of-stock' | 'no-sales' | 'expense-spike' | 'new-device';
+  /** Changes when the alert's situation does; a dismissed alert stays hidden until then. */
+  fingerprint: string;
+  title: string;
+  message: string;
+  /** Where "View" goes, e.g. "/inventory". */
+  link: string;
+  /** Only set for new-device alerts. */
+  userAgent: string | null;
+  at: string | null;
+}
+
+/** Which alerts the business wants and the numbers that set them off. */
+export interface NotificationSettings {
+  lowStock: boolean;
+  outOfStock: boolean;
+  newDevice: boolean;
+  noSales: boolean;
+  noSalesDays: number;
+  expenseSpike: boolean;
+  expenseSpikePercent: number;
+}
+
+/** A tag in use on the business's items, and how many items carry it. */
+export interface ItemTagCount {
+  name: string;
+  itemCount: number;
 }
 
 export interface Channel {

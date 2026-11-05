@@ -6,6 +6,7 @@ interface SelectWithAddRowProps {
   /** Base id for the select; the "new" input gets `${id}-new`. */
   id: string;
   label: string;
+  required?: boolean;
   /** Lowercase name of one entry, for the button and messages: "channel", "tag". */
   noun: string;
   /** null while loading. */
@@ -28,6 +29,7 @@ interface SelectWithAddRowProps {
 export function SelectWithAddRow({
   id,
   label,
+  required = false,
   noun,
   options,
   loadError,
@@ -70,7 +72,15 @@ export function SelectWithAddRow({
 
   return (
     <div className="form-row">
-      <label htmlFor={newName === null ? id : `${id}-new`}>{label}</label>
+      <label htmlFor={newName === null ? id : `${id}-new`}>
+        {label}
+        {required && (
+          <span className="required-marker" aria-hidden="true">
+            {' '}
+            *
+          </span>
+        )}
+      </label>
       <div className="form-row__control">
         {loadError && (
           <span className="form-error">

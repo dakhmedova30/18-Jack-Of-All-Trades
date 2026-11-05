@@ -1,39 +1,222 @@
-/* Design tokens — matches the maroon/cream Figma wireframe. Change colours here only. */
+/* ==========================================================================
+   Contents
+   1. Design tokens
+   2. Themes, accents & display options (Settings > Appearance)
+   3. Base
+   4. App shell (sidebar, account menu, notifications, content)
+   5. Shared components (buttons, toolbar, cards, avatar, tables, pagination,
+      modal, forms, line items, banners)
+   6. Auth
+   7. Pages: Home, Inventory, Summary panels, Analytics, Settings,
+      Help & legal
+   8. SVG charts
+   9. Responsive (<= 720px)
+   ========================================================================== */
+
+/* ==========================================================================
+   1. Design tokens — matches the maroon/cream Figma wireframe.
+      Change colours here only.
+
+   How colour works: every neutral (backgrounds, borders, text, shadows) is
+   built from --hue, so picking an accent in Settings > Appearance re-tints
+   the whole app, not just the buttons. Each accent in section 2 sets --hue
+   plus its four brand colours. Maroon is the default.
+   ========================================================================== */
+
 :root {
-  --color-bg: linear-gradient(rgba(251, 245, 240, 1) 0%, rgba(255, 254, 254, 1) 100%);
-  --color-bg-solid: #fbf7f3;
-  --color-surface: #fcf9f6;
-  --color-surface-alt: #f0ede0;
-  --color-border: #e3d6d0;
-  /* Chart card outlines: dark enough to read as a clear edge. */
-  --color-border-chart: #a89a94;
-  --color-border-strong: #3a0d0d;
-  --color-text: #2a0a0a;
-  --color-muted: #7a6a66;
-  --color-sidebar: #2d0606;
-  --color-sidebar-text: #f6eee6;
+  color-scheme: light;
+
+  /* The one knob: each accent overrides this (see section 2). */
+  --hue: 15;
+
+  /* Backgrounds & surfaces */
+  --color-bg: linear-gradient(hsl(var(--hue) 45% 96%) 0%, hsl(var(--hue) 30% 99.5%) 100%);
+  --color-bg-solid: hsl(var(--hue) 40% 96%);
+  --color-surface: hsl(var(--hue) 35% 98%);
+  --color-surface-alt: hsl(var(--hue) 22% 92%);
+  --color-highlight: hsl(var(--hue) 40% 93%);
+
+  /* Borders (chart card outlines are dark enough to read as a clear edge) */
+  --color-border: hsl(var(--hue) 26% 85%);
+  --color-border-chart: hsl(var(--hue) 10% 62%);
+  --color-border-strong: hsl(var(--hue) 60% 13%);
+
+  /* Text */
+  --color-text: hsl(var(--hue) 50% 10%);
+  --color-muted: hsl(var(--hue) 8% 44%);
+  --color-placeholder: hsl(var(--hue) 12% 70%);
+
+  /* Brand (overridden per accent) */
   --color-primary: #4a1414;
-  --color-primary-text: #f4efe5;
+  --color-primary-text: hsl(var(--hue) 40% 95%);
   --color-accent: #6b1111;
-  --color-accent-text: #fbeee8;
-  --color-search: transparent;
+  --color-accent-text: hsl(var(--hue) 50% 95%);
+  --color-secondary: #5e2222;
+
+  /* Sidebar */
+  --color-sidebar: #2d0606;
+  --color-sidebar-text: hsl(var(--hue) 40% 95%);
+  --color-sidebar-hover: rgb(255 255 255 / 0.08);
+
+  /* Status & interaction */
   --color-danger: #b42318;
   --color-danger-bg: #fdecea;
+  --color-positive: #1a7f4b;
+  --color-hover: rgb(0 0 0 / 0.05);
+  --color-search: transparent;
+
+  /* Overlays & shadows (tinted by --hue) */
+  --color-scrim: hsl(var(--hue) 80% 10% / 0.3);
+  --shadow-card: 0 1px 3px hsl(var(--hue) 80% 10% / 0.08);
+  --shadow-tile: 0 2px 8px hsl(var(--hue) 80% 10% / 0.06);
+  --shadow-popover: 0 8px 24px hsl(var(--hue) 80% 10% / 0.25);
+  --shadow-modal: 0 12px 40px hsl(var(--hue) 80% 10% / 0.2);
+
+  /* Type */
+  --font-body: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-header: 'Fraunces variable', serif;
+
+  /* Shape & layout */
+  --border-default: 1px solid;
   --radius: 6px;
   --sidebar-width: 220px;
   --sidebar-mini-width: 65px;
-  font-family:
-    Inter,
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
+  --table-pad-y: 0.55rem;
+
+  /* Document defaults */
+  font-family: var(--font-body);
   color: var(--color-text);
   background: var(--color-bg);
   font-size: 14px;
   line-height: 1.45;
+  font-weight: 400;
+  font-style: normal;
 }
+
+/* ==========================================================================
+   2. Themes, accents & display options
+   Settings > Appearance sets data-theme, data-accent, data-text-size and
+   data-density on <html> (hooks/useAppearance.tsx; index.html does it before
+   first paint). Light and maroon are the defaults in section 1.
+   ========================================================================== */
+
+/* ---------- Dark theme: same tokens, low-glare, still tinted by --hue ---------- */
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-bg: linear-gradient(hsl(var(--hue) 16% 12%) 0%, hsl(var(--hue) 18% 8%) 100%);
+  --color-bg-solid: hsl(var(--hue) 16% 10%);
+  --color-surface: hsl(var(--hue) 14% 14%);
+  --color-surface-alt: hsl(var(--hue) 13% 18%);
+  --color-highlight: hsl(var(--hue) 13% 18%);
+
+  --color-border: hsl(var(--hue) 12% 24%);
+  --color-border-chart: hsl(var(--hue) 10% 38%);
+  --color-border-strong: hsl(var(--hue) 12% 58%);
+
+  --color-text: hsl(var(--hue) 30% 93%);
+  --color-muted: hsl(var(--hue) 10% 66%);
+  --color-placeholder: hsl(var(--hue) 8% 45%);
+
+  --color-primary: #9a3030;
+  --color-primary-text: hsl(var(--hue) 40% 97%);
+  --color-accent: #b84646;
+  --color-accent-text: hsl(var(--hue) 40% 97%);
+  --color-secondary: #7d3333;
+  --color-sidebar: #140707;
+
+  --color-danger: #f0766b;
+  --color-danger-bg: #3b1714;
+  --color-positive: #52cf91;
+  --color-hover: rgb(255 255 255 / 0.07);
+}
+
+/* ---------- Accents: hue + brand colours (light, then dark) ---------- */
+
+:root[data-accent='blue'] {
+  --hue: 220;
+  --color-primary: #1e3a6e;
+  --color-accent: #2a5db0;
+  --color-sidebar: #0e1f3d;
+  --color-secondary: #284b8a;
+}
+
+:root[data-theme='dark'][data-accent='blue'] {
+  --color-primary: #3d6fd1;
+  --color-accent: #5a8cf0;
+  --color-sidebar: #0a1426;
+  --color-secondary: #345fb0;
+}
+
+:root[data-accent='green'] {
+  --hue: 150;
+  --color-primary: #1f4d36;
+  --color-accent: #2f7a56;
+  --color-sidebar: #0e2a1d;
+  --color-secondary: #2b6446;
+}
+
+:root[data-theme='dark'][data-accent='green'] {
+  --color-primary: #2f8a5e;
+  --color-accent: #4fbf8b;
+  --color-sidebar: #09190f;
+  --color-secondary: #2f7c58;
+}
+
+:root[data-accent='purple'] {
+  --hue: 265;
+  --color-primary: #43296b;
+  --color-accent: #6a3fb0;
+  --color-sidebar: #231038;
+  --color-secondary: #55358a;
+}
+
+:root[data-theme='dark'][data-accent='purple'] {
+  --color-primary: #7a52c8;
+  --color-accent: #a583ee;
+  --color-sidebar: #130a20;
+  --color-secondary: #6e4aae;
+}
+
+:root[data-accent='teal'] {
+  --hue: 190;
+  --color-primary: #16505a;
+  --color-accent: #1f7c8a;
+  --color-sidebar: #0a2a30;
+  --color-secondary: #1d6572;
+}
+
+:root[data-theme='dark'][data-accent='teal'] {
+  --color-primary: #2a95a6;
+  --color-accent: #52c4d4;
+  --color-sidebar: #061a1e;
+  --color-secondary: #258392;
+}
+
+/* ---------- Text size: everything is in rem, so this scales the whole app ---------- */
+
+:root[data-text-size='small'] {
+  font-size: 13px;
+}
+
+:root[data-text-size='large'] {
+  font-size: 16px;
+}
+
+/* ---------- Table density: row padding ---------- */
+
+:root[data-density='compact'] {
+  --table-pad-y: 0.3rem;
+}
+
+:root[data-density='spacious'] {
+  --table-pad-y: 0.85rem;
+}
+
+/* ==========================================================================
+   3. Base
+   ========================================================================== */
 
 * {
   box-sizing: border-box;
@@ -50,8 +233,8 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: 'Libre Caslon Text', serif;
-  font-weight: 500;
+  font-family: var(--font-header);
+  font-weight: 700;
   font-style: normal;
 }
 
@@ -60,9 +243,20 @@ h1 {
   margin: 0 0 0.25rem;
 }
 
+h1 + p {
+  /* shrinks the subheader on Home */
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
 h2 {
   font-size: 1.05rem;
   margin: 0;
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
 }
 
 code {
@@ -75,13 +269,21 @@ code {
   color: var(--color-muted);
 }
 
-/* ---------- Layout ---------- */
+/* ==========================================================================
+   4. App shell
+   ========================================================================== */
 
 .app {
   display: grid;
   grid-template-columns: var(--sidebar-width) 1fr;
   height: 100vh;
 }
+
+.app--sidebar-hidden {
+  grid-template-columns: var(--sidebar-mini-width) 1fr;
+}
+
+/* ---------- Sidebar ---------- */
 
 .sidebar {
   background: var(--color-sidebar);
@@ -90,71 +292,33 @@ code {
   display: flex;
   flex-direction: column;
   gap: 2rem;
-}
-
-.sidebar__logo {
-  border: 1px solid var(--color-sidebar-text);
-  border-radius: var(--radius);
-  padding: 0.6rem;
-  text-align: center;
-  font-weight: 600;
-  font-size: 0.85rem;
-}
-
-.sidebar__nav {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.sidebar__link {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0.65rem;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
-  color: inherit;
-  text-decoration: none;
-}
-
-.sidebar__link:hover {
-  background: rgb(255 255 255 / 0.08);
-}
-
-/* Pinned to the bottom of the sidebar, under the nav. */
-.sidebar__account {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.sidebar__account-name {
-  padding: 0 0.65rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sidebar__logout {
-  width: 100%;
-  background: none;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.sidebar__link.is-active {
-  border-color: var(--color-sidebar-text);
+  font-family: var(--font-header);
+  /* Above sticky table headers (1), below the modal backdrop (10). */
+  z-index: 5;
 }
 
 .sidebar__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.sidebar__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.sidebar__logo {
+  display: block;
+  border: var(--border-default) var(--color-sidebar-text);
+  border-radius: var(--radius);
+  padding: 0.6rem;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: inherit;
+  text-decoration: none;
 }
 
 .sidebar__toggle,
@@ -166,10 +330,15 @@ code {
   padding: 0.25rem 0.5rem;
 }
 
+.sidebar__toggle {
+  color: var(--color-surface);
+}
+
 .sidebar-show {
   margin-bottom: 0.5rem;
 }
 
+/* Collapsed sidebar strip */
 .sidebar-show-container {
   padding: 15px;
   height: 100%;
@@ -181,17 +350,295 @@ code {
   color: var(--color-sidebar-text);
 }
 
-.sidebar__toggle {
-  color: var(--color-surface);
+.sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-block: auto;
 }
 
-.app--sidebar-hidden {
-  grid-template-columns: var(--sidebar-mini-width) 1fr;
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  border: var(--border-default) transparent;
+  border-radius: var(--radius);
+  font-size: 1.1rem;
+  color: inherit;
+  text-decoration: none;
 }
+
+.sidebar__link svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+}
+
+.sidebar__link:hover {
+  background: var(--color-sidebar-hover);
+}
+
+.sidebar__link.is-active {
+  border-color: var(--color-sidebar-text);
+}
+
+/* ---------- Sidebar account (avatar pill + menu) ---------- */
+
+.sidebar__account {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+/* A pill: avatar, business name + email, and a "..." hint that it opens a menu. */
+.sidebar__avatar {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.75rem 0.5rem 0.5rem;
+  border: var(--border-default) transparent;
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar__avatar:hover,
+.sidebar__avatar[aria-expanded='true'] {
+  background: var(--color-sidebar-hover);
+}
+
+.sidebar__avatar-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.sidebar__avatar-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.sidebar__avatar-email {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.sidebar__avatar-name,
+.sidebar__avatar-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar__avatar-more {
+  flex-shrink: 0;
+}
+
+/* Rendered into <body> (see AccountMenu), so it's styled on its own, not as part of the sidebar. */
+
+.account-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 15rem;
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: var(--border-default) var(--color-border-chart);
+  border-radius: 10px;
+  box-shadow: var(--shadow-popover);
+}
+
+.account-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.65rem;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-menu__item--disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.account-menu__item--disabled:hover {
+  background: none;
+}
+.account-menu__soon {
+  margin-left: auto;
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+.account-menu__legal {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.65rem 0.2rem;
+  font-size: 0.78rem;
+}
+.account-menu__legal a {
+  color: var(--color-muted);
+  text-decoration: none;
+}
+.account-menu__legal a:hover,
+.account-menu__legal a:focus-visible {
+  text-decoration: underline;
+}
+.account-menu__divider {
+  height: 1px;
+  margin: 0.3rem 0.35rem;
+  background: var(--color-border);
+}
+
+/* ---------- Notifications: the bell and its panel ---------- */
+
+/* The bell sits in the sidebar header next to the collapse arrow: icon only, count on top. */
+.sidebar__bell {
+  position: relative;
+  padding: 0.35rem;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--color-surface);
+  line-height: 0;
+  cursor: pointer;
+}
+
+.sidebar__bell:hover,
+.sidebar__bell[aria-expanded='true'] {
+  background: rgb(255 255 255 / 0.1);
+}
+
+.sidebar__bell svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -0.1rem;
+  right: -0.15rem;
+  min-width: 1rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1rem;
+  text-align: center;
+}
+
+/* Rendered into <body> (see NotificationBell), so it carries its own look. */
+.notification-panel {
+  position: fixed;
+  z-index: 1000;
+  width: min(22rem, calc(100vw - 1rem));
+  max-height: min(28rem, calc(100vh - 2rem));
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: var(--border-default) var(--color-border-chart);
+  border-radius: 10px;
+  box-shadow: var(--shadow-popover);
+}
+
+.notification-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 0.9rem;
+  border-bottom: var(--border-default) var(--color-border);
+}
+
+.notification-panel__empty {
+  margin: 0;
+  padding: 1.25rem 0.9rem;
+}
+
+.notification-panel__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.notification-panel__link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.7rem 0.9rem;
+  border-bottom: var(--border-default) var(--color-border);
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  font-size: 0.9rem;
+}
+
+.notification-item__dismiss {
+  padding: 0 0.35rem;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.notification-item__dismiss:hover {
+  opacity: 1;
+}
+
+/* ---------- Content area ---------- */
 
 .content {
-  padding: 1.5rem 2rem;
   min-width: 0;
+  height: 100%;
+  overflow-y: scroll;
+  display: flex;
+  flex-direction: row;
+  padding: 0;
 }
 
 .page {
@@ -203,7 +650,11 @@ code {
   padding: 40px;
 }
 
-/* ---------- Toolbar ---------- */
+/* ==========================================================================
+   5. Shared components
+   ========================================================================== */
+
+/* ---------- Toolbar & search ---------- */
 
 .toolbar {
   display: flex;
@@ -231,7 +682,7 @@ code {
   align-items: center;
   gap: 0.5rem;
   background: var(--color-search);
-  border: 1px solid var(--color-border-strong);
+  border: var(--border-default) var(--color-border-strong);
   border-radius: 999px;
   padding: 0.4rem 0.9rem;
   width: min(320px, 100%);
@@ -258,7 +709,7 @@ code {
   align-items: center;
   gap: 0.4rem;
   padding: 0.45rem 0.85rem;
-  border: 1px solid var(--color-primary);
+  border: var(--border-default) var(--color-primary);
   border-radius: var(--radius);
   background: var(--color-primary);
   color: var(--color-primary-text);
@@ -273,8 +724,8 @@ code {
 }
 
 .button--secondary {
-  background: #5e2222;
-  border-color: #5e2222;
+  background: var(--color-secondary);
+  border-color: var(--color-secondary);
 }
 
 .button--ghost {
@@ -312,6 +763,90 @@ code {
   cursor: pointer;
 }
 
+/* ---------- Avatar ---------- */
+
+.avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+/* Cream circle with dark initials, readable on the dark sidebar. */
+.avatar--initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-sidebar-text);
+  color: var(--color-sidebar);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+/* ---------- Cards & stat cards ---------- */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem 1.1rem;
+  border: var(--border-default) var(--color-border);
+  border-radius: 10px;
+  color: inherit;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 1rem 1.1rem;
+  border-radius: 10px;
+}
+
+.stat-card__label {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.stat-card__value {
+  font-family: var(--font-header);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.stat-card__detail {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+
+/* Net profit style: deep accent colour with light text, as in the wireframe. */
+.stat-card--positive {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.stat-card--positive .stat-card__label,
+.stat-card--positive .stat-card__detail {
+  color: var(--color-accent-text);
+  opacity: 0.85;
+}
+
+/* Revenue / expenses style: soft neutral with accent text. */
+.stat-card--neutral {
+  background: var(--color-surface-alt);
+  color: var(--color-accent);
+}
+
+.stat-card--negative {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
 /* ---------- Table ---------- */
 
 .table-wrap {
@@ -330,21 +865,30 @@ code {
 
 .table th {
   text-align: left;
-  font-family: 'Libre Caslon Text', serif;
+  font-family: var(--font-header);
   font-weight: 500;
-  padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid var(--color-border-strong);
+  padding: calc(var(--table-pad-y) - 0.05rem) 0.6rem;
+  border-bottom: var(--border-default) var(--color-border-strong);
   white-space: nowrap;
 }
 
 .table td {
-  padding: 0.55rem 0.6rem;
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--table-pad-y) 0.6rem;
+  border-bottom: var(--border-default) var(--color-border);
   vertical-align: middle;
+}
+
+.table .numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .table__row {
   cursor: pointer;
+}
+
+.table__row:hover {
+  background: var(--color-surface-alt);
 }
 
 .table__row:focus-visible {
@@ -359,15 +903,6 @@ code {
   white-space: nowrap;
 }
 
-.table__row:hover {
-  background: var(--color-surface-alt);
-}
-
-.table .numeric {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
 .table__check {
   width: 2rem;
 }
@@ -376,6 +911,30 @@ code {
   width: 4.5rem;
   text-align: center !important;
 }
+
+/* Sortable column headers look like the plain ones, plus a direction arrow. */
+.sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sort-button__arrow {
+  font-size: 0.7rem;
+  color: var(--color-muted);
+}
+
+.sort-button.is-active .sort-button__arrow {
+  color: var(--color-text);
+}
+
+/* ---------- Tags ---------- */
 
 .tag-list {
   display: flex;
@@ -393,6 +952,8 @@ code {
   padding: 0.05rem 0.45rem;
   border-radius: 4px;
 }
+
+/* ---------- Empty state ---------- */
 
 .empty-state {
   text-align: center;
@@ -420,7 +981,7 @@ code {
 .pagination__page {
   min-width: 2rem;
   height: 2rem;
-  border: 1px solid transparent;
+  border: var(--border-default) transparent;
   border-radius: var(--radius);
   background: transparent;
   color: inherit;
@@ -452,7 +1013,7 @@ code {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgb(45 6 6 / 0.3);
+  background: var(--color-scrim);
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -462,7 +1023,7 @@ code {
 .modal {
   background: var(--color-surface);
   border-radius: 10px;
-  box-shadow: 0 12px 40px rgb(45 6 6 / 0.2);
+  box-shadow: var(--shadow-modal);
   width: 100%;
   max-height: calc(100vh - 2rem);
   overflow-y: auto;
@@ -482,11 +1043,9 @@ code {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.1rem 1.25rem 0.6rem;
-  border-bottom: 1px solid var(--color-border-strong);
   margin: 0 1.25rem;
-  padding-left: 0;
-  padding-right: 0;
+  padding: 1.1rem 0 0.6rem;
+  border-bottom: var(--border-default) var(--color-border-strong);
 }
 
 .modal__body {
@@ -513,7 +1072,14 @@ code {
   align-items: start;
   gap: 0.75rem;
   padding: 0.45rem 0;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-default) var(--color-border);
+}
+
+.form-row:focus-within {
+  border-bottom-color: var(--color-border-strong);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .form-row label {
@@ -521,15 +1087,11 @@ code {
   padding-top: 0.15rem;
 }
 
-.form-row__static {
-  text-align: right;
+.field-label__hint {
+  display: block;
   color: var(--color-muted);
-}
-
-.form-row__control {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  font-size: 0.75rem;
+  font-weight: 400;
 }
 
 .form-row input {
@@ -545,14 +1107,18 @@ code {
 
 .form-row input::placeholder,
 .form-stack textarea::placeholder {
-  color: #bfaea8;
+  color: var(--color-placeholder);
 }
 
-.form-row:focus-within {
-  border-bottom-color: var(--color-border-strong);
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-  border-radius: 2px;
+.form-row__static {
+  text-align: right;
+  color: var(--color-muted);
+}
+
+.form-row__control {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .form-row__reset {
@@ -575,7 +1141,7 @@ code {
 .select-add input {
   font: inherit;
   padding: 0.3rem 0.4rem;
-  border: 1px solid var(--color-border);
+  border: var(--border-default) var(--color-border);
   border-radius: 4px;
   background: var(--color-bg);
   min-width: 0;
@@ -606,7 +1172,7 @@ code {
 }
 
 .form-stack textarea {
-  border: 1px solid var(--color-border-strong);
+  border: var(--border-default) var(--color-border-strong);
   border-radius: 2px;
   font: inherit;
   color: inherit;
@@ -614,6 +1180,8 @@ code {
   padding: 0.5rem;
   resize: vertical;
 }
+
+/* ---------- Validation & banners ---------- */
 
 [aria-invalid='true'] {
   color: var(--color-danger);
@@ -624,88 +1192,26 @@ code {
   font-size: 0.8rem;
 }
 
+.required-marker {
+  color: var(--color-danger);
+}
+
 .form-error {
   color: var(--color-danger);
   margin: 0.75rem 0 0;
 }
 
-/* ---------- Auth (login / register) ---------- */
-
-.auth-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  background: var(--color-bg);
-}
-
-.auth-card {
-  width: 100%;
-  max-width: 380px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+.banner {
+  padding: 0.6rem 0.9rem;
   border-radius: var(--radius);
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
 }
 
-.auth-card__logo {
-  align-self: flex-start;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius);
-  padding: 0.4rem 0.7rem;
-  font-weight: 600;
-  font-size: 0.8rem;
-  margin-bottom: 0.25rem;
+.banner--error {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
 }
 
-.auth-card h1 {
-  font-size: 1.3rem;
-  margin: 0;
-}
-
-.auth-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.auth-field input {
-  font: inherit;
-  font-weight: 400;
-  padding: 0.5rem 0.6rem;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius);
-  background: var(--color-bg-solid);
-  color: var(--color-text);
-}
-
-.auth-field input:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 1px;
-}
-
-.auth-switch {
-  text-align: center;
-  font-size: 0.85rem;
-  color: var(--color-muted);
-  margin: 0;
-}
-
-.auth-switch a {
-  color: var(--color-primary);
-}
-
-.auth-loading {
-  padding: 2rem;
-}
-
-/* ---------- Sale line items ---------- */
+/* ---------- Line items (sales & expenses) ---------- */
 
 .sale-lines {
   display: flex;
@@ -714,9 +1220,22 @@ code {
   padding-top: 0.9rem;
 }
 
+.sale-lines__add {
+  align-self: flex-start;
+}
+
 .sale-line {
   display: grid;
   grid-template-columns: 1.25rem 1fr 4.5rem 6rem auto;
+  gap: 0.6rem;
+  align-items: end;
+}
+
+/* Expenses reuse .sale-line__field etc., with two extra columns
+   (Description, Unit cost) since a line can restock an item or be free-text. */
+.expense-line {
+  display: grid;
+  grid-template-columns: 1.25rem 1.3fr 1.3fr 4rem 5.5rem 6rem auto;
   gap: 0.6rem;
   align-items: end;
 }
@@ -743,7 +1262,7 @@ code {
   font: inherit;
   color: inherit;
   padding: 0.3rem 0.4rem;
-  border: 1px solid var(--color-border);
+  border: var(--border-default) var(--color-border);
   border-radius: 4px;
   background: var(--color-surface);
   min-width: 0;
@@ -761,6 +1280,11 @@ code {
   color: var(--color-accent);
 }
 
+.expense-line .sale-line__field input:disabled {
+  color: var(--color-muted);
+  background: var(--color-surface-alt);
+}
+
 .sale-line__error {
   grid-column: 1 / -1;
   margin-top: -0.3rem;
@@ -768,163 +1292,125 @@ code {
   font-size: 0.8rem;
 }
 
-.sale-lines__add {
-  align-self: flex-start;
-}
-
-/* Expenses reuse .sale-line__field etc., just with two extra columns
-   (Description, Unit cost) since a line can restock an item or be free-text. */
-.expense-line {
-  display: grid;
-  grid-template-columns: 1.25rem 1.3fr 1.3fr 4rem 5.5rem 6rem auto;
-  gap: 0.6rem;
-  align-items: end;
-}
-
-.expense-line .sale-line__field input:disabled {
-  color: var(--color-muted);
-  background: var(--color-surface-alt);
-}
-
 .sale-total {
   display: flex;
   justify-content: space-between;
   margin-top: 0.75rem;
   padding: 0.6rem 0.5rem 0.5rem;
-  background: #f5e9e4;
+  background: var(--color-highlight);
   border-top: 2px solid var(--color-border-strong);
   font-weight: 700;
   color: var(--color-accent);
 }
 
-/* The date/channel/ID rows follow the total in the sale and expense forms. */
-.sale-total + .form-row {
-  margin-top: 1rem;
-}
+/* ==========================================================================
+   6. Auth (login / register)
+   ========================================================================== */
 
-.banner {
-  padding: 0.6rem 0.9rem;
-  border-radius: var(--radius);
-}
-
-.banner--error {
-  background: var(--color-danger-bg);
-  color: var(--color-danger);
-}
-
-/* ---------- Inventory: table, stat, panels ---------- */
-
-.inventory-stat {
-  align-self: flex-start;
-  min-width: 260px;
-}
-
-/* About 15 rows tall, then the table scrolls inside itself with the header pinned. */
-.inventory-table {
-  max-height: calc(15 * 2.6rem + 2.8rem);
-  overflow-y: auto;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.inventory-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--color-bg-solid);
-}
-
-/* Sortable column headers look like the plain ones, plus a direction arrow. */
-.sort-button {
-  display: inline-flex;
+.auth-page {
+  min-height: 100vh;
+  display: flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0;
-  border: none;
-  background: none;
+  justify-content: center;
+  padding: 1.5rem;
+  background: var(--color-bg);
+}
+
+.auth-loading {
+  padding: 2rem;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--color-surface);
+  border: var(--border-default) var(--color-border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.auth-card h1 {
+  font-size: 1.3rem;
+  margin: 0;
+}
+
+.auth-card__logo {
+  align-self: flex-start;
+  border: var(--border-default) var(--color-border-strong);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.7rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.auth-field input {
   font: inherit;
-  color: inherit;
-  cursor: pointer;
-}
-
-.sort-button__arrow {
-  font-size: 0.7rem;
-  color: var(--color-muted);
-}
-
-.sort-button.is-active .sort-button__arrow {
+  font-weight: 400;
+  padding: 0.5rem 0.6rem;
+  border: var(--border-default) var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-bg-solid);
   color: var(--color-text);
 }
 
-.inventory-panels {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-  align-items: start;
+.auth-field input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
 }
 
-.best-sellers__rank {
-  display: inline-block;
-  width: 1.5rem;
+.auth-password-control {
+  position: relative;
+}
+
+.auth-password-control input {
+  width: 100%;
+  padding-right: 7.5rem;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.5rem;
+  transform: translateY(-50%);
+  border: 0;
+  padding: 0.25rem;
+  background: transparent;
+  color: var(--color-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.auth-password-toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.auth-switch {
+  text-align: center;
+  font-size: 0.85rem;
   color: var(--color-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-@media (max-width: 720px) {
-  .inventory-panels {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ---------- Inventory: low stock panel ---------- */
-
-.low-stock {
-  gap: 0.6rem;
-}
-
-.low-stock__header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-/* Fixed height with its own scrollbar, so a long list doesn't push the page down. */
-.low-stock__list {
-  max-height: 240px;
-  overflow-y: auto;
   margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
-.low-stock__row {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid var(--color-border);
+.auth-switch a {
+  color: var(--color-primary);
 }
 
-.low-stock__row:last-child {
-  border-bottom: none;
-}
-
-.low-stock__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.low-stock__qty {
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-muted);
-}
-
-.low-stock__qty.is-out {
-  color: var(--color-danger);
-  font-weight: 600;
-}
+/* ==========================================================================
+   7. Pages
+   ========================================================================== */
 
 /* ---------- Home ---------- */
 
@@ -937,48 +1423,6 @@ code {
 
 .home-kpis__error {
   margin-top: 1rem;
-}
-
-.home-recent {
-  gap: 0.6rem;
-  margin-top: 1.5rem;
-}
-
-.home-recent__header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.home-recent__link {
-  color: var(--color-accent);
-  font-size: 0.85rem;
-}
-
-.home-recent__date {
-  white-space: nowrap;
-  color: var(--color-muted);
-}
-
-.home-recent__items {
-  /* One line per sale on desktop; long item names get cut with an ellipsis. */
-  max-width: 0;
-  width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.home-recent__amount {
-  white-space: nowrap;
-  color: #1a7f4b;
-  font-weight: 600;
-}
-
-.stat-card__detail {
-  color: var(--color-muted);
-  font-size: 0.8rem;
 }
 
 .home-cards {
@@ -994,10 +1438,10 @@ code {
   align-items: center;
   gap: 0.9rem;
   padding: 1.5rem 1.25rem;
-  border: 1px solid var(--color-border);
+  border: var(--border-default) var(--color-border);
   border-radius: 12px;
   background: var(--color-surface);
-  box-shadow: 0 2px 8px rgb(45 6 6 / 0.06);
+  box-shadow: var(--shadow-tile);
   color: inherit;
   text-decoration: none;
   transition:
@@ -1024,7 +1468,7 @@ code {
   /* Same height on every card, whatever its preview holds, so the row lines up. */
   height: 130px;
   padding: 0.6rem 0.75rem;
-  border: 1px solid var(--color-border);
+  border: var(--border-default) var(--color-border);
   border-radius: 8px;
   overflow: hidden;
   background: var(--color-bg);
@@ -1055,6 +1499,7 @@ code {
   text-align: center;
   font-size: 1.6rem;
   font-weight: 700;
+  font-family: var(--font-header);
 }
 
 .home-bars {
@@ -1115,16 +1560,169 @@ code {
   vertical-align: middle;
 }
 
-/* ---------- Shared card (Analytics panels reuse this) ---------- */
+.home-recent {
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+}
 
-.card {
+.home-recent__header {
   display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.home-recent__link {
+  color: var(--color-accent);
+  font-size: 0.85rem;
+}
+
+.home-recent__date {
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+
+.home-recent__items {
+  /* One line per sale on desktop; long item names get cut with an ellipsis. */
+  max-width: 0;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-recent__amount {
+  white-space: nowrap;
+  color: var(--color-positive);
+  font-weight: 600;
+}
+
+/* ---------- Inventory ---------- */
+
+.inventory-stat {
+  align-self: flex-start;
+  min-width: 260px;
+}
+
+/* About 15 rows tall, then the table scrolls inside itself with the header pinned. */
+.inventory-table {
+  max-height: calc(15 * 2.6rem + 2.8rem);
+  overflow-y: auto;
+  border-bottom: var(--border-default) var(--color-border);
+}
+
+.inventory-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-bg-solid);
+}
+
+.best-sellers__rank {
+  display: inline-block;
+  width: 1.5rem;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Summary panels (shared by Inventory and the panel row) ---------- */
+
+.summary-panel {
+  gap: 0.6rem;
+}
+
+.summary-panel__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.summary-panel__context {
+  color: var(--color-muted);
+  text-align: right;
+}
+
+.summary-panel__body {
+  display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: 0.35rem;
-  padding: 1rem 1.1rem;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  color: inherit;
+  gap: 0.6rem;
+}
+
+.summary-panel__value-block {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.6rem;
+  min-height: 100px;
+}
+
+.summary-panel__value {
+  font-family: var(--font-header);
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-panel__toggle {
+  align-self: flex-start;
+}
+
+/* Fixed height with its own scrollbar, so a long list doesn't push the page down. */
+.summary-panel__list {
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.summary-panel__row {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0.6rem;
+  border-bottom: var(--border-default) var(--color-border);
+  list-style-type: none;
+}
+
+.summary-panel__row:last-child {
+  border-bottom: none;
+}
+
+.summary-panel__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary-panel__detail {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+}
+
+.summary-panel__detail.is-out {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.panel-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.panel-row .summary-panel {
+  background: var(--color-surface);
+  border-color: var(--color-border-chart);
+  box-shadow: var(--shadow-card);
 }
 
 /* ---------- Analytics ---------- */
@@ -1134,6 +1732,12 @@ code {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1.5rem;
+}
+
+.analytics-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
 }
 
 /* Each chart row is two equal columns; minmax(0, 1fr) lets SVGs shrink instead of overflowing. */
@@ -1149,7 +1753,7 @@ code {
   gap: 0.75rem;
   background: var(--color-surface);
   border-color: var(--color-border-chart);
-  box-shadow: 0 1px 3px rgb(45 6 6 / 0.08);
+  box-shadow: var(--shadow-card);
 }
 
 /*
@@ -1168,6 +1772,21 @@ code {
 .analytics-donuts {
   flex: 1 1 0;
   min-height: 0;
+}
+
+.analytics-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* Under a line chart the legend runs in one row, leaving the height to the chart. */
+.analytics-card__footer .viz-legend {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.3rem 1rem;
 }
 
 /* Sales and Expenses donuts side by side, splitting the card's chart space. */
@@ -1192,6 +1811,12 @@ code {
   color: var(--color-muted);
 }
 
+.analytics-donut {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
 .analytics-donut-panel .analytics-donut {
   flex: 1 1 0;
   min-height: 0;
@@ -1203,80 +1828,10 @@ code {
   max-width: 65%;
 }
 
-.analytics-card__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-/* Under a line chart the legend runs in one row, leaving the height to the chart. */
-.analytics-card__footer .viz-legend {
-  flex-direction: row;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.3rem 1rem;
-}
-
-.analytics-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.stat-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  padding: 1rem 1.1rem;
-  border-radius: 10px;
-  flex: 1;
-  justify-content: center;
-}
-
-/* Net profit style: deep red with cream text, as in the wireframe. */
-.stat-card--positive {
-  background: var(--color-accent);
-  color: var(--color-accent-text);
-}
-
-.stat-card--positive .stat-card__label,
-.stat-card--positive .stat-card__detail {
-  color: var(--color-accent-text);
-  opacity: 0.85;
-}
-
-/* Revenue / expenses style: warm beige with maroon text. */
-.stat-card--neutral {
-  background: var(--color-surface-alt);
-  color: var(--color-accent);
-}
-
-.stat-card--negative {
-  background: var(--color-danger-bg);
-  color: var(--color-danger);
-}
-
-.stat-card__label {
-  color: var(--color-muted);
-  font-size: 0.85rem;
-}
-
-.stat-card__value {
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.analytics-donut {
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-}
-
 .analytics-insight {
   margin: 0;
   padding-top: 0.5rem;
-  border-top: 1px solid var(--color-border);
+  border-top: var(--border-default) var(--color-border);
   color: var(--color-muted);
   font-size: 0.8rem;
   font-style: italic;
@@ -1318,9 +1873,9 @@ code {
   gap: 0.9rem;
   padding: 1rem;
   background: var(--color-surface);
-  border: 1px solid var(--color-border-chart);
+  border: var(--border-default) var(--color-border-chart);
   border-radius: 10px;
-  box-shadow: 0 1px 3px rgb(45 6 6 / 0.08);
+  box-shadow: var(--shadow-card);
 }
 
 .analytics-filters__header {
@@ -1329,7 +1884,7 @@ code {
   justify-content: space-between;
   gap: 0.5rem;
   padding-bottom: 0.6rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-default) var(--color-border);
 }
 
 .analytics-filters__header .link-button {
@@ -1393,7 +1948,7 @@ code {
   font: inherit;
   color: inherit;
   padding: 0.35rem 0.5rem;
-  border: 1px solid var(--color-border-strong);
+  border: var(--border-default) var(--color-border-strong);
   border-radius: var(--radius);
   background: var(--color-bg-solid);
 }
@@ -1521,7 +2076,484 @@ code {
   transform: translateX(-50%);
 }
 
-/* ---------- SVG charts ---------- */
+/* ---------- Settings: layout & tabs ---------- */
+
+.settings {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+.settings__tabs {
+  flex: 0 0 12rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.settings__tab {
+  padding: 0.6rem 0.85rem;
+  border: var(--border-default) transparent;
+  border-radius: var(--radius);
+  color: inherit;
+  text-decoration: none;
+}
+
+.settings__tab:hover {
+  background: var(--color-hover);
+}
+
+.settings__tab.active {
+  border-color: var(--color-border);
+  font-weight: 600;
+}
+
+/* The tab's name sits centred above its card, large, like a page title. */
+.settings__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.settings__title {
+  margin: 0;
+  text-align: center;
+  font-size: 2.25rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.settings__content {
+  gap: 0.85rem;
+}
+
+/* The name of each thing you can edit on a Settings tab: big and bold so it's clear what it is. */
+.settings-section {
+  margin: 1.75rem 0 0;
+  padding-bottom: 0.35rem;
+  border-bottom: var(--border-default) var(--color-border);
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.settings-section:first-of-type {
+  margin-top: 0;
+}
+
+.settings-section--danger {
+  color: var(--color-danger);
+  border-bottom-color: var(--color-danger);
+}
+
+/* ---------- Settings: rows, forms & lists ---------- */
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.settings-row__label {
+  flex: 0 0 10rem;
+}
+
+.settings-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.settings-row__value {
+  overflow-wrap: anywhere;
+}
+
+.settings-row__input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.6rem;
+  border: var(--border-default) var(--color-border);
+  border-radius: var(--radius);
+  font: inherit;
+}
+
+.settings-row__input--short {
+  flex: 0 0 6rem;
+  max-width: 6rem;
+}
+
+textarea.settings-row__input {
+  resize: vertical;
+}
+
+.settings-row__error {
+  margin: 0.25rem 0 0 11rem;
+}
+
+/* Several settings rows that belong to one form. */
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* Add / rename / delete rows on the Preferences tab. */
+.settings-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* Devices and login history: one line each, label left, time right. */
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-list__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  padding: 0.5rem 0;
+  border-bottom: var(--border-default) var(--color-border);
+}
+
+.settings-list__item:last-child {
+  border-bottom: none;
+}
+
+.settings-list__detail {
+  margin-left: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.settings-badge {
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border: var(--border-default) var(--color-border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+/* ---------- Settings: profile & logo ---------- */
+
+.settings-profile {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.settings-profile .avatar {
+  width: 6rem;
+  height: 6rem;
+  font-size: 2rem;
+}
+
+.settings-profile__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.settings-profile__actions p {
+  margin: 0;
+}
+
+.settings-profile__buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* The logo keeps its shape, so it gets a box, not a circle. */
+.settings-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12rem;
+  height: 6rem;
+  flex-shrink: 0;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.settings-logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* ---------- Settings: notification toggles ---------- */
+
+.notify-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-bottom: 0.75rem;
+  border-bottom: var(--border-default) var(--color-border);
+}
+
+.notify-row__toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  cursor: pointer;
+}
+
+.notify-row__toggle input {
+  margin-top: 0.3rem;
+}
+
+.notify-row__text {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Each alert's name, matching the section headings on the other tabs. */
+.notify-row__text strong {
+  font-size: 1.15rem;
+}
+
+.notify-row__number {
+  margin-left: 1.65rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.notify-row__error {
+  margin: 0 0 0 1.65rem;
+}
+
+/* ---------- Settings: appearance controls ---------- */
+
+.choice-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.choice {
+  padding: 0.4rem 0.85rem;
+  border: var(--border-default) var(--color-border);
+  border-radius: var(--radius);
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.choice:hover {
+  background: var(--color-hover);
+}
+
+.choice.is-selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.swatch-group {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.swatch {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  outline-offset: 2px;
+}
+
+.swatch.is-selected {
+  box-shadow:
+    0 0 0 2px var(--color-surface),
+    0 0 0 4px var(--color-text);
+}
+
+.appearance-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+}
+
+/* ---------- Help, Terms and Privacy ---------- */
+
+.help-page {
+  max-width: 44rem;
+}
+
+.help-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.help-item summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.help-item p {
+  margin: 0.6rem 0 0;
+}
+
+.legal-page {
+  min-height: 100vh;
+}
+
+.legal-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: var(--border-default) var(--color-border);
+}
+
+.legal-page__brand {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.legal-page__nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.legal-page__body {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.legal-page__body h2 {
+  margin-top: 1.75rem;
+}
+
+/* ---------- Public profile (/p/:slug) and its owner controls ---------- */
+
+.public-profile {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.public-profile__hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.public-profile__hero h1 {
+  margin: 0 0 0.25rem;
+}
+
+.public-profile__logo {
+  width: 8rem;
+  max-height: 8rem;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.public-profile__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.public-profile__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.public-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.public-item__tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 4 / 3;
+  margin-bottom: 0.5rem;
+  border-radius: var(--radius);
+  background: var(--color-surface-alt);
+  color: var(--color-muted);
+  font-family: var(--font-header);
+  font-size: 2.5rem;
+}
+
+.public-item__name {
+  font-weight: 600;
+}
+
+.public-item__stock {
+  color: var(--color-positive);
+  font-size: 0.85rem;
+}
+
+.public-item__stock--out {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.public-marker {
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.45rem;
+  border: var(--border-default) var(--color-border);
+  border-radius: 4px;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+
+.public-link code {
+  word-break: break-all;
+}
+
+.item-form__check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 720px) {
+  .public-profile__hero {
+    flex-direction: column;
+  }
+}
+
+/* ==========================================================================
+   8. SVG charts
+   ========================================================================== */
 
 .viz {
   width: 100%;
@@ -1578,71 +2610,87 @@ code {
   flex: none;
 }
 
-/* ---------- Small screens ---------- */
+/* ==========================================================================
+   9. Responsive (<= 720px, <= 896px)
+   ========================================================================== */
+
+@media (max-width: 896px) {
+  /* Settings: the tab list becomes a row above the content. */
+  .settings {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings__tabs {
+    flex-direction: row;
+    flex-wrap: wrap;
+    max-height: min-content;
+  }
+}
 
 @media (max-width: 720px) {
-  .app {
-    grid-template-columns: 1fr;
-  }
-
-  .content {
-    flex-direction: column;
-  }
-
+  /* Shell */
+  .app,
   .app--sidebar-hidden {
     grid-template-columns: 1fr;
   }
 
   .sidebar {
-    flex-direction: row;
     align-items: center;
     gap: 1rem;
     padding: 0.75rem 1rem;
     overflow-x: auto;
+    height: fit-content;
   }
 
   .sidebar__nav {
     flex-direction: row;
+    flex-wrap: wrap;
+    margin-block: 0;
   }
 
   .sidebar-show-container {
+    height: fit-content;
     width: 100%;
   }
 
-  /* In the phone top bar, sit at the far end instead of the bottom. */
+  /* In the phone top bar, the avatar sits at the far end instead of the bottom. */
   .sidebar__account {
-    margin-top: 0;
     margin-left: auto;
     flex-direction: row;
     align-items: center;
     flex-shrink: 0;
   }
 
-  /* No room for the business name in a horizontal top bar; the logout icon stays. */
-  .sidebar__account-name {
-    display: none;
+  /* Line items: stack each field full-width instead of squeezing them side by side. */
+  .sale-line,
+  .expense-line {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    padding-bottom: 0.75rem;
+    border-bottom: var(--border-default) var(--color-border);
   }
 
-  .sidebar__logout {
-    width: auto;
-    flex-shrink: 0;
+  .sale-line__index {
+    padding-bottom: 0;
   }
 
-  .content {
-    padding: 1rem;
+  .sale-line__field--total span {
+    text-align: left;
   }
 
+  /* Analytics: stacked one per row, so natural heights are fine again. */
   .analytics-header {
     flex-direction: column;
     align-items: stretch;
   }
 
   .analytics-row,
-  .analytics-stats {
+  .analytics-stats,
+  .analytics-donuts {
     grid-template-columns: 1fr;
   }
 
-  /* Stacked one per row on phones, so natural heights are fine again. */
   .analytics-row .analytics-card {
     height: auto;
   }
@@ -1653,95 +2701,13 @@ code {
     flex: none;
   }
 
-  .analytics-donuts {
-    grid-template-columns: 1fr;
-  }
-
   .analytics-donut .viz {
     width: 160px;
     height: auto;
   }
 
-  /* The sale/expense line grids are too narrow-column for the modal's mobile
-     width; stack each field full-width instead of squeezing them side by side. */
-  .sale-line,
-  .expense-line {
+  /* Panel row stacking */
+  .panel-row {
     grid-template-columns: 1fr;
-    gap: 0.35rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--color-border);
   }
-
-  .sale-line__index {
-    padding-bottom: 0;
-  }
-
-  .sale-line__field--total span {
-    text-align: left;
-  }
-}
-
-/* --- SORT LATER --- */
-
-.content {
-  height: 100%;
-  overflow-y: scroll;
-  display: flex;
-  flex-direction: row;
-  padding: 0;
-}
-
-.panel-row {
-  display: flex;
-  gap: 0.75rem;
-  width: 100%;
-}
-
-.panel-row .card {
-  background: var(--color-surface);
-  border-color: var(--color-border-chart);
-  box-shadow: 0 1px 3px rgb(45 6 6 / 0.08);
-  width: 50%;
-}
-
-.money-split {
-  padding: 0;
-}
-
-.money-split__row,
-.low-stock__row {
-  list-style-type: none;
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.glance__item {
-  display: flex;
-  justify-content: space-between;
-}
-
-.glance__item dt {
-  font-weight: 600;
-}
-
-.glance__item .dd-item {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.stock-value {
-  /* re-add css from other */
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.5rem 0.6rem;
-}
-
-.stock-value__amount {
-  font-size: 1.75rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
 }

@@ -1,5 +1,6 @@
 import type { ExpenseMonthBreakdown } from '../../types';
 import { formatCents } from '../../utils/money';
+import { SummaryPanel } from '../../components/SummaryPanel';
 
 export interface TopRestockPanelProps {
   data?: ExpenseMonthBreakdown;
@@ -18,11 +19,7 @@ export function TopRestockPanel({ data, error, loading, reload }: TopRestockPane
     : '';
 
   return (
-    <div className="card low-stock">
-      <div className="low-stock__header">
-        <h2>Top restock spending</h2>
-        {data && <span className="muted">{month}</span>}
-      </div>
+    <SummaryPanel title="Top restock spending" context={data && month}>
       {error ? (
         <div className="banner banner--error" role="alert">
           Couldn't load restock spending: {error}{' '}
@@ -35,20 +32,20 @@ export function TopRestockPanel({ data, error, loading, reload }: TopRestockPane
       ) : data.topRestockItems.length === 0 ? (
         <p className="empty-state">No restocks yet this month.</p>
       ) : (
-        <ol className="low-stock__list best-sellers">
+        <ol className="summary-panel__list best-sellers">
           {data.topRestockItems.map((item, index) => (
-            <li key={item.id} className="low-stock__row">
-              <span className="low-stock__name">
+            <li key={item.id} className="summary-panel__row">
+              <span className="summary-panel__name">
                 <span className="best-sellers__rank">{index + 1}</span>
                 {item.name}
               </span>
-              <span className="low-stock__qty">
+              <span className="summary-panel__detail">
                 {formatCents(item.spentCents)} · {item.units} units
               </span>
             </li>
           ))}
         </ol>
       )}
-    </div>
+    </SummaryPanel>
   );
 }

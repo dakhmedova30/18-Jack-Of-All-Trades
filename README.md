@@ -12,8 +12,7 @@
  * Inventory Dashboard: Allows business owners to add and update inventory items.
  * Expenses Dashboard: Allows business owners to record costs, including restocking inventory.
  * Analytics Dashboard: Displays performance indicators for the business.
- * Business Profile Dashboard: Allows businesses to list their products.
- * Customer Dashboard: Allows customers to view vendors registered on the platform and make purchases.
+ * Public Business Profile: Gives each business a shareable page (`/p/your-shop`) where customers can see its details and the products it chooses to show, with no account needed.
 ​
 ## Instructions
 
@@ -22,9 +21,8 @@
      * Inventory Dashboard: Click the "Add Item" button to add an item, set prices, and set stock count.
      * Expenses Dashboard: Click "Add" to record an expense. Set a date and tags, then add one or more lines; each line either restocks an inventory item (pick it, and its stock goes up by the quantity) or is a free-text cost like "Rent" with no stock effect. Recording, editing or deleting an expense keeps inventory stock in sync automatically.
      * Analytics Dashboard: View real revenue, expenses and net profit, computed from your sales and expenses. Revenue, expenses and sales group by each record's first tag (top 3, the rest folded into "Other"); "Show by" (Weekly / Month / Year to date / 12 months) sets the time range for all three charts together.
-     * Business Profile Dashboard: Set up a public profile for customers to see.
- * Customers: Register a customer account.
-     * Can browse and look up available businesses and make purchases. 
+     * Public Business Profile: In Settings > Profile, scroll to "Public profile", type a link name (e.g. `demo-shop`) and click "Turn on". Then edit inventory items and tick "Show on my public profile" (public items get a "Public" marker in the table). Click "View profile" or "Copy link" to see and share the page. Email, phone, street address and stock counts are never shown publicly, only "In stock" or "Sold out". "Turn off" hides the page again.
+ * Customers: No account needed. Open a business's link (e.g. `/p/demo-shop`) to see its description, location, links and products with prices and availability. Ordering through the platform is planned for later.
  
 ## Development Requirements
 
@@ -61,7 +59,7 @@ cd backend && SPRING_PROFILES_ACTIVE=demo ./mvnw spring-boot:run
 cd demo && npm install && npm run dev -w client   # web app on http://localhost:5173
 ```
 
-No Docker? Point the backend at any hosted Postgres instead by setting `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD` (see [Configuration](#configuration)) before `./mvnw spring-boot:run`. Flyway creates the schema automatically on first connect either way.
+No Docker? Point the backend at any hosted Postgres instead by setting `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD` (copy `backend/.env.example`; see [Configuration](#configuration)) before `./mvnw spring-boot:run`. Flyway creates the schema automatically on first connect either way.
 
 The app requires a login. Register your own business account on first run, or log in as the seeded demo account:
 
@@ -93,6 +91,31 @@ Backend (run from `backend/`):
 | `./mvnw -DskipTests package`      | Builds the jar (used by `backend/Dockerfile`)           |
 | `docker compose up -d`            | Starts local Postgres on `:5433` for development        |
 
+### Running tests
+
+The backend has a JUnit 5 test suite (about 170 tests) covering the API endpoints, input
+validation, auth and sessions, and the sales, expense, analytics and notification
+calculations. Tests run against a real PostgreSQL that Testcontainers starts in Docker, so
+there's no database to set up.
+
+You'll need Java 25 and a running Docker (Docker Desktop, OrbStack or colima).
+
+```bash
+cd backend
+./mvnw test
+```
+
+A passing run ends with `Failures: 0, Errors: 0` and `BUILD SUCCESS`. The first run downloads
+Maven dependencies and the Postgres image, so it takes a few minutes; after that it's about a
+minute.
+
+There's no `npm test`; the frontend is checked with `npm run lint`, `npm run typecheck` and
+`npm run build` instead.
+
+The same suite runs in GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
+on every pull request into `main` and every push to `main`, and a merge only deploys if it
+passes. See recent runs in the [Actions tab](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/actions).
+
 ### Project structure
 
 ```
@@ -121,7 +144,7 @@ See [`docs/api-contracts.md`](docs/api-contracts.md) for the authoritative, endp
 
 All error responses share one shape: `{ "error": { "message": string, "details"?: [{ "field", "message" }] } }`. Money is always sent as integer cents.
 
-Every route except `/api/health` and `/api/auth/*` requires a logged-in session
+Every route except `/api/health`, `/api/auth/*` and the read-only `/api/public/*` requires a logged-in session
 (a cookie set by register/login) and returns 401 without one. Items, sales,
 expenses, channels, expense tags and analytics are all scoped to the logged-in
 business: one business can never see or modify another's data, even by
@@ -153,6 +176,8 @@ guessing an id in the URL.
 | DELETE | `/api/expenses/:id`         | Delete an expense (undoes any restock)        |
 | POST   | `/api/expenses/bulk-delete` | Delete several expenses (`{ "ids": [1, 2] }`) |
 | GET    | `/api/analytics/summary`    | Dashboard totals and charts (`range`, default `12months`) |
+| GET    | `/api/public/businesses/:slug`      | A business's public profile and public items (**no login needed**) |
+| GET    | `/api/public/businesses/:slug/logo` | That business's logo (**no login needed**)                   |
 
 A sale is one transaction: a date, optional tags, and one or more line items
 (`{ itemId, quantity }`). Each line's unit price is snapshotted from the item at
@@ -175,7 +200,24 @@ scoped to it, so changing it moves the whole page together.
 
 ### Configuration
 
-Set these as environment variables (a `.env` file isn't read automatically; export them, or use your IDE's run configuration). Without them, `backend/src/main/resources/application.yml` defaults to the local Docker Postgres from `docker compose up -d`.
+Every variable is optional. Without any of them, `backend/src/main/resources/application.yml` defaults to the local Docker Postgres from `docker compose up -d`, so the [Setup](#setup) steps work as-is.
+
+Templates with every variable and a comment for each are committed as `backend/.env.example` and `demo/client/.env.example`. To use them, copy each to `.env` next to it, then uncomment and fill in only the variables you need (an unedited copy changes nothing). Both `.env` files are gitignored; **never commit real credentials**, and never put them in the `.env.example` files.
+
+```bash
+cp backend/.env.example backend/.env
+cp demo/client/.env.example demo/client/.env
+```
+
+Spring Boot doesn't read `.env` on its own, so load it into your shell before starting the backend (or paste the values into your IDE's run configuration):
+
+```bash
+cd backend && set -a && source .env && set +a && ./mvnw spring-boot:run
+```
+
+Vite reads `demo/client/.env` by itself when `npm run dev` or `npm run build` starts.
+
+**Backend** (`backend/.env`; on Render, the service's **Environment** tab):
 
 | Variable                      | Required | Description                                                                 |
 | ------------------------------ | -------- | --------------------------------------------------------------------------- |
@@ -185,15 +227,27 @@ Set these as environment variables (a `.env` file isn't read automatically; expo
 | `SPRING_PROFILES_ACTIVE`       | No       | Set to `demo` to seed the demo account on startup                           |
 | `PORT`                         | No       | Defaults to 4000 (Render sets it automatically)                             |
 
+**Client** (`demo/client/.env`, read at build time):
+
+| Variable              | Required | Description                                                                              |
+| --------------------- | -------- | ---------------------------------------------------------------------------------------- |
+| `VITE_SUPPORT_EMAIL`  | No       | Support address shown on the Help page. Leave it empty to show a generic "ask the person who set up this app" line instead. Anything prefixed `VITE_` is visible in the browser, so never put secrets in client variables. |
+
 ### Deploying to Render
 
 1. Create a Neon (or other hosted Postgres) database and copy its connection string.
-2. In Render: since this repo isn't owned by the account deploying it, use **New > Web Service > Public Git Repository** (rather than **New > Blueprint**) and paste this repo's URL.
+2. In Render: since this repo isn't owned by the account deploying it, use **New > Web Service > Public Git Repository** (rather than **New > Blueprint**) and paste this repo's URL. (If you fork the repo into your own GitHub account, **New > Blueprint** on your fork reads `backend/render.yaml` and fills in steps 3–6 for you. You're still asked for the three `SPRING_DATASOURCE_*` values.)
 3. Language: **Docker**. Dockerfile Path: `backend/Dockerfile`. Docker Build Context Directory: leave as `.` (the repo root — the Dockerfile needs both `backend/` and `demo/client/`).
 4. Health Check Path: `/api/health` (exactly — a trailing/duplicated path here will make every deploy time out waiting on the health check).
 5. Environment variables: `SPRING_DATASOURCE_URL` (JDBC form, e.g. `jdbc:postgresql://<host>/<db>?sslmode=require`), `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, and `SPRING_PROFILES_ACTIVE=demo`.
 6. The free instance type's 0.1 CPU is too slow to boot the JVM within Render's health-check window — every free-tier deploy we tried either failed outright or took 15+ minutes. Use the $7/month instance (0.5 CPU), which boots in under a minute.
-7. Each push to the selected branch does **not** auto-deploy — "Public Git Repository" services don't get webhooks from a repo they don't own. Redeploy manually from the Render dashboard (**Manual Deploy > Deploy latest commit**) after pushing.
+7. Deploys are triggered from GitHub Actions, not by Render itself: "Public Git Repository"
+   services don't get webhooks from a repo they don't own. Instead, the `deploy` job in
+   `.github/workflows/ci.yml` calls the service's Render **Deploy Hook** once the checks and
+   tests pass on `main`. To set it up, copy the hook URL from Render (**Settings > Deploy Hook**)
+   into a GitHub Actions secret named `RENDER_DEPLOY_HOOK_URL`. Never put it in the workflow
+   file, because anyone with the URL can trigger a deploy. Manual redeploys still work via
+   **Manual Deploy > Deploy latest commit**.
 
  ## Deployment and Github Workflow
 
@@ -204,7 +258,7 @@ Set these as environment variables (a `.env` file isn't read automatically; expo
  * Branching Strategy and Naming Convention: all new work is developed on separate feature branches that branch off from *main*, named for the user story or feature they add.
      * Ex: `us1-sales`, `us2-inventory`, `allie/java-expenses`
      * This keeps each branch's purpose clear from its name, and keeps related commits for one feature together until it's reviewed and merged.
- * Deployment: the backend is deployed as a Render web service (see [Deploying to Render](#deploying-to-render)); since pushes don't auto-deploy, redeploy manually from the Render dashboard after merging.
+ * Deployment: the backend is deployed as a Render web service (see [Deploying to Render](#deploying-to-render)). Every merge to *main* deploys automatically once CI's checks and tests pass, so nothing is deployed that hasn't been reviewed and tested.
   
 
  ## Coding Standards and Guidelines

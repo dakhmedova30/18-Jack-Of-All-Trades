@@ -2,7 +2,12 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { ApiError, getErrorMessage } from '../../api/http';
 import { Modal } from '../../components/Modal';
 import type { Item, ItemInput } from '../../types';
-import { centsToInputValue, parseDollarsToCents } from '../../utils/money';
+import {
+  centsToInputValue,
+  MAX_AMOUNT_CENTS,
+  MAX_AMOUNT_DISPLAY,
+  parseDollarsToCents,
+} from '../../utils/money';
 
 interface ItemFormModalProps {
   /** Pass an item to edit it ("Modify item"); omit to create one ("Add new item"). */
@@ -44,7 +49,10 @@ function parseTags(raw: string): string[] {
   ];
 }
 
-function validate(values: FormValues): { input?: ItemInput; errors: FieldErrors } {
+function validate(
+  values: FormValues,
+  isPublic: boolean,
+): { input?: ItemInput; errors: FieldErrors } {
   const errors: FieldErrors = {};
   const name = values.name.trim();
   const quantity = Number(values.quantity);
@@ -56,12 +64,22 @@ function validate(values: FormValues): { input?: ItemInput; errors: FieldErrors 
     errors.quantity = 'Enter a whole number, 0 or more';
   }
   if (unitPriceCents === null) errors.unitPrice = 'Enter a price like 5 or 5.99';
+  else if (unitPriceCents < 0 || unitPriceCents > MAX_AMOUNT_CENTS) {
+    errors.unitPrice = `Price must be between 0.00 and ${MAX_AMOUNT_DISPLAY}`;
+  }
   if (tags.length > 10) errors.tags = 'At most 10 tags';
   if (tags.some((tag) => tag.length > 30)) errors.tags = 'Each tag must be 30 characters or less';
 
   if (Object.keys(errors).length > 0) return { errors };
   return {
-    input: { name, quantity, unitPriceCents: unitPriceCents!, tags, note: values.note.trim() },
+    input: {
+      name,
+      quantity,
+      unitPriceCents: unitPriceCents!,
+      tags,
+      note: values.note.trim(),
+      isPublic,
+    },
     errors,
   };
 }
@@ -69,6 +87,7 @@ function validate(values: FormValues): { input?: ItemInput; errors: FieldErrors 
 export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) {
   const isEditing = item !== undefined;
   const [values, setValues] = useState<FormValues>(() => toFormValues(item));
+  const [isPublic, setIsPublic] = useState(item?.isPublic ?? false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -80,7 +99,7 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const { input, errors: validationErrors } = validate(values);
+    const { input, errors: validationErrors } = validate(values, isPublic);
     setErrors(validationErrors);
     if (!input) return;
 
@@ -130,20 +149,38 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
           <span className="form-row__static">{item?.id ?? 'Assigned on save'}</span>
         </div>
 
-        <FormRow label="Name" htmlFor="item-name" error={errors.name}>
+        <FormRow label="Name" htmlFor="item-name" error={errors.name} required>
           <input {...fieldProps('name')} placeholder="Item 1" autoFocus maxLength={120} />
         </FormRow>
 
-        <FormRow label="Qty" htmlFor="item-quantity" error={errors.quantity}>
+        <FormRow label="Qty" htmlFor="item-quantity" error={errors.quantity} required>
           <input {...fieldProps('quantity')} inputMode="numeric" placeholder="100" />
         </FormRow>
 
-        <FormRow label="Unit price (CAD)" htmlFor="item-unitPrice" error={errors.unitPrice}>
+        <FormRow
+          label="Unit price (CAD)"
+          hint={`0.00–${MAX_AMOUNT_DISPLAY}`}
+          htmlFor="item-unitPrice"
+          error={errors.unitPrice}
+          required
+        >
           <input {...fieldProps('unitPrice')} inputMode="decimal" placeholder="5.00" />
         </FormRow>
 
         <FormRow label="Tags" htmlFor="item-tags" error={errors.tags}>
           <input {...fieldProps('tags')} placeholder="Tag, Tag" />
+        </FormRow>
+
+        <FormRow label="Public" htmlFor="item-isPublic">
+          <label className="item-form__check">
+            <input
+              id="item-isPublic"
+              type="checkbox"
+              checked={isPublic}
+              onChange={(event) => setIsPublic(event.target.checked)}
+            />
+            Show on my public profile
+          </label>
         </FormRow>
 
         <div className="form-stack">
@@ -159,15 +196,28 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
 
 interface FormRowProps {
   label: string;
+  hint?: string;
   htmlFor: string;
   error?: string;
+  required?: boolean;
   children: ReactNode;
 }
 
-function FormRow({ label, htmlFor, error, children }: FormRowProps) {
+function FormRow({ label, hint, htmlFor, error, required = false, children }: FormRowProps) {
   return (
     <div className="form-row">
-      <label htmlFor={htmlFor}>{label}</label>
+      <label htmlFor={htmlFor}>
+        <span>
+          {label}
+          {required && (
+            <span className="required-marker" aria-hidden="true">
+              {' '}
+              *
+            </span>
+          )}
+        </span>
+        {hint && <span className="field-label__hint">{hint}</span>}
+      </label>
       <div className="form-row__control">
         {children}
         {error && <span className="field-error">{error}</span>}

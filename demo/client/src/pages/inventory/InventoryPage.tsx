@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { bulkDeleteItems, createItem, deleteItem, updateItem } from '../../api/items';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { SummaryPanel } from '../../components/SummaryPanel';
 import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
 import { TagList } from '../../components/TagList';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useInventoryInsights } from '../../hooks/useInventoryInsights';
 import { useItems } from '../../hooks/useItems';
+import { usePreferences } from '../../hooks/usePreferences';
 import { useLowStock } from '../../hooks/useLowStock';
 import type {
   InventoryInsights,
@@ -19,7 +21,6 @@ import type {
 import { formatCents } from '../../utils/money';
 import { ItemFormModal } from './ItemFormModal';
 
-const PAGE_SIZE = 15;
 /** The server's max; enough to list every low item for any realistic shop. */
 const LOW_STOCK_LIST_LIMIT = 100;
 
@@ -34,6 +35,7 @@ type FormState = { mode: 'create' } | { mode: 'edit'; item: Item } | null;
 type DeleteTarget = { kind: 'single'; item: Item } | { kind: 'bulk'; ids: number[] } | null;
 
 export function InventoryPage() {
+  const { preferences } = usePreferences();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [sort, setSort] = useState<{ field: ItemSortField; order: SortOrder }>({
@@ -46,7 +48,13 @@ export function InventoryPage() {
     error,
     loading,
     reload: reloadItems,
-  } = useItems({ page, pageSize: PAGE_SIZE, search, sort: sort.field, order: sort.order });
+  } = useItems({
+    page,
+    pageSize: preferences.rowsPerPage,
+    search,
+    sort: sort.field,
+    order: sort.order,
+  });
   const lowStock = useLowStock(LOW_STOCK_LIST_LIMIT);
   const insights = useInventoryInsights();
 
@@ -124,7 +132,15 @@ export function InventoryPage() {
 
   return (
     <section className="page">
-      <h1>Inventory</h1>
+      <div>
+        <h1>Inventory</h1>
+        <p className="muted">A view of your current inventory.</p>
+      </div>
+
+      <div className="panel-row">
+        <StockValuePanel {...insights} />
+        <LowStockPanel {...lowStock} />
+      </div>
       <div className="toolbar">
         <div className="toolbar__actions">
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
@@ -231,7 +247,10 @@ export function InventoryPage() {
                   />
                 </td>
                 <td>{item.id}</td>
-                <td>{item.name}</td>
+                <td>
+                  {item.name}
+                  {item.isPublic && <span className="public-marker">Public</span>}
+                </td>
                 <td className="numeric">{item.quantity}</td>
                 <td className="numeric">{formatCents(item.unitPriceCents)}</td>
                 <td>
@@ -273,11 +292,6 @@ export function InventoryPage() {
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}
 
-      <div className="panel-row">
-        <StockValuePanel {...insights} />
-        <LowStockPanel {...lowStock} />
-      </div>
-
       {formState && (
         <ItemFormModal
           item={formState.mode === 'edit' ? formState.item : undefined}
@@ -311,12 +325,13 @@ interface LowStockPanelProps {
 
 /** Every item at or below the low-stock threshold, lowest first, in a scrollable list. */
 function LowStockPanel({ data, error, loading, reload }: LowStockPanelProps) {
+  const [expanded, setExpanded] = useState(false);
+
   return (
-    <div className="card low-stock">
-      <div className="low-stock__header">
-        <h2>Low stock{data ? ` (${data.count})` : ''}</h2>
-        {data && <span className="muted">{data.threshold} or fewer in stock</span>}
-      </div>
+    <SummaryPanel
+      title={`Low stock${data ? ` (${data.count})` : ''}`}
+      context={data && `${data.threshold} or fewer in stock`}
+    >
       {error ? (
         <div className="banner banner--error" role="alert">
           Couldn't load low stock: {error}{' '}
@@ -330,16 +345,27 @@ function LowStockPanel({ data, error, loading, reload }: LowStockPanelProps) {
         <p className="empty-state">Nothing is low on stock.</p>
       ) : (
         <>
-          <ul className="low-stock__list">
-            {data.items.map((item) => (
-              <li key={item.id} className="low-stock__row">
-                <span className="low-stock__name">{item.name}</span>
-                <span className={`low-stock__qty${item.quantity === 0 ? ' is-out' : ''}`}>
+          <ul className="summary-panel__list" id="low-stock-list">
+            {(expanded ? data.items : data.items.slice(0, 3)).map((item) => (
+              <li key={item.id} className="summary-panel__row">
+                <span className="summary-panel__name">{item.name}</span>
+                <span className={`summary-panel__detail${item.quantity === 0 ? ' is-out' : ''}`}>
                   {item.quantity === 0 ? 'Out of stock' : `${item.quantity} left`}
                 </span>
               </li>
             ))}
           </ul>
+          {data.items.length > 3 && (
+            <button
+              type="button"
+              className="link-button summary-panel__toggle"
+              aria-expanded={expanded}
+              aria-controls="low-stock-list"
+              onClick={() => setExpanded((current) => !current)}
+            >
+              {expanded ? 'Show less' : 'Expand list'}
+            </button>
+          )}
           {data.count > data.items.length && (
             <p className="muted">
               Showing the {data.items.length} lowest of {data.count}.
@@ -347,7 +373,7 @@ function LowStockPanel({ data, error, loading, reload }: LowStockPanelProps) {
           )}
         </>
       )}
-    </div>
+    </SummaryPanel>
   );
 }
 
@@ -361,11 +387,7 @@ interface StockValuePanelProps {
 /** What everything in stock is worth at selling price, next to Low stock. */
 function StockValuePanel({ data, error, loading, reload }: StockValuePanelProps) {
   return (
-    <div className="card low-stock">
-      <div className="low-stock__header">
-        <h2>Stock value</h2>
-        <span className="muted">at selling price</span>
-      </div>
+    <SummaryPanel title="Stock value" context="at selling price">
       {error ? (
         <div className="banner banner--error" role="alert">
           Couldn't load stock value: {error}{' '}
@@ -376,11 +398,11 @@ function StockValuePanel({ data, error, loading, reload }: StockValuePanelProps)
       ) : !data ? (
         <p className="empty-state">{loading ? 'Loading…' : 'No data.'}</p>
       ) : (
-        <div className="stock-value">
-          <span className="stock-value__amount">{formatCents(data.stockValueCents)}</span>
+        <div className="summary-panel__value-block">
+          <span className="summary-panel__value">{formatCents(data.stockValueCents)}</span>
           <span className="muted">{data.totalUnits.toLocaleString()} units in stock</span>
         </div>
       )}
-    </div>
+    </SummaryPanel>
   );
 }

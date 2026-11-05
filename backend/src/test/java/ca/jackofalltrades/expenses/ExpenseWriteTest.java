@@ -149,6 +149,21 @@ class ExpenseWriteTest extends PostgresTestBase {
     }
 
     @Test
+    void unitCostMustBeWithinSupportedRange() throws Exception {
+        Cookie cookie = registerAndLogin();
+
+        record(cookie, input(cost("Rent", 1, 1_000_000_000)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].field").value("items.0.unitCostCents"))
+                .andExpect(jsonPath("$.error.details[0].message")
+                        .value("Cost must be between 0.00 and 9,999,999.99"));
+
+        record(cookie, input(cost("Rent", 1, 999_999_999)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.items[0].unitCostCents").value(999_999_999));
+    }
+
+    @Test
     void laterRenamesDontChangeTheExpense() throws Exception {
         Cookie cookie = registerAndLogin();
         int business = businessId(cookie);
@@ -190,7 +205,8 @@ class ExpenseWriteTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.error.details[0].field").value("items.1.quantity"));
         record(cookie, input(restock(print, 1, -1)))
                 .andExpect(jsonPath("$.error.details[0].field").value("items.0.unitCostCents"))
-                .andExpect(jsonPath("$.error.details[0].message").value("Cost cannot be negative"));
+                .andExpect(jsonPath("$.error.details[0].message")
+                        .value("Cost must be between 0.00 and 9,999,999.99"));
         record(cookie, input(cost("   ", 1, 10)))
                 .andExpect(jsonPath("$.error.details[0].field").value("items.0.description"))
                 .andExpect(jsonPath("$.error.details[0].message").value("Pick an item or enter a description"));
@@ -237,7 +253,7 @@ class ExpenseWriteTest extends PostgresTestBase {
         int business = businessId(cookie);
         int print = insertItem(business, "Print", 5);
 
-        record(cookie, input(restock(print, 2, 2_000_000_000)))
+        record(cookie, input(restock(print, 3, 999_999_999)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("Number is out of range"));
         assertThat(stock(print)).isEqualTo(5);

@@ -4,6 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Jack-Of-All-Trades</title>
+    <script>
+      // Apply the saved Appearance settings before the page paints, so a dark theme doesn't flash
+      // light first. hooks/useAppearance.tsx keeps them in step afterwards.
+      (function () {
+        try {
+          var saved = JSON.parse(localStorage.getItem('jat:appearance') || '{}');
+          var root = document.documentElement;
+          var dark =
+            saved.theme === 'dark' ||
+            (saved.theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+          root.dataset.theme = dark ? 'dark' : 'light';
+          if (saved.density) root.dataset.density = saved.density;
+          if (saved.textSize) root.dataset.textSize = saved.textSize;
+          if (saved.accent) root.dataset.accent = saved.accent;
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

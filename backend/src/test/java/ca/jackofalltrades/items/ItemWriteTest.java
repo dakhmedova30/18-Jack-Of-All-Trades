@@ -126,7 +126,9 @@ class ItemWriteTest extends PostgresTestBase {
                         containsInAnyOrder("name", "quantity", "unitPriceCents", "tags.1", "note")))
                 .andExpect(jsonPath("$.error.details[?(@.field == 'name')].message").value("Name is required"))
                 .andExpect(jsonPath("$.error.details[?(@.field == 'quantity')].message")
-                        .value("Quantity cannot be negative"));
+                        .value("Quantity cannot be negative"))
+                .andExpect(jsonPath("$.error.details[?(@.field == 'unitPriceCents')].message")
+                        .value("Price must be between 0.00 and 9,999,999.99"));
         create(cookie, """
                 {"name": "%s", "quantity": 1, "unitPriceCents": 1}
                 """.formatted("n".repeat(121)))
@@ -140,6 +142,28 @@ class ItemWriteTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.error.details[0].field").value("tags"));
 
         assertThat(itemCount(business)).isZero();
+    }
+
+    @Test
+    void priceMustBeWithinSupportedRangeOnCreateAndUpdate() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int id = createdId(cookie, "Limited price", 1, 999_999_999);
+
+        create(cookie, """
+                {"name": "Too expensive", "quantity": 1, "unitPriceCents": 1000000000}
+                """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].field").value("unitPriceCents"))
+                .andExpect(jsonPath("$.error.details[0].message")
+                        .value("Price must be between 0.00 and 9,999,999.99"));
+
+        update(cookie, id, """
+                {"unitPriceCents": 1000000000}
+                """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].field").value("unitPriceCents"))
+                .andExpect(jsonPath("$.error.details[0].message")
+                        .value("Price must be between 0.00 and 9,999,999.99"));
     }
 
     // ---- PATCH /api/items/{id} ----

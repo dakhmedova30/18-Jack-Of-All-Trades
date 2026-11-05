@@ -3,9 +3,17 @@ const amountFormatter = new Intl.NumberFormat('en-CA', {
   maximumFractionDigits: 2,
 });
 
+export const MAX_AMOUNT_CENTS = 999_999_999;
+export const MAX_AMOUNT_DISPLAY = '9,999,999.99';
+
 /** 1850 -> "18.50 CAD" */
 export function formatCents(cents: number): string {
   return `${amountFormatter.format(cents / 100)} CAD`;
+}
+
+/** Like formatCents, in the given currency: (1850, "USD") -> "18.50 USD". */
+export function formatCentsIn(cents: number, currency: string): string {
+  return `${amountFormatter.format(cents / 100)} ${currency}`;
 }
 
 const compactFormatter = new Intl.NumberFormat('en-CA', {
@@ -28,8 +36,9 @@ export function centsToInputValue(cents: number): string {
 
 /** "18.5" -> 1850, invalid input -> null. Avoids float math by parsing the digits. */
 export function parseDollarsToCents(input: string): number | null {
-  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(input.trim());
+  const match = /^(-?)(\d+)(?:\.(\d{1,2}))?$/.exec(input.trim());
   if (!match) return null;
-  const [, dollars, fraction = ''] = match;
-  return Number(dollars) * 100 + Number(fraction.padEnd(2, '0'));
+  const [, sign, dollars, fraction = ''] = match;
+  const cents = Number(dollars) * 100 + Number(fraction.padEnd(2, '0'));
+  return sign === '-' ? -cents : cents;
 }
