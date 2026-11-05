@@ -1,10 +1,19 @@
 import { useState } from 'react';
-import { bulkDeleteItems, createItem, deleteItem, updateItem } from '../../api/items';
+import { Link } from 'react-router-dom';
+import { getErrorMessage } from '../../api/http';
+import {
+  bulkDeleteItems,
+  bulkSetItemsPublic,
+  createItem,
+  deleteItem,
+  updateItem,
+} from '../../api/items';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { SummaryPanel } from '../../components/SummaryPanel';
 import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
 import { TagList } from '../../components/TagList';
+import { useAuth } from '../../hooks/useAuth';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useInventoryInsights } from '../../hooks/useInventoryInsights';
 import { useItems } from '../../hooks/useItems';
@@ -34,8 +43,16 @@ const SORTABLE_COLUMNS: { field: ItemSortField; label: string; numeric?: boolean
 type FormState = { mode: 'create' } | { mode: 'edit'; item: Item } | null;
 type DeleteTarget = { kind: 'single'; item: Item } | { kind: 'bulk'; ids: number[] } | null;
 
+/** What the last bulk show/hide did, shown under the toolbar. */
+type VisibilityResult = { message: string; profileOff: boolean } | { error: string } | null;
+
+function itemCount(count: number): string {
+  return count === 1 ? '1 item' : `${count} items`;
+}
+
 export function InventoryPage() {
   const { preferences } = usePreferences();
+  const { business } = useAuth();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [sort, setSort] = useState<{ field: ItemSortField; order: SortOrder }>({
@@ -78,6 +95,8 @@ export function InventoryPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [formState, setFormState] = useState<FormState>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
+  const [visibilityBusy, setVisibilityBusy] = useState(false);
+  const [visibilityResult, setVisibilityResult] = useState<VisibilityResult>(null);
 
   const items = data?.data ?? [];
   const allOnPageSelected = items.length > 0 && items.every((item) => selectedIds.has(item.id));
@@ -128,6 +147,27 @@ export function InventoryPage() {
     } else reload();
   }
 
+  /** Shows or hides every selected item on the public profile. Easy to undo, so no confirmation. */
+  async function setSelectedPublic(isPublic: boolean) {
+    setVisibilityBusy(true);
+    setVisibilityResult(null);
+    try {
+      const { updated } = await bulkSetItemsPublic([...selectedIds], isPublic);
+      setVisibilityResult({
+        message: isPublic
+          ? `${itemCount(updated)} now on your public profile.`
+          : `${itemCount(updated)} hidden from your public profile.`,
+        profileOff: isPublic && !business?.publicSlug,
+      });
+      setSelectedIds(new Set());
+      reloadItems();
+    } catch (err) {
+      setVisibilityResult({ error: getErrorMessage(err) });
+    } finally {
+      setVisibilityBusy(false);
+    }
+  }
+
   const isEmpty = data !== undefined && data.total === 0;
 
   return (
@@ -154,6 +194,22 @@ export function InventoryPage() {
           >
             Bulk delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
           </button>
+          <button
+            type="button"
+            className="button button--secondary"
+            disabled={selectedIds.size === 0 || visibilityBusy}
+            onClick={() => void setSelectedPublic(true)}
+          >
+            Show on profile{selectedIds.size > 0 && ` (${selectedIds.size})`}
+          </button>
+          <button
+            type="button"
+            className="button button--secondary"
+            disabled={selectedIds.size === 0 || visibilityBusy}
+            onClick={() => void setSelectedPublic(false)}
+          >
+            Hide from profile{selectedIds.size > 0 && ` (${selectedIds.size})`}
+          </button>
         </div>
         <div className="search-field">
           <label htmlFor="inventory-search">Search</label>
@@ -173,6 +229,24 @@ export function InventoryPage() {
           </div>
         </div>
       </div>
+
+      {visibilityResult && 'error' in visibilityResult && (
+        <p className="form-error" role="alert">
+          {visibilityResult.error}
+        </p>
+      )}
+      {visibilityResult && 'message' in visibilityResult && (
+        <p className="muted" role="status">
+          {visibilityResult.message}
+          {visibilityResult.profileOff && (
+            <>
+              {' '}
+              Your public profile is off, so customers can't see it yet.{' '}
+              <Link to="/settings/profile">Turn it on in Settings &gt; Profile</Link>.
+            </>
+          )}
+        </p>
+      )}
 
       {error && (
         <div className="banner banner--error" role="alert">
