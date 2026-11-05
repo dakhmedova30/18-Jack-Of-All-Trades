@@ -126,6 +126,7 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
     value: values[field],
     onChange: (event: { target: { value: string } }) => setField(field, event.target.value),
     'aria-invalid': errors[field] ? true : undefined,
+    'aria-describedby': errors[field] ? `item-${field}-error` : undefined,
   });
 
   return (
@@ -145,16 +146,16 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
     >
       <form id="item-form" className="item-form" onSubmit={handleSubmit} noValidate>
         <div className="form-row">
-          <label>ID</label>
+          <span className="form-row__label">ID</span>
           <span className="form-row__static">{item?.id ?? 'Assigned on save'}</span>
         </div>
 
         <FormRow label="Name" htmlFor="item-name" error={errors.name} required>
-          <input {...fieldProps('name')} placeholder="Item 1" autoFocus maxLength={120} />
+          <input {...fieldProps('name')} placeholder="Item 1" maxLength={120} required />
         </FormRow>
 
         <FormRow label="Qty" htmlFor="item-quantity" error={errors.quantity} required>
-          <input {...fieldProps('quantity')} inputMode="numeric" placeholder="100" />
+          <input {...fieldProps('quantity')} inputMode="numeric" placeholder="100" required />
         </FormRow>
 
         <FormRow
@@ -164,7 +165,7 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
           error={errors.unitPrice}
           required
         >
-          <input {...fieldProps('unitPrice')} inputMode="decimal" placeholder="5.00" />
+          <input {...fieldProps('unitPrice')} inputMode="decimal" placeholder="5.00" required />
         </FormRow>
 
         <FormRow label="Tags" htmlFor="item-tags" error={errors.tags}>
@@ -188,7 +189,11 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
           <textarea {...fieldProps('note')} rows={4} maxLength={1000} />
         </div>
 
-        {submitError && <p className="form-error">{submitError}</p>}
+        {submitError && (
+          <p className="form-error" role="alert">
+            {submitError}
+          </p>
+        )}
       </form>
     </Modal>
   );
@@ -220,7 +225,11 @@ function FormRow({ label, hint, htmlFor, error, required = false, children }: Fo
       </label>
       <div className="form-row__control">
         {children}
-        {error && <span className="field-error">{error}</span>}
+        {error && (
+          <span id={`item-${htmlFor.replace('item-', '')}-error`} className="field-error">
+            {error}
+          </span>
+        )}
       </div>
     </div>
   );

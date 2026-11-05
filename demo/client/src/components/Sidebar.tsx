@@ -28,6 +28,7 @@ export function Sidebar({ onClose, active = true }: SidebarProps) {
             className="sidebar__toggle"
             onClick={onClose}
             aria-label="Hide sidebar"
+            aria-controls="main-sidebar"
             aria-expanded={true}
           >
             <MenuIcon />

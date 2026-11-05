@@ -95,7 +95,9 @@ export function SelectWithAddRow({
               id={id}
               value={value}
               onChange={(event) => onChange(event.target.value)}
+              required={required}
               aria-invalid={shownError ? true : undefined}
+              aria-describedby={shownError ? `${id}-error` : undefined}
             >
               <option value="">Select…</option>
               {options.map((option) => (
@@ -133,7 +135,9 @@ export function SelectWithAddRow({
               placeholder={placeholder}
               maxLength={maxLength}
               autoFocus
+              required={required}
               aria-invalid={shownError ? true : undefined}
+              aria-describedby={shownError ? `${id}-error` : undefined}
             />
             <button
               type="button"
@@ -149,7 +153,11 @@ export function SelectWithAddRow({
           </div>
         )}
 
-        {shownError && <span className="field-error">{shownError}</span>}
+        {shownError && (
+          <span id={`${id}-error`} className="field-error" aria-live="polite">
+            {shownError}
+          </span>
+        )}
       </div>
     </div>
   );

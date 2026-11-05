@@ -14,7 +14,6 @@
    9. Responsive (<= 896px, <= 720px, reduced motion)
    ========================================================================== */
 
-
 /* ==========================================================================
    1. Design tokens — matches the maroon/cream Figma wireframe.
       Change colours here only.
@@ -45,7 +44,7 @@
 
   /* Text */
   --color-text: hsl(var(--hue) 50% 10%);
-  --color-muted: hsl(var(--hue) 8% 44%);
+  --color-muted: hsl(var(--hue) 8% 35%);
   --color-placeholder: hsl(var(--hue) 12% 70%);
 
   /* Brand (overridden per accent) */
@@ -94,7 +93,6 @@
   font-weight: 400;
   font-style: normal;
 }
-
 
 /* ==========================================================================
    2. Themes, accents & display options
@@ -217,7 +215,6 @@
   --table-pad-y: 0.85rem;
 }
 
-
 /* ==========================================================================
    3. Base
    ========================================================================== */
@@ -272,7 +269,6 @@ code {
 .muted {
   color: var(--color-muted);
 }
-
 
 /* ==========================================================================
    4. App shell
@@ -718,7 +714,6 @@ code {
   padding: 40px;
 }
 
-
 /* ==========================================================================
    5. Shared components
    ========================================================================== */
@@ -1151,7 +1146,8 @@ code {
   border-radius: 2px;
 }
 
-.form-row label {
+.form-row label,
+.form-row__label {
   font-weight: 600;
   padding-top: 0.15rem;
 }
@@ -1341,12 +1337,37 @@ code {
   text-align: right;
 }
 
-.sale-line__field--total span {
+.sale-line__field--total > span:last-child {
   display: block;
   padding: 0.3rem 0;
   font-weight: 600;
   text-align: right;
   color: var(--color-accent);
+}
+
+.sale-line__total-label {
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+.sale-line,
+.expense-line {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .expense-line .sale-line__field input:disabled {
@@ -1371,7 +1392,6 @@ code {
   font-weight: 700;
   color: var(--color-accent);
 }
-
 
 /* ==========================================================================
    6. Auth (login / register)
@@ -1477,7 +1497,6 @@ code {
 .auth-switch a {
   color: var(--color-primary);
 }
-
 
 /* ==========================================================================
    7. Pages
@@ -2286,7 +2305,6 @@ textarea.settings-row__input {
   margin-top: 1.75rem;
 }
 
-
 /* ---------- Public profile (/p/:slug) and its owner controls ---------- */
 
 .public-profile {
@@ -2448,7 +2466,6 @@ textarea.settings-row__input {
   flex: none;
 }
 
-
 /* ==========================================================================
    9. Responsive
    ========================================================================== */
@@ -2557,7 +2574,7 @@ textarea.settings-row__input {
     padding-bottom: 0;
   }
 
-  .sale-line__field--total span {
+  .sale-line__field--total > span:last-child {
     text-align: left;
   }
 

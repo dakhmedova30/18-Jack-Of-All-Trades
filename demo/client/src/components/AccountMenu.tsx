@@ -41,6 +41,23 @@ export function AccountMenu({
     if (returnFocus) buttonRef.current?.focus();
   }
 
+  function moveFocusFromButton(backwards: boolean) {
+    const focusable = [
+      ...document.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    ].filter(
+      (element) =>
+        !menuRef.current?.contains(element) &&
+        !element.closest('[inert], [aria-hidden="true"]') &&
+        element.getClientRects().length > 0,
+    );
+    const buttonIndex = buttonRef.current ? focusable.indexOf(buttonRef.current) : -1;
+    if (buttonIndex < 0 || focusable.length === 0) return;
+    const nextIndex = (buttonIndex + (backwards ? -1 : 1) + focusable.length) % focusable.length;
+    focusable[nextIndex]?.focus();
+  }
+
   function toggle() {
     if (open) return close();
     const rect = buttonRef.current!.getBoundingClientRect();
@@ -101,7 +118,9 @@ export function AccountMenu({
         focusItem(items.length - 1);
         break;
       case 'Tab':
+        event.preventDefault();
         close();
+        moveFocusFromButton(event.shiftKey);
         break;
     }
   }

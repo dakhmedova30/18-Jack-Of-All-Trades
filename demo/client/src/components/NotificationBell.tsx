@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../hooks/useNotifications';
@@ -36,6 +36,23 @@ export function NotificationBell() {
   const panelRef = useRef<HTMLDivElement>(null);
   const open = position !== null;
 
+  function moveFocusFromButton(backwards: boolean) {
+    const focusable = [
+      ...document.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    ].filter(
+      (element) =>
+        !panelRef.current?.contains(element) &&
+        !element.closest('[inert], [aria-hidden="true"]') &&
+        element.getClientRects().length > 0,
+    );
+    const buttonIndex = buttonRef.current ? focusable.indexOf(buttonRef.current) : -1;
+    if (buttonIndex < 0 || focusable.length === 0) return;
+    const nextIndex = (buttonIndex + (backwards ? -1 : 1) + focusable.length) % focusable.length;
+    focusable[nextIndex]?.focus();
+  }
+
   function toggle() {
     if (open) return setPosition(null);
     const rect = buttonRef.current!.getBoundingClientRect();
@@ -71,6 +88,41 @@ export function NotificationBell() {
     };
   }, [open]);
 
+  useEffect(() => {
+    if (
+      !open ||
+      panelRef.current?.contains(document.activeElement) ||
+      (document.activeElement !== buttonRef.current && document.activeElement !== document.body)
+    ) {
+      return;
+    }
+    const firstButton =
+      panelRef.current?.querySelector<HTMLButtonElement>('button:not([disabled])');
+    (firstButton ?? panelRef.current)?.focus();
+  }, [open, alerts.length]);
+
+  function handlePanelKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (event.key !== 'Tab') return;
+    const focusable = [
+      ...(panelRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ) ?? []),
+    ].filter((element) => element.getClientRects().length > 0);
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (
+      focusable.length === 0 ||
+      (event.shiftKey &&
+        (document.activeElement === first || document.activeElement === panelRef.current)) ||
+      (!event.shiftKey &&
+        (document.activeElement === last || document.activeElement === panelRef.current))
+    ) {
+      event.preventDefault();
+      setPosition(null);
+      moveFocusFromButton(event.shiftKey);
+    }
+  }
+
   return (
     <>
       <button
@@ -93,7 +145,9 @@ export function NotificationBell() {
             className="notification-panel"
             role="dialog"
             aria-label="Notifications"
+            tabIndex={-1}
             style={position}
+            onKeyDown={handlePanelKeyDown}
           >
             <div className="notification-panel__header">
               <strong>Notifications</strong>

@@ -41,7 +41,7 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="auth-page">
+    <main className="auth-page">
       <form className="auth-card" onSubmit={handleSubmit} noValidate>
         <div className="auth-card__logo">Jack-Of-All-Trades</div>
         <h1>Register your business</h1>
@@ -51,13 +51,20 @@ export function RegisterPage() {
           Business name
           <input
             id="register-name"
+            autoComplete="organization"
             value={name}
             onChange={(event) => setName(event.target.value)}
             autoFocus
             maxLength={120}
             required
+            aria-invalid={errors.name ? true : undefined}
+            aria-describedby={errors.name ? 'register-name-error' : undefined}
           />
-          {errors.name && <span className="field-error">{errors.name}</span>}
+          {errors.name && (
+            <span id="register-name-error" className="field-error" aria-live="polite">
+              {errors.name}
+            </span>
+          )}
         </label>
 
         <label className="auth-field" htmlFor="register-email">
@@ -65,11 +72,18 @@ export function RegisterPage() {
           <input
             id="register-email"
             type="email"
+            autoComplete="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
+            aria-invalid={errors.email ? true : undefined}
+            aria-describedby={errors.email ? 'register-email-error' : undefined}
           />
-          {errors.email && <span className="field-error">{errors.email}</span>}
+          {errors.email && (
+            <span id="register-email-error" className="field-error" aria-live="polite">
+              {errors.email}
+            </span>
+          )}
         </label>
 
         <div className="auth-field">
@@ -78,24 +92,43 @@ export function RegisterPage() {
             <input
               id="register-password"
               type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               minLength={8}
               required
+              aria-invalid={errors.password ? true : undefined}
+              aria-describedby={
+                errors.password
+                  ? 'register-password-hint register-password-error'
+                  : 'register-password-hint'
+              }
             />
             <button
               type="button"
               className="auth-password-toggle"
               aria-pressed={showPassword}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
               onClick={() => setShowPassword((visible) => !visible)}
             >
               {showPassword ? 'Hide password' : 'Show password'}
             </button>
           </div>
-          {errors.password && <span className="field-error">{errors.password}</span>}
+          <span id="register-password-hint" className="field-label__hint">
+            Use at least 8 characters.
+          </span>
+          {errors.password && (
+            <span id="register-password-error" className="field-error" aria-live="polite">
+              {errors.password}
+            </span>
+          )}
         </div>
 
-        {submitError && <p className="form-error">{submitError}</p>}
+        {submitError && (
+          <p className="form-error" role="alert">
+            {submitError}
+          </p>
+        )}
 
         <button type="submit" className="button" disabled={submitting}>
           {submitting ? 'Creating account…' : 'Create account'}
@@ -105,6 +138,6 @@ export function RegisterPage() {
           Already have an account? <Link to="/login">Log in</Link>
         </p>
       </form>
-    </div>
+    </main>
   );
 }
