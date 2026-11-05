@@ -14,6 +14,7 @@ import { BestSellersPanel } from './BestSellersPanel';
 import { MonthGlancePanel } from './MonthGlancePanel';
 import { SaleFormModal } from './SaleFormModal';
 import {
+  canApplySaleFilters,
   hasSaleFilters,
   NO_SALE_FILTERS,
   SalesFilters,
@@ -40,7 +41,14 @@ export function SalesPage() {
   const search = useDebouncedValue(searchInput.trim());
   const [sort, setSort] = useState(DEFAULT_SORT);
   const [filters, setFilters] = useState<SaleFilterValues>(NO_SALE_FILTERS);
-  const filtered = hasSaleFilters(filters);
+  // Typed dates change on every keystroke. Filter the table once they settle, and only by values
+  // that make sense; until then it keeps the last good filters, so no request is wasted.
+  const settledFilters = useDebouncedValue(filters);
+  const [applied, setApplied] = useState<SaleFilterValues>(NO_SALE_FILTERS);
+  if (settledFilters !== applied && canApplySaleFilters(settledFilters)) {
+    setApplied(settledFilters);
+  }
+  const filtered = hasSaleFilters(applied);
   const {
     data,
     error,
@@ -52,9 +60,9 @@ export function SalesPage() {
     search,
     sort: sort.field,
     order: sort.order,
-    channelId: filters.channelId ? Number(filters.channelId) : undefined,
-    from: filters.from || undefined,
-    to: filters.to || undefined,
+    channelId: applied.channelId ? Number(applied.channelId) : undefined,
+    from: applied.from || undefined,
+    to: applied.to || undefined,
   });
   const insights = useInventoryInsights();
   const monthSummary = useSalesMonthSummary();

@@ -255,6 +255,12 @@ class SaleReadTest extends PostgresTestBase {
         mockMvc.perform(get("/api/sales?to=2026-02-30").cookie(cookie))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("Invalid value for 'to'"));
+        mockMvc.perform(get("/api/sales").param("to", "+999999999-12-31").cookie(cookie))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("'to' must be a date between the years 1 and 9999"));
+        mockMvc.perform(get("/api/sales?from=0000-01-01").cookie(cookie))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("'from' must be a date between the years 1 and 9999"));
         mockMvc.perform(get("/api/sales?channelId=abc").cookie(cookie))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("Invalid value for 'channelId'"));

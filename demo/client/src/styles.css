@@ -734,6 +734,16 @@ code {
   padding-bottom: 0.5rem;
 }
 
+/* Under the fields, on a line of its own. */
+.sales-filters__error {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.filter-field input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
 /* ---------- Buttons ---------- */
 
 .button {

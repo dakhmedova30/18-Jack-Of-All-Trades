@@ -17,22 +17,22 @@ export function hasSaleFilters({ channelId, from, to }: SaleFilterValues): boole
 }
 
 /**
- * Keeps a date range in order: moving one end past the other moves the other end with it, so
- * the table never asks the server for an empty, backwards range.
+ * A date whose year is still being typed. Chrome reports each keystroke of the year as a full
+ * date ("0002-10-05", "0020-…", "0202-…", "2026-…"), so a year below 1000 means "not done yet".
  */
-export function withDate(
-  values: SaleFilterValues,
-  end: 'from' | 'to',
-  date: string,
-): SaleFilterValues {
-  if (end === 'from') {
-    return { ...values, from: date, to: date && values.to && values.to < date ? date : values.to };
-  }
-  return {
-    ...values,
-    to: date,
-    from: date && values.from && values.from > date ? date : values.from,
-  };
+function isPartialDate(date: string): boolean {
+  return date !== '' && date < '1000';
+}
+
+/** "From must be on or before To" for a finished, backwards range; null otherwise. */
+export function saleFiltersProblem({ from, to }: SaleFilterValues): string | null {
+  if (!from || !to || isPartialDate(from) || isPartialDate(to)) return null;
+  return from > to ? 'From must be on or before To' : null;
+}
+
+/** Whether the table can be filtered by these values: no year mid-typing and no backwards range. */
+export function canApplySaleFilters(values: SaleFilterValues): boolean {
+  return !isPartialDate(values.from) && !isPartialDate(values.to) && !saleFiltersProblem(values);
 }
 
 interface SalesFiltersProps {
@@ -50,6 +50,9 @@ export function SalesFilters({ value, onChange }: SalesFiltersProps) {
       .then(setChannels)
       .catch((error: unknown) => setChannelsError(getErrorMessage(error)));
   }, []);
+
+  const rangeProblem = saleFiltersProblem(value);
+  const rangeErrorId = rangeProblem ? 'sales-filter-range-error' : undefined;
 
   return (
     <div className="sales-filters" role="group" aria-label="Filter sales">
@@ -81,7 +84,9 @@ export function SalesFilters({ value, onChange }: SalesFiltersProps) {
           type="date"
           value={value.from}
           max={value.to || undefined}
-          onChange={(event) => onChange(withDate(value, 'from', event.target.value))}
+          aria-invalid={rangeProblem ? true : undefined}
+          aria-describedby={rangeErrorId}
+          onChange={(event) => onChange({ ...value, from: event.target.value })}
         />
       </div>
       <div className="filter-field">
@@ -91,7 +96,9 @@ export function SalesFilters({ value, onChange }: SalesFiltersProps) {
           type="date"
           value={value.to}
           min={value.from || undefined}
-          onChange={(event) => onChange(withDate(value, 'to', event.target.value))}
+          aria-invalid={rangeProblem ? true : undefined}
+          aria-describedby={rangeErrorId}
+          onChange={(event) => onChange({ ...value, to: event.target.value })}
         />
       </div>
       {hasSaleFilters(value) && (
@@ -102,6 +109,11 @@ export function SalesFilters({ value, onChange }: SalesFiltersProps) {
         >
           Clear filters
         </button>
+      )}
+      {rangeProblem && (
+        <p id={rangeErrorId} className="field-error sales-filters__error" role="alert">
+          {rangeProblem}
+        </p>
       )}
     </div>
   );
