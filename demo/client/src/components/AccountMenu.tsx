@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { Avatar } from './Avatar';
+import { FOCUSABLE } from './focusable';
 import { HelpCircleIcon, LogOutIcon, MoreIcon, SettingsIcon, UserPlusIcon } from './icons';
 
 interface AccountMenuProps {
@@ -42,11 +43,7 @@ export function AccountMenu({
   }
 
   function moveFocusFromButton(backwards: boolean) {
-    const focusable = [
-      ...document.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      ),
-    ].filter(
+    const focusable = [...document.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
       (element) =>
         !menuRef.current?.contains(element) &&
         !element.closest('[inert], [aria-hidden="true"]') &&
