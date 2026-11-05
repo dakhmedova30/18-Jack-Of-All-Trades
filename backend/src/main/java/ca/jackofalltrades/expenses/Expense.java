@@ -11,6 +11,7 @@ import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -30,6 +31,15 @@ public class Expense {
 
     @Column(nullable = false)
     private Instant incurredAt;
+
+    @Column(nullable = false, length = 3)
+    private String currency;
+
+    @Column(nullable = false, precision = 16, scale = 2)
+    private BigDecimal originalAmount;
+
+    @Column(nullable = false, length = 3)
+    private String originalCurrency;
 
     @Column(nullable = false)
     private String description;
@@ -58,13 +68,16 @@ public class Expense {
     }
 
     /** Sets every field and replaces all lines; used for both create and PATCH (which replaces the expense). */
-    void replace(Instant incurredAt, String description, List<String> tags, List<ExpenseLine> newLines) {
+    void replace(Instant incurredAt, String description, List<String> tags, List<ExpenseLine> newLines,
+            String currency) {
         Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS); // Postgres keeps microseconds
         if (createdAt == null) {
             createdAt = now;
         }
         updatedAt = now;
         this.incurredAt = incurredAt;
+        this.currency = currency;
+        this.originalCurrency = currency;
         this.description = description;
         this.tags = new ArrayList<>(tags);
         lines.clear();
@@ -72,6 +85,8 @@ public class Expense {
             line.setExpense(this);
             lines.add(line);
         }
+        long totalCents = newLines.stream().mapToLong(ExpenseLine::getTotalCents).sum();
+        this.originalAmount = BigDecimal.valueOf(totalCents, 2);
     }
 
     public Integer getId() {
@@ -84,6 +99,18 @@ public class Expense {
 
     public Instant getIncurredAt() {
         return incurredAt;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public BigDecimal getOriginalAmount() {
+        return originalAmount;
+    }
+
+    public String getOriginalCurrency() {
+        return originalCurrency;
     }
 
     public String getDescription() {

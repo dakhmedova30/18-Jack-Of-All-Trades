@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 public class AnalyticsQueries {
 
     /** One sale or expense line: its parent's date, its parent's first tag ("Untagged" if none), its total. */
-    record TaggedLine(Instant at, String tag, long totalCents) {}
+    record TaggedLine(Instant at, String tag, String currency, long totalCents) {}
 
     record TagStock(String tag, long quantity, long itemCount) {}
 
@@ -28,7 +28,7 @@ public class AnalyticsQueries {
     /** Every sale line of this business sold at or after {@code since} (no upper bound, as the demo). */
     List<TaggedLine> revenueLines(int businessId, Instant since) {
         return taggedLines("""
-                SELECT s.sold_at AS at, COALESCE(s.tags[1], 'Untagged') AS tag, si.total_cents
+                SELECT s.sold_at AS at, COALESCE(s.tags[1], 'Untagged') AS tag, s.currency, si.total_cents
                 FROM sales s JOIN sale_items si ON si.sale_id = s.id
                 WHERE s.business_id = :businessId AND s.sold_at >= :since
                 """, businessId, since);
@@ -37,7 +37,7 @@ public class AnalyticsQueries {
     /** Every expense line of this business incurred at or after {@code since} (no upper bound, as the demo). */
     List<TaggedLine> expenseLines(int businessId, Instant since) {
         return taggedLines("""
-                SELECT e.incurred_at AS at, COALESCE(e.tags[1], 'Untagged') AS tag, ei.total_cents
+                SELECT e.incurred_at AS at, COALESCE(e.tags[1], 'Untagged') AS tag, e.currency, ei.total_cents
                 FROM expenses e JOIN expense_items ei ON ei.expense_id = e.id
                 WHERE e.business_id = :businessId AND e.incurred_at >= :since
                 """, businessId, since);
@@ -64,6 +64,7 @@ public class AnalyticsQueries {
                 .query((rs, rowNum) -> new TaggedLine(
                         rs.getObject("at", OffsetDateTime.class).toInstant(),
                         rs.getString("tag"),
+                        rs.getString("currency"),
                         rs.getLong("total_cents")))
                 .list();
     }

@@ -173,14 +173,20 @@ class AuthControllerTest extends PostgresTestBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"businessType": "Candles", "country": "Canada",
-                                 "timeZone": "America/Toronto", "currency": "usd"}
+                                 "timeZone": "America/Toronto"}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Test Business"))
                 .andExpect(jsonPath("$.businessType").value("Candles"))
                 .andExpect(jsonPath("$.country").value("Canada"))
-                .andExpect(jsonPath("$.timeZone").value("America/Toronto"))
-                .andExpect(jsonPath("$.currency").value("USD"));
+                .andExpect(jsonPath("$.timeZone").value("America/Toronto"));
+
+        mockMvc.perform(post("/api/auth/me/currency")
+                        .cookie(cookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currency\":\"usd\",\"convertPrices\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.business.currency").value("USD"));
 
         // An empty string clears an optional field.
         mockMvc.perform(patch("/api/auth/me")
@@ -194,15 +200,25 @@ class AuthControllerTest extends PostgresTestBase {
     }
 
     @Test
-    void patchMeRejectsAnUnknownTimeZoneOrCurrency() throws Exception {
+    void patchMeRejectsAnUnknownTimeZoneAndCurrencyEndpointRejectsInvalidCode() throws Exception {
         Cookie cookie = registerAndLogin();
-        for (String body : new String[] {"{\"timeZone\": \"Mars/Base\"}", "{\"currency\": \"XYZ\"}"}) {
-            mockMvc.perform(patch("/api/auth/me")
-                            .cookie(cookie)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(body))
-                    .andExpect(status().isBadRequest());
-        }
+        mockMvc.perform(patch("/api/auth/me")
+                        .cookie(cookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"timeZone\":\"Mars/Base\"}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(patch("/api/auth/me")
+                        .cookie(cookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currency\":\"USD\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value(
+                        "Use the currency conversion endpoint to change currency"));
+        mockMvc.perform(post("/api/auth/me/currency")
+                        .cookie(cookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currency\":\"XYZ\",\"convertPrices\":false}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

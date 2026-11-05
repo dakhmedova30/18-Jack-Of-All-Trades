@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
+import ca.jackofalltrades.currency.ExchangeRateUnavailableException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -54,6 +55,11 @@ public class GlobalExceptionHandler {
                         error.getDefaultMessage()))
                 .toList();
         return respond(HttpStatus.BAD_REQUEST, ApiError.of("Validation failed", details));
+    }
+
+    @ExceptionHandler(ExchangeRateUnavailableException.class)
+    ResponseEntity<ApiError> exchangeRatesUnavailable(ExchangeRateUnavailableException ex) {
+        return respond(HttpStatus.SERVICE_UNAVAILABLE, ApiError.of(ex.getMessage()));
     }
 
     @ExceptionHandler(HandlerMethodValidationException.class)

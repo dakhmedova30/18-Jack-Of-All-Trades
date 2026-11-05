@@ -12,7 +12,10 @@ public record InventoryInsights(
         long totalUnits,
         Instant periodStart,
         Instant periodEnd,
-        List<BestSeller> bestSellers) {
+        List<BestSeller> bestSellers,
+        List<NotSellingItem> notSelling) {
 
     public record BestSeller(Integer id, String name, long unitsSold, long revenueCents) {}
+
+    public record NotSellingItem(Integer id, String name, int quantity) {}
 }

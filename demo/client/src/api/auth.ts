@@ -35,7 +35,6 @@ export interface BusinessUpdate {
   businessType?: string;
   country?: string;
   timeZone?: string;
-  currency?: string;
   lowStockThreshold?: number;
   ownerFirstName?: string;
   ownerLastName?: string;
@@ -52,6 +51,41 @@ export interface BusinessUpdate {
   etsy?: string;
   /** An empty string turns the public profile off. */
   publicSlug?: string;
+}
+
+export interface CurrencyChangeRequest {
+  currency: string;
+  convertPrices: boolean;
+}
+
+export interface CurrencyPriceSample {
+  itemId: number;
+  name: string;
+  beforePrice: number;
+  afterPrice: number;
+}
+
+export interface CurrencyPreview {
+  fromCurrency: string;
+  toCurrency: string;
+  productsAffected: number;
+  samples: CurrencyPriceSample[];
+  rate: number;
+  rateDate: string | null;
+}
+
+export interface CurrencyChangeResponse {
+  business: Business;
+  rate: number | null;
+  rateDate: string | null;
+}
+
+export function previewCurrencyChange(request: CurrencyChangeRequest): Promise<CurrencyPreview> {
+  return apiRequest('/auth/me/currency/preview', { method: 'POST', json: request });
+}
+
+export function changeCurrency(request: CurrencyChangeRequest): Promise<CurrencyChangeResponse> {
+  return apiRequest('/auth/me/currency', { method: 'POST', json: request });
 }
 
 /** Updates the logged-in business; returns the updated record. */

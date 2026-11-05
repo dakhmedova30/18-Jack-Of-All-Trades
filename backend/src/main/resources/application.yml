@@ -27,3 +27,6 @@ spring:
     timeout: 30d
     jdbc:
       initialize-schema: never            # the Flyway migration creates the tables
+exchange-rate:
+  api:
+    base-url: ${EXCHANGE_RATE_API_BASE_URL:https://open.er-api.com/v6/latest}

@@ -3,6 +3,7 @@ import { getErrorMessage } from '../../api/http';
 import { useAuth } from '../../hooks/useAuth';
 import type { Business } from '../../types';
 import { SettingsRow } from './SettingsRow';
+import * as authApi from '../../api/auth';
 
 const BUSINESS_TYPES = [
   'Retail',
@@ -215,9 +216,9 @@ function SelectRow({
   );
 }
 
-/** Business type, country, time zone and currency, saved together with one button. */
+/** Business details and account currency are saved through their respective endpoints. */
 function BusinessDetailsForm({ business }: { business: Business }) {
-  const { updateBusiness } = useAuth();
+  const { updateBusiness, changeCurrency } = useAuth();
   const [businessType, setBusinessType] = useState(business.businessType ?? '');
   // A saved type that isn't one of the presets was typed in under "Other".
   const [otherType, setOtherType] = useState(
@@ -229,6 +230,9 @@ function BusinessDetailsForm({ business }: { business: Business }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [convertPrices, setConvertPrices] = useState(true);
+  const [preview, setPreview] = useState<authApi.CurrencyPreview | null>(null);
+  const [rateNotice, setRateNotice] = useState<string | null>(null);
 
   const changed =
     businessType.trim() !== (business.businessType ?? '') ||
@@ -239,17 +243,55 @@ function BusinessDetailsForm({ business }: { business: Business }) {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const trimmedType = businessType.trim();
+    const currencyChanged = currency !== business.currency;
     // Once a type has been set it can be changed but not cleared.
     if (business.businessType && !trimmedType) {
       return setError('Enter your business type');
     }
+    if (currencyChanged && convertPrices && preview?.toCurrency !== currency) {
+      return setError('Preview the product price conversion before saving.');
+    }
+    if (
+      currencyChanged &&
+      !convertPrices &&
+      !window.confirm(
+        `Relabel all amounts as ${currency} without converting them? This changes currency labels only.`,
+      )
+    ) {
+      return;
+    }
     setSaving(true);
     setError(null);
     setSaved(false);
+    setRateNotice(null);
     try {
-      await updateBusiness({ businessType: trimmedType, country, timeZone, currency });
+      await updateBusiness({ businessType: trimmedType, country, timeZone });
+      if (currencyChanged) {
+        const result = await changeCurrency({ currency, convertPrices });
+        setRateNotice(
+          result.rateDate
+            ? `Conversion completed using rates as of ${result.rateDate}.`
+            : null,
+        );
+      }
       setBusinessType(trimmedType);
       setSaved(true);
+      setPreview(null);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+
+  }
+
+  async function handlePreview() {
+    setError(null);
+    setPreview(null);
+    setSaving(true);
+    try {
+      const result = await authApi.previewCurrencyChange({ currency, convertPrices: true });
+      setPreview(result);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -306,15 +348,77 @@ function BusinessDetailsForm({ business }: { business: Business }) {
         label="Currency"
         value={currency}
         options={withCurrent(CURRENCIES, business.currency)}
-        onChange={edit(setCurrency)}
+        onChange={(value) => {
+          edit(setCurrency)(value);
+          setPreview(null);
+        }}
       />
+      {currency !== business.currency && (
+        <fieldset className="settings-currency">
+          <legend>Currency change</legend>
+          <label>
+            <input
+              type="checkbox"
+              checked={convertPrices}
+              onChange={(event) => {
+                setConvertPrices(event.target.checked);
+                setPreview(null);
+              }}
+            />{' '}
+            Convert product prices using the current exchange rate
+          </label>
+          {convertPrices ? (
+            <>
+              <button type="button" className="button button--secondary" disabled={saving} onClick={handlePreview}>
+                Preview conversion
+              </button>
+              {preview?.toCurrency === currency && (
+                <div className="settings-currency__preview" aria-live="polite">
+                  <p>
+                    {preview.productsAffected} product{preview.productsAffected === 1 ? '' : 's'} affected. Rate:{' '}
+                    {preview.rate} {preview.toCurrency} per {preview.fromCurrency}
+                    {preview.rateDate ? ` (as of ${preview.rateDate})` : ''}.
+                  </p>
+                  {preview.samples.map((sample) => (
+                    <p key={sample.itemId}>
+                      {sample.name}: {new Intl.NumberFormat(undefined, {
+                        style: 'currency',
+                        currency: preview.fromCurrency,
+                      }).format(sample.beforePrice)}{' '}
+                      →{' '}
+                      {new Intl.NumberFormat(undefined, {
+                        style: 'currency',
+                        currency: preview.toCurrency,
+                      }).format(sample.afterPrice)}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="muted">Amounts stay unchanged; currency labels are updated throughout the account.</p>
+          )}
+        </fieldset>
+      )}
       <SettingsRow label="">
-        <button type="submit" className="button" disabled={!changed || saving}>
+        <button
+          type="submit"
+          className="button"
+          disabled={!changed || saving || (currency !== business.currency && convertPrices && preview?.toCurrency !== currency)}
+        >
           {saving ? 'Saving…' : 'Save changes'}
         </button>
         {saved && <span className="muted">Saved.</span>}
       </SettingsRow>
       {error && <p className="form-error settings-row__error">{error}</p>}
+      {rateNotice && <p className="muted" aria-live="polite">{rateNotice}</p>}
+      <p className="muted">
+        Exchange rates provided by{' '}
+        <a href="https://www.exchangerate-api.com" target="_blank" rel="noopener noreferrer">
+          Rates By Exchange Rate API
+        </a>
+        .
+      </p>
     </form>
   );
 }

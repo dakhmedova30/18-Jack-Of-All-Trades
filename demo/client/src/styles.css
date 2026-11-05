@@ -313,6 +313,10 @@ code {
   border-radius: 4px;
 }
 
+select {
+  text-overflow: ellipsis;
+}
+
 .muted {
   color: var(--color-muted);
 }
@@ -1208,7 +1212,6 @@ code {
 }
 
 .form-row input {
-  width: 100%;
   border: none;
   text-align: right;
   font: inherit;
@@ -1836,6 +1839,10 @@ code {
   width: 100%;
 }
 
+.panel-row--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .panel-row .summary-panel {
   background: var(--color-surface);
   border-color: var(--color-border-chart);
@@ -2049,6 +2056,16 @@ code {
 .settings-section--danger {
   color: var(--color-danger);
   border-bottom-color: var(--color-danger);
+}
+
+.settings-currency {
+  display: flex;
+  gap: 0.5rem;
+  flex-direction: column;
+}
+
+.settings-currency button {
+  width: fit-content;
 }
 
 /* ---------- Settings: rows, forms & lists ---------- */

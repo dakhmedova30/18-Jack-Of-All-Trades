@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import org.hibernate.annotations.CreationTimestamp;
@@ -35,6 +36,15 @@ public class Item {
     @Column(nullable = false)
     private int unitPriceCents;
 
+    @Column(nullable = false, length = 3)
+    private String currency;
+
+    @Column(nullable = false, precision = 14, scale = 2)
+    private BigDecimal originalPrice;
+
+    @Column(nullable = false, length = 3)
+    private String originalCurrency;
+
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(nullable = false)
     private List<String> tags;
@@ -58,12 +68,15 @@ public class Item {
         // for JPA
     }
 
-    Item(Integer businessId, String name, int quantity, int unitPriceCents, List<String> tags, String note,
+    Item(Integer businessId, String name, int quantity, int unitPriceCents, String currency, List<String> tags, String note,
             boolean isPublic) {
         this.businessId = businessId;
         this.name = name;
         this.quantity = quantity;
         this.unitPriceCents = unitPriceCents;
+        this.currency = currency;
+        this.originalPrice = BigDecimal.valueOf(unitPriceCents, 2);
+        this.originalCurrency = currency;
         this.tags = new ArrayList<>(tags);
         this.note = note;
         this.isPublic = isPublic;
@@ -87,6 +100,18 @@ public class Item {
 
     public int getUnitPriceCents() {
         return unitPriceCents;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public BigDecimal getOriginalPrice() {
+        return originalPrice;
+    }
+
+    public String getOriginalCurrency() {
+        return originalCurrency;
     }
 
     public List<String> getTags() {
@@ -120,6 +145,21 @@ public class Item {
 
     void setUnitPriceCents(int unitPriceCents) {
         this.unitPriceCents = unitPriceCents;
+        this.originalPrice = BigDecimal.valueOf(unitPriceCents, 2);
+        this.originalCurrency = currency;
+    }
+
+    public void convertPrice(int convertedPriceCents, String targetCurrency) {
+        this.originalPrice = BigDecimal.valueOf(unitPriceCents, 2);
+        this.originalCurrency = currency;
+        this.unitPriceCents = convertedPriceCents;
+        this.currency = targetCurrency;
+    }
+
+    public void relabelCurrency(String targetCurrency) {
+        this.currency = targetCurrency;
+        this.originalPrice = BigDecimal.valueOf(unitPriceCents, 2);
+        this.originalCurrency = targetCurrency;
     }
 
     void setTags(List<String> tags) {

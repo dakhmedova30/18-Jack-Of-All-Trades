@@ -15,6 +15,7 @@ import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -34,6 +35,15 @@ public class Sale {
 
     @Column(nullable = false)
     private Instant soldAt;
+
+    @Column(nullable = false, length = 3)
+    private String currency;
+
+    @Column(nullable = false, precision = 16, scale = 2)
+    private BigDecimal originalAmount;
+
+    @Column(nullable = false, length = 3)
+    private String originalCurrency;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "channel_id", nullable = false)
@@ -66,13 +76,16 @@ public class Sale {
     }
 
     /** Sets every field and replaces all lines; used for both create and PATCH (which replaces the sale). */
-    void replace(Instant soldAt, Channel channel, String description, List<String> tags, List<SaleLine> newLines) {
+    void replace(Instant soldAt, Channel channel, String description, List<String> tags, List<SaleLine> newLines,
+            String currency) {
         Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS); // Postgres keeps microseconds
         if (createdAt == null) {
             createdAt = now;
         }
         updatedAt = now;
         this.soldAt = soldAt;
+        this.currency = currency;
+        this.originalCurrency = currency;
         this.channel = channel;
         this.description = description;
         this.tags = new ArrayList<>(tags);
@@ -81,6 +94,8 @@ public class Sale {
             line.setSale(this);
             lines.add(line);
         }
+        long totalCents = newLines.stream().mapToLong(SaleLine::getTotalCents).sum();
+        this.originalAmount = BigDecimal.valueOf(totalCents, 2);
     }
 
     public Integer getId() {
@@ -93,6 +108,18 @@ public class Sale {
 
     public Instant getSoldAt() {
         return soldAt;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public BigDecimal getOriginalAmount() {
+        return originalAmount;
+    }
+
+    public String getOriginalCurrency() {
+        return originalCurrency;
     }
 
     public Channel getChannel() {

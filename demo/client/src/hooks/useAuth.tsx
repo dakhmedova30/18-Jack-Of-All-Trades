@@ -11,6 +11,10 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   /** Saves changes to the business's details; rejects with an ApiError if the server refuses. */
   updateBusiness: (update: authApi.BusinessUpdate) => Promise<void>;
+  /** Changes the account currency through the previewed, transactional currency endpoint. */
+  changeCurrency: (
+    request: authApi.CurrencyChangeRequest,
+  ) => Promise<Omit<authApi.CurrencyChangeResponse, 'business'>>;
   /** Sets the profile picture. */
   setAvatar: (image: Blob) => Promise<void>;
   /** Removes the profile picture, going back to initials. */
@@ -52,6 +56,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setBusiness(await authApi.updateBusiness(update));
   }, []);
 
+  const changeCurrency = useCallback(async (request: authApi.CurrencyChangeRequest) => {
+    const response = await authApi.changeCurrency(request);
+    setBusiness(response.business);
+    return { rate: response.rate, rateDate: response.rateDate };
+  }, []);
+
   const setAvatar = useCallback(async (image: Blob) => {
     setBusiness(await authApi.uploadAvatar(image));
   }, []);
@@ -86,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         updateBusiness,
+        changeCurrency,
         setAvatar,
         removeAvatar,
         setLogo,
