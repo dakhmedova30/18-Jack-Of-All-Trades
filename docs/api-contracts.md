@@ -206,6 +206,7 @@ A page customers can read **without logging in**: the business's public details 
 | `PATCH` | `/api/items/{id}` | Partial `ItemInput` (at least one field) | `200` `Item` |
 | `DELETE` | `/api/items/{id}` | — | `204` |
 | `POST` | `/api/items/bulk-delete` | `{ "ids": [1, 2] }` (1–100 ids) | `200` `{ "deleted": 2 }` |
+| `POST` | `/api/items/bulk-visibility` | `{ "ids": [1, 2], "isPublic": true }` (1–100 ids) | `200` `{ "updated": 2 }`; shows the items on the public profile (§2.2), or hides them with `false`. Skips ids that don't exist or aren't yours; `updated` counts only your items |
 
 - **List:** `search` matches the name or tags, case-insensitive. `sort` is `id` (default), `name`, `quantity` or `unitPriceCents`; `order` is `asc` (default) or `desc`.
 - **`low-stock`:** items with quantity **≤ 5**. `limit` is 1–100 (default 5) and only caps the list; `count` covers every low item.

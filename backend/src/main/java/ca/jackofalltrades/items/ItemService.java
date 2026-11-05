@@ -152,4 +152,16 @@ public class ItemService {
         found.forEach(items::delete);
         return found.size();
     }
+
+    /**
+     * Shows or hides those of {@code ids} that are this business's items on its public profile;
+     * others are skipped, like bulkDelete. The locked items are managed entities, so the change is
+     * saved at commit, and updatedAt changes with it.
+     */
+    @Transactional
+    public int bulkSetPublic(List<Integer> ids, boolean isPublic) {
+        List<Item> found = items.findLockedByIdInAndBusinessIdOrderByIdAsc(new LinkedHashSet<>(ids), currentBusiness.id());
+        found.forEach(item -> item.setPublic(isPublic));
+        return found.size();
+    }
 }
