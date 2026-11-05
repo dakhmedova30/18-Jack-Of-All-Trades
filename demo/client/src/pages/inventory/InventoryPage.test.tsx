@@ -1,5 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as authApi from '../../api/auth';
 import * as itemApi from '../../api/items';
@@ -13,6 +15,7 @@ vi.mock('../../api/auth', () => ({
 
 vi.mock('../../api/items', () => ({
   bulkDeleteItems: vi.fn(),
+  bulkSetItemsPublic: vi.fn(),
   createItem: vi.fn(),
   deleteItem: vi.fn(),
   getInventoryInsights: vi.fn(),
@@ -20,6 +23,15 @@ vi.mock('../../api/items', () => ({
   listItems: vi.fn(),
   updateItem: vi.fn(),
 }));
+
+/** The bulk show/hide message links to Settings, so that test needs a router too. */
+function RoutedPageProviders({ children }: { children: ReactNode }) {
+  return (
+    <MemoryRouter>
+      <PageProviders>{children}</PageProviders>
+    </MemoryRouter>
+  );
+}
 
 describe('InventoryPage', () => {
   beforeEach(() => {
@@ -82,5 +94,87 @@ describe('InventoryPage', () => {
         isPublic: false,
       }),
     );
+  });
+
+  it('shows the selected items on the public profile, and says when the profile is off', async () => {
+    const user = userEvent.setup();
+    vi.mocked(itemApi.bulkSetItemsPublic).mockResolvedValue({ updated: 1 });
+    render(<InventoryPage />, { wrapper: RoutedPageProviders });
+
+    await screen.findByText('Tea');
+    const show = screen.getByRole('button', { name: 'Show on profile' });
+    expect(show).toBeDisabled();
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select Tea' }));
+    await user.click(screen.getByRole('button', { name: 'Show on profile (1)' }));
+
+    expect(itemApi.bulkSetItemsPublic).toHaveBeenCalledWith([testItem.id], true);
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      "1 item now on your public profile. Your public profile is off, so customers can't see it yet.",
+    );
+    expect(screen.getByRole('link', { name: 'Turn it on in Settings > Profile' })).toHaveAttribute(
+      'href',
+      '/settings/profile',
+    );
+    // The selection is cleared once the change is saved.
+    expect(screen.getByRole('button', { name: 'Show on profile' })).toBeDisabled();
+  });
+
+  it('shows an error when changing visibility fails', async () => {
+    const user = userEvent.setup();
+    vi.mocked(itemApi.bulkSetItemsPublic).mockRejectedValue(new Error('Could not update items'));
+    render(<InventoryPage />, { wrapper: RoutedPageProviders });
+
+    await screen.findByText('Tea');
+    await user.click(screen.getByRole('checkbox', { name: 'Select Tea' }));
+    await user.click(screen.getByRole('button', { name: 'Show on profile (1)' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not update items');
+    expect(itemApi.bulkSetItemsPublic).toHaveBeenCalledWith([testItem.id], true);
+  });
+
+  it('only enables the visibility action that would change something', async () => {
+    const user = userEvent.setup();
+    render(<InventoryPage />, { wrapper: RoutedPageProviders });
+
+    await screen.findByText('Tea');
+    await user.click(screen.getByRole('checkbox', { name: 'Select Tea' }));
+
+    // Tea is private: it can be shown, but there's nothing to hide.
+    expect(screen.getByRole('button', { name: 'Show on profile (1)' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Hide from profile' })).toBeDisabled();
+  });
+
+  it('lists the items a mixed selection skips, and changes only the others', async () => {
+    const user = userEvent.setup();
+    const coffee = { ...testItem, id: 2, name: 'Coffee', isPublic: true };
+    const juice = { ...testItem, id: 3, name: 'Juice' };
+    vi.mocked(itemApi.listItems).mockResolvedValue({
+      data: [testItem, coffee, juice],
+      page: 1,
+      pageSize: 15,
+      total: 3,
+      totalPages: 1,
+    });
+    vi.mocked(itemApi.bulkSetItemsPublic).mockResolvedValue({ updated: 2 });
+    render(<InventoryPage />, { wrapper: RoutedPageProviders });
+
+    await screen.findByText('Tea');
+    await user.click(screen.getByRole('checkbox', { name: 'Select all items on this page' }));
+    expect(screen.getByRole('button', { name: 'Hide from profile (1)' })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Show on profile (2)' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Show on public profile' });
+    expect(dialog).toHaveTextContent(
+      '“Coffee” is already on your public profile, so it stays as it is. Show the other 2 items?',
+    );
+    expect(itemApi.bulkSetItemsPublic).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Show 2 items' }));
+    expect(itemApi.bulkSetItemsPublic).toHaveBeenCalledWith([testItem.id, juice.id], true);
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      '2 items now on your public profile.',
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
