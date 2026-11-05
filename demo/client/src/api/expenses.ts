@@ -15,6 +15,9 @@ export interface ListExpensesParams {
   /** Server default: newest expense first. */
   sort?: ExpenseSortField;
   order?: SortOrder;
+  tag?: string;
+  from?: string;
+  to?: string;
 }
 
 export function listExpenses({
@@ -23,11 +26,17 @@ export function listExpenses({
   search,
   sort,
   order,
+  tag,
+  from,
+  to,
 }: ListExpensesParams): Promise<Paginated<Expense>> {
   const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (search) query.set('search', search);
   if (sort) query.set('sort', sort);
   if (order) query.set('order', order);
+  if (tag) query.set('tag', tag);
+  if (from) query.set('from', from);
+  if (to) query.set('to', to);
   return apiRequest(`/expenses?${query}`);
 }
 

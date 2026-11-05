@@ -15,6 +15,9 @@ export interface ListSalesParams {
   /** Server default: newest sale first. */
   sort?: SaleSortField;
   order?: SortOrder;
+  channelId?: number;
+  from?: string;
+  to?: string;
 }
 
 export function listSales({
@@ -23,11 +26,17 @@ export function listSales({
   search,
   sort,
   order,
+  channelId,
+  from,
+  to,
 }: ListSalesParams): Promise<Paginated<Sale>> {
   const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (search) query.set('search', search);
   if (sort) query.set('sort', sort);
   if (order) query.set('order', order);
+  if (channelId !== undefined) query.set('channelId', String(channelId));
+  if (from) query.set('from', from);
+  if (to) query.set('to', to);
   return apiRequest(`/sales?${query}`);
 }
 
