@@ -299,6 +299,8 @@ export interface AnalyticsSummary {
   revenueSeries: AnalyticsTagSeries[];
   expenseSeries: AnalyticsTagSeries[];
   salesByTag: { label: string; valueCents: number }[];
+  /** Every channel with revenue in the range or period, largest first. */
+  revenueByChannel: { label: string; valueCents: number }[];
 }
 
 export interface Paginated<T> {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAnalyticsDateRange } from '../../hooks/useAnalyticsDateRange';
 import { useAnalyticsSummary } from '../../hooks/useAnalyticsSummary';
+import { useChannels } from '../../hooks/useChannels';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useInventoryByTag } from '../../hooks/useInventoryByTag';
 import { formatDate, startOfMonth } from '../../utils/date';
@@ -47,8 +48,8 @@ function AnalyticsHeader() {
         <h1>Analytics</h1>
         <p className="muted">
           Revenue, expenses and sales group by each record's first tag (top 3, the rest folded into
-          "Other"). The date filter sets the period for everything here except Inventory Overview,
-          which always shows current stock.
+          "Other"). The filters set the period and sales channel for everything here except
+          Inventory Overview, which always shows current stock.
         </p>
       </div>
     </div>
@@ -87,7 +88,17 @@ function AnalyticsDashboard({ dates }: { dates: AnalyticsDateRange }) {
   const [period, setPeriod] = useState<DateRange>(initial);
   // Dragging the slider changes the period many times a second; load only where it settles.
   const requested = useDebouncedValue(period, RELOAD_DELAY_MS);
-  const { data, error, loading, reload } = useAnalyticsSummary(requested);
+  // '' for all channels, as the <select> gives it.
+  const [channelId, setChannelId] = useState('');
+  const channels = useChannels();
+  const channelName = channelId
+    ? (channels.data?.find((channel) => String(channel.id) === channelId)?.name ??
+      'the chosen channel')
+    : null;
+  const { data, error, loading, reload } = useAnalyticsSummary(
+    requested,
+    channelId ? Number(channelId) : undefined,
+  );
   const refreshing = data !== undefined && (loading || requested !== period);
 
   return (
@@ -99,8 +110,15 @@ function AnalyticsDashboard({ dates }: { dates: AnalyticsDateRange }) {
           dates={dates}
           value={period}
           onChange={setPeriod}
-          onReset={() => setPeriod(initial)}
-          isDefault={period.from === initial.from && period.to === initial.to}
+          channels={channels.data}
+          channelsError={channels.error}
+          channelId={channelId}
+          onChannelChange={setChannelId}
+          onReset={() => {
+            setPeriod(initial);
+            setChannelId('');
+          }}
+          isDefault={period.from === initial.from && period.to === initial.to && !channelId}
         />
 
         <div className="analytics-main">
@@ -120,7 +138,7 @@ function AnalyticsDashboard({ dates }: { dates: AnalyticsDateRange }) {
               className={`analytics-body${refreshing ? ' is-loading' : ''}`}
               aria-busy={refreshing}
             >
-              <AnalyticsContent data={data} period={requested} />
+              <AnalyticsContent data={data} period={requested} channelName={channelName} />
             </div>
           )}
 
@@ -139,12 +157,15 @@ interface AnalyticsContentProps {
   data: AnalyticsSummary;
   /** The period `data` was loaded for. */
   period: DateRange;
+  /** The channel the sales figures are narrowed to, or null for all channels. */
+  channelName: string | null;
 }
 
-/** The totals and the two overview charts: everything the date filter moves. */
-function AnalyticsContent({ data, period }: AnalyticsContentProps) {
+/** The totals, the overview charts and revenue by channel: everything the filters move. */
+function AnalyticsContent({ data, period, channelName }: AnalyticsContentProps) {
   const netProfitTone = data.netProfitCents >= 0 ? 'positive' : 'negative';
   const phrase = periodPhrase(period);
+  const sales = channelName ? `${channelName} sales` : 'sales';
 
   const topRevenueTag = topSeriesLabel(data.revenueSeries);
   const topExpenseTag = topSeriesLabel(data.expenseSeries);
@@ -153,20 +174,32 @@ function AnalyticsContent({ data, period }: AnalyticsContentProps) {
   return (
     <>
       <div className="analytics-stats">
-        <StatCard
-          label="Net Profit"
-          value={formatCents(data.netProfitCents)}
-          tone={netProfitTone}
-        />
+        {/* One channel's revenue minus every expense isn't a real profit, so don't show one. */}
+        {channelName ? (
+          <StatCard
+            label="Net Profit"
+            value="—"
+            tone="neutral"
+            detail="Not shown for one channel: expenses aren't tied to a channel."
+          />
+        ) : (
+          <StatCard
+            label="Net Profit"
+            value={formatCents(data.netProfitCents)}
+            tone={netProfitTone}
+          />
+        )}
         <StatCard
           label="Total Revenue"
           value={formatCents(data.totalRevenueCents)}
           tone="neutral"
+          detail={channelName ? `${channelName} only` : undefined}
         />
         <StatCard
           label="Total Expenses"
           value={formatCents(data.totalExpensesCents)}
           tone="neutral"
+          detail={channelName ? 'All channels' : undefined}
         />
       </div>
 
@@ -174,7 +207,9 @@ function AnalyticsContent({ data, period }: AnalyticsContentProps) {
         <div className="card analytics-card">
           <h2>Revenue Overview</h2>
           {data.revenueSeries.length === 0 ? (
-            <p className="empty-state">No sales {phrase}.</p>
+            <p className="empty-state">
+              No {sales} {phrase}.
+            </p>
           ) : (
             <>
               <LineChart
@@ -194,8 +229,8 @@ function AnalyticsContent({ data, period }: AnalyticsContentProps) {
           {/* Mirrors the Expenses note, which also keeps the two charts the same size. */}
           <p className="analytics-insight">
             {topRevenueTag
-              ? `"${topRevenueTag}" is your top revenue category ${phrase}.`
-              : `No sales recorded ${phrase}.`}
+              ? `"${topRevenueTag}" is your top revenue category${channelName ? ` in ${channelName}` : ''} ${phrase}.`
+              : `No ${sales} recorded ${phrase}.`}
           </p>
         </div>
 
@@ -226,7 +261,55 @@ function AnalyticsContent({ data, period }: AnalyticsContentProps) {
           </p>
         </div>
       </div>
+
+      <RevenueByChannelCard
+        channels={data.revenueByChannel}
+        phrase={phrase}
+        channelName={channelName}
+      />
     </>
+  );
+}
+
+interface RevenueByChannelCardProps {
+  channels: AnalyticsSummary['revenueByChannel'];
+  /** "from Oct 1, 2026 to Oct 31, 2026", for the insight line. */
+  phrase: string;
+  channelName: string | null;
+}
+
+/** Where the money comes from: one bar per sales channel with revenue in the period. */
+function RevenueByChannelCard({ channels, phrase, channelName }: RevenueByChannelCardProps) {
+  const total = channels.reduce((sum, channel) => sum + channel.valueCents, 0);
+  const top = channels[0];
+  const insight = channelName
+    ? `Showing ${channelName} only. Choose "All channels" to compare channels.`
+    : top && total > 0
+      ? `"${top.label}" brings in the most revenue ${phrase} (${percentOf(top.valueCents, total)}%).`
+      : `No sales recorded ${phrase}.`;
+
+  return (
+    <div className="card analytics-card">
+      <h2>Revenue by Channel</h2>
+      {channels.length === 0 ? (
+        <p className="empty-state">
+          No {channelName ? `${channelName} sales` : 'sales'} {phrase}.
+        </p>
+      ) : (
+        <HorizontalBarChart
+          bars={channels.map((channel) => ({
+            label: channel.label,
+            value: channel.valueCents,
+            detail: `${percentOf(channel.valueCents, total)}% of revenue`,
+          }))}
+          width={900}
+          ariaLabel="Revenue by sales channel"
+          formatValue={formatCentsCompact}
+          formatTooltip={formatCents}
+        />
+      )}
+      <p className="analytics-insight">{insight}</p>
+    </div>
   );
 }
 
@@ -388,13 +471,16 @@ interface StatCardProps {
   label: string;
   value: string;
   tone: 'positive' | 'negative' | 'neutral';
+  /** A short note under the value, e.g. which channel it covers. */
+  detail?: string;
 }
 
-function StatCard({ label, value, tone }: StatCardProps) {
+function StatCard({ label, value, tone, detail }: StatCardProps) {
   return (
     <div className={`stat-card stat-card--${tone}`}>
       <span className="stat-card__label">{label}</span>
       <span className="stat-card__value">{value}</span>
+      {detail && <span className="stat-card__detail">{detail}</span>}
     </div>
   );
 }

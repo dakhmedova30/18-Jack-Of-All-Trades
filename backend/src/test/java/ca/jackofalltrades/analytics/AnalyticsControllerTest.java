@@ -42,6 +42,20 @@ class AnalyticsControllerTest extends PostgresTestBase {
                 .param("sale", saleId).param("total", totalCents).update();
     }
 
+    private int channelId(int businessId, String name) {
+        return jdbcClient.sql("SELECT id FROM channels WHERE business_id = :b AND name = :n")
+                .param("b", businessId).param("n", name).query(Integer.class).single();
+    }
+
+    /** Moves the business's latest sale into the named channel (insertSale uses the first channel). */
+    private void moveLastSaleTo(int businessId, String channel) {
+        jdbcClient.sql("""
+                        UPDATE sales SET channel_id = :channel
+                        WHERE id = (SELECT MAX(id) FROM sales WHERE business_id = :b)
+                        """)
+                .param("b", businessId).param("channel", channelId(businessId, channel)).update();
+    }
+
     private void insertExpense(int businessId, Instant incurredAt, long totalCents, String... tags) {
         int expenseId = jdbcClient.sql("""
                         INSERT INTO expenses (business_id, incurred_at, tags) VALUES (:b, :at, :tags) RETURNING id
@@ -199,6 +213,75 @@ class AnalyticsControllerTest extends PostgresTestBase {
         mockMvc.perform(get("/api/analytics/summary?from=yesterday&to=2026-10-01").cookie(cookie))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("Invalid value for 'from'"));
+    }
+
+    @Test
+    void revenueByChannelListsEveryChannelWithRevenueLargestFirst() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        insertSale(business, Instant.parse("2026-10-02T12:00:00Z"), 100, "print");
+        moveLastSaleTo(business, "Online");
+        insertSale(business, Instant.parse("2026-10-03T12:00:00Z"), 250, "print");
+        moveLastSaleTo(business, "Online");
+        insertSale(business, Instant.parse("2026-10-04T12:00:00Z"), 300, "mug");
+        moveLastSaleTo(business, "In person");
+        insertSale(business, Instant.parse("2026-11-02T12:00:00Z"), 9000, "print");  // after the period
+        moveLastSaleTo(business, "Commission");
+
+        mockMvc.perform(get("/api/analytics/summary?from=2026-10-01&to=2026-10-31").cookie(cookie))
+                .andExpect(jsonPath("$.revenueByChannel[*].label", contains("Online", "In person")))
+                .andExpect(jsonPath("$.revenueByChannel[*].valueCents", contains(350, 300)));
+    }
+
+    @Test
+    void channelNarrowsRevenueButNotExpenses() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        insertSale(business, Instant.parse("2026-10-02T12:00:00Z"), 100, "print");
+        moveLastSaleTo(business, "Online");
+        insertSale(business, Instant.parse("2026-10-03T12:00:00Z"), 300, "mug");
+        moveLastSaleTo(business, "In person");
+        insertExpense(business, Instant.parse("2026-10-04T12:00:00Z"), 50, "supplies");
+
+        mockMvc.perform(get("/api/analytics/summary?from=2026-10-01&to=2026-10-31&channelId="
+                        + channelId(business, "Online")).cookie(cookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalRevenueCents").value(100))
+                .andExpect(jsonPath("$.revenueSeries[*].label", contains("print")))
+                .andExpect(jsonPath("$.salesByTag[*].label", contains("print")))
+                .andExpect(jsonPath("$.revenueByChannel[*].label", contains("Online")))
+                .andExpect(jsonPath("$.totalExpensesCents").value(50))
+                .andExpect(jsonPath("$.expenseSeries[*].label", contains("supplies")));
+        // The fixed ranges take a channel too.
+        mockMvc.perform(get("/api/analytics/summary?range=12months&channelId="
+                        + channelId(business, "In person")).cookie(cookie))
+                .andExpect(jsonPath("$.revenueByChannel[*].label", contains("In person")));
+    }
+
+    @Test
+    void anotherBusinesssChannelHasNoRevenue() throws Exception {
+        Cookie mine = registerAndLogin();
+        Cookie theirs = registerAndLogin();
+        int myBusiness = businessId(mine);
+        insertSale(myBusiness, Instant.parse("2026-10-02T12:00:00Z"), 100, "print");
+
+        mockMvc.perform(get("/api/analytics/summary?from=2026-10-01&to=2026-10-31&channelId="
+                        + channelId(businessId(theirs), "Online")).cookie(mine))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalRevenueCents").value(0))
+                .andExpect(jsonPath("$.revenueByChannel").isEmpty());
+    }
+
+    @Test
+    void invalidChannelIdIs400() throws Exception {
+        Cookie cookie = registerAndLogin();
+
+        mockMvc.perform(get("/api/analytics/summary?channelId=0").cookie(cookie))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].field").value("channelId"));
+        mockMvc.perform(get("/api/analytics/summary?channelId=online").cookie(cookie))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("Invalid value for 'channelId'"));
     }
 
     @Test

@@ -410,7 +410,7 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
 
 *Source: `claude-demo`; `inventory` from `merge-ui-mods`.*
 
-### `GET /api/analytics/summary?range` or `?from&to`
+### `GET /api/analytics/summary?range` or `?from&to`, plus optional `&channelId`
 
 One response drives the whole dashboard, for either a fixed `range` or a chosen period.
 
@@ -435,6 +435,8 @@ Errors (`400`): only one of `from`/`to` given, `from` after `to`, a period of 10
 
 Revenue and expenses are grouped by each record's **first tag** (records without tags count as `"Untagged"`): the top 3 tags by value, with the rest combined as `"Other"`. Days and months are UTC.
 
+**A channel** (the Analytics page's channel filter, with either of the above): `channelId` counts only that channel's sales, in `totalRevenueCents`, `revenueSeries`, `salesByTag` and `revenueByChannel`. Expenses aren't recorded per channel, so `totalExpensesCents` and `expenseSeries` still cover every expense, and `netProfitCents` is then that channel's revenue minus all expenses (the page doesn't show it). Another business's channel matches no sales. `400` validation error for a `channelId` below 1.
+
 ```json
 {
   "range": "12months",
@@ -454,6 +456,10 @@ Revenue and expenses are grouped by each record's **first tag** (records without
   "salesByTag": [
     { "label": "print", "valueCents": 35000 },
     { "label": "Other", "valueCents": 5500 }
+  ],
+  "revenueByChannel": [
+    { "label": "Online", "valueCents": 30000 },
+    { "label": "In person", "valueCents": 10500 }
   ]
 }
 ```
@@ -462,6 +468,7 @@ Revenue and expenses are grouped by each record's **first tag** (records without
 - `buckets` are `YYYY-MM` (monthly) or `YYYY-MM-DD` (daily, or a week's Monday), oldest first. Each series' `values` line up with `buckets`.
 - The totals cover the selected range or period, not all time. For a fixed range they also include records dated after it (as the demo); for a chosen period they don't. `netProfitCents` = `totalRevenueCents − totalExpensesCents`.
 - A series appears only if it has at least one record in the range.
+- `revenueByChannel` has one entry per channel (by name) with revenue in the range or period, largest first, then by name. Channels aren't folded into `"Other"`, since a business has only a few.
 
 ### `GET /api/analytics/date-range`
 

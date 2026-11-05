@@ -47,21 +47,22 @@ public class AnalyticsService {
         this.currentBusiness = currentBusiness;
     }
 
+    /** @param channelId only this channel's sales count; null for every channel */
     @Transactional(readOnly = true)
-    public AnalyticsSummary summary(String range, Instant now) {
-        return summarize(range, AnalyticsWindow.forRange(range, now));
+    public AnalyticsSummary summary(String range, Instant now, Integer channelId) {
+        return summarize(range, AnalyticsWindow.forRange(range, now), channelId);
     }
 
     /** The chosen period {@code from} to {@code to}, both included; 400 if it's backwards or too long. */
     @Transactional(readOnly = true)
-    public AnalyticsSummary summary(LocalDate from, LocalDate to) {
+    public AnalyticsSummary summary(LocalDate from, LocalDate to, Integer channelId) {
         if (from.isAfter(to)) {
             throw new BadRequestException("'from' must be on or before 'to'");
         }
         if (!to.isBefore(from.plusYears(MAX_PERIOD_YEARS))) {
             throw new BadRequestException("The period must be shorter than " + MAX_PERIOD_YEARS + " years");
         }
-        return summarize(CUSTOM_RANGE, AnalyticsWindow.between(from, to));
+        return summarize(CUSTOM_RANGE, AnalyticsWindow.between(from, to), channelId);
     }
 
     /** The first and last day with a sale or expense, for the date filter, and today (all UTC). */
@@ -71,9 +72,13 @@ public class AnalyticsService {
         return new AnalyticsDateRange(span.first(), span.last(), today);
     }
 
-    private AnalyticsSummary summarize(String range, AnalyticsWindow window) {
+    /**
+     * Expenses aren't recorded per channel, so {@code channelId} narrows only the revenue figures;
+     * the expense figures, and so net profit, still cover every expense.
+     */
+    private AnalyticsSummary summarize(String range, AnalyticsWindow window, Integer channelId) {
         int businessId = currentBusiness.id();
-        List<TaggedLine> revenue = queries.revenueLines(businessId, window.start(), window.end());
+        List<TaggedLine> revenue = queries.revenueLines(businessId, window.start(), window.end(), channelId);
         List<TaggedLine> expenses = queries.expenseLines(businessId, window.start(), window.end());
 
         // Revenue and the sales-by-tag donut share one top-tag cut, so a tag means the same in both charts.
@@ -100,7 +105,8 @@ public class AnalyticsService {
                 salesByTag.entrySet().stream()
                         .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
                         .map(entry -> new TagTotal(entry.getKey(), entry.getValue()))
-                        .toList());
+                        .toList(),
+                queries.revenueByChannel(businessId, window.start(), window.end(), channelId));
     }
 
     /** Current stock by first tag; tags past the top 7 fold into "Other", listed last. */

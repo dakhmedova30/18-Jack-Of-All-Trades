@@ -1944,7 +1944,8 @@ code {
   font-weight: 600;
 }
 
-.analytics-filters__field input {
+.analytics-filters__field input,
+.analytics-filters__field select {
   font: inherit;
   color: inherit;
   padding: 0.35rem 0.5rem;
@@ -1953,7 +1954,8 @@ code {
   background: var(--color-bg-solid);
 }
 
-.analytics-filters__field input:focus {
+.analytics-filters__field input:focus,
+.analytics-filters__field select:focus {
   outline: 2px solid var(--color-primary);
   outline-offset: 1px;
 }

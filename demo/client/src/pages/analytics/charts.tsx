@@ -220,9 +220,15 @@ interface HorizontalBarChartProps {
   bars: HorizontalBar[];
   width?: number;
   ariaLabel: string;
-  /** Unit for value labels and hover text, e.g. "units". */
-  unit: string;
+  /** Unit for hover text, e.g. "units"; leave out when `formatTooltip` already says it ("$12.00"). */
+  unit?: string;
+  /** Formats the value printed after each bar, e.g. compact money ("$1.2k"). */
+  formatValue?: (value: number) => string;
+  /** Formats the value in hover text, e.g. full money ("$1,234.56"). */
+  formatTooltip?: (value: number) => string;
 }
+
+const formatNumber = (value: number) => value.toLocaleString();
 
 const HBAR = { row: 28, bar: 16, labelWidth: 110, valueWidth: 56, top: 4 };
 const MAX_LABEL_CHARS = 15;
@@ -237,6 +243,8 @@ export function HorizontalBarChart({
   width = 600,
   ariaLabel,
   unit,
+  formatValue = formatNumber,
+  formatTooltip = formatNumber,
 }: HorizontalBarChartProps) {
   const height = HBAR.top * 2 + bars.length * HBAR.row;
   const barStart = HBAR.labelWidth;
@@ -267,7 +275,7 @@ export function HorizontalBarChart({
         const color = bar.label === OTHER_LABEL ? OTHER_COLOR : SERIES_COLORS[2];
         return (
           <g key={bar.label}>
-            <title>{`${bar.label}: ${bar.value.toLocaleString()} ${unit}${bar.detail ? ` (${bar.detail})` : ''}`}</title>
+            <title>{`${bar.label}: ${formatTooltip(bar.value)}${unit ? ` ${unit}` : ''}${bar.detail ? ` (${bar.detail})` : ''}`}</title>
             <text
               x={barStart - 8}
               y={y + HBAR.bar / 2}
@@ -293,7 +301,7 @@ export function HorizontalBarChart({
               dominantBaseline="middle"
               className="viz-label viz-label--bar"
             >
-              {bar.value.toLocaleString()}
+              {formatValue(bar.value)}
             </text>
           </g>
         );

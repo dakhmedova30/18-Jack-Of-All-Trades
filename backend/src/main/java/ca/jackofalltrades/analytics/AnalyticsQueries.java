@@ -4,7 +4,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
@@ -31,23 +33,47 @@ public class AnalyticsQueries {
 
     /**
      * Every sale line of this business sold at or after {@code since} and before {@code until};
-     * a null {@code until} means no upper bound, as the demo's ranges.
+     * a null {@code until} means no upper bound, as the demo's ranges. A null {@code channelId}
+     * means every channel.
      */
-    List<TaggedLine> revenueLines(int businessId, Instant since, Instant until) {
+    List<TaggedLine> revenueLines(int businessId, Instant since, Instant until, Integer channelId) {
+        SalesWhere where = new SalesWhere(businessId, since, until, channelId);
         return taggedLines("""
                 SELECT s.sold_at AS at, COALESCE(s.tags[1], 'Untagged') AS tag, si.total_cents
                 FROM sales s JOIN sale_items si ON si.sale_id = s.id
-                WHERE s.business_id = :businessId AND s.sold_at >= :since
-                """, "s.sold_at", businessId, since, until);
+                """ + where.sql(), where.params());
     }
 
-    /** As {@link #revenueLines}, for expense lines by when they were incurred. */
+    /** As {@link #revenueLines}, for expense lines by when they were incurred. Expenses have no channel. */
     List<TaggedLine> expenseLines(int businessId, Instant since, Instant until) {
-        return taggedLines("""
+        String sql = """
                 SELECT e.incurred_at AS at, COALESCE(e.tags[1], 'Untagged') AS tag, ei.total_cents
                 FROM expenses e JOIN expense_items ei ON ei.expense_id = e.id
                 WHERE e.business_id = :businessId AND e.incurred_at >= :since
-                """, "e.incurred_at", businessId, since, until);
+                """;
+        Map<String, Object> params = new HashMap<>();
+        params.put("businessId", businessId);
+        params.put("since", utc(since));
+        if (until != null) {
+            sql += "AND e.incurred_at < :until\n";
+            params.put("until", utc(until));
+        }
+        return taggedLines(sql, params);
+    }
+
+    /** Revenue per channel over the same lines as {@link #revenueLines}, largest first. */
+    List<AnalyticsSummary.TagTotal> revenueByChannel(int businessId, Instant since, Instant until, Integer channelId) {
+        SalesWhere where = new SalesWhere(businessId, since, until, channelId);
+        return jdbcClient.sql("""
+                        SELECT c.name AS channel, SUM(si.total_cents) AS total_cents
+                        FROM sales s JOIN sale_items si ON si.sale_id = s.id JOIN channels c ON c.id = s.channel_id
+                        """ + where.sql() + """
+                        GROUP BY c.id, c.name
+                        ORDER BY total_cents DESC, c.name
+                        """)
+                .params(where.params())
+                .query((rs, rowNum) -> new AnalyticsSummary.TagTotal(rs.getString("channel"), rs.getLong("total_cents")))
+                .list();
     }
 
     /** Current stock by each item's first tag, largest first. A snapshot, so no dates. */
@@ -80,20 +106,45 @@ public class AnalyticsQueries {
                 .single();
     }
 
-    private List<TaggedLine> taggedLines(String sql, String dateColumn, int businessId, Instant since, Instant until) {
-        JdbcClient.StatementSpec statement = jdbcClient
-                .sql(until == null ? sql : sql + "AND " + dateColumn + " < :until\n")
-                .param("businessId", businessId)
-                .param("since", OffsetDateTime.ofInstant(since, ZoneOffset.UTC));
-        if (until != null) {
-            statement = statement.param("until", OffsetDateTime.ofInstant(until, ZoneOffset.UTC));
+    /**
+     * The filter shared by the revenue queries: one business's sales from {@code since}, before
+     * {@code until} unless it's null, and in one channel unless {@code channelId} is null.
+     * Every value is a bound parameter; only these fixed fragments are added to the SQL.
+     */
+    private record SalesWhere(int businessId, Instant since, Instant until, Integer channelId) {
+
+        String sql() {
+            return "WHERE s.business_id = :businessId AND s.sold_at >= :since\n"
+                    + (until == null ? "" : "AND s.sold_at < :until\n")
+                    + (channelId == null ? "" : "AND s.channel_id = :channelId\n");
         }
-        return statement
+
+        Map<String, Object> params() {
+            Map<String, Object> params = new HashMap<>();
+            params.put("businessId", businessId);
+            params.put("since", utc(since));
+            if (until != null) {
+                params.put("until", utc(until));
+            }
+            if (channelId != null) {
+                params.put("channelId", channelId);
+            }
+            return params;
+        }
+    }
+
+    private List<TaggedLine> taggedLines(String sql, Map<String, Object> params) {
+        return jdbcClient.sql(sql)
+                .params(params)
                 .query((rs, rowNum) -> new TaggedLine(
                         rs.getObject("at", OffsetDateTime.class).toInstant(),
                         rs.getString("tag"),
                         rs.getLong("total_cents")))
                 .list();
+    }
+
+    private static OffsetDateTime utc(Instant at) {
+        return OffsetDateTime.ofInstant(at, ZoneOffset.UTC);
     }
 
     private static LocalDate utcDay(OffsetDateTime at) {

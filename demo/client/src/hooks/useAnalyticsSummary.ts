@@ -10,10 +10,10 @@ interface SummaryResult {
 }
 
 /**
- * Loads the analytics summary for a "Show by" range or a period of days, refetching whenever
- * it changes. Call `reload()` to refetch as-is.
+ * Loads the analytics summary for a "Show by" range or a period of days, optionally for one
+ * channel's sales, refetching whenever either changes. Call `reload()` to refetch as-is.
  */
-export function useAnalyticsSummary(query: AnalyticsRange | DateRange) {
+export function useAnalyticsSummary(query: AnalyticsRange | DateRange, channelId?: number) {
   const [reloadToken, setReloadToken] = useState(0);
   const [result, setResult] = useState<SummaryResult | null>(null);
   const [lastData, setLastData] = useState<AnalyticsSummary | undefined>(undefined);
@@ -22,11 +22,11 @@ export function useAnalyticsSummary(query: AnalyticsRange | DateRange) {
   const range = typeof query === 'string' ? query : undefined;
   const from = typeof query === 'string' ? '' : query.from;
   const to = typeof query === 'string' ? '' : query.to;
-  const requestKey = JSON.stringify([range, from, to, reloadToken]);
+  const requestKey = JSON.stringify([range, from, to, channelId, reloadToken]);
 
   useEffect(() => {
     let cancelled = false;
-    getAnalyticsSummary(range ?? { from, to })
+    getAnalyticsSummary(range ?? { from, to }, channelId)
       .then((data) => {
         if (cancelled) return;
         setResult({ key: requestKey, data });
@@ -38,7 +38,7 @@ export function useAnalyticsSummary(query: AnalyticsRange | DateRange) {
     return () => {
       cancelled = true;
     };
-  }, [requestKey, range, from, to]);
+  }, [requestKey, range, from, to, channelId]);
 
   const reload = useCallback(() => setReloadToken((token) => token + 1), []);
   const isCurrent = result?.key === requestKey;

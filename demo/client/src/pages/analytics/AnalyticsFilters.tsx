@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { DateRangeSlider } from '../../components/DateRangeSlider';
-import type { AnalyticsDateRange, DateRange } from '../../types';
+import type { AnalyticsDateRange, Channel, DateRange } from '../../types';
 import { daysBetween, formatDate, isDateKey } from '../../utils/date';
 
 interface AnalyticsFiltersProps {
@@ -8,19 +8,29 @@ interface AnalyticsFiltersProps {
   dates: AnalyticsDateRange;
   value: DateRange;
   onChange: (next: DateRange) => void;
-  /** Back to the period the page opened with; disabled when `isDefault`. */
+  /** The business's channels; undefined while they load. */
+  channels: Channel[] | undefined;
+  channelsError: string | undefined;
+  /** The chosen channel's id, or '' for all channels. */
+  channelId: string;
+  onChannelChange: (channelId: string) => void;
+  /** Back to the period the page opened with and all channels; disabled when `isDefault`. */
   onReset: () => void;
   isDefault: boolean;
 }
 
 /**
- * The Analytics side bar. For now it filters by date, two ways that stay in step: Start and
- * End date fields, and a slider running from the first record to the latest.
+ * The Analytics side bar. It filters by date, two ways that stay in step (Start and End date
+ * fields, and a slider running from the first record to the latest), and by sales channel.
  */
 export function AnalyticsFilters({
   dates,
   value,
   onChange,
+  channels,
+  channelsError,
+  channelId,
+  onChannelChange,
   onReset,
   isDefault,
 }: AnalyticsFiltersProps) {
@@ -54,6 +64,31 @@ export function AnalyticsFilters({
               : 'The slider appears once you have sales or expenses.'}
           </p>
         )}
+      </section>
+
+      <section className="analytics-filters__group" aria-labelledby="analytics-filters-channel">
+        <h3 id="analytics-filters-channel">Sales channel</h3>
+        <div className="analytics-filters__field">
+          <label htmlFor="analytics-filter-channel">Channel</label>
+          <select
+            id="analytics-filter-channel"
+            value={channelId}
+            disabled={!channels}
+            onChange={(event) => onChannelChange(event.target.value)}
+            aria-describedby="analytics-filter-channel-note"
+          >
+            <option value="">All channels</option>
+            {channels?.map((channel) => (
+              <option key={channel.id} value={channel.id}>
+                {channel.name}
+              </option>
+            ))}
+          </select>
+          {channelsError && <p className="field-error">{channelsError}</p>}
+        </div>
+        <p id="analytics-filter-channel-note" className="muted analytics-filters__note">
+          Narrows revenue and sales. Expenses aren't tied to a channel, so they always show in full.
+        </p>
       </section>
     </aside>
   );
