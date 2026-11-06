@@ -77,7 +77,7 @@ public class ItemService {
                 .orElseThrow(() -> new NotFoundException("Item", id));
     }
 
-    /** Stock value, plus this UTC month's best sellers, as the demo and Analytics use. */
+    /** Stock value, plus this UTC month's best sellers and unsold in-stock items, as the demo and Analytics use. */
     @Transactional(readOnly = true)
     public InventoryInsights insights() {
         LocalDate firstOfMonth = LocalDate.now(ZoneOffset.UTC).withDayOfMonth(1);

@@ -145,12 +145,12 @@ class ItemInsightsTest extends PostgresTestBase {
         int soldLastMonth = insertItem(business, "Mug", 2, 1200);
         int soldThisMonth = insertItem(business, "Print", 8, 1000);
         insertItem(business, "Sold out", 0, 800);
-        int someoneElsesItem = insertItem(businessId(registerAndLogin()), "Other business", 3, 100);
+        insertItem(businessId(registerAndLogin()), "Other business", 3, 100);
 
         insertSale(business, startOfThisMonth().minusSeconds(60), soldLastMonth, "Mug", 1, 1200);
         insertSale(business, startOfThisMonth().plusSeconds(60), soldThisMonth, "Print", 2, 1000);
-        insertSale(business, startOfThisMonth().plusSeconds(60), someoneElsesItem, "Other business", 1, 100);
 
+        // Sold out and the other business's item are left out; the rest are sorted by name.
         mockMvc.perform(get("/api/items/insights").cookie(cookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.notSelling", hasSize(2)))

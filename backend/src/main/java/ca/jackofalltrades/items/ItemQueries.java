@@ -130,7 +130,7 @@ public class ItemQueries {
                 .toList();
     }
 
-    /** In-stock items with no linked sale lines in {@code [from, to)}. */
+    /** In-stock items with no sale lines in {@code [from, to)}, by name. */
     public List<InventoryInsights.NotSellingItem> notSelling(int businessId, Instant from, Instant to) {
         return jdbcClient.sql("""
                         SELECT i.id, i.name, i.quantity

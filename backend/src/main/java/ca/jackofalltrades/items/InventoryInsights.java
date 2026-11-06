@@ -4,8 +4,9 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * The {@code InventoryInsights} JSON in contract §3: stock value at selling price, and the top 3
- * items by units sold this UTC month, {@code [periodStart, periodEnd)}.
+ * The {@code InventoryInsights} JSON in contract §3: stock value at selling price, the top 3 items
+ * by units sold this UTC month, {@code [periodStart, periodEnd)}, and the in-stock items with no
+ * sales in that month.
  */
 public record InventoryInsights(
         long stockValueCents,

@@ -1,10 +1,11 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAnalyticsSummary } from '../hooks/useAnalyticsSummary';
 import { useItemCount } from '../hooks/useItemCount';
 import { useLowStock } from '../hooks/useLowStock';
 import { useRecentSales } from '../hooks/useRecentSales';
 import { useCurrency } from '../hooks/useCurrency';
-import type { AnalyticsSummary, LowStock, Sale } from '../types';
+import type { AnalyticsRange, AnalyticsSummary, LowStock, Sale } from '../types';
 import { usePreferences } from '../hooks/usePreferences';
 import { formatCents } from '../utils/money';
 import {
@@ -14,6 +15,13 @@ import {
   SalesPreview,
   type PreviewState,
 } from './HomeCardPreviews';
+import {
+  HOME_RANGES,
+  homeRangeOption,
+  loadHomeRange,
+  saveHomeRange,
+  type HomeRangeOption,
+} from './homeRange';
 
 type SummaryResult = ReturnType<typeof useAnalyticsSummary>;
 
@@ -24,27 +32,64 @@ function toPreviewState<T>(data: T | undefined, error: string | undefined): Prev
 }
 
 export function HomePage() {
-  // One month-summary request feeds both the KPI strip and the card previews.
-  const summary = useAnalyticsSummary('month');
+  const [range, setRange] = useState<AnalyticsRange>(loadHomeRange);
+  const option = homeRangeOption(range);
+  // One summary request for the chosen period feeds both the KPI strip and the card previews.
+  const summary = useAnalyticsSummary(range);
   const itemCount = useItemCount();
   const summaryState: PreviewState<AnalyticsSummary> = toPreviewState(summary.data, summary.error);
 
+  function changeRange(next: AnalyticsRange) {
+    setRange(next);
+    saveHomeRange(next);
+  }
+
   const dashboards = [
-    { to: '/sales', title: 'Sales', preview: <SalesPreview summary={summaryState} /> },
+    {
+      to: '/sales',
+      title: 'Sales',
+      preview: <SalesPreview summary={summaryState} range={option} />,
+    },
     {
       to: '/inventory',
       title: 'Inventory',
       preview: <InventoryPreview itemCount={toPreviewState(itemCount.count, itemCount.error)} />,
     },
-    { to: '/expenses', title: 'Expenses', preview: <ExpensesPreview summary={summaryState} /> },
-    { to: '/analytics', title: 'Analytics', preview: <AnalyticsPreview summary={summaryState} /> },
+    {
+      to: '/expenses',
+      title: 'Expenses',
+      preview: <ExpensesPreview summary={summaryState} range={option} />,
+    },
+    {
+      to: '/analytics',
+      title: 'Analytics',
+      preview: <AnalyticsPreview summary={summaryState} range={option} />,
+    },
   ];
 
   return (
     <section className="page home">
-      <h1>Welcome back</h1>
-      <p className="muted">Pick a dashboard to get started.</p>
-      <KpiStrip summary={summary} />
+      <div className="toolbar home-header">
+        <div>
+          <h1>Welcome back</h1>
+          <p className="muted">Pick a dashboard to get started.</p>
+        </div>
+        <div className="filter-field">
+          <label htmlFor="home-range">Show</label>
+          <select
+            id="home-range"
+            value={range}
+            onChange={(event) => changeRange(event.target.value as AnalyticsRange)}
+          >
+            {HOME_RANGES.map(({ value, label }) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <KpiStrip summary={summary} range={option} />
       <div className="home-cards">
         {dashboards.map(({ to, title, preview }) => (
           <Link key={to} to={to} className="home-card">
@@ -125,14 +170,14 @@ function RecentSales() {
 }
 
 /**
- * Month-to-date Revenue / Expenses / Net Profit, from the Analytics summary's
- * "month" range, plus a Low stock warning. No vs-last-month comparison yet:
- * the summary has no matching prior window, and comparing part of this month
- * to all of last month would make every tile look worse until the month ends.
- * The two requests load independently, so one failing still leaves the
- * other's tiles showing.
+ * Revenue / Expenses / Net Profit for the chosen period (month to date by default), plus a
+ * Low stock warning. An empty period still shows $0.00, with a line saying there's nothing
+ * yet, so a new account's zeros don't look broken. No comparison with the previous period
+ * yet: the summary has no matching prior window, and comparing part of this month to all of
+ * last month would make every tile look worse until the month ends. The two requests load
+ * independently, so one failing still leaves the other's tiles showing.
  */
-function KpiStrip({ summary }: { summary: SummaryResult }) {
+function KpiStrip({ summary, range }: { summary: SummaryResult; range: HomeRangeOption }) {
   const lowStock = useLowStock();
   const currency = useCurrency();
 
@@ -149,7 +194,7 @@ function KpiStrip({ summary }: { summary: SummaryResult }) {
     <>
       {summary.error && (
         <KpiError
-          message={`Couldn't load this month's numbers: ${summary.error}`}
+          message={`Couldn't load the numbers for ${range.period}: ${summary.error}`}
           onRetry={summary.reload}
         />
       )}
@@ -161,17 +206,19 @@ function KpiStrip({ summary }: { summary: SummaryResult }) {
       )}
       <div className="home-kpis" aria-busy={summary.loading || lowStock.loading}>
         <KpiTile
-          label="Revenue · this month"
+          label={`Revenue · ${range.period}`}
           value={revenue !== undefined ? formatCents(revenue, currency) : moneyPlaceholder}
           tone="neutral"
+          detail={revenue === 0 ? `No sales ${range.noneYet}` : undefined}
         />
         <KpiTile
-          label="Expenses · this month"
+          label={`Expenses · ${range.period}`}
           value={data ? formatCents(data.totalExpensesCents, currency) : moneyPlaceholder}
           tone="neutral"
+          detail={data?.totalExpensesCents === 0 ? `No expenses ${range.noneYet}` : undefined}
         />
         <KpiTile
-          label="Net Profit · this month"
+          label={`Net Profit · ${range.period}`}
           value={netProfit !== undefined ? formatCents(netProfit, currency) : moneyPlaceholder}
           tone={netProfit === undefined ? 'neutral' : netProfit >= 0 ? 'positive' : 'negative'}
           detail={margin}

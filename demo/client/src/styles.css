@@ -373,7 +373,7 @@ select {
   flex-direction: column;
   gap: 2rem;
   font-family: var(--font-header);
-  height: -webkit-fill-available;
+  height: 100%;
   /* Above sticky table headers (1), below the modal backdrop (10). */
   z-index: 5;
 }
@@ -754,6 +754,58 @@ select {
   display: flex;
   flex-direction: row;
   padding: 0;
+}
+
+.speech-reader {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.6rem;
+  border: var(--border-default) var(--color-border-chart);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-popover);
+}
+
+.speech-reader__rate {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.speech-reader__rate select {
+  padding: 0.35rem;
+  border: var(--border-default) var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+/* The passage being read aloud, outlined like keyboard focus. The bottom scroll margin
+   keeps it clear of the fixed reader bar when it's scrolled into view. */
+.speech-reader-highlight {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+  scroll-margin: 1rem 1rem calc(var(--speech-reader-space, 5rem) + 1rem);
+}
+
+.speech-reader__status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .page {
@@ -2781,6 +2833,15 @@ textarea.settings-row__input {
 }
 
 @media (max-width: 720px) {
+  .speech-reader {
+    right: 0.5rem;
+    bottom: 0.5rem;
+    left: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    max-width: none;
+  }
+
   .public-profile__hero {
     flex-direction: column;
   }
@@ -3017,4 +3078,17 @@ textarea.settings-row__input {
   .sidebar-view--inactive {
     transition: none;
   }
+}
+
+/* ---------- Room for the read-aloud bar ---------- */
+
+/* The fixed .speech-reader bar would otherwise cover the end of every page, so each scrolling
+   container leaves room for it at its bottom: .content for the logged-in pages, and the auth
+   and legal pages (including public profiles), which scroll the whole window. SpeechReader keeps
+   --speech-reader-space equal to the space the bar covers; 5rem is a fallback. Last in the file
+   so it wins over each container's own padding. */
+.content,
+.auth-page,
+.legal-page {
+  padding-bottom: var(--speech-reader-space, 5rem);
 }
