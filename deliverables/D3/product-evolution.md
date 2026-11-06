@@ -43,9 +43,9 @@ Merge conflicts, our largest integration cost, are covered in Section 4.
 ## 3. Before vs. After
 <!--  Show concrete improvements: workflow clarity, speed, error reduction, reliability, etc. -->
 
-"Before" is our `D2` tag; "after" is `main` through PR #21. Figures come from our demo dataset (1,177 sales and 171 expenses, Aug 1, 2025 – Oct 29, 2026).
+"Before" is our `D2` tag; "after" is `main` through PR #25. Figures come from our demo dataset (1,177 sales, Aug 2025 – Oct 2026).
 
-### Finding answers in the data ([#15](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/15), [#16](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/16))
+### Finding answers in the data ([#15](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/15), [#16](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/16), [#22](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/22), [#24](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/24))
 
 | Question | Before (D2) | After (D3) |
 | --- | --- | --- |
@@ -53,37 +53,39 @@ Merge conflicts, our largest integration cost, are covered in Section 4.
 | Which channel earns the most? | Not shown, though every sale stores it. | Online 51%, In person 39%, Commission 6%, Misc 4%. |
 | Which Online sales made up that season? | Scan 14 pages of sales. | Filter Sales: 101 sales on 7 pages. |
 | What does the whole history look like? | 297 of 1,177 sales (25%) never appeared in Analytics. | Drag the slider to both ends. |
+| How is this week going? | Home showed only this month. | Home offers 7 days, this month, this year or 12 months. |
+| Which products aren't selling? | Compare Inventory with Sales by hand. | Inventory's "Not selling" panel lists them. |
 
-One side panel sets the period and channel for every card, replacing two time controls that could disagree. Totals now match the charts, invalid dates are flagged at the field, and a summary loads in 8–17 ms, so the page updates as soon as the slider stops.
+A summary loads in 8–17 ms, so Analytics updates as soon as the slider stops.
 
-### Running the business from the app ([#8](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/8), [#12](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/12), [#21](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/21))
+### Running the business from the app ([#8](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/8), [#12](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/12), [#19](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/19), [#21](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/21))
 
 | Task | Before (D2) | After (D3) |
 | --- | --- | --- |
 | Rename a channel or expense tag | Impossible | Settings > Preferences; past expenses follow the rename |
-| Change password or email | Impossible | Requires the current password and logs out other devices |
+| Change password or email | Impossible | Needs the current password; logs out other devices |
 | Notice low stock | Check Inventory by hand | A notification bell with five configurable alerts |
 | Show products to customers | No public page | `/p/<link-name>`, hiding contact details and stock; products shown or hidden in bulk |
+| Sell in another currency | Everything in CAD | CAD, USD, EUR, GBP or AUD; converted prices previewed first; past records keep their currency |
 
-### Consistency and accessibility ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9), [#14](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/14), [#17](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/17), [#20](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/20))
+### Consistency and accessibility ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9), [#14](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/14), [#17](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/17), [#20](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/20), [#22](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/22))
 
-Lighthouse scored 100 for accessibility at D2 and D3, but it can't test behaviour, so we checked by hand with the keyboard and VoiceOver:
+Lighthouse scored 100 at D2 and D3 but can't test behaviour, so we checked by hand with the keyboard and VoiceOver:
 
 | Check | D2 | D3 |
 | --- | --- | --- |
 | Open "Add sale" | Focus stays behind the dialog | Focus starts in the first field |
-| Tab past the last field | Focus leaves the dialog | Focus stays inside |
-| Close with Esc | Focus is lost | Focus returns to the button that opened it |
+| Tab past the last field, then Esc | Focus escapes, then is lost | Focus stays inside, then returns to the opening button |
 | Click outside a half-filled form | The input is lost | The app asks first |
 | Submit with a mistake | The error isn't read | The field and its error are read |
 | Log in with a mistyped email | "Validation failed" | "Enter a valid email" under the field, before sending |
 | Switch pages | Every title is "Jack-Of-All-Trades" | Each page announces its name |
 
-Summary cards share one component, and any page can be read aloud, one outlined passage at a time.
+Summary cards share one component, body text uses Atkinson Hyperlegible (designed for low-vision readers), and any page can be read aloud.
 
-### Reliability of delivery ([#10](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/10), [#13](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/13), [#18](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/18))
+### Reliability of delivery ([#10](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/10), [#13](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/13), [#18](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/18), [#23](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/23))
 
-At D2, CI ran no tests and deploys were manual. Now every PR runs 209 backend tests (139 at D2) and 45 frontend tests (none at D2), `main` deploys only when all pass, and configuration is documented in `.env.example` templates.
+At D2, CI ran no tests and deploys were manual. Now every PR runs 240 backend tests (139 at D2) and 56 frontend tests (none at D2), and `main` deploys only when all pass. A fresh setup now opens to sample data instead of $0 tiles and empty charts.
 
 ## 4. Reflection
 
@@ -91,19 +93,18 @@ At D2, CI ran no tests and deploys were manual. Now every PR runs 209 backend te
 
 ### What worked well
 
-- **Reviewing every PR:** Reviews caught notifications crashing for every new account (#8), a stylesheet rewrite that broke the account menu (#9), a date field resetting to the year 2 (#15), and the reader reading hidden text and every chart tooltip (#17). A comment that the saved currency had no effect led to #19.
-- **Letting CI run the tests:** The backend tests for #8 had never been run until CI (#10) ran them and caught 5 failures. Since #18, frontend tests block the deploy too.
-- **Keeping the API contract current:** At D2, the contract drifted from the code. This time every PR that changed the API also updated `docs/api-contracts.md`.
+- **Reviewing every PR:** Reviews caught notifications crashing for new accounts (#8), a stylesheet rewrite that broke the account menu (#9), a date field resetting to the year 2 (#15), and the reader reading hidden text (#17). A comment that the saved currency had no effect led to #19.
+- **Letting CI run the tests:** CI (#10) caught 5 failures in the never-run backend tests of #8. Since #18, frontend tests block the deploy too.
+- **Keeping the API contract current:** Unlike at D2, every PR that changed the API also updated `docs/api-contracts.md`.
 
 ### What was harder than expected
 
 - **One shared stylesheet:** When #9 reorganized our 2,400-line stylesheet, every open branch conflicted, and most of our merge time went to CSS.
-- **Conflicts git can't see:** Seven PRs were opened within five hours. #18 tested the "Show by" dropdown that #16 removed: a clean merge that would then have failed.
+- **Conflicts git can't see:** #18 tested a dropdown that #16 removed, and #22's Inventory panel left its API field behind in #19. Each passed its own tests and would have failed once merged.
 - **Dates:** Chrome reports half-typed years like `0002`, and UTC days put an evening sale in Toronto on the next day.
 
 ### How this affects our path to D4
 
-- **Merge smaller and sooner:** The analytics branch fell 32 commits behind `main`, and #20 merged `main` in three times before landing. We'll merge `main` into open branches daily and keep PRs open for 2–3 days at most.
-- **Finish the MVP from feedback:** Land #19 so the saved currency takes effect, then use the saved time zone, tie expenses to channels, and build account switching.
-- **Raise the quality bar:** Split the stylesheet by component, and add end-to-end tests: our frontend tests use fixed API data, so they can't catch the frontend and backend disagreeing.
-- **Showcase:** The public profile and demo data give outside users something to try without an account.
+- **Merge smaller and sooner:** The analytics branch fell 32 commits behind `main`, and #19 grew to 73 files before #22 was split out of it. We'll merge `main` into open branches daily and keep PRs open for 2–3 days at most.
+- **Finish the MVP from feedback:** Use the saved time zone, tie expenses to channels, and build account switching.
+- **Raise the quality bar:** Split the stylesheet by component and add end-to-end tests, since mocked frontend tests can't catch the frontend and backend disagreeing.
