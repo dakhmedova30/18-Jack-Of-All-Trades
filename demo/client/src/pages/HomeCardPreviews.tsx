@@ -2,11 +2,13 @@ import type { ReactNode } from 'react';
 import type { AnalyticsSummary, AnalyticsTagSeries } from '../types';
 import { formatCents } from '../utils/money';
 import { SERIES_COLORS } from './analytics/charts';
+import type { HomeRangeOption } from './homeRange';
 
 /**
  * Small live previews for the home page dashboard cards. They show the shape
- * of this month's data rather than repeating the KPI strip's totals. Revenue
- * is always blue and expenses always orange, here and in the Analytics charts.
+ * of the chosen period's data rather than repeating the KPI strip's totals.
+ * Revenue is always blue and expenses always orange, here and in the Analytics
+ * charts.
  */
 
 const REVENUE_COLOR = SERIES_COLORS[0];
@@ -30,6 +32,17 @@ function PreviewFrame({ caption, children }: { caption: string; children: ReactN
       <p className="home-card__caption">{caption}</p>
     </>
   );
+}
+
+/** Props for the previews that follow the Home page's period dropdown. */
+interface RangedPreviewProps {
+  summary: PreviewState<AnalyticsSummary>;
+  range: HomeRangeOption;
+}
+
+/** "Daily" or "Monthly", from the buckets the server chose for the range. */
+function bucketAdjective(summary: PreviewState<AnalyticsSummary>): string {
+  return summary.status === 'ready' && summary.data.granularity === 'month' ? 'Monthly' : 'Daily';
 }
 
 function PreviewMessage({ children }: { children: ReactNode }) {
@@ -105,13 +118,13 @@ function Sparkline({ series }: { series: SparklineSeries[] }) {
   );
 }
 
-/** Sales: daily revenue so far this month. */
-export function SalesPreview({ summary }: { summary: PreviewState<AnalyticsSummary> }) {
+/** Sales: revenue per day (or per month, for the longer periods). */
+export function SalesPreview({ summary, range }: RangedPreviewProps) {
   return (
-    <PreviewFrame caption="Daily revenue, this month">
+    <PreviewFrame caption={`${bucketAdjective(summary)} revenue, ${range.period}`}>
       {renderState(summary, (data) =>
         data.totalRevenueCents === 0 ? (
-          <PreviewMessage>No sales yet this month</PreviewMessage>
+          <PreviewMessage>No sales {range.noneYet}</PreviewMessage>
         ) : (
           <Sparkline
             series={[
@@ -127,10 +140,10 @@ export function SalesPreview({ summary }: { summary: PreviewState<AnalyticsSumma
   );
 }
 
-/** Expenses: the top categories (first tag) this month, as proportional bars. */
-export function ExpensesPreview({ summary }: { summary: PreviewState<AnalyticsSummary> }) {
+/** Expenses: the top categories (first tag) in the period, as proportional bars. */
+export function ExpensesPreview({ summary, range }: RangedPreviewProps) {
   return (
-    <PreviewFrame caption="Top expense categories, this month">
+    <PreviewFrame caption={`Top expense categories, ${range.period}`}>
       {renderState(summary, (data) => {
         // The server already keeps the top 3 tags and folds the rest into "Other".
         const categories = data.expenseSeries
@@ -138,7 +151,7 @@ export function ExpensesPreview({ summary }: { summary: PreviewState<AnalyticsSu
           .sort((a, b) => b.total - a.total)
           .slice(0, 3);
         if (categories.length === 0) {
-          return <PreviewMessage>No expenses yet this month</PreviewMessage>;
+          return <PreviewMessage>No expenses {range.noneYet}</PreviewMessage>;
         }
         const max = categories[0]!.total;
         return (
@@ -162,13 +175,13 @@ export function ExpensesPreview({ summary }: { summary: PreviewState<AnalyticsSu
   );
 }
 
-/** Analytics: daily revenue vs expenses on one scale. */
-export function AnalyticsPreview({ summary }: { summary: PreviewState<AnalyticsSummary> }) {
+/** Analytics: revenue vs expenses over the period, on one scale. */
+export function AnalyticsPreview({ summary, range }: RangedPreviewProps) {
   return (
-    <PreviewFrame caption="Revenue vs expenses, this month">
+    <PreviewFrame caption={`Revenue vs expenses, ${range.period}`}>
       {renderState(summary, (data) =>
         data.totalRevenueCents === 0 && data.totalExpensesCents === 0 ? (
-          <PreviewMessage>Nothing recorded yet this month</PreviewMessage>
+          <PreviewMessage>Nothing recorded {range.noneYet}</PreviewMessage>
         ) : (
           <>
             <Sparkline
