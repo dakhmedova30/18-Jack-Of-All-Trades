@@ -47,8 +47,13 @@ Precise description:
   - Switched the body font to Atkinson Hyperlegible, added the "Not Selling" inventory panel (items not sold this month), and made stat cards stack at 720 to 900px so text stays inside the card. Hans took over this PR to fix the Inventory page going blank against main's backend while I worked on #19.
 - **PRs reviewed:** #8, #10, #11, #15, #26.
 
-**[Name]**, [Role]
-> [Specific contributions]
+**Jinuo Tao**, Back-end Developer; public business profile (full stack)
+- Public business profile (#12): built D1's US3/US4, the MVP stories that hadn't been built by D2. Owners turn on a shareable page at `/p/<link name>` in Settings > Profile and choose which items appear on it; customers view it without an account.
+  - Backend: migration for item visibility and a unique link name per business; public endpoints for the profile and logo; the response only includes chosen fields, so email, phone, address, stock counts, notes and tags are never shown; an unknown and a turned-off profile return the same 404; bad link names return 400 and taken ones 409.
+  - Frontend: the public profile page, a "Show on my public profile" checkbox in the item form, a "Public" marker in the Inventory table, and the Public profile section in Settings > Profile.
+  - 12 backend tests. Lighthouse accessibility 100 on the public page. Documented in the API contract and README.
+- Bulk show/hide on the public profile (#21, suggested by a teammate): "Show on profile" and "Hide from profile" buttons for selected inventory items, with a new bulk endpoint. After Minh's review, each button only enables when it would change something, and a mixed selection lists the skipped items before changing the rest. 3 backend tests, 4 frontend tests.
+- **PRs reviewed:** #13 (found three problems in the `.env.example` templates; approved after the fixes), #15 (found the date filter jumping while a year is typed and a 500 on extreme dates; approved after the fixes), #17 (found the read-aloud bar covering page content).
 
 **[Name]**, [Role]
 > [Specific contributions]
