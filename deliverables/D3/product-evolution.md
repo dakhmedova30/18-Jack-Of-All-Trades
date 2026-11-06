@@ -106,5 +106,7 @@ At D2, CI ran no tests and deploys were manual. Now every PR runs 237 backend te
 ### How this affects our path to D4
 
 - **Merge smaller and sooner:** The analytics branch fell 32 commits behind `main`, and #19 grew to 73 files before #22 was split out of it. We'll merge `main` into open branches daily and keep PRs open for 2–3 days at most.
-- **Finish the MVP from feedback:** Use the saved time zone, tie expenses to channels, and build account switching.
+- **Build on the new foundations:** The period API, channel data and CI from D3 keep the remaining MVP small and testable. Tying expenses to channels will replace Net Profit's "—" with a real per-channel profit, using the saved time zone fixes the evening-sale dates above, and account switching completes Settings.
+- **Plans for D4:** Deeper Analytics, with more detailed metrics and more charts; CSV import and export of products, sales and expenses, so owners can bring in existing records and keep their own copy; notifications that update within seconds of a change instead of every 2 minutes; and a public profile that stays view-only.
+- **Ask what would stop people using it:** Before building more, we'll ask small-business owners what would make them not use the product, and rank D4 work by their answers.
 - **Raise the quality bar:** Split the stylesheet by component and add end-to-end tests, since mocked frontend tests can't catch the frontend and backend disagreeing.
