@@ -53,7 +53,7 @@ cd jack-of-all-trades
 # 1. Local Postgres for the backend (runs on :5433, no setup needed)
 cd backend && docker compose up -d && cd ..
 
-# 2. Backend — seeds the demo account, picks up the local Postgres above by default
+# 2. Backend — seeds the demo account with sample data, picks up the local Postgres above by default
 cd backend && SPRING_PROFILES_ACTIVE=demo ./mvnw spring-boot:run
 # in a second terminal:
 cd demo && npm install && npm run dev -w client   # web app on http://localhost:5173
@@ -61,7 +61,7 @@ cd demo && npm install && npm run dev -w client   # web app on http://localhost:
 
 No Docker? Point the backend at any hosted Postgres instead by setting `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD` (copy `backend/.env.example`; see [Configuration](#configuration)) before `./mvnw spring-boot:run`. Flyway creates the schema automatically on first connect either way.
 
-The app requires a login. Register your own business account on first run, or log in as the seeded demo account:
+The app requires a login. Register your own business account on first run, or log in as the seeded demo account, which starts with sample products, about six weeks of sales and some expenses:
 
 ```
 email:    demo@jackofalltrades.test
