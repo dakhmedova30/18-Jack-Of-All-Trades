@@ -74,7 +74,7 @@
   --shadow-modal: 0 12px 40px hsl(var(--hue) 80% 10% / 0.2);
 
   /* Type */
-  --font-body: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-header: 'Fraunces variable', serif;
 
   /* Shape & layout */
