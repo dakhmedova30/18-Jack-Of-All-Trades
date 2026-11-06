@@ -9,14 +9,14 @@ Jack-Of-All-Trades promises small businesses [management *and* intelligence](../
 
 ### How we identified it
 
-- **TA feedback at the D2 demo:** make fonts, colours and widgets consistent; show which items are low or not selling; put the summary cards (stock value, low stock, this month, best sellers) at the top of Inventory and Sales; and add tests. Our [D2 retrospective](../D2/iteration-02-review.md) independently planned analytics by sales channel, UI consistency and more integration testing.
+- **Feedback and reflection:** the TA's D2 demo feedback asked for consistent fonts, colours and widgets, low and unsold items made visible, summary cards moved to the top, and tests; our [D2 retrospective](../D2/iteration-02-review.md) planned the same, plus analytics by sales channel.
 - **Using the product:** answering real questions with the demo account's 15 months of data showed that a quarter of its sales never appeared in Analytics.
 - **Testing:** once CI ran the backend tests, the first PR it checked ([#8](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/8)) failed.
 
 ## 2. What You Did
 <!-- Describe what was implemented, key architectural or design changes, and integration challenges. -->
 
-Our work fell into four areas, most important first:
+Everything below is live at https://jack-of-all-trades-m86p.onrender.com: log in with the demo account from the [README](../../README.md#deployed-url--access-instructions). Our work fell into four areas, most important first:
 
 - **Finding answers in the data** ([#15](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/15), [#16](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/16), [#24](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/24)): channel and date filters on Sales; on Analytics, a side panel with dates, a slider over the whole history and a channel filter, plus a Revenue by Channel card; and on Home, a choice of week, month or year, with empty periods explained instead of shown as bare zeros.
 - **Running the business from the app** ([#8](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/8), [#12](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/12), [#19](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/19), [#21](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/21), [#22](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/22)): Settings for account, security, preferences and notifications; an account currency, with product prices converted or relabelled; a public business profile whose products can be shown or hidden in bulk; and an Inventory panel listing products with no sales this month.
