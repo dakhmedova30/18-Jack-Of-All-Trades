@@ -48,9 +48,21 @@ Log in as the demo account, then:
 
 ### Screenshots
 
-| Home dashboard | Inventory |
-| --- | --- |
-| ![Home dashboard](docs/screenshots/home.jpg) | ![Inventory page](docs/screenshots/inventory.jpg) |
+**Home:** this month's revenue, expenses, profit and low stock, with the **Show** period choice (top right).
+
+![Home dashboard with the Show period choice set to This month](docs/screenshots/home.jpg)
+
+**Inventory:** stock value, **Low stock** and **Not selling** panels above the product table.
+
+![Inventory page with the stock value, low stock and not selling panels](docs/screenshots/inventory.jpg)
+
+**Sales:** this month at a glance and best sellers, then the channel and date filters above the sales table.
+
+![Sales page with summary cards, channel and date filters, and the sales table](docs/screenshots/sales.jpg)
+
+**Analytics:** the period and channel filters, Revenue by Channel, and the overview charts.
+
+![Analytics page with date range and channel filters, revenue by channel, and charts](docs/screenshots/analytics.jpg)
 
 ## Non-Functional Requirements
 
