@@ -21,6 +21,9 @@ public interface ItemRepository extends Repository<Item, Integer> {
 
     Optional<Item> findByIdAndBusinessId(Integer id, Integer businessId);
 
+    /** Whether the business has any items; the demo seeder adds sample data only when it has none. */
+    boolean existsByBusinessId(Integer businessId);
+
     /** Locks the row like the method below, so a PATCH or delete waits for a sale in progress. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Item> findLockedByIdAndBusinessId(Integer id, Integer businessId);
