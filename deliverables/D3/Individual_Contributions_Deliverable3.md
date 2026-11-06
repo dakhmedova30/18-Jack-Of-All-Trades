@@ -25,8 +25,27 @@ Precise description:
 * Accessibility and NFR evidence: measured Lighthouse accessibility on the live site (96–100 on every main page) and documented the accessibility, security and production measures in the README (#26).
 * Documentation: rewrote the README for D3 (try-it section, current workflows, response to D2 feedback, new screenshots) (#26), wrote sections 1–2 of the product evolution report, and added the team meeting minutes (#25).
 
-**[Name]**, [Role]
-> [Specific contributions]
+**Kimberly Prijadi**, Frontend Developer (UI/UX and accessibility); currency conversion implementation
+
+- Currency conversion (#19, Copilot-assisted):
+  - Supplemented the currency conversion workflow with an optional "convert existing inventory prices" checkbox, a preview/confirmation dialog (items affected, sample before/after prices, rate and "as of" date), and a notice when bundled or stale rates are in use.
+  - Backend: `ExchangeRateService` (fetches USD-base rates from open.er-api.com, caches until the API's next-update time, falls back to last good rates and then to a bundled snapshot, `exchange-rates-fallback.json`) and `CurrencyChangeService` (converts inventory prices in one transaction with `BigDecimal`; relabel mode only updates rows in the previous currency). Supported currencies and retry settings are configured in `application.yml`.
+  - Sales and expenses keep their own stored currency; totals are converted at read time.
+  - Wrote 23 tests covering API/integration, service tests, and API failures.
+  - Fixed four problems found in review: edits restamping an old record's currency (a €100 expense became CA$100 after a description edit), repeated failed rate fetches during an outage, relabel touching rows in other currencies, and the config placement/typo that stopped the app starting. Hans helped resolve merge conflicts and the edit forms showing each record's own currency.
+- Accessibility (#14, Copilot-assisted):
+  - Collapsible sidebar with keyboard-accessible navigation.
+  - Focus entry, focus trapping, and focus restoration for dialogs and popovers (`Modal.tsx`, `AccountMenu.tsx`, `NotificationBell.tsx`), with Esc to close; fixed dialogs opening on the ✕ button after review.
+  - Fieldset/legend grouping, required semantics, and error messages linked to inputs in the item, sales and expense forms.
+  - Arrow-key navigation for the custom radio groups in `AppearanceTab.tsx`; descriptive page titles and a `main` landmark on login and registration.
+  - Confirmation before closing an edited item, sale, or expense form.
+- UI polish (#9):
+  - Required-field indicators, show-password on login and registration, maximum limits on cost and price inputs. (copilot assisted)
+  - Reworked the Sales summary and made summary panels consistent and stacking on small screens; adjusted settings tab heights and small-screen widths.
+  - Moved cards to the top of the Inventory and Sales pages, as the TA suggested.
+- Cosmetic and layout work (#22):
+  - Switched the body font to Atkinson Hyperlegible, added the "Not Selling" inventory panel (items not sold this month), and made stat cards stack at 720 to 900px so text stays inside the card. Hans took over this PR to fix the Inventory page going blank against main's backend while I worked on #19.
+- **PRs reviewed:** #8, #10, #11, #15, #26.
 
 **[Name]**, [Role]
 > [Specific contributions]
