@@ -12,7 +12,7 @@
 - PRs reviewed: 16, 17, 19, 21, 22, 23, 24, 25.
 - Product evolution: worked on part 3 and 4.
 
-**Hans Santiago** - Set up CI/CD and deployment config, built the demo data and Home filter, and fixed integration issues across PRs.
+**Hans Santiago**, Back-end, CI/CD, & integration
 Precise description:
 * CI/CD: set up GitHub Actions to run the backend tests on every PR, with time limits set from measured runs, and to deploy to Render through a secret deploy hook only after all checks pass (#10); later added the frontend tests to CI (#18).
 * Testing: fixed the 5 backend test failures and the notification crash for new accounts that CI caught in #8, and documented how to run both test suites (#11).
