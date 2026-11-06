@@ -55,7 +55,11 @@ function linesFromExpense(expense?: Expense): LineState[] {
 
 export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormModalProps) {
   const isEditing = expense !== undefined;
-  const currency = useCurrency();
+  const accountCurrency = useCurrency();
+  // A saved expense stays in the currency it was recorded in, and so do its line costs. In a list
+  // row `currency` is the account currency its total was converted to for display, so the lines'
+  // own currency is `originalCurrency`.
+  const currency = expense?.originalCurrency ?? accountCurrency;
 
   const [items, setItems] = useState<Item[] | null>(null);
   const [itemsError, setItemsError] = useState<string | null>(null);

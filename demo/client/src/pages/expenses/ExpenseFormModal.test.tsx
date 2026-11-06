@@ -1,10 +1,11 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as authApi from '../../api/auth';
 import * as expenseTagApi from '../../api/expenseTags';
 import * as itemApi from '../../api/items';
 import { PageProviders } from '../../test/providers';
+import type { Expense } from '../../types';
 import { ExpenseFormModal } from './ExpenseFormModal';
 
 // Required fields' labels end in a "*" (hidden from screen readers), so labels are matched by
@@ -62,5 +63,39 @@ describe('ExpenseFormModal', () => {
         },
       ],
     });
+  });
+
+  it('edits an expense in the currency it was recorded in', async () => {
+    // A list row after the account switched from EUR to CAD: the total is converted for
+    // display, but the cost stays in euros, and the server keeps it in euros when saved.
+    const euroExpense: Expense = {
+      id: 3,
+      incurredAt: '2026-10-20T00:00:00.000Z',
+      description: '',
+      tags: ['Utilities'],
+      totalCents: 15000,
+      currency: 'CAD',
+      originalAmount: 100,
+      originalCurrency: 'EUR',
+      items: [
+        {
+          id: 1,
+          itemId: null,
+          itemName: 'Rent',
+          quantity: 1,
+          unitCostCents: 10000,
+          totalCents: 10000,
+        },
+      ],
+      createdAt: '2026-10-20T00:00:00.000Z',
+      updatedAt: '2026-10-20T00:00:00.000Z',
+    };
+    render(<ExpenseFormModal expense={euroExpense} onCancel={vi.fn()} onSubmit={vi.fn()} />, {
+      wrapper: PageProviders,
+    });
+
+    // The line total and the grand total.
+    await waitFor(() => expect(screen.getAllByText('100.00 EUR')).toHaveLength(2));
+    expect(screen.queryByText(/CAD$/)).not.toBeInTheDocument();
   });
 });
