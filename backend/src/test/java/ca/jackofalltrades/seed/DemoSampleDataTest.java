@@ -38,6 +38,14 @@ class DemoSampleDataTest extends PostgresTestBase {
                 .param("b", businessId).query(Integer.class).single();
     }
 
+    private int countBetween(int businessId, Instant from, Instant to, String sql) {
+        return jdbcClient.sql(sql)
+                .param("b", businessId)
+                .param("from", OffsetDateTime.ofInstant(from, ZoneOffset.UTC))
+                .param("to", OffsetDateTime.ofInstant(to, ZoneOffset.UTC))
+                .query(Integer.class).single();
+    }
+
     private void expectCounts(int businessId, int items, int sales, int expenses) {
         assertThat(count("items", businessId)).as("items").isEqualTo(items);
         assertThat(count("sales", businessId)).as("sales").isEqualTo(sales);
@@ -105,29 +113,25 @@ class DemoSampleDataTest extends PostgresTestBase {
     }
 
     @Test
-    void datesSalesThisMonthAndNeverInTheFutureEvenOnTheFirst() throws Exception {
+    void keepsThisMonthFilledAndNothingInTheFutureEvenOnTheFirst() throws Exception {
         int businessId = businessId(registerAndLogin());
         Instant monthStart = Instant.parse("2026-03-01T00:00:00Z");
         Instant now = monthStart.plusSeconds(30);
 
         sampleData.addIfEmpty(businessId, now);
 
-        int thisMonth = jdbcClient.sql("""
-                        SELECT count(*) FROM sales WHERE business_id = :b AND sold_at >= :start AND sold_at <= :now
-                        """)
-                .param("b", businessId)
-                .param("start", OffsetDateTime.ofInstant(monthStart, ZoneOffset.UTC))
-                .param("now", OffsetDateTime.ofInstant(now, ZoneOffset.UTC))
-                .query(Integer.class).single();
-        assertThat(thisMonth).isEqualTo(3);
-        for (String sql : new String[] {
-                "SELECT count(*) FROM sales WHERE business_id = :b AND sold_at > :now",
-                "SELECT count(*) FROM expenses WHERE business_id = :b AND incurred_at > :now"}) {
-            assertThat(jdbcClient.sql(sql)
-                    .param("b", businessId)
-                    .param("now", OffsetDateTime.ofInstant(now, ZoneOffset.UTC))
-                    .query(Integer.class).single()).as(sql).isZero();
-        }
+        assertThat(countBetween(businessId, monthStart, now, """
+                SELECT count(*) FROM sales WHERE business_id = :b AND sold_at BETWEEN :from AND :to
+                """)).as("sales this month").isEqualTo(3);
+        assertThat(countBetween(businessId, monthStart, now, """
+                SELECT count(DISTINCT e.id) FROM expenses e JOIN expense_items l ON l.expense_id = e.id
+                WHERE e.business_id = :b AND e.incurred_at BETWEEN :from AND :to AND l.item_id IS NOT NULL
+                """)).as("restocks this month").isEqualTo(1);
+        Instant farFuture = now.plusSeconds(365L * 24 * 3600);
+        assertThat(countBetween(businessId, now.plusNanos(1000), farFuture, """
+                SELECT (SELECT count(*) FROM sales WHERE business_id = :b AND sold_at BETWEEN :from AND :to)
+                     + (SELECT count(*) FROM expenses WHERE business_id = :b AND incurred_at BETWEEN :from AND :to)
+                """)).as("sales and expenses after now").isZero();
         // About six weeks of history before that.
         OffsetDateTime oldest = jdbcClient.sql("SELECT min(sold_at) FROM sales WHERE business_id = :b")
                 .param("b", businessId).query(OffsetDateTime.class).single();

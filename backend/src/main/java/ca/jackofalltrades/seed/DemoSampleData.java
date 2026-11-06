@@ -25,9 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Sample items, restocks, costs and sales for the demo account, so every page has something to
  * show. The data is fixed (no randomness) and dated relative to now: about six weeks back, plus a
- * few sales and a cost that always fall in the current UTC month, so Home's "this month" tiles are
- * never all zero. Everything goes through the normal services, so stock and validation rules apply
- * just as if the owner had typed it in.
+ * restock, a cost and a few sales that always fall in the current UTC month, so the "this month"
+ * views (Home, Sales, Expenses) are never empty. Everything goes through the normal services, so
+ * stock and validation rules apply just as if the owner had typed it in.
  */
 @Component
 public class DemoSampleData {
@@ -36,16 +36,19 @@ public class DemoSampleData {
     private record Product(String name, int quantity, int unitPriceCents, String tag) {}
 
     /** Restocks {@code quantity} of {@code PRODUCTS[product]} at {@code unitCostCents} each. */
-    private record Restock(int daysAgo, int product, int quantity, int unitCostCents) {}
+    private record Restock(int product, int quantity, int unitCostCents) {}
 
     /** A plain cost that doesn't touch stock, e.g. a market stall fee. */
-    private record Cost(int daysAgo, String description, int cents, String tag) {}
+    private record Cost(String description, int cents, String tag) {}
 
     /** {@code product} indexes into PRODUCTS. */
     private record Line(int product, int quantity) {}
 
     /** {@code channel} is one of ChannelService.STARTER_CHANNELS. */
     private record Sale(String channel, List<Line> lines) {}
+
+    /** An entry dated {@code daysAgo} days before today, at {@code hour}:00 UTC. */
+    private record Past<T>(int daysAgo, int hour, T entry) {}
 
     private static final List<Product> PRODUCTS = List.of(
             new Product("Floral Art Print (8x10)", 12, 1800, "prints"),
@@ -57,50 +60,49 @@ public class DemoSampleData {
             new Product("Wildflower Sticker Pack", 18, 700, "stickers"),
             new Product("Linen Sketch Notebook", 8, 1600, "notebooks"));
 
-    private static final List<Restock> RESTOCKS = List.of(
-            new Restock(40, 0, 10, 600),
-            new Restock(38, 2, 20, 150),
-            new Restock(35, 1, 20, 200),
-            new Restock(28, 3, 4, 1100),
-            new Restock(21, 6, 15, 250),
-            new Restock(10, 7, 6, 700));
+    private static final List<Past<Restock>> PAST_RESTOCKS = List.of(
+            past(40, 10, new Restock(0, 10, 600)),
+            past(38, 10, new Restock(2, 20, 150)),
+            past(35, 10, new Restock(1, 20, 200)),
+            past(28, 10, new Restock(3, 4, 1100)),
+            past(21, 10, new Restock(6, 15, 250)));
 
-    private static final List<Cost> COSTS = List.of(
-            new Cost(41, "Market stall fee", 4500, "market"),
-            new Cost(33, "Packaging supplies", 1850, "supplies"),
-            new Cost(26, "Studio rent", 25000, "rent"),
-            new Cost(14, "Craft fair booth", 6000, "market"),
-            new Cost(5, "Internet", 5500, "utilities"));
+    private static final List<Past<Cost>> PAST_COSTS = List.of(
+            past(41, 9, new Cost("Market stall fee", 4500, "market")),
+            past(33, 9, new Cost("Packaging supplies", 1850, "supplies")),
+            past(26, 9, new Cost("Studio rent", 25000, "rent")),
+            past(14, 9, new Cost("Craft fair booth", 6000, "market")),
+            past(5, 9, new Cost("Internet", 5500, "utilities")));
 
-    /** Dated {@code daysAgo} days back from now, at {@code hour} UTC. */
-    private record PastSale(int daysAgo, int hour, Sale sale) {}
+    private static final List<Past<Sale>> PAST_SALES = List.of(
+            past(41, 11, sale("In person", line(0, 2), line(2, 3))),
+            past(39, 19, sale("Online", line(1, 2))),
+            past(37, 13, sale("In person", line(3, 1), line(2, 2))),
+            past(34, 16, sale("Commission", line(5, 1))),
+            past(32, 20, sale("Online", line(6, 2), line(1, 1))),
+            past(30, 12, sale("In person", line(0, 1), line(4, 2))),
+            past(27, 18, sale("Online", line(7, 1))),
+            past(25, 14, sale("In person", line(2, 4), line(1, 2))),
+            past(23, 15, sale("Misc", line(4, 3))),
+            past(20, 21, sale("Online", line(0, 1), line(6, 1))),
+            past(18, 11, sale("In person", line(3, 1), line(7, 1))),
+            past(15, 17, sale("Commission", line(5, 1))),
+            past(13, 19, sale("Online", line(2, 2), line(6, 2))),
+            past(11, 13, sale("In person", line(0, 2))),
+            past(8, 20, sale("Online", line(1, 3))),
+            past(6, 12, sale("In person", line(3, 2), line(2, 2))),
+            past(4, 18, sale("Online", line(7, 1), line(6, 1))));
 
-    private static final List<PastSale> PAST_SALES = List.of(
-            new PastSale(41, 11, sale("In person", line(0, 2), line(2, 3))),
-            new PastSale(39, 19, sale("Online", line(1, 2))),
-            new PastSale(37, 13, sale("In person", line(3, 1), line(2, 2))),
-            new PastSale(34, 16, sale("Commission", line(5, 1))),
-            new PastSale(32, 20, sale("Online", line(6, 2), line(1, 1))),
-            new PastSale(30, 12, sale("In person", line(0, 1), line(4, 2))),
-            new PastSale(27, 18, sale("Online", line(7, 1))),
-            new PastSale(25, 14, sale("In person", line(2, 4), line(1, 2))),
-            new PastSale(23, 15, sale("Misc", line(4, 3))),
-            new PastSale(20, 21, sale("Online", line(0, 1), line(6, 1))),
-            new PastSale(18, 11, sale("In person", line(3, 1), line(7, 1))),
-            new PastSale(15, 17, sale("Commission", line(5, 1))),
-            new PastSale(13, 19, sale("Online", line(2, 2), line(6, 2))),
-            new PastSale(11, 13, sale("In person", line(0, 2))),
-            new PastSale(8, 20, sale("Online", line(1, 3))),
-            new PastSale(6, 12, sale("In person", line(3, 2), line(2, 2))),
-            new PastSale(4, 18, sale("Online", line(7, 1), line(6, 1))));
+    // Dated between the 1st of the current UTC month and now, so every "this month" view has a
+    // restock, a cost and some sales to show, whatever day it is.
+    private static final Restock THIS_MONTH_RESTOCK = new Restock(7, 6, 700);
 
-    /** Spread evenly between the 1st of the current UTC month and now, so they're always this month. */
+    private static final Cost THIS_MONTH_COST = new Cost("Shipping labels", 2275, "supplies");
+
     private static final List<Sale> THIS_MONTH_SALES = List.of(
             sale("In person", line(0, 1), line(2, 2)),
             sale("Online", line(1, 2), line(6, 1)),
             sale("Commission", line(5, 1)));
-
-    private static final Cost THIS_MONTH_COST = new Cost(0, "Shipping labels", 2275, "supplies");
 
     private final ItemRepository items;
     private final ItemService itemService;
@@ -153,27 +155,32 @@ public class DemoSampleData {
             productIds.add(itemService.create(new ItemInput(product.name(), product.quantity(),
                     product.unitPriceCents(), List.of(product.tag()), "", false)).id());
         }
-
-        for (Restock restock : RESTOCKS) {
-            expenseService.record(new ExpenseInput(daysAgo(now, restock.daysAgo(), 10), "", List.of("supplier"),
-                    List.of(new ExpenseInput.Line(productIds.get(restock.product()), null, restock.quantity(),
-                            restock.unitCostCents()))));
-        }
-        for (Cost cost : COSTS) {
-            recordCost(cost, daysAgo(now, cost.daysAgo(), 9));
-        }
         Instant monthStart = LocalDate.ofInstant(now, ZoneOffset.UTC).withDayOfMonth(1)
                 .atStartOfDay(ZoneOffset.UTC).toInstant();
-        recordCost(THIS_MONTH_COST, iso(thisMonth(monthStart, now, 1, 2)));
+
+        for (Past<Restock> past : PAST_RESTOCKS) {
+            recordRestock(past.entry(), daysAgo(now, past), productIds);
+        }
+        recordRestock(THIS_MONTH_RESTOCK, thisMonth(monthStart, now, 1, 3), productIds);
+        for (Past<Cost> past : PAST_COSTS) {
+            recordCost(past.entry(), daysAgo(now, past));
+        }
+        recordCost(THIS_MONTH_COST, thisMonth(monthStart, now, 2, 3));
 
         List<ChannelResponse> channels = channelService.list();
-        for (PastSale past : PAST_SALES) {
-            recordSale(past.sale(), daysAgo(now, past.daysAgo(), past.hour()), channels, productIds);
+        for (Past<Sale> past : PAST_SALES) {
+            recordSale(past.entry(), daysAgo(now, past), channels, productIds);
         }
         for (int i = 0; i < THIS_MONTH_SALES.size(); i++) {
-            Instant soldAt = thisMonth(monthStart, now, i + 1, THIS_MONTH_SALES.size() + 1);
-            recordSale(THIS_MONTH_SALES.get(i), iso(soldAt), channels, productIds);
+            String soldAt = thisMonth(monthStart, now, i + 1, THIS_MONTH_SALES.size() + 1);
+            recordSale(THIS_MONTH_SALES.get(i), soldAt, channels, productIds);
         }
+    }
+
+    private void recordRestock(Restock restock, String incurredAt, List<Integer> productIds) {
+        expenseService.record(new ExpenseInput(incurredAt, "", List.of("supplier"),
+                List.of(new ExpenseInput.Line(productIds.get(restock.product()), null, restock.quantity(),
+                        restock.unitCostCents()))));
     }
 
     private void recordCost(Cost cost, String incurredAt) {
@@ -200,21 +207,25 @@ public class DemoSampleData {
                 .orElseThrow(() -> new IllegalStateException("The demo business has no sales channels"));
     }
 
-    /** {@code days} days before now's date, at {@code hour}:00 UTC. Never later than now. */
-    private static String daysAgo(Instant now, int days, int hour) {
-        Instant at = LocalDate.ofInstant(now, ZoneOffset.UTC).minusDays(days)
-                .atTime(hour, 0).toInstant(ZoneOffset.UTC);
+    /** The entry's date and hour, counted back from now's UTC date; never later than now. */
+    private static String daysAgo(Instant now, Past<?> past) {
+        Instant at = LocalDate.ofInstant(now, ZoneOffset.UTC).minusDays(past.daysAgo())
+                .atTime(past.hour(), 0).toInstant(ZoneOffset.UTC);
         return iso(at.isAfter(now) ? now : at);
     }
 
     /** The {@code part}/{@code parts} point between the start of the month and now. */
-    private static Instant thisMonth(Instant monthStart, Instant now, int part, int parts) {
+    private static String thisMonth(Instant monthStart, Instant now, int part, int parts) {
         Duration sinceStart = Duration.between(monthStart, now);
-        return monthStart.plus(sinceStart.multipliedBy(part).dividedBy(parts));
+        return iso(monthStart.plus(sinceStart.multipliedBy(part).dividedBy(parts)));
     }
 
     private static String iso(Instant instant) {
         return instant.atOffset(ZoneOffset.UTC).toString();
+    }
+
+    private static <T> Past<T> past(int daysAgo, int hour, T entry) {
+        return new Past<>(daysAgo, hour, entry);
     }
 
     private static Sale sale(String channel, Line... lines) {
