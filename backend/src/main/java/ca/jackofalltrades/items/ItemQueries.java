@@ -107,6 +107,29 @@ public class ItemQueries {
                 .list();
     }
 
+    /** In-stock items with no sale lines in {@code [from, to)}, by name. */
+    public List<InventoryInsights.NotSellingItem> notSelling(int businessId, Instant from, Instant to) {
+        return jdbcClient.sql("""
+                        SELECT i.id, i.name, i.quantity
+                        FROM items i
+                        WHERE i.business_id = :businessId AND i.quantity > 0
+                          AND NOT EXISTS (
+                              SELECT 1
+                              FROM sale_items si
+                              JOIN sales s ON s.id = si.sale_id
+                              WHERE si.item_id = i.id AND s.business_id = :businessId
+                                AND s.sold_at >= :from AND s.sold_at < :to
+                          )
+                        ORDER BY i.name ASC, i.id ASC
+                        """)
+                .param("businessId", businessId)
+                .param("from", OffsetDateTime.ofInstant(from, ZoneOffset.UTC))
+                .param("to", OffsetDateTime.ofInstant(to, ZoneOffset.UTC))
+                .query((rs, rowNum) -> new InventoryInsights.NotSellingItem(
+                        rs.getInt("id"), rs.getString("name"), rs.getInt("quantity")))
+                .list();
+    }
+
     /** How many items have at most {@code threshold} left, plus the {@code limit} lowest, lowest first. */
     public LowStock lowStock(int businessId, int threshold, int limit) {
         Map<String, Object> params = Map.of("businessId", businessId, "threshold", threshold, "limit", limit);

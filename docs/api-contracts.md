@@ -222,11 +222,13 @@ A page customers can read **without logging in**: the business's public details 
 // ItemInput (isPublic is optional, default false: shown on the public profile, §2.2)
 { "name": "Flower Print", "quantity": 10, "unitPriceCents": 1200, "tags": ["print"], "note": "", "isPublic": false }
 
-// InventoryInsights: stock value at selling price, and this month's top 3 sellers
+// InventoryInsights: stock value at selling price, this month's top 3 sellers, and every
+// in-stock item (quantity > 0) with no sales this month, by name
 {
   "stockValueCents": 482000, "totalUnits": 310,
   "periodStart": "2026-10-01T00:00:00.000Z", "periodEnd": "2026-11-01T00:00:00.000Z",
-  "bestSellers": [{ "id": 7, "name": "Flower Print", "unitsSold": 14, "revenueCents": 16800 }]
+  "bestSellers": [{ "id": 7, "name": "Flower Print", "unitsSold": 14, "revenueCents": 16800 }],
+  "notSelling": [{ "id": 12, "name": "Linen Tote", "quantity": 6 }]
 }
 
 // LowStock

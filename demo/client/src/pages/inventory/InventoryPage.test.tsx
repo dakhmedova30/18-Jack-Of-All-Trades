@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as authApi from '../../api/auth';
 import * as itemApi from '../../api/items';
 import { testItem } from '../../test/fixtures';
+import type { InventoryInsights } from '../../types';
 import { PageProviders } from '../../test/providers';
 import { InventoryPage } from './InventoryPage';
 
@@ -177,5 +178,68 @@ describe('InventoryPage', () => {
       '2 items now on your public profile.',
     );
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  describe('Not selling panel', () => {
+    const unsold: InventoryInsights['notSelling'] = [
+      { id: 2, name: 'Bookmark', quantity: 9 },
+      { id: 3, name: 'Card', quantity: 4 },
+      { id: 4, name: 'Notebook', quantity: 6 },
+      { id: 5, name: 'Tote', quantity: 2 },
+    ];
+
+    function mockNotSelling(notSelling: InventoryInsights['notSelling']) {
+      vi.mocked(itemApi.getInventoryInsights).mockResolvedValue({
+        stockValueCents: 5400,
+        totalUnits: 12,
+        periodStart: '2026-10-01',
+        periodEnd: '2026-11-01',
+        bestSellers: [],
+        notSelling,
+      });
+    }
+
+    async function findPanel(title: string) {
+      const heading = await screen.findByRole('heading', { name: title });
+      return within(heading.closest('section')!);
+    }
+
+    it('lists in-stock items with no sales this month, the first three at a time', async () => {
+      mockNotSelling(unsold);
+      render(<InventoryPage />, { wrapper: PageProviders });
+
+      const panel = await findPanel('Not selling (4)');
+      expect(panel.getByText('October, no sales')).toBeInTheDocument();
+      expect(panel.getByText('Bookmark')).toBeInTheDocument();
+      expect(panel.getByText('9 left')).toBeInTheDocument();
+      expect(panel.getByText('Notebook')).toBeInTheDocument();
+      expect(panel.queryByText('Tote')).not.toBeInTheDocument();
+    });
+
+    it('expands to the whole list and back', async () => {
+      const user = userEvent.setup();
+      mockNotSelling(unsold);
+      render(<InventoryPage />, { wrapper: PageProviders });
+
+      const panel = await findPanel('Not selling (4)');
+      await user.click(panel.getByRole('button', { name: 'Expand list' }));
+      expect(panel.getByText('Tote')).toBeInTheDocument();
+      expect(panel.getByRole('button', { name: 'Show less' })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      );
+
+      await user.click(panel.getByRole('button', { name: 'Show less' }));
+      expect(panel.queryByText('Tote')).not.toBeInTheDocument();
+    });
+
+    it('says so when every in-stock item has sold this month', async () => {
+      mockNotSelling([]);
+      render(<InventoryPage />, { wrapper: PageProviders });
+
+      const panel = await findPanel('Not selling (0)');
+      expect(panel.getByText('Every in-stock item has sold this month.')).toBeInTheDocument();
+      expect(panel.queryByRole('button', { name: 'Expand list' })).not.toBeInTheDocument();
+    });
   });
 });

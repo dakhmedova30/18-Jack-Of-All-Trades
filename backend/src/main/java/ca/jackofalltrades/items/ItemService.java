@@ -77,7 +77,7 @@ public class ItemService {
                 .orElseThrow(() -> new NotFoundException("Item", id));
     }
 
-    /** Stock value, plus this UTC month's best sellers, as the demo and Analytics use. */
+    /** Stock value, plus this UTC month's best sellers and unsold in-stock items, as the demo and Analytics use. */
     @Transactional(readOnly = true)
     public InventoryInsights insights() {
         LocalDate firstOfMonth = LocalDate.now(ZoneOffset.UTC).withDayOfMonth(1);
@@ -86,7 +86,8 @@ public class ItemService {
         Integer businessId = currentBusiness.id();
         long[] totals = queries.stockTotals(businessId);
         return new InventoryInsights(totals[0], totals[1], start, end,
-                queries.bestSellers(businessId, start, end, BEST_SELLERS_LIMIT));
+                queries.bestSellers(businessId, start, end, BEST_SELLERS_LIMIT),
+                queries.notSelling(businessId, start, end));
     }
 
     @Transactional(readOnly = true)
