@@ -2,6 +2,9 @@ package ca.jackofalltrades.expenses;
 
 import ca.jackofalltrades.common.api.LikePatterns;
 import ca.jackofalltrades.common.api.Paginated;
+import ca.jackofalltrades.currency.CurrencyTotals;
+import java.math.BigDecimal;
+import java.util.Comparator;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -34,9 +37,11 @@ public class ExpenseQueries {
             + " OR EXISTS (SELECT 1 FROM expense_items ei WHERE ei.expense_id = e.id AND ei.item_name ILIKE :pattern))";
 
     private final JdbcClient jdbcClient;
+    private final CurrencyTotals currencyTotals;
 
-    public ExpenseQueries(JdbcClient jdbcClient) {
+    public ExpenseQueries(JdbcClient jdbcClient, CurrencyTotals currencyTotals) {
         this.jdbcClient = jdbcClient;
+        this.currencyTotals = currencyTotals;
     }
 
     /**
@@ -73,7 +78,8 @@ public class ExpenseQueries {
         Map<Integer, List<ExpenseLineResponse>> lines = linesByExpense(rows.stream().map(ExpenseRow::id).toList());
         List<ExpenseResponse> data = rows.stream()
                 .map(row -> ExpenseResponse.of(row.id(), row.incurredAt(), row.description(), row.tags(),
-                        lines.getOrDefault(row.id(), List.of()), row.createdAt(), row.updatedAt()))
+                        lines.getOrDefault(row.id(), List.of()), row.createdAt(), row.updatedAt(), row.currency(),
+                        row.originalAmount(), row.originalCurrency()))
                 .toList();
         return Paginated.of(data, page, pageSize, total);
     }
@@ -82,39 +88,68 @@ public class ExpenseQueries {
      * Spending in {@code [from, to)}, from merge-ui-mods' spendingByKind and topRestockItems. A
      * restock line whose item was later deleted loses its item link, so it counts as a running cost.
      */
-    public ExpenseMonthBreakdown periodBreakdown(int businessId, Instant from, Instant to, int topLimit) {
+    public ExpenseMonthBreakdown periodBreakdown(
+            int businessId, Instant from, Instant to, int topLimit, String targetCurrency) {
         Map<String, Object> params = Map.of(
                 "businessId", businessId,
                 "from", OffsetDateTime.ofInstant(from, ZoneOffset.UTC),
-                "to", OffsetDateTime.ofInstant(to, ZoneOffset.UTC),
-                "limit", topLimit);
+                "to", OffsetDateTime.ofInstant(to, ZoneOffset.UTC));
 
-        long[] byKind = jdbcClient.sql("""
-                        SELECT COALESCE(SUM(ei.total_cents) FILTER (WHERE ei.item_id IS NOT NULL), 0),
-                               COALESCE(SUM(ei.total_cents) FILTER (WHERE ei.item_id IS NULL), 0)
+        Map<String, long[]> byCurrency = jdbcClient.sql("""
+                        SELECT e.currency,
+                               COALESCE(SUM(ei.total_cents) FILTER (WHERE ei.item_id IS NOT NULL), 0) AS restock_cents,
+                               COALESCE(SUM(ei.total_cents) FILTER (WHERE ei.item_id IS NULL), 0) AS running_cents
                         FROM expenses e JOIN expense_items ei ON ei.expense_id = e.id
                         WHERE e.business_id = :businessId AND e.incurred_at >= :from AND e.incurred_at < :to
+                        GROUP BY e.currency
                         """)
                 .params(params)
-                .query((rs, rowNum) -> new long[] {rs.getLong(1), rs.getLong(2)})
-                .single();
-        List<ExpenseMonthBreakdown.TopRestockItem> top = jdbcClient.sql("""
-                        SELECT i.id, i.name, SUM(ei.quantity) AS units, SUM(ei.total_cents) AS spent_cents
+                .query((rs, rowNum) -> Map.entry(
+                        rs.getString("currency"),
+                        new long[] {rs.getLong("restock_cents"), rs.getLong("running_cents")}))
+                .list().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        List<RawTopRestockItem> rawTop = jdbcClient.sql("""
+                        SELECT i.id, i.name, e.currency, SUM(ei.quantity) AS units, SUM(ei.total_cents) AS spent_cents
                         FROM expense_items ei
                         JOIN expenses e ON e.id = ei.expense_id
                         JOIN items i ON i.id = ei.item_id
                         WHERE e.business_id = :businessId AND e.incurred_at >= :from AND e.incurred_at < :to
-                        GROUP BY i.id, i.name
-                        ORDER BY spent_cents DESC, i.name ASC
-                        LIMIT :limit
+                        GROUP BY i.id, i.name, e.currency
                         """)
                 .params(params)
-                .query((rs, rowNum) -> new ExpenseMonthBreakdown.TopRestockItem(
-                        rs.getInt("id"), rs.getString("name"), rs.getLong("units"), rs.getLong("spent_cents")))
+                .query((rs, rowNum) -> new RawTopRestockItem(
+                        rs.getInt("id"),
+                        rs.getString("name"),
+                        rs.getString("currency"),
+                        rs.getLong("units"),
+                        rs.getLong("spent_cents")))
                 .list();
 
-        long restock = byKind[0];
-        long running = byKind[1];
+        Map<String, Long> restockByCurrency = new HashMap<>();
+        Map<String, Long> runningByCurrency = new HashMap<>();
+        byCurrency.forEach((currency, totals) -> {
+            restockByCurrency.put(currency, totals[0]);
+            runningByCurrency.put(currency, totals[1]);
+        });
+        long restock = currencyTotals.convertSubtotals(restockByCurrency, targetCurrency);
+        long running = currencyTotals.convertSubtotals(runningByCurrency, targetCurrency);
+        Map<Integer, List<RawTopRestockItem>> groupedTop = rawTop.stream()
+                .collect(Collectors.groupingBy(RawTopRestockItem::id));
+        List<ExpenseMonthBreakdown.TopRestockItem> top = groupedTop.values().stream()
+                .map(rows -> {
+                    RawTopRestockItem first = rows.get(0);
+                    Map<String, Long> byItemCurrency = rows.stream().collect(Collectors.toMap(
+                            RawTopRestockItem::currency, RawTopRestockItem::spentCents, Long::sum));
+                    long spent = currencyTotals.convertSubtotals(byItemCurrency, targetCurrency);
+                    long units = rows.stream().mapToLong(RawTopRestockItem::units).sum();
+                    return new ExpenseMonthBreakdown.TopRestockItem(first.id(), first.name(), units, spent);
+                })
+                .sorted(Comparator.comparingLong(ExpenseMonthBreakdown.TopRestockItem::spentCents)
+                        .reversed()
+                        .thenComparing(ExpenseMonthBreakdown.TopRestockItem::name))
+                .limit(topLimit)
+                .toList();
         return new ExpenseMonthBreakdown(from, to, restock, running, restock + running, top);
     }
 
@@ -138,7 +173,9 @@ public class ExpenseQueries {
     }
 
     private record ExpenseRow(Integer id, Instant incurredAt, String description, List<String> tags,
-            Instant createdAt, Instant updatedAt) {}
+            Instant createdAt, Instant updatedAt, String currency, BigDecimal originalAmount, String originalCurrency) {}
+
+    private record RawTopRestockItem(Integer id, String name, String currency, long units, long spentCents) {}
 
     private static ExpenseRow mapExpense(ResultSet rs, int rowNum) throws SQLException {
         return new ExpenseRow(
@@ -147,6 +184,9 @@ public class ExpenseQueries {
                 rs.getString("description"),
                 List.of((String[]) rs.getArray("tags").getArray()),
                 rs.getObject("created_at", OffsetDateTime.class).toInstant(),
-                rs.getObject("updated_at", OffsetDateTime.class).toInstant());
+                rs.getObject("updated_at", OffsetDateTime.class).toInstant(),
+                rs.getString("currency"),
+                rs.getBigDecimal("original_amount"),
+                rs.getString("original_currency"));
     }
 }

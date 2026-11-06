@@ -7,7 +7,9 @@ import {
   useAppearance,
   type Accent,
 } from '../../hooks/useAppearance';
+import { useCurrency } from '../../hooks/useCurrency';
 import { SettingsRow } from './SettingsRow';
+import { formatCents } from '../../utils/money';
 
 const LABELS: Record<string, string> = {
   light: 'Light',
@@ -90,6 +92,7 @@ function Choice<T extends string>({
 /** Theme, accent colour, text size and table density. Every change applies at once, everywhere. */
 export function AppearanceTab() {
   const { appearance, update, reset } = useAppearance();
+  const currency = useCurrency();
   const accentGroupRef = useRef<HTMLDivElement>(null);
 
   return (
@@ -176,17 +179,17 @@ export function AppearanceTab() {
             <tr>
               <td>Soy candle</td>
               <td>12</td>
-              <td>$18.00 CAD</td>
+              <td>{formatCents(1800, currency)}</td>
             </tr>
             <tr>
               <td>Hand soap</td>
               <td>4</td>
-              <td>$7.50 CAD</td>
+              <td>{formatCents(750, currency)}</td>
             </tr>
             <tr>
               <td>Wax melts</td>
               <td>30</td>
-              <td>$5.00 CAD</td>
+              <td>{formatCents(500, currency)}</td>
             </tr>
           </tbody>
         </table>

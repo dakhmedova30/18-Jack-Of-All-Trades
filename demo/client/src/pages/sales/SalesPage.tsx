@@ -7,12 +7,20 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useInventoryInsights } from '../../hooks/useInventoryInsights';
 import { useSalesMonthSummary } from '../../hooks/useSalesMonthSummary';
 import { useSales } from '../../hooks/useSales';
+import { useCurrency } from '../../hooks/useCurrency';
 import type { Sale, SaleInput, SaleSortField, SortOrder } from '../../types';
 import { usePreferences } from '../../hooks/usePreferences';
 import { formatCents } from '../../utils/money';
 import { BestSellersPanel } from './BestSellersPanel';
 import { MonthGlancePanel } from './MonthGlancePanel';
 import { SaleFormModal } from './SaleFormModal';
+import {
+  canApplySaleFilters,
+  hasSaleFilters,
+  NO_SALE_FILTERS,
+  SalesFilters,
+  type SaleFilterValues,
+} from './SalesFilters';
 
 /** Table columns in order; those without a `field` aren't sortable. */
 const COLUMNS: { field?: SaleSortField; label: string; numeric?: boolean }[] = [
@@ -29,10 +37,20 @@ type DeleteTarget = { kind: 'single'; sale: Sale } | { kind: 'bulk'; ids: number
 
 export function SalesPage() {
   const { preferences, formatDate } = usePreferences();
+  const currency = useCurrency();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebouncedValue(searchInput.trim());
   const [sort, setSort] = useState(DEFAULT_SORT);
+  const [filters, setFilters] = useState<SaleFilterValues>(NO_SALE_FILTERS);
+  // Typed dates change on every keystroke. Filter the table once they settle, and only by values
+  // that make sense; until then it keeps the last good filters, so no request is wasted.
+  const settledFilters = useDebouncedValue(filters);
+  const [applied, setApplied] = useState<SaleFilterValues>(NO_SALE_FILTERS);
+  if (settledFilters !== applied && canApplySaleFilters(settledFilters)) {
+    setApplied(settledFilters);
+  }
+  const filtered = hasSaleFilters(applied);
   const {
     data,
     error,
@@ -44,6 +62,9 @@ export function SalesPage() {
     search,
     sort: sort.field,
     order: sort.order,
+    channelId: applied.channelId ? Number(applied.channelId) : undefined,
+    from: applied.from || undefined,
+    to: applied.to || undefined,
   });
   const insights = useInventoryInsights();
   const monthSummary = useSalesMonthSummary();
@@ -62,6 +83,11 @@ export function SalesPage() {
         ? { field, order: current.order === 'asc' ? 'desc' : 'asc' }
         : { field, order: 'asc' },
     );
+    setPage(1);
+  }
+
+  function changeFilters(next: SaleFilterValues) {
+    setFilters(next);
     setPage(1);
   }
 
@@ -145,21 +171,24 @@ export function SalesPage() {
             Bulk delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
           </button>
         </div>
-        <div className="search-field">
-          <label htmlFor="sales-search">Search</label>
-          <div className="search">
-            <input
-              id="sales-search"
-              type="search"
-              placeholder="Search"
-              value={searchInput}
-              onChange={(event) => {
-                setSearchInput(event.target.value);
-                setPage(1);
-              }}
-              aria-label="Search sales by description, channel or item"
-            />
-            <SearchIcon />
+        <div className="toolbar__filters">
+          <SalesFilters value={filters} onChange={changeFilters} />
+          <div className="search-field">
+            <label htmlFor="sales-search">Search</label>
+            <div className="search">
+              <input
+                id="sales-search"
+                type="search"
+                placeholder="Search"
+                value={searchInput}
+                onChange={(event) => {
+                  setSearchInput(event.target.value);
+                  setPage(1);
+                }}
+                aria-label="Search sales by description, channel or item"
+              />
+              <SearchIcon />
+            </div>
           </div>
         </div>
       </div>
@@ -241,7 +270,7 @@ export function SalesPage() {
                 <td className="table__description" title={sale.description}>
                   {sale.description || <span className="muted">—</span>}
                 </td>
-                <td className="numeric">{formatCents(sale.totalCents)}</td>
+                <td className="numeric">{formatCents(sale.totalCents, currency)}</td>
                 <td>{sale.channel?.name ?? <span className="muted">—</span>}</td>
                 <td className="table__action">
                   <button
@@ -262,7 +291,7 @@ export function SalesPage() {
         </table>
 
         {!data && loading && <p className="empty-state">Loading…</p>}
-        {isEmpty && !search && (
+        {isEmpty && !search && !filtered && (
           <div className="empty-state">
             <p>Add a new sale into the table</p>
             <button
@@ -274,7 +303,23 @@ export function SalesPage() {
             </button>
           </div>
         )}
-        {isEmpty && search && <p className="empty-state">No sales match “{search}”.</p>}
+        {isEmpty && (search || filtered) && (
+          <div className="empty-state">
+            <p>
+              {search ? `No sales match “${search}”` : 'No sales match these filters'}
+              {search && filtered && ' with these filters'}.
+            </p>
+            {filtered && (
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => changeFilters(NO_SALE_FILTERS)}
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}

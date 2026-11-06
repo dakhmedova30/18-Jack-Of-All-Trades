@@ -77,16 +77,20 @@ public class ItemService {
                 .orElseThrow(() -> new NotFoundException("Item", id));
     }
 
-    /** Stock value, plus this UTC month's best sellers, as the demo and Analytics use. */
+    /** Stock value, plus this UTC month's best sellers and unsold in-stock items, as the demo and Analytics use. */
     @Transactional(readOnly = true)
     public InventoryInsights insights() {
         LocalDate firstOfMonth = LocalDate.now(ZoneOffset.UTC).withDayOfMonth(1);
         Instant start = firstOfMonth.atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant end = firstOfMonth.plusMonths(1).atStartOfDay(ZoneOffset.UTC).toInstant();
         Integer businessId = currentBusiness.id();
+        String currency = businesses.findById(businessId)
+                .map(Business::getCurrency)
+                .orElseThrow(() -> new NotFoundException("Business", businessId));
         long[] totals = queries.stockTotals(businessId);
         return new InventoryInsights(totals[0], totals[1], start, end,
-                queries.bestSellers(businessId, start, end, BEST_SELLERS_LIMIT));
+                queries.bestSellers(businessId, start, end, BEST_SELLERS_LIMIT, currency),
+                queries.notSelling(businessId, start, end));
     }
 
     @Transactional(readOnly = true)
@@ -100,7 +104,10 @@ public class ItemService {
 
     @Transactional
     public ItemResponse create(ItemInput input) {
+        Business business = businesses.findLockedById(currentBusiness.id())
+                .orElseThrow(() -> new NotFoundException("Business", currentBusiness.id()));
         Item item = new Item(currentBusiness.id(), input.name(), input.quantity(), input.unitPriceCents(),
+                business.getCurrency(),
                 input.tags(), input.note(), input.isPublic());
         return ItemResponse.from(items.saveAndFlush(item));
     }
@@ -150,6 +157,18 @@ public class ItemService {
     public int bulkDelete(List<Integer> ids) {
         List<Item> found = items.findLockedByIdInAndBusinessIdOrderByIdAsc(new LinkedHashSet<>(ids), currentBusiness.id());
         found.forEach(items::delete);
+        return found.size();
+    }
+
+    /**
+     * Shows or hides those of {@code ids} that are this business's items on its public profile;
+     * others are skipped, like bulkDelete. The locked items are managed entities, so the change is
+     * saved at commit, and updatedAt changes with it.
+     */
+    @Transactional
+    public int bulkSetPublic(List<Integer> ids, boolean isPublic) {
+        List<Item> found = items.findLockedByIdInAndBusinessIdOrderByIdAsc(new LinkedHashSet<>(ids), currentBusiness.id());
+        found.forEach(item -> item.setPublic(isPublic));
         return found.size();
     }
 }

@@ -118,4 +118,10 @@ public class ItemController {
     public Map<String, Integer> bulkDelete(@Valid @RequestBody BulkDeleteRequest request) {
         return Map.of("deleted", itemService.bulkDelete(request.ids()));
     }
+
+    /** Puts several items on the public profile, or takes them off it. */
+    @PostMapping("/bulk-visibility")
+    public Map<String, Integer> bulkVisibility(@Valid @RequestBody BulkVisibilityRequest request) {
+        return Map.of("updated", itemService.bulkSetPublic(request.ids(), request.isPublic()));
+    }
 }

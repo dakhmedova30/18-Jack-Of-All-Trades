@@ -1,4 +1,5 @@
 import type { ExpenseMonthBreakdown } from '../../types';
+import { useCurrency } from '../../hooks/useCurrency';
 import { formatCents } from '../../utils/money';
 import { SummaryPanel } from '../../components/SummaryPanel';
 
@@ -14,6 +15,7 @@ export interface TopRestockPanelProps {
  * breakdown request with "Where the money goes", so the two always agree.
  */
 export function TopRestockPanel({ data, error, loading, reload }: TopRestockPanelProps) {
+  const currency = useCurrency();
   const month = data
     ? new Date(data.periodStart).toLocaleDateString('en-CA', { month: 'long', timeZone: 'UTC' })
     : '';
@@ -40,7 +42,7 @@ export function TopRestockPanel({ data, error, loading, reload }: TopRestockPane
                 {item.name}
               </span>
               <span className="summary-panel__detail">
-                {formatCents(item.spentCents)} · {item.units} units
+                {formatCents(item.spentCents, currency)} · {item.units} units
               </span>
             </li>
           ))}

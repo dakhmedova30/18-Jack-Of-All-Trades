@@ -41,6 +41,9 @@ const PADDING = { top: 16, right: 16, bottom: 28, left: 36 };
 /** Extra room on the left for y-axis labels like "$12.5K". */
 const Y_AXIS_LEFT = 56;
 const Y_TICKS = 4;
+/** Rough width of one character of a 10px axis label, in viewBox units, plus a gap between labels. */
+const LABEL_CHAR_WIDTH = 6;
+const LABEL_GAP = 10;
 
 /** Rounds `max / ticks` up to a 1/2/2.5/5 x 10^n step, so axis labels are round numbers. */
 function niceStep(max: number, ticks: number): number {
@@ -71,6 +74,12 @@ export function LineChart({
   const x = (i: number) =>
     left + (categories.length === 1 ? 0 : (i / (categories.length - 1)) * innerW);
   const y = (v: number) => PADDING.top + innerH - (v / max) * innerH;
+
+  // Long periods have more points than there's room to label: label every `labelEvery`th one.
+  const labelWidth = Math.max(...categories.map((c) => c.length), 1) * LABEL_CHAR_WIDTH + LABEL_GAP;
+  const labelEvery = Math.max(1, Math.ceil((labelWidth * (categories.length - 1)) / innerW));
+  // ...and smaller dots, so dense lines don't turn into a row of blobs.
+  const dotRadius = categories.length > 40 ? 2 : categories.length > 20 ? 3 : 4;
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={ariaLabel} className="viz">
@@ -117,17 +126,19 @@ export function LineChart({
             strokeLinejoin="round"
           />
           {s.values.map((v, i) => (
-            <circle key={i} cx={x(i)} cy={y(v)} r={4} fill={colorForSeries(s.label, si)}>
+            <circle key={i} cx={x(i)} cy={y(v)} r={dotRadius} fill={colorForSeries(s.label, si)}>
               <title>{`${s.label}, ${categories[i]}: ${format(v)}`}</title>
             </circle>
           ))}
         </g>
       ))}
-      {categories.map((category, i) => (
-        <text key={category} x={x(i)} y={height - 8} textAnchor="middle" className="viz-label">
-          {category}
-        </text>
-      ))}
+      {categories.map((category, i) =>
+        i % labelEvery === 0 ? (
+          <text key={i} x={x(i)} y={height - 8} textAnchor="middle" className="viz-label">
+            {category}
+          </text>
+        ) : null,
+      )}
     </svg>
   );
 }
@@ -209,9 +220,15 @@ interface HorizontalBarChartProps {
   bars: HorizontalBar[];
   width?: number;
   ariaLabel: string;
-  /** Unit for value labels and hover text, e.g. "units". */
-  unit: string;
+  /** Unit for hover text, e.g. "units"; leave out when `formatTooltip` already says it ("$12.00"). */
+  unit?: string;
+  /** Formats the value printed after each bar, e.g. compact money ("$1.2k"). */
+  formatValue?: (value: number) => string;
+  /** Formats the value in hover text, e.g. full money ("$1,234.56"). */
+  formatTooltip?: (value: number) => string;
 }
+
+const formatNumber = (value: number) => value.toLocaleString();
 
 const HBAR = { row: 28, bar: 16, labelWidth: 110, valueWidth: 56, top: 4 };
 const MAX_LABEL_CHARS = 15;
@@ -226,6 +243,8 @@ export function HorizontalBarChart({
   width = 600,
   ariaLabel,
   unit,
+  formatValue = formatNumber,
+  formatTooltip = formatNumber,
 }: HorizontalBarChartProps) {
   const height = HBAR.top * 2 + bars.length * HBAR.row;
   const barStart = HBAR.labelWidth;
@@ -256,7 +275,7 @@ export function HorizontalBarChart({
         const color = bar.label === OTHER_LABEL ? OTHER_COLOR : SERIES_COLORS[2];
         return (
           <g key={bar.label}>
-            <title>{`${bar.label}: ${bar.value.toLocaleString()} ${unit}${bar.detail ? ` (${bar.detail})` : ''}`}</title>
+            <title>{`${bar.label}: ${formatTooltip(bar.value)}${unit ? ` ${unit}` : ''}${bar.detail ? ` (${bar.detail})` : ''}`}</title>
             <text
               x={barStart - 8}
               y={y + HBAR.bar / 2}
@@ -282,12 +301,62 @@ export function HorizontalBarChart({
               dominantBaseline="middle"
               className="viz-label viz-label--bar"
             >
-              {bar.value.toLocaleString()}
+              {formatValue(bar.value)}
             </text>
           </g>
         );
       })}
     </svg>
+  );
+}
+
+interface CompactBarListProps {
+  bars: HorizontalBar[];
+  ariaLabel: string;
+  /** Formats the value beside each label, e.g. compact money ("$1.2k"). */
+  formatValue?: (value: number) => string;
+  /** Formats the value in hover text, e.g. full money ("$1,234.56"). */
+  formatTooltip?: (value: number) => string;
+}
+
+/**
+ * HorizontalBarChart for narrow spaces like the filter side bar: each label and value sit on
+ * their own line above a full-width bar, so the bars don't lose their width to the labels.
+ */
+export function CompactBarList({
+  bars,
+  ariaLabel,
+  formatValue = formatNumber,
+  formatTooltip = formatNumber,
+}: CompactBarListProps) {
+  const max = Math.max(...bars.map((b) => b.value), 1);
+
+  return (
+    <ul className="viz-bar-list" aria-label={ariaLabel}>
+      {bars.map((bar) => (
+        <li
+          key={bar.label}
+          className="viz-bar-list__item"
+          title={`${bar.label}: ${formatTooltip(bar.value)}${bar.detail ? ` (${bar.detail})` : ''}`}
+        >
+          <div className="viz-bar-list__row">
+            <span className="viz-bar-list__label">{bar.label}</span>
+            <span className="viz-bar-list__value">{formatValue(bar.value)}</span>
+          </div>
+          <div className="viz-bar-list__track">
+            {bar.value > 0 && (
+              <div
+                className="viz-bar-list__bar"
+                style={{
+                  width: `${Math.max((bar.value / max) * 100, 1)}%`,
+                  background: bar.label === OTHER_LABEL ? OTHER_COLOR : SERIES_COLORS[2],
+                }}
+              />
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 
