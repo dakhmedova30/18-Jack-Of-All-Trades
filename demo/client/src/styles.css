@@ -74,7 +74,7 @@
   --shadow-modal: 0 12px 40px hsl(var(--hue) 80% 10% / 0.2);
 
   /* Type */
-  --font-body: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-header: 'Fraunces variable', serif;
 
   /* Shape & layout */
@@ -964,6 +964,7 @@ code {
   gap: 0.3rem;
   padding: 1rem 1.1rem;
   border-radius: 10px;
+  min-width: 160px;
 }
 
 .stat-card__label {
@@ -2844,6 +2845,25 @@ textarea.settings-row__input {
 /* ==========================================================================
    9. Responsive
    ========================================================================== */
+
+@media (max-width: 900px) {
+  .analytics-stats {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .analytics-stats .stat-card {
+    flex: 1 1 calc(50% - 0.5rem); /* two per row */
+  }
+
+  .analytics-stats .stat-card:first-child {
+    flex-basis: 100%; /* first one takes the whole row */
+  }
+
+  .analytics-row {
+    grid-template-columns: 1fr; /* one per row */
+  }
+}
 
 @media (max-width: 896px) {
   /* Settings: the tab list becomes a row above the content. */

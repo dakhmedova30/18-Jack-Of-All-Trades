@@ -16,6 +16,10 @@ import { PublicProfilePage } from './pages/public/PublicProfilePage';
 import { SalesPage } from './pages/sales/SalesPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 
+// Imports required fonts
+import '@fontsource-variable/fraunces';
+import '@fontsource/atkinson-hyperlegible';
+
 /** Everything in here needs a logged-in business; sends anonymous visitors to /login. */
 function RequireAuth() {
   const { business, loading } = useAuth();
@@ -31,10 +35,6 @@ function RedirectIfAuthed() {
   if (business) return <Navigate to="/" replace />;
   return <Outlet />;
 }
-
-// Imports required fonts
-import '@fontsource-variable/fraunces';
-import '@fontsource-variable/inter';
 
 export function App() {
   const { pathname } = useLocation();
