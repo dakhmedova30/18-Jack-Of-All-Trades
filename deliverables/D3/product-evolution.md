@@ -1,6 +1,4 @@
-# YOUR PRODUCT/TEAM NAME
-
-> Aim for 1000-2000 words. Be concise and analytical. We care about reasoning, impact, and integration quality, not length.
+# Jack-Of-All-Trades: Product Evolution (D3)
 
 ## 1. What Needed to Improve
 <!-- Identify the most important gap or limitation after D2 and how you identified it. -->
@@ -20,22 +18,24 @@ Jack-Of-All-Trades promises small businesses [management *and* intelligence](../
 
 Our work fell into four areas, most important first:
 
-- **Finding answers in the data** ([#15](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/15), [#16](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/16)): channel and date filters on Sales; on Analytics, a side panel with dates, a slider over the whole history and a channel filter, plus a Revenue by Channel card.
+- **Finding answers in the data** ([#15](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/15), [#16](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/16), [#24](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/24)): channel and date filters on Sales; on Analytics, a side panel with dates, a slider over the whole history and a channel filter, plus a Revenue by Channel card; and on Home, a choice of week, month or year, with empty periods explained instead of shown as bare zeros.
 - **Running the business from the app** ([#8](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/8), [#12](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/12), [#21](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/21)): Settings for account, security, preferences and notifications, and a public business profile whose products can be shown or hidden in bulk.
 - **Consistency and accessibility** ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9), [#14](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/14), [#17](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/17), [#20](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/20)): shared cards, fonts and colours, a collapsible sidebar, focus-managed dialogs, page titles, a read-aloud reader, and login and registration errors that say what to fix.
-- **Reliable delivery** ([#10](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/10), [#11](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/11), [#13](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/13), [#18](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/18)): backend and frontend tests and time limits in [CI](../../.github/workflows/ci.yml), automatic deploys once everything passes, and [documented configuration](../../backend/.env.example).
+- **Reliable delivery** ([#10](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/10), [#11](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/11), [#13](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/13), [#18](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/18), [#23](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/23)): backend and frontend tests and time limits in [CI](../../.github/workflows/ci.yml), automatic deploys once everything passes, [documented configuration](../../backend/.env.example), and a demo account that fills itself with sample data on a fresh setup.
 
 ### Key design changes
 
 - **Periods instead of fixed ranges:** owners think in seasons, not "the last 12 months", so `GET /api/sales` and `GET /api/analytics/summary` now take `from` and `to` (whole UTC days, both included). Analytics picks daily, weekly or monthly buckets from the period's length, so one endpoint serves a week or the whole history and charts stay readable; `/api/analytics/date-range` gives the slider its ends.
 - **Honest numbers where data is missing:** expenses have no channel, so one channel's revenue minus every expense would be a misleading profit. The channel filter narrows only revenue, and Net Profit shows "—" with the reason.
 - **Public data by allowlist:** the public profile is our first endpoint that needs no login, so it has its own response type instead of reusing the owner's. A field added to a business or item later stays private unless someone adds it to the profile on purpose.
+- **Sample data through the same rules as real data:** the demo seeder records its products, restocks and sales through the normal services, so stock and validation apply, and it only fills an empty account, so the live demo's data is never touched. Its dates count back from today, so "this month" is never empty.
 
 ### Integration challenges
 
 - **Deploying from a repo the service doesn't own:** our Render service gets no push events from a repository owned by another teammate's account. CI now calls its deploy hook (kept in a GitHub secret) after the checks pass, so nothing untested reaches the live site.
-- **Changing an endpoint Home depends on:** Home's month-to-date cards use the summary endpoint Analytics was rebuilding, so the API keeps the fixed ranges alongside periods and the shared hook accepts either.
+- **Changing an endpoint Home depends on:** Home's month-to-date cards use the summary endpoint Analytics was rebuilding, so the API keeps the fixed ranges alongside periods and the shared hook accepts either. Keeping them later let Home offer a week, month or year with no backend change ([#24](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/24)).
 - **Settings every page depends on:** once preferences and notifications wrapped every logged-in page, components couldn't be tested on their own, so the frontend tests ([#18](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/18)) gained shared test providers and complete test records.
+- **A frontend split from its backend:** [#22](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/22) moved the Inventory "Not selling" panel out of the currency PR without the API field it reads, so against `main` the page went blank while its tests passed on mocked data. The field and its query moved with it.
 
 Merge conflicts, our largest integration cost, are covered in Section 4.
 
