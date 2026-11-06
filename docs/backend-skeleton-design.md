@@ -61,7 +61,7 @@ Work is split **by user story**, as the D2 handout recommends: each story's team
 
 | Work | Owner |
 | --- | --- |
-| Demo data: sample items, sales and expenses for the demo business (§6) | *Unassigned* |
+| Demo data: sample items, sales and expenses for the demo business (§6) | Hans |
 | CI: backend tests on every push (§6) | *Unassigned* |
 | Deploy the Java backend on Render (§6) | Jinuo |
 | D2 README, `iteration-02-review.md`, individual contributions | Everyone |
@@ -333,7 +333,7 @@ The demo's `analytics.test.ts` and `items.test.ts` cover these edge cases (empty
   ```
 
 - **Health:** `GET /api/health` runs `SELECT 1`. Render uses it as the health check.
-- **Demo data:** with the `demo` profile, `DemoDataSeeder` makes sure the demo business exists (`demo@jackofalltrades.test` / `ChangeMe123!`, as in the contract). If it has no items, the seeder adds sample items, several weeks of tagged sales and some expenses, with dates relative to today, so every dashboard shows data. Writes go through the services, so stock rules apply. It never runs in tests.
+- **Demo data:** with the `demo` profile, `DemoDataSeeder` makes sure the demo business exists (`demo@jackofalltrades.test` / `ChangeMe123!`, as in the contract). If it has no items, `DemoSampleData` adds 8 sample items, about six weeks of tagged sales and some restocks and costs, with dates relative to today and a few always in the current month, so every dashboard shows data. A demo account that already has items (like the live one) is left alone. Writes go through the services, so stock rules apply. The seeder never runs in tests; `DemoSampleDataTest` calls `DemoSampleData` directly.
 - **Tests:** `./mvnw test` (Docker must be running).
   - `PostgresTestBase` starts one Testcontainers Postgres per run, so the migrations are tested too, and provides a helper that registers a business and runs requests logged in as it.
   - Every module tests its endpoints, including "another business's id returns 404".
