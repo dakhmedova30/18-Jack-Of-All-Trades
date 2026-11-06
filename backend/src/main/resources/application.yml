@@ -1,6 +1,6 @@
 server:
   port: ${PORT:4000}
-  forward-headers-strategy: framework # Render's proxy terminates HTTPS
+  forward-headers-strategy: framework     # Render's proxy terminates HTTPS
 spring:
   application:
     name: backend
@@ -9,11 +9,11 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:jack}
     password: ${SPRING_DATASOURCE_PASSWORD:jack}
     hikari:
-      connection-timeout: 10000 # milliseconds, as the demo; fail fast (503) when the database is down
+      connection-timeout: 10000           # milliseconds, as the demo; fail fast (503) when the database is down
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: validate # only Flyway changes the schema
+      ddl-auto: validate                  # only Flyway changes the schema
   flyway:
     out-of-order: true
   jackson:
@@ -26,13 +26,13 @@ spring:
   session:
     timeout: 30d
     jdbc:
-      initialize-schema: never # the Flyway migration creates the tables
-  exchange:
-    rate:
-      api:
-        base-url: ${EXCHANGE_RATE_API_BASE_URL:https://open.er-api.com/v6/latest}
-    rates:
-      source: ${EXCHANGE_RATES_SOURCE:live}
-      snapshot-location: ${EXCHANGE_RATES_SNAPSHOT_LOCATION:classpath:exchange-rates-fallback.json}
-      retry-after=${EXCHANGE_RATES_RETRY_AFTER:5m}
-    supported-currencies: ${EXCHANGE_SUPPORTED_CURRENCIES:CAD,USD,EUR,GBP,AUD}
+      initialize-schema: never            # the Flyway migration creates the tables
+exchange:                                 # currency conversion (ExchangeRateProperties)
+  rate:
+    api:
+      base-url: ${EXCHANGE_RATE_API_BASE_URL:https://open.er-api.com/v6/latest}
+  rates:
+    source: ${EXCHANGE_RATES_SOURCE:live}  # live, or fallback to use only the bundled snapshot
+    snapshot-location: ${EXCHANGE_RATES_SNAPSHOT_LOCATION:classpath:exchange-rates-fallback.json}
+    retry-after: ${EXCHANGE_RATES_RETRY_AFTER:5m}  # after a failed fetch, reuse the last rates this long
+  supported-currencies: ${EXCHANGE_SUPPORTED_CURRENCIES:CAD,USD,EUR,GBP,AUD}
