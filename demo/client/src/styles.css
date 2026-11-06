@@ -195,6 +195,53 @@
   --color-secondary: #258392;
 }
 
+/* ---------- High contrast: black surfaces, white text and yellow controls ---------- */
+
+:root[data-theme='high-contrast'] {
+  color-scheme: dark;
+
+  --color-bg: #000;
+  --color-bg-solid: #000;
+  --color-surface: #000;
+  --color-surface-alt: #1a1a1a;
+  --color-highlight: #262600;
+
+  --color-border: #fff;
+  --color-border-chart: #fff;
+  --color-border-strong: #fff;
+
+  --color-text: #fff;
+  --color-muted: #fff;
+  --color-placeholder: #dedede;
+
+  --color-primary: #ff0;
+  --color-primary-text: #000;
+  --color-accent: #ff0;
+  --color-accent-text: #000;
+  --color-secondary: #ff0;
+
+  --color-sidebar: #000;
+  --color-sidebar-text: #fff;
+  --color-sidebar-hover: rgb(255 255 255 / 0.2);
+
+  --color-danger: #ff8585;
+  --color-danger-bg: #390000;
+  --color-positive: #00ff91;
+  --color-hover: rgb(255 255 255 / 0.2);
+  --color-search: #000;
+
+  --color-scrim: rgb(0 0 0 / 0.85);
+  --shadow-card: none;
+  --shadow-tile: none;
+  --shadow-popover: 0 0 0 2px #fff;
+  --shadow-modal: 0 0 0 2px #fff;
+}
+
+:root[data-theme='high-contrast'] :focus-visible {
+  outline: 3px solid #ff0 !important;
+  outline-offset: 3px;
+}
+
 /* ---------- Text size: everything is in rem, so this scales the whole app ---------- */
 
 :root[data-text-size='small'] {
@@ -264,6 +311,10 @@ code {
   background: var(--color-surface);
   padding: 0.1em 0.35em;
   border-radius: 4px;
+}
+
+select {
+  text-overflow: ellipsis;
 }
 
 .muted {
@@ -1255,7 +1306,6 @@ code {
 }
 
 .form-row input {
-  width: 100%;
   border: none;
   text-align: right;
   font: inherit;
@@ -1883,6 +1933,10 @@ code {
   width: 100%;
 }
 
+.panel-row--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .panel-row .summary-panel {
   background: var(--color-surface);
   border-color: var(--color-border-chart);
@@ -2368,6 +2422,16 @@ code {
 .settings-section--danger {
   color: var(--color-danger);
   border-bottom-color: var(--color-danger);
+}
+
+.settings-currency {
+  display: flex;
+  gap: 0.5rem;
+  flex-direction: column;
+}
+
+.settings-currency button {
+  width: fit-content;
 }
 
 /* ---------- Settings: rows, forms & lists ---------- */

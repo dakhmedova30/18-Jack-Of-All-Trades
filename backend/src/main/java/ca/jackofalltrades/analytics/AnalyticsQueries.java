@@ -18,9 +18,12 @@ import org.springframework.stereotype.Component;
 public class AnalyticsQueries {
 
     /** One sale or expense line: its parent's date, its parent's first tag ("Untagged" if none), its total. */
-    record TaggedLine(Instant at, String tag, long totalCents) {}
+    record TaggedLine(Instant at, String tag, String currency, long totalCents) {}
 
     record TagStock(String tag, long quantity, long itemCount) {}
+
+    /** One channel's revenue in one currency (sales keep the currency they were recorded in). */
+    record ChannelLine(String channel, String currency, long totalCents) {}
 
     /** The first and last day (UTC) with a sale or expense; both null when there are none. */
     record RecordSpan(LocalDate first, LocalDate last) {}
@@ -39,7 +42,7 @@ public class AnalyticsQueries {
     List<TaggedLine> revenueLines(int businessId, Instant since, Instant until, Integer channelId) {
         SalesWhere where = new SalesWhere(businessId, since, until, channelId);
         return taggedLines("""
-                SELECT s.sold_at AS at, COALESCE(s.tags[1], 'Untagged') AS tag, si.total_cents
+                SELECT s.sold_at AS at, COALESCE(s.tags[1], 'Untagged') AS tag, s.currency, si.total_cents
                 FROM sales s JOIN sale_items si ON si.sale_id = s.id
                 """ + where.sql(), where.params());
     }
@@ -47,7 +50,7 @@ public class AnalyticsQueries {
     /** As {@link #revenueLines}, for expense lines by when they were incurred. Expenses have no channel. */
     List<TaggedLine> expenseLines(int businessId, Instant since, Instant until) {
         String sql = """
-                SELECT e.incurred_at AS at, COALESCE(e.tags[1], 'Untagged') AS tag, ei.total_cents
+                SELECT e.incurred_at AS at, COALESCE(e.tags[1], 'Untagged') AS tag, e.currency, ei.total_cents
                 FROM expenses e JOIN expense_items ei ON ei.expense_id = e.id
                 WHERE e.business_id = :businessId AND e.incurred_at >= :since
                 """;
@@ -61,18 +64,22 @@ public class AnalyticsQueries {
         return taggedLines(sql, params);
     }
 
-    /** Revenue per channel over the same lines as {@link #revenueLines}, largest first. */
-    List<AnalyticsSummary.TagTotal> revenueByChannel(int businessId, Instant since, Instant until, Integer channelId) {
+    /**
+     * Revenue per channel and currency over the same lines as {@link #revenueLines}. Sales keep
+     * the currency they were recorded in, so AnalyticsService converts each subtotal to the
+     * account's currency before adding them up and sorting.
+     */
+    List<ChannelLine> revenueByChannel(int businessId, Instant since, Instant until, Integer channelId) {
         SalesWhere where = new SalesWhere(businessId, since, until, channelId);
         return jdbcClient.sql("""
-                        SELECT c.name AS channel, SUM(si.total_cents) AS total_cents
+                        SELECT c.name AS channel, s.currency, SUM(si.total_cents) AS total_cents
                         FROM sales s JOIN sale_items si ON si.sale_id = s.id JOIN channels c ON c.id = s.channel_id
                         """ + where.sql() + """
-                        GROUP BY c.id, c.name
-                        ORDER BY total_cents DESC, c.name
+                        GROUP BY c.id, c.name, s.currency
                         """)
                 .params(where.params())
-                .query((rs, rowNum) -> new AnalyticsSummary.TagTotal(rs.getString("channel"), rs.getLong("total_cents")))
+                .query((rs, rowNum) -> new ChannelLine(
+                        rs.getString("channel"), rs.getString("currency"), rs.getLong("total_cents")))
                 .list();
     }
 
@@ -139,6 +146,7 @@ public class AnalyticsQueries {
                 .query((rs, rowNum) -> new TaggedLine(
                         rs.getObject("at", OffsetDateTime.class).toInstant(),
                         rs.getString("tag"),
+                        rs.getString("currency"),
                         rs.getLong("total_cents")))
                 .list();
     }

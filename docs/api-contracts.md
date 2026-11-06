@@ -49,7 +49,7 @@ Every error response has this shape:
 | `401` | Not logged in, or incorrect email or password |
 | `404` | Resource or route not found (including another business's id) |
 | `409` | A channel (§4.1) or expense tag (§5.1) with that name already exists |
-| `503` | Database unavailable |
+| `503` | Database or exchange rates unavailable |
 | `500` | Unexpected error (details are logged, never sent) |
 
 ## 2. Accounts: `/api/auth`
@@ -65,6 +65,8 @@ One account is one business. Login sets a `jack_session` cookie that the browser
 | `POST` | `/api/auth/logout` | — | `204`; cookie cleared | — |
 | `GET` | `/api/auth/me` | — | `200` `Business` | `401` `Not logged in` |
 | `PATCH` | `/api/auth/me` | `UpdateBusinessInput` | `200` `Business` | `400`, `401` |
+| `POST` | `/api/auth/me/currency/preview` | `CurrencyChangeInput` | `200` `CurrencyPreview`; no changes are made | `400`, `401`, `503` |
+| `POST` | `/api/auth/me/currency` | `CurrencyChangeInput` | `200` `CurrencyChangeResponse` | `400`, `401`, `503` |
 | `GET` | `/api/auth/me/avatar` | — | `200` the image (use as an `<img src>`) | `401`, `404` |
 | `PUT` | `/api/auth/me/avatar` | the raw image bytes; `Content-Type` is `image/jpeg`, `image/png` or `image/webp`; at most 512 KB | `200` `Business` | `400`, `401` |
 | `DELETE` | `/api/auth/me/avatar` | — | `200` `Business` | `401` |
@@ -94,12 +96,33 @@ One account is one business. Login sets a `jack_session` cookie that the browser
 // UpdateBusinessInput (lowStockThreshold is a whole number from 0 up, default 5): every field optional; a missing field is left alone,
 // and "" clears any optional text field (businessType, country, owner name, contact, links).
 // phone is digits with + ( ) - . and spaces; website/instagram/facebook/tiktok/etsy are web addresses
-// (https:// is added if missing). Text limits: description 300, links 200, address 120. currency is one of CAD, USD, EUR, GBP, AUD;
+// (https:// is added if missing). Text limits: description 300, links 200, address 120.
+// currency is changed only through /api/auth/me/currency; including it here returns 400.
 // timeZone is an IANA id such as "America/Toronto". publicSlug turns on the public profile (§2.2):
 // 3-40 lowercase letters, digits and single hyphens (stored lowercased); "" turns it off;
 // one already used by another business is 409 "That public link is already taken".
 { "name": "Allie's Candles", "businessType": "Candles", "country": "Canada",
-  "timeZone": "America/Toronto", "currency": "CAD" }
+  "timeZone": "America/Toronto" }
+
+// CurrencyChangeInput; conversion targets are limited to CAD, USD, EUR, GBP and AUD.
+// convertPrices=true converts product prices; false relabels currency codes without changing amounts.
+// A conversion that would put any price over 9,999,999.99 is rejected with 400 and changes nothing.
+{ "currency": "USD", "convertPrices": true }
+
+// CurrencyPreview (rateDate/source/asOf are null for a label-only preview)
+{ "fromCurrency": "CAD", "toCurrency": "USD", "productsAffected": 8,
+  "samples": [{ "itemId": 7, "name": "Flower Print", "beforePrice": 12.00, "afterPrice": 8.82 }],
+  "rate": 0.735, "rateDate": "2026-10-29", "source": "LIVE",
+  "asOf": "2026-10-29T00:00:00Z", "notice": null }
+
+// CurrencyChangeResponse; rate metadata is null for a label-only change.
+{ "business": { "id": 1, "currency": "USD" }, "rate": 0.735,
+  "rateDate": "2026-10-29", "source": "LIVE", "asOf": "2026-10-29T00:00:00Z",
+  "notice": null }
+
+// source is LIVE (fresh API response), CACHED (still-valid response), STALE
+// (last successful response after refresh failure), or FALLBACK (bundled snapshot).
+// Currency previews include source/asOf so the client can warn for STALE and FALLBACK rates.
 
 // ChangeEmailInput
 { "email": "new@example.com", "currentPassword": "correct-horse" }
@@ -215,6 +238,7 @@ A page customers can read **without logging in**: the business's public details 
 // Item
 {
   "id": 7, "name": "Flower Print", "quantity": 10, "unitPriceCents": 1200,
+  "currency": "CAD", "originalPrice": 12.00, "originalCurrency": "CAD",
   "tags": ["print"], "note": "", "isPublic": false,
   "createdAt": "2026-10-19T20:00:00.000Z", "updatedAt": "2026-10-19T20:00:00.000Z"
 }
@@ -270,6 +294,7 @@ Deleting an item doesn't change past sales or expenses: their lines keep the ite
   "channel": { "id": 1, "name": "In person" },
   "description": "Flower Print x 2, Flower Keychain x 1",
   "tags": ["market"],
+  "currency": "CAD", "originalAmount": 35.00, "originalCurrency": "CAD",
   "totalCents": 3500,
   "items": [
     { "id": 101, "itemId": 7, "itemName": "Flower Print", "quantity": 2, "unitPriceCents": 1200, "totalCents": 2400 },
@@ -289,6 +314,15 @@ Deleting an item doesn't change past sales or expenses: their lines keep the ite
   "largestSale": { "id": 42, "soldAt": "2026-10-18T19:30:00.000Z", "totalCents": 8800 }
 }
 ```
+
+For both sale and expense responses, `totalCents` is in the current account currency.
+The `items` line amounts remain in the record's stored currency, named by `originalCurrency`.
+`originalAmount` is the recorded amount before any currency relabeling. Monthly, analytics,
+inventory-insight, and notification totals convert each source-currency subtotal once.
+Conversions use the **current** exchange rate, not the rate when the sale or expense was
+recorded, so after a currency change past totals shift slightly as rates update. Sorting the
+sales list by `total` still compares the stored amounts, so it can be out of order when sales
+were recorded in different currencies.
 
 | `SaleInput` field | Rules |
 | --- | --- |
@@ -343,6 +377,7 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
   "incurredAt": "2026-10-10T12:00:00.000Z",
   "description": "Flower Print x 200, Shipping x 1",
   "tags": ["supplies"],
+  "currency": "CAD", "originalAmount": 175.00, "originalCurrency": "CAD",
   "totalCents": 17500,
   "items": [
     { "id": 11, "itemId": 7, "itemName": "Flower Print", "quantity": 200, "unitCostCents": 75, "totalCents": 15000 },

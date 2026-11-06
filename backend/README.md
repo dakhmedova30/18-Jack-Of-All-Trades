@@ -48,14 +48,29 @@ Docker must be running. Testcontainers starts one throwaway Postgres for the who
 
 ## Environment variables
 
-| Variable | Local default | On Render |
-| --- | --- | --- |
-| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5433/jack` | Neon JDBC URL ending in `?sslmode=require` |
-| `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | `jack` / `jack` | Neon credentials (Render secrets) |
-| `SPRING_PROFILES_ACTIVE` | none | `demo` (creates the demo business) |
-| `PORT` | `4000` | Set by Render |
+| Variable                                   | Local default                            | On Render                                                                                   |
+| ------------------------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `SPRING_DATASOURCE_URL`                    | `jdbc:postgresql://localhost:5433/jack`  | Neon JDBC URL ending in `?sslmode=require`                                                  |
+| `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | `jack` / `jack`                          | Neon credentials (Render secrets)                                                           |
+| `SPRING_PROFILES_ACTIVE`                   | none                                     | `demo` (creates the demo business)                                                          |
+| `EXCHANGE_RATE_API_BASE_URL`               | `https://open.er-api.com/v6/latest`      | Optional ExchangeRate-API endpoint base                                                     |
+| `EXCHANGE_RATES_SOURCE`                    | `live`                                   | `live` tries the API before stale/snapshot rates; `fallback` uses only the bundled snapshot |
+| `EXCHANGE_RATES_RETRY_AFTER`               | `5m`                                     | Minimum delay before retrying a failed live rate fetch                                      |
+| `EXCHANGE_SUPPORTED_CURRENCIES`            | `CAD,USD,EUR,GBP,AUD`                    | Configured conversion currency allowlist                                                    |
+| `EXCHANGE_RATES_SNAPSHOT_LOCATION`         | `classpath:exchange-rates-fallback.json` | Snapshot resource location; supported currencies are checked at startup                     |
+| `PORT`                                     | `4000`                                   | Set by Render                                                                               |
 
 **Never commit real credentials.** The defaults only work with the Docker database.
+
+Currency changes are handled by `POST /api/auth/me/currency/preview` and
+`POST /api/auth/me/currency`. Product prices can be converted transactionally, or all account
+currency labels can be corrected without changing amounts. Sales and expenses retain their
+recorded amounts and currency; account-level totals convert at read time. Exchange rates are
+cached until the API's next-update time, with last-known stale rates and then the bundled
+USD-based `exchange-rates-fallback.json` snapshot used if refresh fails. Preview responses
+include the rate source, timestamp, and a user-facing notice so stale or fallback rates can
+be flagged before confirmation. `EXCHANGE_RATE_API_BASE_URL` must be a full HTTP(S) URL;
+startup validation rejects blank or scheme-less values.
 
 ## Docker image
 
@@ -73,6 +88,7 @@ docker run --rm -p 4000:4000 -e SPRING_DATASOURCE_URL=jdbc:postgresql://host.doc
 ```
 src/main/java/ca/jackofalltrades/
   auth/      register, login, logout, me; Business entity
+  currency/  exchange-rate cache, preview and transactional account currency changes
   items/     inventory CRUD, insights and low-stock (the pattern to copy); writes lock the items they change
   channels/  sales channels; new businesses get four starter channels
   sales/     sales with stock checks; writes lock the sale, then its items in id order

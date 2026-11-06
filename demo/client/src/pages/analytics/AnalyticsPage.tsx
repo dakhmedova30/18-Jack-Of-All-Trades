@@ -4,6 +4,7 @@ import { useAnalyticsSummary } from '../../hooks/useAnalyticsSummary';
 import { useChannels } from '../../hooks/useChannels';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useInventoryByTag } from '../../hooks/useInventoryByTag';
+import { useCurrency } from '../../hooks/useCurrency';
 import { formatDate, startOfMonth } from '../../utils/date';
 import { formatCents, formatCentsCompact } from '../../utils/money';
 import { AnalyticsFilters } from './AnalyticsFilters';
@@ -174,6 +175,7 @@ interface AnalyticsContentProps {
 
 /** The totals and the overview charts: the main column's part of what the filters move. */
 function AnalyticsContent({ data, period, channelName }: AnalyticsContentProps) {
+  const currency = useCurrency();
   const netProfitTone = data.netProfitCents >= 0 ? 'positive' : 'negative';
   const phrase = periodPhrase(period);
   const sales = channelName ? `${channelName} sales` : 'sales';
@@ -196,19 +198,19 @@ function AnalyticsContent({ data, period, channelName }: AnalyticsContentProps) 
         ) : (
           <StatCard
             label="Net Profit"
-            value={formatCents(data.netProfitCents)}
+            value={formatCents(data.netProfitCents, currency)}
             tone={netProfitTone}
           />
         )}
         <StatCard
           label="Total Revenue"
-          value={formatCents(data.totalRevenueCents)}
+          value={formatCents(data.totalRevenueCents, currency)}
           tone="neutral"
           detail={channelName ? `${channelName} only` : undefined}
         />
         <StatCard
           label="Total Expenses"
-          value={formatCents(data.totalExpensesCents)}
+          value={formatCents(data.totalExpensesCents, currency)}
           tone="neutral"
           detail={channelName ? 'All channels' : undefined}
         />
@@ -228,8 +230,8 @@ function AnalyticsContent({ data, period, channelName }: AnalyticsContentProps) 
                 series={data.revenueSeries}
                 ariaLabel="Revenue overview"
                 height={190}
-                formatValue={formatCentsCompact}
-                formatTooltip={formatCents}
+                formatValue={(cents) => formatCentsCompact(cents, currency)}
+                formatTooltip={(cents) => formatCents(cents, currency)}
               />
               <div className="analytics-card__footer">
                 <span className="muted">{axisLabel}</span>
@@ -256,8 +258,8 @@ function AnalyticsContent({ data, period, channelName }: AnalyticsContentProps) 
                 series={data.expenseSeries}
                 ariaLabel="Expenses overview"
                 height={190}
-                formatValue={formatCentsCompact}
-                formatTooltip={formatCents}
+                formatValue={(cents) => formatCentsCompact(cents, currency)}
+                formatTooltip={(cents) => formatCents(cents, currency)}
               />
               <div className="analytics-card__footer">
                 <span className="muted">{axisLabel}</span>
@@ -299,6 +301,7 @@ function RevenueByChannelCard({
   refreshing,
   error,
 }: RevenueByChannelCardProps) {
+  const currency = useCurrency();
   const channels = data?.revenueByChannel ?? [];
   const phrase = periodPhrase(period);
   const total = channels.reduce((sum, channel) => sum + channel.valueCents, 0);
@@ -333,8 +336,8 @@ function RevenueByChannelCard({
                 detail: `${percentOf(channel.valueCents, total)}% of revenue`,
               }))}
               ariaLabel="Revenue by sales channel"
-              formatValue={formatCentsCompact}
-              formatTooltip={formatCents}
+              formatValue={(cents) => formatCentsCompact(cents, currency)}
+              formatTooltip={(cents) => formatCents(cents, currency)}
             />
           )}
           <p className="analytics-insight">{insight}</p>

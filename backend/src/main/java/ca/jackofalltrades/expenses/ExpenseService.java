@@ -4,6 +4,9 @@ import ca.jackofalltrades.common.api.BadRequestException;
 import ca.jackofalltrades.common.api.NotFoundException;
 import ca.jackofalltrades.common.api.Paginated;
 import ca.jackofalltrades.common.security.CurrentBusiness;
+import ca.jackofalltrades.auth.Business;
+import ca.jackofalltrades.auth.BusinessRepository;
+import ca.jackofalltrades.currency.CurrencyTotals;
 import ca.jackofalltrades.items.Item;
 import ca.jackofalltrades.items.ItemRepository;
 import java.time.Instant;
@@ -42,18 +45,26 @@ public class ExpenseService {
     private final ExpenseQueries queries;
     private final ItemRepository items;
     private final CurrentBusiness currentBusiness;
+    private final BusinessRepository businesses;
+    private final CurrencyTotals currencyTotals;
 
     public ExpenseService(ExpenseRepository expenses, ExpenseQueries queries, ItemRepository items,
-            CurrentBusiness currentBusiness) {
+            CurrentBusiness currentBusiness, BusinessRepository businesses, CurrencyTotals currencyTotals) {
         this.expenses = expenses;
         this.queries = queries;
         this.items = items;
         this.currentBusiness = currentBusiness;
+        this.businesses = businesses;
+        this.currencyTotals = currencyTotals;
     }
 
     @Transactional(readOnly = true)
     public Paginated<ExpenseResponse> list(String search, String sort, String order, int page, int pageSize) {
-        return queries.findPage(currentBusiness.id(), search, sort, order, page, pageSize);
+        String targetCurrency = accountCurrency();
+        Paginated<ExpenseResponse> result = queries.findPage(currentBusiness.id(), search, sort, order, page, pageSize);
+        return new Paginated<>(result.data().stream()
+                .map(expense -> displayedIn(expense, targetCurrency))
+                .toList(), result.page(), result.pageSize(), result.total(), result.totalPages());
     }
 
     @Transactional(readOnly = true)
@@ -69,15 +80,16 @@ public class ExpenseService {
         LocalDate firstOfMonth = LocalDate.now(ZoneOffset.UTC).withDayOfMonth(1);
         Instant start = firstOfMonth.atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant end = firstOfMonth.plusMonths(1).atStartOfDay(ZoneOffset.UTC).toInstant();
-        return queries.periodBreakdown(currentBusiness.id(), start, end, TOP_RESTOCK_ITEMS);
+        return queries.periodBreakdown(currentBusiness.id(), start, end, TOP_RESTOCK_ITEMS, accountCurrency());
     }
 
     @Transactional
     public ExpenseResponse record(ExpenseInput input) {
         Integer businessId = currentBusiness.id();
+        Business business = lockBusiness(businessId);
         Map<Integer, Item> locked = lockItems(businessId, itemIds(input.items()));
         Expense expense = new Expense(businessId);
-        apply(expense, input, locked);
+        apply(expense, input, locked, business.getCurrency());
         return ExpenseResponse.from(expenses.saveAndFlush(expense));
     }
 
@@ -85,6 +97,7 @@ public class ExpenseService {
     @Transactional
     public ExpenseResponse replace(int id, ExpenseInput input) {
         Integer businessId = currentBusiness.id();
+        Business business = lockBusiness(businessId);
         Expense expense = expenses.findLockedByIdAndBusinessId(id, businessId)
                 .orElseThrow(() -> new NotFoundException("Expense", id));
         Set<Integer> touched = new LinkedHashSet<>(lineItemIds(List.of(expense)));
@@ -92,7 +105,7 @@ public class ExpenseService {
         Map<Integer, Item> locked = lockItems(businessId, touched);
 
         undoRestocks(expense, locked);
-        apply(expense, input, locked);
+        apply(expense, input, locked, business.getCurrency());
         return ExpenseResponse.from(expenses.saveAndFlush(expense));
     }
 
@@ -136,7 +149,7 @@ public class ExpenseService {
      * to its stock and copies its current name; a plain-cost line uses its description as the
      * name and doesn't touch stock. Any failure rolls back the transaction.
      */
-    private void apply(Expense expense, ExpenseInput input, Map<Integer, Item> locked) {
+    private void apply(Expense expense, ExpenseInput input, Map<Integer, Item> locked, String currency) {
         List<ExpenseLine> lines = new ArrayList<>();
         for (ExpenseInput.Line line : input.items()) {
             int total = multiplyCents(line.unitCostCents(), line.quantity());
@@ -152,7 +165,24 @@ public class ExpenseService {
             lines.add(new ExpenseLine(item.getId(), item.getName(), line.quantity(), line.unitCostCents(), total));
         }
         String description = input.description().isEmpty() ? describe(lines) : input.description();
-        expense.replace(OffsetDateTime.parse(input.incurredAt()).toInstant(), description, input.tags(), lines);
+        expense.replace(OffsetDateTime.parse(input.incurredAt()).toInstant(), description, input.tags(), lines,
+                currency);
+    }
+
+    private Business lockBusiness(Integer businessId) {
+        return businesses.findLockedById(businessId)
+                .orElseThrow(() -> new NotFoundException("Business", businessId));
+    }
+
+    private String accountCurrency() {
+        return businesses.findById(currentBusiness.id())
+                .map(Business::getCurrency)
+                .orElseThrow(() -> new NotFoundException("Business", currentBusiness.id()));
+    }
+
+    private ExpenseResponse displayedIn(ExpenseResponse expense, String targetCurrency) {
+        long converted = currencyTotals.convertCents(expense.totalCents(), expense.originalCurrency(), targetCurrency);
+        return expense.displayedIn(targetCurrency, converted);
     }
 
     /**

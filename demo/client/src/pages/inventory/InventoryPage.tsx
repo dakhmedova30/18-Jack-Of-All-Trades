@@ -19,6 +19,7 @@ import { useInventoryInsights } from '../../hooks/useInventoryInsights';
 import { useItems } from '../../hooks/useItems';
 import { usePreferences } from '../../hooks/usePreferences';
 import { useLowStock } from '../../hooks/useLowStock';
+import { useCurrency } from '../../hooks/useCurrency';
 import type {
   InventoryInsights,
   Item,
@@ -78,6 +79,7 @@ function skippedMessage({ isPublic, change, skipped }: NonNullable<VisibilityTar
 export function InventoryPage() {
   const { preferences } = usePreferences();
   const { business } = useAuth();
+  const currency = useCurrency();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [sort, setSort] = useState<{ field: ItemSortField; order: SortOrder }>({
@@ -382,7 +384,7 @@ export function InventoryPage() {
                   {item.isPublic && <span className="public-marker">Public</span>}
                 </td>
                 <td className="numeric">{item.quantity}</td>
-                <td className="numeric">{formatCents(item.unitPriceCents)}</td>
+                <td className="numeric">{formatCents(item.unitPriceCents, currency)}</td>
                 <td>
                   <TagList tags={item.tags} />
                 </td>
@@ -588,6 +590,7 @@ interface StockValuePanelProps {
 
 /** What everything in stock is worth at selling price, next to Low stock. */
 function StockValuePanel({ data, error, loading, reload }: StockValuePanelProps) {
+  const currency = useCurrency();
   return (
     <SummaryPanel title="Stock value" context="at selling price">
       {error ? (
@@ -601,7 +604,9 @@ function StockValuePanel({ data, error, loading, reload }: StockValuePanelProps)
         <p className="empty-state">{loading ? 'Loading…' : 'No data.'}</p>
       ) : (
         <div className="summary-panel__value-block">
-          <span className="summary-panel__value">{formatCents(data.stockValueCents)}</span>
+          <span className="summary-panel__value">
+            {formatCents(data.stockValueCents, currency)}
+          </span>
           <span className="muted">{data.totalUnits.toLocaleString()} units in stock</span>
         </div>
       )}

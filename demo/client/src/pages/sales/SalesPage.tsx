@@ -7,6 +7,7 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useInventoryInsights } from '../../hooks/useInventoryInsights';
 import { useSalesMonthSummary } from '../../hooks/useSalesMonthSummary';
 import { useSales } from '../../hooks/useSales';
+import { useCurrency } from '../../hooks/useCurrency';
 import type { Sale, SaleInput, SaleSortField, SortOrder } from '../../types';
 import { usePreferences } from '../../hooks/usePreferences';
 import { formatCents } from '../../utils/money';
@@ -36,6 +37,7 @@ type DeleteTarget = { kind: 'single'; sale: Sale } | { kind: 'bulk'; ids: number
 
 export function SalesPage() {
   const { preferences, formatDate } = usePreferences();
+  const currency = useCurrency();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebouncedValue(searchInput.trim());
@@ -268,7 +270,7 @@ export function SalesPage() {
                 <td className="table__description" title={sale.description}>
                   {sale.description || <span className="muted">—</span>}
                 </td>
-                <td className="numeric">{formatCents(sale.totalCents)}</td>
+                <td className="numeric">{formatCents(sale.totalCents, currency)}</td>
                 <td>{sale.channel?.name ?? <span className="muted">—</span>}</td>
                 <td className="table__action">
                   <button

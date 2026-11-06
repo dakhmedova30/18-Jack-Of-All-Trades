@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { AnalyticsSummary, AnalyticsTagSeries } from '../types';
+import { useCurrency } from '../hooks/useCurrency';
 import { formatCents } from '../utils/money';
 import { SERIES_COLORS } from './analytics/charts';
 import type { HomeRangeOption } from './homeRange';
@@ -142,6 +143,7 @@ export function SalesPreview({ summary, range }: RangedPreviewProps) {
 
 /** Expenses: the top categories (first tag) in the period, as proportional bars. */
 export function ExpensesPreview({ summary, range }: RangedPreviewProps) {
+  const currency = useCurrency();
   return (
     <PreviewFrame caption={`Top expense categories, ${range.period}`}>
       {renderState(summary, (data) => {
@@ -165,7 +167,7 @@ export function ExpensesPreview({ summary, range }: RangedPreviewProps) {
                     style={{ width: `${(total / max) * 100}%`, background: EXPENSE_COLOR }}
                   />
                 </span>
-                <span className="home-bars__value">{formatCents(total)}</span>
+                <span className="home-bars__value">{formatCents(total, currency)}</span>
               </li>
             ))}
           </ul>

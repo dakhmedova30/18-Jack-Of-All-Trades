@@ -2,6 +2,9 @@ package ca.jackofalltrades.sales;
 
 import ca.jackofalltrades.channels.Channel;
 import ca.jackofalltrades.channels.ChannelRepository;
+import ca.jackofalltrades.auth.Business;
+import ca.jackofalltrades.auth.BusinessRepository;
+import ca.jackofalltrades.currency.CurrencyTotals;
 import ca.jackofalltrades.common.api.BadRequestException;
 import ca.jackofalltrades.common.api.NotFoundException;
 import ca.jackofalltrades.common.api.Paginated;
@@ -42,19 +45,28 @@ public class SaleService {
     private final ItemRepository items;
     private final ChannelRepository channels;
     private final CurrentBusiness currentBusiness;
+    private final BusinessRepository businesses;
+    private final CurrencyTotals currencyTotals;
 
     public SaleService(SaleRepository sales, SaleQueries queries, ItemRepository items,
-            ChannelRepository channels, CurrentBusiness currentBusiness) {
+            ChannelRepository channels, CurrentBusiness currentBusiness, BusinessRepository businesses,
+            CurrencyTotals currencyTotals) {
         this.sales = sales;
         this.queries = queries;
         this.items = items;
         this.channels = channels;
         this.currentBusiness = currentBusiness;
+        this.businesses = businesses;
+        this.currencyTotals = currencyTotals;
     }
 
     @Transactional(readOnly = true)
     public Paginated<SaleResponse> list(SaleFilters filters, String sort, String order, int page, int pageSize) {
-        return queries.findPage(currentBusiness.id(), filters, sort, order, page, pageSize);
+        String targetCurrency = accountCurrency();
+        Paginated<SaleResponse> result = queries.findPage(currentBusiness.id(), filters, sort, order, page, pageSize);
+        return new Paginated<>(result.data().stream()
+                .map(sale -> displayedIn(sale, targetCurrency))
+                .toList(), result.page(), result.pageSize(), result.total(), result.totalPages());
     }
 
     @Transactional(readOnly = true)
@@ -70,16 +82,17 @@ public class SaleService {
         LocalDate firstOfMonth = LocalDate.now(ZoneOffset.UTC).withDayOfMonth(1);
         Instant start = firstOfMonth.atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant end = firstOfMonth.plusMonths(1).atStartOfDay(ZoneOffset.UTC).toInstant();
-        return queries.periodSummary(currentBusiness.id(), start, end);
+        return queries.periodSummary(currentBusiness.id(), start, end, accountCurrency());
     }
 
     @Transactional
     public SaleResponse record(SaleInput input) {
         Integer businessId = currentBusiness.id();
+        Business business = lockBusiness(businessId);
         Channel channel = findChannel(businessId, input.channelId());
         Map<Integer, Item> locked = lockItems(businessId, itemIds(input.items()));
         Sale sale = new Sale(businessId);
-        apply(sale, input, channel, locked);
+        apply(sale, input, channel, locked, business.getCurrency());
         return SaleResponse.from(sales.saveAndFlush(sale));
     }
 
@@ -87,6 +100,7 @@ public class SaleService {
     @Transactional
     public SaleResponse replace(int id, SaleInput input) {
         Integer businessId = currentBusiness.id();
+        Business business = lockBusiness(businessId);
         Sale sale = sales.findLockedByIdAndBusinessId(id, businessId)
                 .orElseThrow(() -> new NotFoundException("Sale", id));
         Set<Integer> touched = new LinkedHashSet<>(lineItemIds(List.of(sale)));
@@ -95,7 +109,7 @@ public class SaleService {
 
         restoreStock(sale, locked);
         Channel channel = findChannel(businessId, input.channelId());
-        apply(sale, input, channel, locked);
+        apply(sale, input, channel, locked, business.getCurrency());
         return SaleResponse.from(sales.saveAndFlush(sale));
     }
 
@@ -141,8 +155,11 @@ public class SaleService {
      * stock, and copies the item's current name and price into the line. A later line for the
      * same item sees the stock left by the earlier one. Any failure rolls back the transaction.
      */
-    private void apply(Sale sale, SaleInput input, Channel channel, Map<Integer, Item> locked) {
+    private void apply(Sale sale, SaleInput input, Channel channel, Map<Integer, Item> locked, String currency) {
         List<SaleLine> lines = new ArrayList<>();
+        Map<Integer, Integer> existingPrices = sale.getLines().stream()
+                .filter(line -> line.getItemId() != null)
+                .collect(Collectors.toMap(SaleLine::getItemId, SaleLine::getUnitPriceCents, (first, ignored) -> first));
         for (SaleInput.Line line : input.items()) {
             Item item = locked.get(line.itemId());
             if (item == null) {
@@ -153,11 +170,33 @@ public class SaleService {
                         + item.getQuantity() + ", need " + line.quantity() + ")");
             }
             item.adjustQuantity(-line.quantity());
-            int total = multiplyCents(item.getUnitPriceCents(), line.quantity());
-            lines.add(new SaleLine(item.getId(), item.getName(), line.quantity(), item.getUnitPriceCents(), total));
+            int unitPriceCents = existingPrices.containsKey(item.getId())
+                    ? existingPrices.get(item.getId())
+                    : currency.equals(sale.getCurrency()) || sale.getCurrency() == null
+                            ? item.getUnitPriceCents()
+                            : convertedUnitPrice(item.getUnitPriceCents(), currency, sale.getCurrency());
+            int total = multiplyCents(unitPriceCents, line.quantity());
+            lines.add(new SaleLine(item.getId(), item.getName(), line.quantity(), unitPriceCents, total));
         }
         String description = input.description().isEmpty() ? describe(lines) : input.description();
-        sale.replace(OffsetDateTime.parse(input.soldAt()).toInstant(), channel, description, input.tags(), lines);
+        sale.replace(OffsetDateTime.parse(input.soldAt()).toInstant(), channel, description, input.tags(), lines,
+                currency);
+    }
+
+    private Business lockBusiness(Integer businessId) {
+        return businesses.findLockedById(businessId)
+                .orElseThrow(() -> new NotFoundException("Business", businessId));
+    }
+
+    private String accountCurrency() {
+        return businesses.findById(currentBusiness.id())
+                .map(Business::getCurrency)
+                .orElseThrow(() -> new NotFoundException("Business", currentBusiness.id()));
+    }
+
+    private SaleResponse displayedIn(SaleResponse sale, String targetCurrency) {
+        long converted = currencyTotals.convertCents(sale.totalCents(), sale.originalCurrency(), targetCurrency);
+        return sale.displayedIn(targetCurrency, converted);
     }
 
     /** Puts each line's quantity back; lines whose item was deleted (itemId null) are skipped. */
@@ -180,6 +219,14 @@ public class SaleService {
             return Math.multiplyExact(unitPriceCents, quantity);
         } catch (ArithmeticException e) {
             throw new BadRequestException("Number is out of range");
+        }
+    }
+
+    private int convertedUnitPrice(int cents, String sourceCurrency, String targetCurrency) {
+        try {
+            return Math.toIntExact(currencyTotals.convertCents(cents, sourceCurrency, targetCurrency));
+        } catch (ArithmeticException e) {
+            throw new BadRequestException("Converted price is out of range");
         }
     }
 

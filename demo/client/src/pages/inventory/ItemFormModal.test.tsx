@@ -1,6 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as authApi from '../../api/auth';
+import { PageProviders } from '../../test/providers';
 import type { ItemInput } from '../../types';
 import { ItemFormModal } from './ItemFormModal';
 
@@ -10,11 +12,20 @@ const nameField = () => screen.getByRole('textbox', { name: 'Name' });
 const qtyField = () => screen.getByRole('textbox', { name: 'Qty' });
 const priceField = () => screen.getByRole('textbox', { name: /^Unit price \(CAD\)/ });
 
+// The form shows prices in the account's currency, read through the login provider.
+vi.mock('../../api/auth', () => ({
+  getCurrentBusiness: vi.fn(),
+}));
+
 describe('ItemFormModal', () => {
+  beforeEach(() => {
+    vi.mocked(authApi.getCurrentBusiness).mockResolvedValue(undefined);
+  });
+
   it('shows validation errors and does not submit invalid input', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn<(_input: ItemInput) => Promise<void>>();
-    render(<ItemFormModal onCancel={vi.fn()} onSubmit={onSubmit} />);
+    render(<ItemFormModal onCancel={vi.fn()} onSubmit={onSubmit} />, { wrapper: PageProviders });
 
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -27,7 +38,7 @@ describe('ItemFormModal', () => {
   it('rejects a negative price with the allowed range', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn<(_input: ItemInput) => Promise<void>>();
-    render(<ItemFormModal onCancel={vi.fn()} onSubmit={onSubmit} />);
+    render(<ItemFormModal onCancel={vi.fn()} onSubmit={onSubmit} />, { wrapper: PageProviders });
 
     await user.type(nameField(), 'Tea');
     await user.type(qtyField(), '1');
@@ -41,7 +52,7 @@ describe('ItemFormModal', () => {
   it('submits trimmed item details, cents, and distinct tags', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn<(_input: ItemInput) => Promise<void>>().mockResolvedValue();
-    render(<ItemFormModal onCancel={vi.fn()} onSubmit={onSubmit} />);
+    render(<ItemFormModal onCancel={vi.fn()} onSubmit={onSubmit} />, { wrapper: PageProviders });
 
     await user.type(nameField(), '  Tea  ');
     await user.type(qtyField(), '12');

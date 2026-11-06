@@ -1,4 +1,5 @@
 import type { InventoryInsights } from '../../types';
+import { useCurrency } from '../../hooks/useCurrency';
 import { formatCents } from '../../utils/money';
 import { SummaryPanel } from '../../components/SummaryPanel';
 
@@ -11,6 +12,7 @@ export interface BestSellersPanelProps {
 
 /** This month's top 3 items by units sold. */
 export function BestSellersPanel({ data, error, loading, reload }: BestSellersPanelProps) {
+  const currency = useCurrency();
   const month = data
     ? new Date(data.periodStart).toLocaleDateString('en-CA', {
         month: 'long',
@@ -40,7 +42,7 @@ export function BestSellersPanel({ data, error, loading, reload }: BestSellersPa
                 {item.name}
               </span>
               <span className="summary-panel__detail">
-                {item.unitsSold} sold · {formatCents(item.revenueCents)}
+                {item.unitsSold} sold · {formatCents(item.revenueCents, currency)}
               </span>
             </li>
           ))}

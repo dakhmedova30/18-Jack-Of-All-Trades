@@ -56,6 +56,9 @@ export interface Item {
   name: string;
   quantity: number;
   unitPriceCents: number;
+  currency: string;
+  originalPrice: number;
+  originalCurrency: string;
   tags: string[];
   note: string;
   /** Shown on the business's public profile. */
@@ -203,6 +206,9 @@ export interface Sale {
   description: string;
   tags: string[];
   totalCents: number;
+  currency: string;
+  originalAmount: number;
+  originalCurrency: string;
   items: SaleItem[];
   createdAt: string;
   updatedAt: string;
@@ -237,6 +243,9 @@ export interface Expense {
   description: string;
   tags: string[];
   totalCents: number;
+  currency: string;
+  originalAmount: number;
+  originalCurrency: string;
   items: ExpenseItem[];
   createdAt: string;
   updatedAt: string;

@@ -84,9 +84,12 @@ public class ItemService {
         Instant start = firstOfMonth.atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant end = firstOfMonth.plusMonths(1).atStartOfDay(ZoneOffset.UTC).toInstant();
         Integer businessId = currentBusiness.id();
+        String currency = businesses.findById(businessId)
+                .map(Business::getCurrency)
+                .orElseThrow(() -> new NotFoundException("Business", businessId));
         long[] totals = queries.stockTotals(businessId);
         return new InventoryInsights(totals[0], totals[1], start, end,
-                queries.bestSellers(businessId, start, end, BEST_SELLERS_LIMIT),
+                queries.bestSellers(businessId, start, end, BEST_SELLERS_LIMIT, currency),
                 queries.notSelling(businessId, start, end));
     }
 
@@ -101,7 +104,10 @@ public class ItemService {
 
     @Transactional
     public ItemResponse create(ItemInput input) {
+        Business business = businesses.findLockedById(currentBusiness.id())
+                .orElseThrow(() -> new NotFoundException("Business", currentBusiness.id()));
         Item item = new Item(currentBusiness.id(), input.name(), input.quantity(), input.unitPriceCents(),
+                business.getCurrency(),
                 input.tags(), input.note(), input.isPublic());
         return ItemResponse.from(items.saveAndFlush(item));
     }

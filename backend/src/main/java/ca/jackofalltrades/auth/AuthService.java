@@ -19,8 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AuthService {
 
-    private static final Set<String> CURRENCIES = Set.of("CAD", "USD", "EUR", "GBP", "AUD");
-
     /** Pictures and logos are resized in the browser, so a real one is far smaller than this. */
     static final int MAX_IMAGE_BYTES = 512 * 1024;
     private static final Set<String> IMAGE_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
@@ -69,6 +67,9 @@ public class AuthService {
     public Business update(Integer id, UpdateBusinessRequest request) {
         Business business = businesses.findById(id)
                 .orElseThrow(() -> new UnauthorizedException("Not logged in"));
+        if (request.currency() != null) {
+            throw new BadRequestException("Use the currency conversion endpoint to change currency");
+        }
         if (request.name() != null) {
             if (request.name().isEmpty()) {
                 throw new BadRequestException("Business name is required");
@@ -89,12 +90,6 @@ public class AuthService {
         }
         if (request.lowStockThreshold() != null) {
             business.setLowStockThreshold(request.lowStockThreshold());
-        }
-        if (request.currency() != null) {
-            if (!CURRENCIES.contains(request.currency())) {
-                throw new BadRequestException("Choose a supported currency");
-            }
-            business.setCurrency(request.currency());
         }
         if (request.ownerFirstName() != null) {
             business.setOwnerFirstName(emptyToNull(request.ownerFirstName()));

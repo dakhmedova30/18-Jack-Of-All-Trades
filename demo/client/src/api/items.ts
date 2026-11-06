@@ -38,7 +38,7 @@ export function getLowStock(limit?: number): Promise<LowStock> {
   return apiRequest(`/items/low-stock${limit !== undefined ? `?limit=${limit}` : ''}`);
 }
 
-/** Stock value and this month's top 3 sellers. */
+/** Stock value, this month's top 3 sellers and in-stock items with no sales this month. */
 export function getInventoryInsights(): Promise<InventoryInsights> {
   return apiRequest('/items/insights');
 }

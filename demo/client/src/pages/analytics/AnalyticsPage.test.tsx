@@ -2,7 +2,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as analyticsApi from '../../api/analytics';
+import * as authApi from '../../api/auth';
 import * as channelApi from '../../api/channels';
+import { PageProviders } from '../../test/providers';
 import type { AnalyticsDateRange, AnalyticsSummary } from '../../types';
 import { AnalyticsPage } from './AnalyticsPage';
 
@@ -10,6 +12,11 @@ vi.mock('../../api/analytics', () => ({
   getAnalyticsDateRange: vi.fn(),
   getAnalyticsSummary: vi.fn(),
   getInventoryByTag: vi.fn(),
+}));
+
+// Amounts are shown in the account's currency, read through the login provider.
+vi.mock('../../api/auth', () => ({
+  getCurrentBusiness: vi.fn(),
 }));
 
 vi.mock('../../api/channels', () => ({
@@ -40,6 +47,7 @@ const dates: AnalyticsDateRange = {
 describe('AnalyticsPage', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(authApi.getCurrentBusiness).mockResolvedValue(undefined);
     vi.mocked(analyticsApi.getAnalyticsDateRange).mockResolvedValue(dates);
     vi.mocked(analyticsApi.getAnalyticsSummary).mockResolvedValue(summary);
     vi.mocked(analyticsApi.getInventoryByTag).mockResolvedValue({
@@ -54,7 +62,7 @@ describe('AnalyticsPage', () => {
   });
 
   it('opens on the 12 months up to the latest record', async () => {
-    render(<AnalyticsPage />);
+    render(<AnalyticsPage />, { wrapper: PageProviders });
 
     await waitFor(() =>
       expect(analyticsApi.getAnalyticsSummary).toHaveBeenCalledWith(
@@ -66,7 +74,7 @@ describe('AnalyticsPage', () => {
 
   it('reloads the summary for a typed period and a chosen channel', async () => {
     const user = userEvent.setup();
-    render(<AnalyticsPage />);
+    render(<AnalyticsPage />, { wrapper: PageProviders });
 
     // A complete, valid start date applies on its own; the page reloads once it settles. (The
     // slider's handle is also labelled "Start date", hence the selector.)
@@ -100,7 +108,7 @@ describe('AnalyticsPage', () => {
       lastDate: null,
       today: '2026-11-05',
     });
-    render(<AnalyticsPage />);
+    render(<AnalyticsPage />, { wrapper: PageProviders });
 
     expect(
       await screen.findByText('The slider appears once you have sales or expenses.'),

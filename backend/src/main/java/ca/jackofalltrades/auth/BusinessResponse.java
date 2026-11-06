@@ -36,7 +36,7 @@ public record BusinessResponse(
         return updatedAt == null ? null : "/api/auth/me/" + name + "?v=" + updatedAt.toEpochMilli();
     }
 
-    static BusinessResponse from(Business business) {
+    public static BusinessResponse from(Business business) {
         return new BusinessResponse(
                 business.getId(),
                 business.getName(),

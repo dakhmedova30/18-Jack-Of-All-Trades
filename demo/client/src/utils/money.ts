@@ -7,8 +7,8 @@ export const MAX_AMOUNT_CENTS = 999_999_999;
 export const MAX_AMOUNT_DISPLAY = '9,999,999.99';
 
 /** 1850 -> "18.50 CAD" */
-export function formatCents(cents: number): string {
-  return `${amountFormatter.format(cents / 100)} CAD`;
+export function formatCents(cents: number, currency = 'CAD'): string {
+  return `${amountFormatter.format(cents / 100)} ${currency}`;
 }
 
 /** Like formatCents, in the given currency: (1850, "USD") -> "18.50 USD". */
@@ -16,17 +16,22 @@ export function formatCentsIn(cents: number, currency: string): string {
   return `${amountFormatter.format(cents / 100)} ${currency}`;
 }
 
-const compactFormatter = new Intl.NumberFormat('en-CA', {
-  style: 'currency',
-  currency: 'CAD',
-  notation: 'compact',
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 1,
-});
+const compactFormatters = new Map<string, Intl.NumberFormat>();
 
 /** 125000 -> "$1.3K", for chart axis labels where space is tight. */
-export function formatCentsCompact(cents: number): string {
-  return compactFormatter.format(cents / 100);
+export function formatCentsCompact(cents: number, currency = 'CAD'): string {
+  let formatter = compactFormatters.get(currency);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat('en-CA', {
+      style: 'currency',
+      currency,
+      notation: 'compact',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 1,
+    });
+    compactFormatters.set(currency, formatter);
+  }
+  return formatter.format(cents / 100);
 }
 
 /** 1850 -> "18.50" (for pre-filling an input) */

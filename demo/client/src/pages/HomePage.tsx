@@ -4,6 +4,7 @@ import { useAnalyticsSummary } from '../hooks/useAnalyticsSummary';
 import { useItemCount } from '../hooks/useItemCount';
 import { useLowStock } from '../hooks/useLowStock';
 import { useRecentSales } from '../hooks/useRecentSales';
+import { useCurrency } from '../hooks/useCurrency';
 import type { AnalyticsRange, AnalyticsSummary, LowStock, Sale } from '../types';
 import { usePreferences } from '../hooks/usePreferences';
 import { formatCents } from '../utils/money';
@@ -118,6 +119,7 @@ function describeSaleItems(sale: Sale): string {
 /** The latest sales by sale date. Display only: rows don't open the sale. */
 function RecentSales() {
   const { formatDate } = usePreferences();
+  const currency = useCurrency();
   const { sales, error, loading, reload } = useRecentSales(RECENT_SALES_COUNT);
 
   return (
@@ -154,7 +156,9 @@ function RecentSales() {
                 <tr key={sale.id}>
                   <td className="home-recent__date">{formatDate(sale.soldAt)}</td>
                   <td className="home-recent__items">{describeSaleItems(sale)}</td>
-                  <td className="numeric home-recent__amount">+{formatCents(sale.totalCents)}</td>
+                  <td className="numeric home-recent__amount">
+                    +{formatCents(sale.totalCents, currency)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -175,6 +179,7 @@ function RecentSales() {
  */
 function KpiStrip({ summary, range }: { summary: SummaryResult; range: HomeRangeOption }) {
   const lowStock = useLowStock();
+  const currency = useCurrency();
 
   const data = summary.data;
   const moneyPlaceholder = summary.loading && !data ? '…' : '—';
@@ -202,19 +207,19 @@ function KpiStrip({ summary, range }: { summary: SummaryResult; range: HomeRange
       <div className="home-kpis" aria-busy={summary.loading || lowStock.loading}>
         <KpiTile
           label={`Revenue · ${range.period}`}
-          value={revenue !== undefined ? formatCents(revenue) : moneyPlaceholder}
+          value={revenue !== undefined ? formatCents(revenue, currency) : moneyPlaceholder}
           tone="neutral"
           detail={revenue === 0 ? `No sales ${range.noneYet}` : undefined}
         />
         <KpiTile
           label={`Expenses · ${range.period}`}
-          value={data ? formatCents(data.totalExpensesCents) : moneyPlaceholder}
+          value={data ? formatCents(data.totalExpensesCents, currency) : moneyPlaceholder}
           tone="neutral"
           detail={data?.totalExpensesCents === 0 ? `No expenses ${range.noneYet}` : undefined}
         />
         <KpiTile
           label={`Net Profit · ${range.period}`}
-          value={netProfit !== undefined ? formatCents(netProfit) : moneyPlaceholder}
+          value={netProfit !== undefined ? formatCents(netProfit, currency) : moneyPlaceholder}
           tone={netProfit === undefined ? 'neutral' : netProfit >= 0 ? 'positive' : 'negative'}
           detail={margin}
         />
