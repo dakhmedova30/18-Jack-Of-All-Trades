@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -55,12 +56,20 @@ public class ExchangeRateProperties {
         } catch (IllegalArgumentException error) {
             throw invalidBaseUrl(baseUrl);
         }
+        validateRetryDelay();
     }
 
     private static IllegalStateException invalidBaseUrl(String value) {
         String display = value == null || value.isBlank() ? "<blank>" : value;
         return new IllegalStateException(
                 "exchange.rate.api.base-url must be a full HTTP(S) URL; invalid value: '" + display + "'");
+    }
+
+    public void validateRetryDelay() {
+        Duration retryAfter = rates.getRetryAfter();
+        if (retryAfter == null || retryAfter.isNegative() || retryAfter.isZero()) {
+            throw new IllegalStateException("exchange.rates.retry-after must be a positive duration");
+        }
     }
 
     public static class Rate {
@@ -91,6 +100,7 @@ public class ExchangeRateProperties {
 
         private String source = "live";
         private String snapshotLocation = "classpath:exchange-rates-fallback.json";
+        private Duration retryAfter = Duration.ofMinutes(5);
 
         public String getSource() {
             return source;
@@ -106,6 +116,14 @@ public class ExchangeRateProperties {
 
         public void setSnapshotLocation(String snapshotLocation) {
             this.snapshotLocation = snapshotLocation;
+        }
+
+        public Duration getRetryAfter() {
+            return retryAfter;
+        }
+
+        public void setRetryAfter(Duration retryAfter) {
+            this.retryAfter = retryAfter;
         }
     }
 }

@@ -71,10 +71,8 @@ public class SaleService {
 
     @Transactional(readOnly = true)
     public SaleResponse get(int id) {
-        String targetCurrency = accountCurrency();
         return sales.findByIdAndBusinessId(id, currentBusiness.id())
                 .map(SaleResponse::from)
-                .map(sale -> displayedIn(sale, targetCurrency))
                 .orElseThrow(() -> new NotFoundException("Sale", id));
     }
 
@@ -159,6 +157,9 @@ public class SaleService {
      */
     private void apply(Sale sale, SaleInput input, Channel channel, Map<Integer, Item> locked, String currency) {
         List<SaleLine> lines = new ArrayList<>();
+        Map<Integer, Integer> existingPrices = sale.getLines().stream()
+                .filter(line -> line.getItemId() != null)
+                .collect(Collectors.toMap(SaleLine::getItemId, SaleLine::getUnitPriceCents, (first, ignored) -> first));
         for (SaleInput.Line line : input.items()) {
             Item item = locked.get(line.itemId());
             if (item == null) {
@@ -169,8 +170,13 @@ public class SaleService {
                         + item.getQuantity() + ", need " + line.quantity() + ")");
             }
             item.adjustQuantity(-line.quantity());
-            int total = multiplyCents(item.getUnitPriceCents(), line.quantity());
-            lines.add(new SaleLine(item.getId(), item.getName(), line.quantity(), item.getUnitPriceCents(), total));
+            int unitPriceCents = existingPrices.containsKey(item.getId())
+                    ? existingPrices.get(item.getId())
+                    : currency.equals(sale.getCurrency()) || sale.getCurrency() == null
+                            ? item.getUnitPriceCents()
+                            : convertedUnitPrice(item.getUnitPriceCents(), currency, sale.getCurrency());
+            int total = multiplyCents(unitPriceCents, line.quantity());
+            lines.add(new SaleLine(item.getId(), item.getName(), line.quantity(), unitPriceCents, total));
         }
         String description = input.description().isEmpty() ? describe(lines) : input.description();
         sale.replace(OffsetDateTime.parse(input.soldAt()).toInstant(), channel, description, input.tags(), lines,
@@ -213,6 +219,14 @@ public class SaleService {
             return Math.multiplyExact(unitPriceCents, quantity);
         } catch (ArithmeticException e) {
             throw new BadRequestException("Number is out of range");
+        }
+    }
+
+    private int convertedUnitPrice(int cents, String sourceCurrency, String targetCurrency) {
+        try {
+            return Math.toIntExact(currencyTotals.convertCents(cents, sourceCurrency, targetCurrency));
+        } catch (ArithmeticException e) {
+            throw new BadRequestException("Converted price is out of range");
         }
     }
 

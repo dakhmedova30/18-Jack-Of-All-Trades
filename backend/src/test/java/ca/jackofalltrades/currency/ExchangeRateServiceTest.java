@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -15,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -115,6 +118,23 @@ class ExchangeRateServiceTest {
     }
 
     @Test
+    void failedFetchIsSuppressedUntilRetryAfter() {
+        FakeClient client = new FakeClient();
+        client.failure = new IllegalStateException("test outage");
+        MutableClock clock = new MutableClock(Instant.parse("2026-11-06T12:00:00Z"));
+        ExchangeRateService service = service(client, "live", SUPPORTED, snapshotLocation(), clock);
+
+        assertThat(service.latest().source()).isEqualTo(ExchangeRateService.RateSource.FALLBACK);
+        assertThat(service.latest().source()).isEqualTo(ExchangeRateService.RateSource.FALLBACK);
+        assertThat(service.latest().source()).isEqualTo(ExchangeRateService.RateSource.FALLBACK);
+        assertThat(client.calls()).isEqualTo(1);
+
+        clock.advance(Duration.ofMinutes(5).plusMillis(1));
+        assertThat(service.latest().source()).isEqualTo(ExchangeRateService.RateSource.FALLBACK);
+        assertThat(client.calls()).isEqualTo(2);
+    }
+
+    @Test
     void logsHttpFailureOnlyOnceDuringAnOutage(CapturedOutput output) {
         FakeClient client = new FakeClient();
         client.failure = new HttpClientErrorException(HttpStatus.TOO_MANY_REQUESTS);
@@ -203,11 +223,17 @@ class ExchangeRateServiceTest {
 
     private static ExchangeRateService service(
             FakeClient client, String source, List<String> supported, String snapshotLocation) {
+        return service(client, source, supported, snapshotLocation, Clock.systemUTC());
+    }
+
+    private static ExchangeRateService service(
+            FakeClient client, String source, List<String> supported, String snapshotLocation, Clock clock) {
         return new ExchangeRateService(
                 client,
                 properties(source, supported, snapshotLocation),
                 new DefaultResourceLoader(),
-                JsonMapper.builder().build());
+                JsonMapper.builder().build(),
+                clock);
     }
 
     private static ExchangeRateProperties properties() {
@@ -280,6 +306,35 @@ class ExchangeRateServiceTest {
 
         int calls() {
             return calls.get();
+        }
+
+    }
+
+    private static final class MutableClock extends Clock {
+
+        private final AtomicReference<Instant> instant;
+
+        private MutableClock(Instant initial) {
+            instant = new AtomicReference<>(initial);
+        }
+
+        void advance(Duration duration) {
+            instant.updateAndGet(current -> current.plus(duration));
+        }
+
+        @Override
+        public ZoneOffset getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(java.time.ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return instant.get();
         }
     }
 }

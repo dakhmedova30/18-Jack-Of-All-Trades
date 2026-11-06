@@ -4,6 +4,8 @@ import ca.jackofalltrades.common.api.BadRequestException;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -11,8 +13,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Currency;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,9 +37,13 @@ public class ExchangeRateService {
     private final String baseUrl;
     private final String sourceMode;
     private final List<String> supportedCurrencies;
+    private final Duration retryDelay;
+    private final Clock clock;
     private final Resource snapshotResource;
     private final ObjectMapper objectMapper;
-    private final Map<String, RateLookup> cache = new ConcurrentHashMap<>();
+    private final Object refreshMonitor = new Object();
+    private volatile CacheEntry cached;
+    private CompletableFuture<RateLookup> refreshInFlight;
     private final AtomicBoolean failureWarningLogged = new AtomicBoolean();
     private final AtomicBoolean fallbackInfoLogged = new AtomicBoolean();
     private volatile ExchangeRates snapshot;
@@ -46,11 +52,14 @@ public class ExchangeRateService {
             ExchangeRateHttpClient client,
             ExchangeRateProperties properties,
             ResourceLoader resourceLoader,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            Clock clock) {
         this.client = client;
         properties.validateConfiguration();
         this.baseUrl = properties.getRate().getApi().getBaseUrl().strip();
         this.sourceMode = properties.getRates().getSource();
+        this.retryDelay = properties.getRates().getRetryAfter();
+        this.clock = clock;
         this.supportedCurrencies = properties.getSupportedCurrencies().stream()
                 .map(code -> code.strip().toUpperCase(Locale.ROOT))
                 .distinct()
@@ -66,33 +75,94 @@ public class ExchangeRateService {
             return fromSnapshot();
         }
 
-        RateLookup cached = cache.get(BASE_CURRENCY);
-        Instant now = Instant.now();
-        if (cached != null && now.isBefore(cached.rates().refreshAt())) {
-            return cached.withSource(RateSource.CACHED);
+        CacheEntry entry = cached;
+        RateLookup available = available(entry, clock.instant());
+        if (available != null) {
+            return available;
         }
 
-        synchronized (cache) {
-            cached = cache.get(BASE_CURRENCY);
-            now = Instant.now();
-            if (cached != null && now.isBefore(cached.rates().refreshAt())) {
-                return cached.withSource(RateSource.CACHED);
+        CompletableFuture<RateLookup> pending;
+        boolean ownsRefresh = false;
+        synchronized (refreshMonitor) {
+            entry = cached;
+            available = available(entry, clock.instant());
+            if (available != null) {
+                return available;
             }
-            try {
-                ExchangeRates fresh = ExchangeRates.from(client.fetch(baseUrl, BASE_CURRENCY));
-                validateRates(fresh);
-                RateLookup result = new RateLookup(fresh, RateSource.LIVE, fresh.asOf());
-                cache.put(BASE_CURRENCY, result);
-                failureWarningLogged.set(false);
-                fallbackInfoLogged.set(false);
-                return result;
-            } catch (RuntimeException error) {
-                RateLookup result = cached != null
-                        ? cached.withSource(RateSource.STALE)
-                        : fromSnapshot();
-                logFailureOnce(error, result);
-                return result;
+            pending = refreshInFlight;
+            if (pending == null) {
+                pending = new CompletableFuture<>();
+                refreshInFlight = pending;
+                ownsRefresh = true;
             }
+        }
+
+        if (!ownsRefresh) {
+            return awaitRefresh(pending);
+        }
+        try {
+            RateLookup result = refresh(entry);
+            pending.complete(result);
+            return result;
+        } catch (RuntimeException error) {
+            pending.completeExceptionally(error);
+            throw error;
+        } finally {
+            synchronized (refreshMonitor) {
+                refreshInFlight = null;
+            }
+        }
+    }
+
+    private RateLookup available(CacheEntry entry, Instant now) {
+        if (entry == null) {
+            return null;
+        }
+        if (entry.retryAfter() != null && now.isBefore(entry.retryAfter())) {
+            return entry.lookup();
+        }
+        if (entry.retryAfter() != null) {
+            return null;
+        }
+        if (now.isBefore(entry.lookup().rates().refreshAt())) {
+            return entry.lookup().withSource(RateSource.CACHED);
+        }
+        return null;
+    }
+
+    private RateLookup refresh(CacheEntry previous) {
+        try {
+            ExchangeRates fresh = ExchangeRates.from(client.fetch(baseUrl, BASE_CURRENCY));
+            validateRates(fresh);
+            RateLookup result = new RateLookup(fresh, RateSource.LIVE, fresh.asOf());
+            cached = new CacheEntry(result, null);
+            failureWarningLogged.set(false);
+            fallbackInfoLogged.set(false);
+            return result;
+        } catch (RuntimeException error) {
+            RateLookup result;
+            if (previous == null) {
+                result = fromSnapshot();
+            } else if (previous.lookup().source() == RateSource.FALLBACK
+                    || previous.lookup().source() == RateSource.STALE) {
+                result = previous.lookup();
+            } else {
+                result = previous.lookup().withSource(RateSource.STALE);
+            }
+            cached = new CacheEntry(result, clock.instant().plus(retryDelay));
+            logFailureOnce(error, result);
+            return result;
+        }
+    }
+
+    private static RateLookup awaitRefresh(CompletableFuture<RateLookup> pending) {
+        try {
+            return pending.join();
+        } catch (CompletionException error) {
+            if (error.getCause() instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw error;
         }
     }
 
@@ -264,6 +334,8 @@ public class ExchangeRateService {
                     + " are being used. Converted prices may differ slightly from today's rates.";
         }
     }
+
+    private record CacheEntry(RateLookup lookup, Instant retryAfter) {}
 
     public record LocalRate(BigDecimal rate, RateLookup lookup) {
         public RateSource source() {

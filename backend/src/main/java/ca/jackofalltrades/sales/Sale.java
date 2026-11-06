@@ -75,17 +75,18 @@ public class Sale {
         this.businessId = businessId;
     }
 
-    /** Sets every field and replaces all lines; used for both create and PATCH (which replaces the sale). */
+    /** Sets editable fields and replaces lines; monetary metadata is initialized only on creation. */
     void replace(Instant soldAt, Channel channel, String description, List<String> tags, List<SaleLine> newLines,
             String currency) {
         Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS); // Postgres keeps microseconds
-        if (createdAt == null) {
+        boolean creating = createdAt == null;
+        if (creating) {
             createdAt = now;
+            this.currency = currency;
+            this.originalCurrency = currency;
         }
         updatedAt = now;
         this.soldAt = soldAt;
-        this.currency = currency;
-        this.originalCurrency = currency;
         this.channel = channel;
         this.description = description;
         this.tags = new ArrayList<>(tags);
@@ -95,7 +96,9 @@ public class Sale {
             lines.add(line);
         }
         long totalCents = newLines.stream().mapToLong(SaleLine::getTotalCents).sum();
-        this.originalAmount = BigDecimal.valueOf(totalCents, 2);
+        if (creating) {
+            this.originalAmount = BigDecimal.valueOf(totalCents, 2);
+        }
     }
 
     public Integer getId() {

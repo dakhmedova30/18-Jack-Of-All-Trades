@@ -69,10 +69,8 @@ public class ExpenseService {
 
     @Transactional(readOnly = true)
     public ExpenseResponse get(int id) {
-        String targetCurrency = accountCurrency();
         return expenses.findByIdAndBusinessId(id, currentBusiness.id())
                 .map(ExpenseResponse::from)
-                .map(expense -> displayedIn(expense, targetCurrency))
                 .orElseThrow(() -> new NotFoundException("Expense", id));
     }
 

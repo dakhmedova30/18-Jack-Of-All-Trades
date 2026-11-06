@@ -119,9 +119,10 @@ public class CurrencyChangeService {
                           FROM sale_items line
                           WHERE line.sale_id = s.id
                         ), 0)::NUMERIC / 100
-                    WHERE business_id = :businessId
+                    WHERE business_id = :businessId AND currency = :previousCurrency
                     """)
                     .param("currency", target)
+                    .param("previousCurrency", source)
                     .param("businessId", businessId)
                     .update();
             jdbc.sql("""
@@ -133,9 +134,10 @@ public class CurrencyChangeService {
                           FROM expense_items line
                           WHERE line.expense_id = e.id
                         ), 0)::NUMERIC / 100
-                    WHERE business_id = :businessId
+                    WHERE business_id = :businessId AND currency = :previousCurrency
                     """)
                     .param("currency", target)
+                    .param("previousCurrency", source)
                     .param("businessId", businessId)
                     .update();
         }
