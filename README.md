@@ -68,7 +68,7 @@ Log in as the demo account, then:
 
 ### Accessibility
 
-- **Lighthouse accessibility** on the live site (Chrome DevTools, desktop, Nov 6, 2026): Home **100**, Inventory **100**, Sales **100**, Expenses **100**, Analytics **100**, Login **96**.
+- **Lighthouse accessibility** on the live site (Chrome DevTools, desktop, Nov 6, 2026): Home **100**, Inventory **100**, Sales **100**, Expenses **100**, Analytics **96-100**, Login **96**.
 
   ![Lighthouse accessibility score of 100 for the Home page on the live site](docs/screenshots/lighthouse.png)
   ![Lighthouse accessibility score of 96 for the Login page on the live site](docs/screenshots/lighthouse-login.png)
