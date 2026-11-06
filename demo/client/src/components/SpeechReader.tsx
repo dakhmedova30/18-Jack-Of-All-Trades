@@ -12,6 +12,10 @@ const MAX_UTTERANCE_LENGTH = 1000;
 /** Silence between passages at normal speed, so one item is clearly over before the next starts. */
 const PASSAGE_PAUSE_MS = 600;
 const HIGHLIGHT_CLASS = 'speech-reader-highlight';
+/** The CSS variable pages use to keep their end clear of the fixed bar (see styles.css). */
+const SPACE_VARIABLE = '--speech-reader-space';
+/** Gap kept between the end of a page and the top of the bar. */
+const SPACE_GAP_PX = 16;
 
 /**
  * Splits the page into passages at block boundaries (headings, paragraphs, list items,
@@ -126,6 +130,7 @@ function SpeechReaderControls() {
   const [rate, setRate] = useState(1);
   const [status, setStatus] = useState('');
   const generation = useRef(0);
+  const bar = useRef<HTMLElement>(null);
   const highlighted = useRef<Element | null>(null);
   const paused = useRef(false);
   // Set when Pause lands in the silence between passages: Resume calls it to carry on.
@@ -152,6 +157,28 @@ function SpeechReaderControls() {
     },
     [canSpeak, highlight],
   );
+
+  // Publish how much of the window the bar covers, so every page can leave that much room at its
+  // end. Measured rather than fixed: the bar wraps onto more lines on phones, and grows when the
+  // Pause button appears.
+  useEffect(() => {
+    const element = bar.current;
+    if (!element) return;
+    const root = document.documentElement;
+    const update = () => {
+      const covered = window.innerHeight - element.getBoundingClientRect().top;
+      root.style.setProperty(SPACE_VARIABLE, `${Math.ceil(covered) + SPACE_GAP_PX}px`);
+    };
+    update();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
+    observer?.observe(element);
+    window.addEventListener('resize', update);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', update);
+      root.style.removeProperty(SPACE_VARIABLE);
+    };
+  }, []);
 
   useEffect(
     () => () => {
@@ -254,7 +281,7 @@ function SpeechReaderControls() {
   }
 
   return (
-    <section className="speech-reader" aria-label="Text-to-speech controls">
+    <section ref={bar} className="speech-reader" aria-label="Text-to-speech controls">
       <button type="button" className="button" onClick={readPage} disabled={!canSpeak}>
         Read page aloud
       </button>

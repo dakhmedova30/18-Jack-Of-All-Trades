@@ -742,7 +742,7 @@ code {
 .speech-reader-highlight {
   outline: 2px solid var(--color-primary);
   outline-offset: 4px;
-  scroll-margin: 1rem 1rem 6rem;
+  scroll-margin: 1rem 1rem calc(var(--speech-reader-space, 5rem) + 1rem);
 }
 
 .speech-reader__status {
@@ -2994,4 +2994,17 @@ textarea.settings-row__input {
   .sidebar-view--inactive {
     transition: none;
   }
+}
+
+/* ---------- Room for the read-aloud bar ---------- */
+
+/* The fixed .speech-reader bar would otherwise cover the end of every page, so each scrolling
+   container leaves room for it at its bottom: .content for the logged-in pages, and the auth
+   and legal pages (including public profiles), which scroll the whole window. SpeechReader keeps
+   --speech-reader-space equal to the space the bar covers; 5rem is a fallback. Last in the file
+   so it wins over each container's own padding. */
+.content,
+.auth-page,
+.legal-page {
+  padding-bottom: var(--speech-reader-space, 5rem);
 }
