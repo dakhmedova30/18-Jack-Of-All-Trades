@@ -10,7 +10,7 @@ Jack-Of-All-Trades promises small businesses [management *and* intelligence](../
 ### How we identified it
 
 - **Feedback and reflection:** the TA's D2 demo feedback asked for consistent fonts, colours and widgets, low and unsold items made visible, summary cards moved to the top, and tests; our [D2 retrospective](../D2/iteration-02-review.md) planned the same, plus analytics by sales channel.
-- **Using the product:** answering real questions with the demo account's 15 months of data showed that a quarter of its sales never appeared in Analytics.
+- **Using the product:** answering real questions with 15 months of test data showed that a quarter of the sales never appeared in Analytics.
 - **Testing:** once CI ran the backend tests, the first PR it checked ([#8](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/8)) failed.
 
 ## 2. What You Did
