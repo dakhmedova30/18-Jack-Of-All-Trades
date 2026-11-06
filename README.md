@@ -100,7 +100,11 @@ Log in as the demo account, then:
 
  * macOS, Linux or Windows
  * Git
- * [Java 25](https://adoptium.net/) (`brew install openjdk@25` on macOS) and the Maven wrapper (`backend/mvnw`, no separate Maven install needed)
+ * [Java 25](https://adoptium.net/) and the Maven wrapper (`backend/mvnw`, no separate Maven install needed). Check with `java -version`. On macOS, Homebrew doesn't make Java 25 the default, so after `brew install openjdk@25` run this in each new terminal (otherwise the build fails with "release version 25 not supported"):
+
+   ```bash
+   export JAVA_HOME="$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home"
+   ```
  * [Node.js](https://nodejs.org/) 22.13 or newer (24 LTS works too; `nvm use` reads `.nvmrc`) and npm 10+, to build/run `demo/client`
  * A PostgreSQL database, either hosted (Neon, AWS RDS, Supabase, ...) or local (`docker compose up -d` in `backend/`)
 
