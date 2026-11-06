@@ -132,6 +132,8 @@ export interface InventoryInsights {
   periodEnd: string;
   /** Top 3 items by units sold this month, most first. */
   bestSellers: { id: number; name: string; unitsSold: number; revenueCents: number }[];
+  /** In-stock items with no sales this calendar month. */
+  notSelling: { id: number; name: string; quantity: number }[];
 }
 
 export interface LowStock {
