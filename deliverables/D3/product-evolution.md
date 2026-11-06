@@ -43,7 +43,8 @@ Merge conflicts, our largest integration cost, are covered in Section 4.
 ## 3. Before vs. After
 <!--  Show concrete improvements: workflow clarity, speed, error reduction, reliability, etc. -->
 
-"Before" is our `D2` tag; "after" is `main` through PR #25. Figures come from our demo dataset (1,177 sales, Aug 2025 – Oct 2026).
+"Before" is our `D2` tag; "after" is `main` through PR #25. Figures come from a larger local test database (1,177 sales and 171 expenses, Aug 2025 – Oct 2026) filled by a one-off script that isn't in the repo. A fresh setup seeded by #23 has a six-week sample of 20 sales instead, so its numbers will differ.
+
 
 ### Finding answers in the data ([#15](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/15), [#16](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/16), [#22](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/22), [#24](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/24))
 
@@ -70,7 +71,7 @@ A summary loads in 8–17 ms, so Analytics updates as soon as the slider stops.
 
 ### Consistency and accessibility ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9), [#14](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/14), [#17](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/17), [#20](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/20), [#22](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/22))
 
-Lighthouse scored 100 at D2 and D3 but can't test behaviour, so we checked by hand with the keyboard and VoiceOver:
+Lighthouse accessibility scores 96–100 on every main page, but it can't test behaviour, so we checked by hand with the keyboard and VoiceOver:
 
 | Check | D2 | D3 |
 | --- | --- | --- |
@@ -85,7 +86,7 @@ Summary cards share one component, body text uses Atkinson Hyperlegible (designe
 
 ### Reliability of delivery ([#10](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/10), [#13](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/13), [#18](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/18), [#23](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/23))
 
-At D2, CI ran no tests and deploys were manual. Now every PR runs 240 backend tests (139 at D2) and 56 frontend tests (none at D2), and `main` deploys only when all pass. A fresh setup now opens to sample data instead of $0 tiles and empty charts.
+At D2, CI ran no tests and deploys were manual. Now every PR runs 237 backend tests (139 at D2) and 56 frontend tests (none at D2), and `main` deploys only when all pass. A fresh setup now opens to sample data instead of $0 tiles and empty charts.
 
 ## 4. Reflection
 
@@ -100,7 +101,6 @@ At D2, CI ran no tests and deploys were manual. Now every PR runs 240 backend te
 ### What was harder than expected
 
 - **One shared stylesheet:** When #9 reorganized our 2,400-line stylesheet, every open branch conflicted, and most of our merge time went to CSS.
-- **Conflicts git can't see:** #18 tested a dropdown that #16 removed, and #22's Inventory panel left its API field behind in #19. Each passed its own tests and would have failed once merged.
 - **Dates:** Chrome reports half-typed years like `0002`, and UTC days put an evening sale in Toronto on the next day.
 
 ### How this affects our path to D4
