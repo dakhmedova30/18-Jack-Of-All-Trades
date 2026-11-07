@@ -46,6 +46,20 @@ Log in as the demo account, then:
 7. **Public profile:** in Settings > Profile, set a link name (e.g. `demo-shop`) and click **Turn on**, then tick **Show on my public profile** on products (or select several in Inventory and click **Show on profile**). Customers open `/p/demo-shop` with no account, and never see contact details or stock counts, only "In stock" or "Sold out".
 8. **Read aloud:** the bar at the bottom of every page reads it out, one highlighted passage at a time.
 
+### CSV Import and Export
+
+Use **Import CSV** and **Export CSV** above Inventory, Sales and Expenses to move business records in or out. Imports with an `id` update that record; rows with an empty `id` create a new record. IDs only refer to records in the current business. Import continues after row errors and reports which rows failed. Analytics has an export-only control for the selected date range and channel, along with the current inventory-by-tag snapshot.
+
+The export contains the record fields, including IDs, timestamps, computed totals and currencies. Imports require these columns:
+
+| Section | Required columns |
+| --- | --- |
+| Inventory | `name`, `quantity`, `unitPriceCents`, `tags`, `note`, `isPublic` |
+| Sales | `soldAt`, `channelId`, `description`, `tags`, `items` |
+| Expenses | `incurredAt`, `description`, `tags`, `items` |
+
+`tags` and `items` are JSON arrays inside CSV cells. For example, inventory tags use `["paper","gift"]`; a sale's `items` uses objects with `itemId` and `quantity`; an expense's `items` uses objects with `itemId` (or `null` for a non-inventory cost), `description`, `quantity` and `unitCostCents`. Use integer cents for money fields such as `unitPriceCents` and `unitCostCents`. Sales must reference an existing channel and inventory item. The application recalculates totals and currency-converted values during import; exported computed fields and timestamps are informational and are not overwritten. If a sale line references a deleted inventory item, that row cannot be imported until corrected.
+
 ### Screenshots
 
 **Home:** this month's revenue, expenses, profit and low stock, with the **Show** period choice (top right).

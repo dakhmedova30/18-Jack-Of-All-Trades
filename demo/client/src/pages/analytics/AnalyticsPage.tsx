@@ -1,4 +1,7 @@
+import type { ReactNode } from 'react';
 import { useState } from 'react';
+import { getAnalyticsSummary, getInventoryByTag } from '../../api/analytics';
+import { CsvTransfer } from '../../components/CsvTransfer';
 import { useAnalyticsDateRange } from '../../hooks/useAnalyticsDateRange';
 import { useAnalyticsSummary } from '../../hooks/useAnalyticsSummary';
 import { useChannels } from '../../hooks/useChannels';
@@ -16,7 +19,12 @@ import {
   LineChart,
   type DonutSegment,
 } from './charts';
-import type { AnalyticsDateRange, AnalyticsSummary, DateRange } from '../../types';
+import type {
+  AnalyticsDateRange,
+  AnalyticsSummary,
+  DateRange,
+  InventoryByTag,
+} from '../../types';
 
 /** How long the period must stay still (e.g. while dragging the slider) before it reloads. */
 const RELOAD_DELAY_MS = 250;
@@ -43,7 +51,7 @@ function periodPhrase({ from, to }: DateRange): string {
   return from === to ? `on ${formatDate(from)}` : `from ${formatDate(from)} to ${formatDate(to)}`;
 }
 
-function AnalyticsHeader() {
+function AnalyticsHeader({ actions }: { actions?: ReactNode }) {
   return (
     <div className="analytics-header">
       <div>
@@ -54,6 +62,7 @@ function AnalyticsHeader() {
           Inventory Overview, which always shows current stock.
         </p>
       </div>
+      {actions}
     </div>
   );
 }
@@ -102,10 +111,28 @@ function AnalyticsDashboard({ dates }: { dates: AnalyticsDateRange }) {
     channelId ? Number(channelId) : undefined,
   );
   const refreshing = data !== undefined && (loading || requested !== period);
+  const channelFilter = channelId ? Number(channelId) : undefined;
+
+  async function loadAnalyticsCsv(): Promise<AnalyticsCsvRecord[]> {
+    const [summary, inventory] = await Promise.all([
+      getAnalyticsSummary(requested, channelFilter),
+      getInventoryByTag(),
+    ]);
+    return [{ from: requested.from, to: requested.to, channelId: channelId || '', summary, inventory }];
+  }
 
   return (
     <>
-      <AnalyticsHeader />
+      <AnalyticsHeader
+        actions={
+          <CsvTransfer
+            filename="analytics"
+            headers={ANALYTICS_CSV_HEADERS}
+            loadRows={loadAnalyticsCsv}
+            exportRow={analyticsCsvRow}
+          />
+        }
+      />
 
       <div className="analytics-layout">
         <div className="analytics-side">
@@ -163,6 +190,56 @@ function AnalyticsDashboard({ dates }: { dates: AnalyticsDateRange }) {
       </div>
     </>
   );
+}
+
+interface AnalyticsCsvRecord {
+  from: string;
+  to: string;
+  channelId: string;
+  summary: AnalyticsSummary;
+  inventory: InventoryByTag;
+}
+
+const ANALYTICS_CSV_HEADERS = [
+  'from',
+  'to',
+  'channelId',
+  'totalRevenueCents',
+  'totalExpensesCents',
+  'netProfitCents',
+  'range',
+  'granularity',
+  'buckets',
+  'bucketLabels',
+  'revenueSeries',
+  'expenseSeries',
+  'salesByTag',
+  'revenueByChannel',
+  'inventoryByTag',
+  'inventoryTotalQuantity',
+  'inventoryTotalItems',
+];
+
+function analyticsCsvRow({ from, to, channelId, summary, inventory }: AnalyticsCsvRecord) {
+  return [
+    from,
+    to,
+    channelId,
+    summary.totalRevenueCents,
+    summary.totalExpensesCents,
+    summary.netProfitCents,
+    summary.range,
+    summary.granularity,
+    JSON.stringify(summary.buckets),
+    JSON.stringify(summary.bucketLabels),
+    JSON.stringify(summary.revenueSeries),
+    JSON.stringify(summary.expenseSeries),
+    JSON.stringify(summary.salesByTag),
+    JSON.stringify(summary.revenueByChannel),
+    JSON.stringify(inventory.byTag),
+    inventory.totalQuantity,
+    inventory.totalItems,
+  ];
 }
 
 interface AnalyticsContentProps {

@@ -6,9 +6,11 @@ import {
   bulkSetItemsPublic,
   createItem,
   deleteItem,
+  listItems,
   updateItem,
 } from '../../api/items';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { CsvTransfer } from '../../components/CsvTransfer';
 import { SummaryPanel } from '../../components/SummaryPanel';
 import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
@@ -29,6 +31,14 @@ import type {
   SortOrder,
 } from '../../types';
 import { formatCents } from '../../utils/money';
+import { fetchAllPages } from '../../utils/csv';
+import {
+  csvId,
+  itemCsvRow,
+  itemInputFromCsv,
+  ITEM_CSV_HEADERS,
+  ITEM_IMPORT_HEADERS,
+} from '../../utils/businessCsv';
 import { ItemFormModal } from './ItemFormModal';
 
 /** The server's max; enough to list every low item for any realistic shop. */
@@ -107,6 +117,17 @@ export function InventoryPage() {
     reloadItems();
     lowStock.reload();
     insights.reload();
+  }
+
+  async function importItem(record: Record<string, string>) {
+    const id = csvId(record);
+    const input = itemInputFromCsv(record);
+    if (id) {
+      await updateItem(id, input);
+      return 'updated' as const;
+    }
+    await createItem(input);
+    return 'created' as const;
   }
 
   /** Clicking the current sort column flips its direction; a new column starts ascending. */
@@ -240,6 +261,17 @@ export function InventoryPage() {
       </div>
       <div className="toolbar">
         <div className="toolbar__actions">
+          <CsvTransfer
+            filename="inventory"
+            headers={ITEM_CSV_HEADERS}
+            loadRows={() => fetchAllPages((requestedPage, pageSize) =>
+              listItems({ page: requestedPage, pageSize }),
+            )}
+            exportRow={itemCsvRow}
+            importHeaders={ITEM_IMPORT_HEADERS}
+            importRow={importItem}
+            onImported={reload}
+          />
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
             Add <PlusIcon />
           </button>

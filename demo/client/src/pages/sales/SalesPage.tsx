@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { bulkDeleteSales, createSale, deleteSale, updateSale } from '../../api/sales';
+import { bulkDeleteSales, createSale, deleteSale, listSales, updateSale } from '../../api/sales';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { CsvTransfer } from '../../components/CsvTransfer';
 import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -11,6 +12,14 @@ import { useCurrency } from '../../hooks/useCurrency';
 import type { Sale, SaleInput, SaleSortField, SortOrder } from '../../types';
 import { usePreferences } from '../../hooks/usePreferences';
 import { formatCents } from '../../utils/money';
+import { fetchAllPages } from '../../utils/csv';
+import {
+  csvId,
+  saleCsvRow,
+  saleInputFromCsv,
+  SALE_CSV_HEADERS,
+  SALE_IMPORT_HEADERS,
+} from '../../utils/businessCsv';
 import { BestSellersPanel } from './BestSellersPanel';
 import { MonthGlancePanel } from './MonthGlancePanel';
 import { SaleFormModal } from './SaleFormModal';
@@ -74,6 +83,17 @@ export function SalesPage() {
     reloadSales();
     insights.reload();
     monthSummary.reload();
+  }
+
+  async function importSale(record: Record<string, string>) {
+    const id = csvId(record);
+    const input = saleInputFromCsv(record);
+    if (id) {
+      await updateSale(id, input);
+      return 'updated' as const;
+    }
+    await createSale(input);
+    return 'created' as const;
   }
 
   /** Clicking the current sort column flips its direction; a new column starts ascending. */
@@ -159,6 +179,17 @@ export function SalesPage() {
       </div>
       <div className="toolbar">
         <div className="toolbar__actions">
+          <CsvTransfer
+            filename="sales"
+            headers={SALE_CSV_HEADERS}
+            loadRows={() => fetchAllPages((requestedPage, pageSize) =>
+              listSales({ page: requestedPage, pageSize }),
+            )}
+            exportRow={saleCsvRow}
+            importHeaders={SALE_IMPORT_HEADERS}
+            importRow={importSale}
+            onImported={reload}
+          />
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
             Add <PlusIcon />
           </button>
