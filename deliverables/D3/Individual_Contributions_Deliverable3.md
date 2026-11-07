@@ -55,6 +55,16 @@ Precise description:
 - Bulk show/hide on the public profile (#21, suggested by a teammate): "Show on profile" and "Hide from profile" buttons for selected inventory items, with a new bulk endpoint. After Minh's review, each button only enables when it would change something, and a mixed selection lists the skipped items before changing the rest. 3 backend tests, 4 frontend tests.
 - **PRs reviewed:** #13 (found three problems in the `.env.example` templates; approved after the fixes), #15 (found the date filter jumping while a year is typed and a 500 on extreme dates; approved after the fixes), #17 (found the read-aloud bar covering page content).
 
+**Aidan Wang**, Full-stack Developer; sales and analytics filters
+- Sales filters (#15): owners can narrow the Sales table to one channel and/or a date range instead of paging through every sale.
+  - Backend: `GET /api/sales` takes optional `channelId`, `from` and `to`, combined with the existing search, sorting and paging. Dates are inclusive whole UTC days, matching how the app stores and shows them. Filters reuse the existing parameterized query and stay limited to the logged-in business, so another business's channel id matches nothing. A backwards range or an invalid date returns a readable 400 instead of a stack trace.
+  - Frontend: a Channel dropdown, From/To date pickers and a "Clear filters" link next to the search box. Changing a filter returns to page 1. When nothing matches, the table says so and offers to clear the filters (it used to show the "Add a new sale" prompt).
+  - After Jinuo's review, fixed the date range jumping back to year 2 while a year was typed in Chrome. The other end now stays put, a backwards range shows "From must be on or before To" and keeps the last good results, and filtering waits until typing settles. Years outside 1–9999 now return a 400 instead of a 500.
+  - 6 backend tests plus year-bound checks. Documented in the API contract.
+- Analytics channel filter (#16): added a sales channel dropdown to the Analytics filter sidebar that narrows the revenue figures. Expenses aren't tied to a channel, so they stay whole, and Net Profit is hidden when a single channel is selected. Added a Revenue by Channel card showing each channel's share of revenue for the chosen period. `GET /api/analytics/summary` takes an optional `channelId` and returns `revenueByChannel`. After Minh's review, moved the card under the filter to fill the empty left column. 4 backend tests; documented in the API contract.
+- **PRs reviewed:** #18 (approved after running all 22 tests, lint, typecheck and format locally; flagged the Analytics test that #16 would break), #19 (found four problems that were fixed before merge: editing an old record changed its currency, so a €100 expense became CA$100; every conversion retried the rate fetch while the rates API was down; relabel rewrote records in other currencies; and the exchange settings were in a new `application.properties` instead of `application.yml`).
+
+
 **[Name]**, [Role]
 > [Specific contributions]
 
