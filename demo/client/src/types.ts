@@ -63,14 +63,35 @@ export interface Item {
   note: string;
   /** Shown on the business's public profile. */
   isPublic: boolean;
+  /** Optional size; width, height and unit are all set or all null. */
+  width: number | null;
+  height: number | null;
+  sizeUnit: SizeUnit | null;
+  amountSold: number;
+  /** Inactive items stay in history but can't be sold. */
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export type ItemInput = Pick<
-  Item,
-  'name' | 'quantity' | 'unitPriceCents' | 'tags' | 'note' | 'isPublic'
->;
+export const CURRENCY_CODES = ['CAD', 'USD', 'EUR', 'GBP', 'AUD'] as const;
+export type CurrencyCode = (typeof CURRENCY_CODES)[number];
+
+export const SIZE_UNITS = ['in', 'cm', 'mm', 'ft'] as const;
+export type SizeUnit = (typeof SIZE_UNITS)[number];
+
+export interface ItemInput
+  extends Pick<Item, 'name' | 'quantity' | 'unitPriceCents' | 'tags' | 'note' | 'isPublic'> {
+  currency: CurrencyCode;
+  width: number | null;
+  height: number | null;
+  sizeUnit: SizeUnit | null;
+  amountSold: number;
+  isActive: boolean;
+}
+
+/** PATCH body: the input fields, plus `clearSize` to remove a size. */
+export type ItemUpdateInput = Partial<ItemInput> & { clearSize?: boolean };
 
 /** An item as customers see it: no stock count, note or tags. */
 export interface PublicItem {

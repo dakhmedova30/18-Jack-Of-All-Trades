@@ -75,16 +75,22 @@ public class ItemQueries {
         return Paginated.of(data, page, pageSize, total);
     }
 
-    /** Stock value at selling price and total units, as {@code [valueCents, units]}. */
-    public long[] stockTotals(int businessId) {
-        return jdbcClient.sql("""
-                        SELECT COALESCE(SUM(quantity::bigint * unit_price_cents), 0),
-                               COALESCE(SUM(quantity::bigint), 0)
+    /** Stock value at selling price (converted to {@code targetCurrency}) and total units, as {@code [valueCents, units]}. */
+    public long[] stockTotals(int businessId, String targetCurrency) {
+        record Row(String currency, long valueCents, long units) {}
+        List<Row> rows = jdbcClient.sql("""
+                        SELECT currency, SUM(quantity::bigint * unit_price_cents) AS value_cents,
+                               SUM(quantity::bigint) AS units
                         FROM items WHERE business_id = :businessId
+                        GROUP BY currency
                         """)
                 .param("businessId", businessId)
-                .query((rs, rowNum) -> new long[] {rs.getLong(1), rs.getLong(2)})
-                .single();
+                .query((rs, rowNum) -> new Row(rs.getString(1), rs.getLong(2), rs.getLong(3)))
+                .list();
+        Map<String, Long> byCurrency = rows.stream()
+                .collect(Collectors.toMap(Row::currency, Row::valueCents, Long::sum));
+        long units = rows.stream().mapToLong(Row::units).sum();
+        return new long[] {currencyTotals.convertSubtotals(byCurrency, targetCurrency), units};
     }
 
     /**
@@ -172,6 +178,24 @@ public class ItemQueries {
         return new LowStock(count, threshold, items);
     }
 
+    /** Names of those of {@code ids} that sales or expenses still point to. */
+    public List<String> referencedNames(int businessId, java.util.Collection<Integer> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return jdbcClient.sql("""
+                        SELECT i.name FROM items i
+                        WHERE i.business_id = :businessId AND i.id IN (:ids)
+                          AND (EXISTS (SELECT 1 FROM sale_items si WHERE si.item_id = i.id)
+                               OR EXISTS (SELECT 1 FROM expense_items ei WHERE ei.item_id = i.id))
+                        ORDER BY i.name
+                        """)
+                .param("businessId", businessId)
+                .param("ids", ids)
+                .query(String.class)
+                .list();
+    }
+
     private static ItemResponse mapRow(ResultSet rs, int rowNum) throws SQLException {
         Array tags = rs.getArray("tags");
         return new ItemResponse(
@@ -185,6 +209,11 @@ public class ItemQueries {
                 List.of((String[]) tags.getArray()),
                 rs.getString("note"),
                 rs.getBoolean("is_public"),
+                rs.getBigDecimal("width"),
+                rs.getBigDecimal("height"),
+                rs.getString("size_unit"),
+                rs.getInt("amount_sold"),
+                rs.getBoolean("is_active"),
                 rs.getObject("created_at", OffsetDateTime.class).toInstant(),
                 rs.getObject("updated_at", OffsetDateTime.class).toInstant());
     }

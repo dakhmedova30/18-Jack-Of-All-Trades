@@ -452,6 +452,66 @@ select {
   border-color: var(--color-sidebar-text);
 }
 
+/* Sales drop-down: the arrow sits beside the link, sub-pages hang off a vertical line. */
+.sidebar__group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sidebar__group-head .sidebar__link {
+  flex: 1;
+}
+
+.sidebar__expand {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--color-sidebar-hover);
+  color: inherit;
+  cursor: pointer;
+}
+
+.sidebar__expand svg {
+  width: 0.8rem;
+  height: 0.8rem;
+  transition: transform 0.15s;
+}
+
+.sidebar__expand svg.is-open {
+  transform: rotate(180deg);
+}
+
+.sidebar__sub {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0.35rem 0 0.35rem 1.6rem;
+  padding-left: 1rem;
+  border-left: var(--border-default) var(--color-sidebar-text);
+}
+
+.sidebar__sublink {
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.sidebar__sublink:hover,
+.sidebar__sublink.is-active {
+  background: var(--color-sidebar-hover);
+}
+
+.sidebar__sublink.is-active {
+  font-weight: 600;
+}
+
 /* ---------- Sidebar account (avatar pill) ---------- */
 
 .sidebar__account {
@@ -2783,6 +2843,50 @@ textarea.settings-row__input {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.item-form__size {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.item-form__size input {
+  min-width: 0;
+  flex: 1;
+}
+
+.item-form__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.item-form__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  font-size: 0.75rem;
+  padding: 0.05rem 0.2rem 0.05rem 0.5rem;
+  border-radius: 4px;
+}
+
+.item-form__tag .icon-button {
+  color: inherit;
+  padding: 0 0.25rem;
+}
+
+/* Inactive or sold-out rows are grayed out but stay clickable. */
+.table__row.is-inactive td {
+  color: var(--color-muted);
+  opacity: 0.6;
+}
+
+.table tfoot td {
+  font-weight: 600;
+  border-top: 2px solid var(--color-border);
 }
 
 @media (max-width: 720px) {

@@ -6,6 +6,7 @@ import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ExpensesPage } from './pages/expenses/ExpensesPage';
+import { ComingSoonPage } from './pages/ComingSoonPage';
 import { HelpPage } from './pages/HelpPage';
 import { HomePage } from './pages/HomePage';
 import { InventoryPage } from './pages/inventory/InventoryPage';
@@ -87,7 +88,12 @@ export function App() {
           <Route index element={<HomePage />} />
           <Route path="inventory" element={<InventoryPage />} />
           <Route path="sales" element={<SalesPage />} />
+          <Route path="sales/in-person" element={<ComingSoonPage title="In-Person Market" />} />
+          <Route path="sales/online" element={<ComingSoonPage title="Online Shop" />} />
+          <Route path="sales/commissions" element={<ComingSoonPage title="Commissions" />} />
+          <Route path="sales/misc" element={<ComingSoonPage title="Miscellaneous" />} />
           <Route path="expenses" element={<ExpensesPage />} />
+          <Route path="discounts" element={<ComingSoonPage title="Discounts & Charges" />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="help" element={<HelpPage />} />
           <Route path="settings" element={<Navigate to="/settings/account" replace />} />

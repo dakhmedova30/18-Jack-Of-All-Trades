@@ -165,16 +165,21 @@ public class SaleService {
             if (item == null) {
                 throw new BadRequestException("Item " + line.itemId() + " does not exist");
             }
+            if (!item.isActive() && !existingPrices.containsKey(item.getId())) {
+                throw new BadRequestException("\"" + item.getName() + "\" is inactive and can't be sold");
+            }
             if (item.getQuantity() < line.quantity()) {
                 throw new BadRequestException("Not enough stock for \"" + item.getName() + "\" (have "
                         + item.getQuantity() + ", need " + line.quantity() + ")");
             }
             item.adjustQuantity(-line.quantity());
+            item.adjustAmountSold(line.quantity());
+            String saleCurrency = sale.getCurrency() == null ? currency : sale.getCurrency();
             int unitPriceCents = existingPrices.containsKey(item.getId())
                     ? existingPrices.get(item.getId())
-                    : currency.equals(sale.getCurrency()) || sale.getCurrency() == null
+                    : item.getCurrency().equals(saleCurrency)
                             ? item.getUnitPriceCents()
-                            : convertedUnitPrice(item.getUnitPriceCents(), currency, sale.getCurrency());
+                            : convertedUnitPrice(item.getUnitPriceCents(), item.getCurrency(), saleCurrency);
             int total = multiplyCents(unitPriceCents, line.quantity());
             lines.add(new SaleLine(item.getId(), item.getName(), line.quantity(), unitPriceCents, total));
         }
@@ -206,6 +211,7 @@ public class SaleService {
             if (item != null) {
                 try {
                     item.adjustQuantity(line.getQuantity());
+                    item.adjustAmountSold(-line.getQuantity());
                 } catch (ArithmeticException e) {
                     throw new BadRequestException("Number is out of range");
                 }
