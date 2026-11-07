@@ -21,7 +21,7 @@ type DeleteTarget = { kind: 'single'; sale: Sale } | { kind: 'bulk'; ids: number
 const isTipOnly = (sale: Sale) => sale.items.every((line) => line.kind === 'TIP');
 
 /** "Print x 2, Sticker x 1 (free), Discount: 10% off" */
-function describeSale(sale: Sale): string {
+export function describeSale(sale: Sale): string {
   return sale.items
     .filter((line) => line.kind !== 'TIP')
     .map((line) => {
@@ -32,7 +32,7 @@ function describeSale(sale: Sale): string {
     .join(', ');
 }
 
-function saleTotal(sale: Sale): number {
+export function saleTotal(sale: Sale): number {
   return sale.items.reduce((sum, line) => sum + line.totalCents, 0);
 }
 
@@ -311,7 +311,13 @@ export function MarketDetailPage() {
 
       {info && formState?.kind === 'sale' && (
         <MarketSaleFormModal
-          market={info}
+          target={{
+            marketId: info.id,
+            channelName: 'in person',
+            title: `Add sale to ${info.name}`,
+            currency: info.currency,
+            defaultDate: info.startDate,
+          }}
           sale={formState.sale}
           onCancel={() => setFormState(null)}
           onSubmit={handleSave}

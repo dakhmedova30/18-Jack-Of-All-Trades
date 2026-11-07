@@ -10,6 +10,8 @@ import { DiscountsPage } from './pages/discounts/DiscountsPage';
 import { MarketDetailPage } from './pages/markets/MarketDetailPage';
 import { MarketsPage } from './pages/markets/MarketsPage';
 import { ComingSoonPage } from './pages/ComingSoonPage';
+import { OnlineMonthPage } from './pages/online/OnlineMonthPage';
+import { OnlineShopPage } from './pages/online/OnlineShopPage';
 import { HelpPage } from './pages/HelpPage';
 import { HomePage } from './pages/HomePage';
 import { InventoryPage } from './pages/inventory/InventoryPage';
@@ -53,6 +55,7 @@ export function App() {
       '/inventory': 'Inventory',
       '/sales': 'Sales',
       '/sales/in-person': 'In-Person Market',
+      '/sales/online': 'Online Shop',
       '/discounts': 'Discounts & Charges',
       '/expenses': 'Expenses',
       '/analytics': 'Analytics',
@@ -70,6 +73,7 @@ export function App() {
     const title =
       titles[pathname] ??
       (pathname.startsWith('/sales/in-person/') ? 'In-Person Market' : undefined) ??
+      (pathname.startsWith('/sales/online/') ? 'Online Shop' : undefined) ??
       (settingsTab ? settingsLabels[settingsTab] : undefined) ??
       (pathname.startsWith('/p/') ? 'Public profile' : 'Page not found');
     document.title = `${title} | Jack-Of-All-Trades`;
@@ -96,7 +100,8 @@ export function App() {
           <Route path="sales" element={<SalesPage />} />
           <Route path="sales/in-person" element={<MarketsPage />} />
           <Route path="sales/in-person/:marketId" element={<MarketDetailPage />} />
-          <Route path="sales/online" element={<ComingSoonPage title="Online Shop" />} />
+          <Route path="sales/online" element={<OnlineShopPage />} />
+          <Route path="sales/online/:month" element={<OnlineMonthPage />} />
           <Route path="sales/commissions" element={<ComingSoonPage title="Commissions" />} />
           <Route path="sales/misc" element={<ComingSoonPage title="Miscellaneous" />} />
           <Route path="expenses" element={<ExpensesPage />} />

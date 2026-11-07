@@ -438,3 +438,34 @@ export interface MarketInput {
   going: MarketGoing;
   tags: string[];
 }
+
+/** One month of the online shop; `month` is `YYYY-MM` and amounts are in `currency`. */
+export interface OnlineMonth {
+  month: string;
+  salesCount: number;
+  expensesCents: number;
+  revenueCents: number;
+  profitCents: number;
+  currency: CurrencyCode;
+}
+
+export interface OnlineExpense {
+  id: number;
+  spentOn: string;
+  description: string;
+  category: string;
+  amountCents: number;
+  currency: CurrencyCode;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OnlineExpenseInput {
+  spentOn: string;
+  description: string;
+  category: string;
+  amountCents: number;
+  currency: CurrencyCode;
+  tags: string[];
+}

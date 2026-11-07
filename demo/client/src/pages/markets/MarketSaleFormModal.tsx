@@ -11,15 +11,24 @@ import {
   type CurrencyCode,
   type Discount,
   type Item,
-  type Market,
   type Sale,
   type SaleInput,
 } from '../../types';
 import { dateInputValueToIso, isoToDateInputValue } from '../../utils/date';
 import { centsToInputValue, MAX_AMOUNT_CENTS, parseDollarsToCents } from '../../utils/money';
 
+/** Where a sale is recorded: a market (in person) or the online shop. */
+export interface SaleTarget {
+  marketId: number | null;
+  /** The channel the sale is put on, matched by name ignoring case. */
+  channelName: string;
+  title: string;
+  currency: CurrencyCode;
+  defaultDate: string;
+}
+
 interface MarketSaleFormModalProps {
-  market: Market;
+  target: SaleTarget;
   /** Pass a sale to edit it; omit to record one. */
   sale?: Sale;
   onCancel: () => void;
@@ -62,7 +71,7 @@ function linesFromSale(sale?: Sale): LineState[] {
   );
 }
 
-export function MarketSaleFormModal({ market, sale, onCancel, onSubmit }: MarketSaleFormModalProps) {
+export function MarketSaleFormModal({ target, sale, onCancel, onSubmit }: MarketSaleFormModalProps) {
   const isEditing = sale !== undefined;
   const [items, setItems] = useState<Item[] | null>(null);
   const [discounts, setDiscounts] = useState<Discount[]>([]);
@@ -70,10 +79,10 @@ export function MarketSaleFormModal({ market, sale, onCancel, onSubmit }: Market
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [date, setDate] = useState(() =>
-    sale ? isoToDateInputValue(sale.soldAt) : market.startDate,
+    sale ? isoToDateInputValue(sale.soldAt) : target.defaultDate,
   );
   const [currency, setCurrency] = useState<CurrencyCode>(
-    (sale?.originalCurrency as CurrencyCode | undefined) ?? market.currency,
+    (sale?.originalCurrency as CurrencyCode | undefined) ?? target.currency,
   );
   const [lines, setLines] = useState<LineState[]>(() => linesFromSale(sale));
   const [discountIds, setDiscountIds] = useState<Set<number>>(
@@ -103,11 +112,13 @@ export function MarketSaleFormModal({ market, sale, onCancel, onSubmit }: Market
     if (sale?.channel) return;
     listChannels()
       .then((channels) => {
-        const found = channels.find((channel) => channel.name.toLowerCase() === 'in person');
+        const found = channels.find(
+          (channel) => channel.name.toLowerCase() === target.channelName.toLowerCase(),
+        );
         setInPersonChannelId((found ?? channels[0])?.id ?? null);
       })
       .catch((error: unknown) => setLoadError(getErrorMessage(error)));
-  }, [sale]);
+  }, [sale, target.channelName]);
 
   const itemById = useMemo(() => new Map((items ?? []).map((item) => [item.id, item])), [items]);
   const selectableItems = (items ?? []).filter(
@@ -166,7 +177,7 @@ export function MarketSaleFormModal({ market, sale, onCancel, onSubmit }: Market
       description: '',
       tags: sale?.tags ?? [],
       items: parsed,
-      marketId: market.id,
+      marketId: target.marketId,
       currency,
       tipCents,
       discountIds: [...discountIds],
@@ -189,7 +200,7 @@ export function MarketSaleFormModal({ market, sale, onCancel, onSubmit }: Market
 
   return (
     <Modal
-      title={isEditing ? 'Modify sale' : `Add sale to ${market.name}`}
+      title={isEditing ? 'Modify sale' : target.title}
       onClose={handleCancel}
       footer={
         <>
