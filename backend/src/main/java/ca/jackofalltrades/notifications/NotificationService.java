@@ -3,6 +3,7 @@ package ca.jackofalltrades.notifications;
 import ca.jackofalltrades.auth.Business;
 import ca.jackofalltrades.auth.BusinessRepository;
 import ca.jackofalltrades.common.security.CurrentBusiness;
+import ca.jackofalltrades.currency.CurrencyTotals;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -12,6 +13,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.stream.Collectors;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -33,11 +38,17 @@ public class NotificationService {
     private final JdbcClient jdbcClient;
     private final BusinessRepository businesses;
     private final CurrentBusiness currentBusiness;
+    private final CurrencyTotals currencyTotals;
 
-    public NotificationService(JdbcClient jdbcClient, BusinessRepository businesses, CurrentBusiness currentBusiness) {
+    public NotificationService(
+            JdbcClient jdbcClient,
+            BusinessRepository businesses,
+            CurrentBusiness currentBusiness,
+            CurrencyTotals currencyTotals) {
         this.jdbcClient = jdbcClient;
         this.businesses = businesses;
         this.currentBusiness = currentBusiness;
+        this.currencyTotals = currencyTotals;
     }
 
     @Transactional(readOnly = true)
@@ -85,7 +96,7 @@ public class NotificationService {
             noSalesAlert(businessId, business.getCreatedAt(), settings.noSalesDays(), alerts);
         }
         if (settings.expenseSpike()) {
-            expenseSpikeAlert(businessId, settings.expenseSpikePercent(), alerts);
+            expenseSpikeAlert(businessId, settings.expenseSpikePercent(), business.getCurrency(), alerts);
         }
         if (settings.newDevice()) {
             newDeviceAlerts(businessId, clip(userAgent), alerts);
@@ -189,46 +200,55 @@ public class NotificationService {
 
     // ---------------------------------------------------------------- expenses
 
-    private void expenseSpikeAlert(int businessId, int percent, List<NotificationAlert> out) {
+    private void expenseSpikeAlert(int businessId, int percent, String currency, List<NotificationAlert> out) {
         YearMonth thisMonth = YearMonth.now(ZoneOffset.UTC);
         OffsetDateTime thisStart = thisMonth.atDay(1).atStartOfDay().atOffset(ZoneOffset.UTC);
         OffsetDateTime lastStart = thisStart.minusMonths(1);
         OffsetDateTime nextStart = thisStart.plusMonths(1);
 
-        long lastTotal = expenseTotal(businessId, lastStart, thisStart);
-        long thisTotal = expenseTotal(businessId, thisStart, nextStart);
+        long lastTotal = expenseTotal(businessId, lastStart, thisStart, currency);
+        long thisTotal = expenseTotal(businessId, thisStart, nextStart, currency);
 
         // So far this month against ALL of last month: only a real overshoot trips it, never a
         // month that is simply early.
-        if (lastTotal > 0 && thisTotal * 100 > lastTotal * (100L + percent)) {
-            long actual = Math.round((thisTotal - lastTotal) * 100.0 / lastTotal);
+        if (lastTotal > 0 && BigDecimal.valueOf(thisTotal).multiply(BigDecimal.valueOf(100))
+                .compareTo(BigDecimal.valueOf(lastTotal).multiply(BigDecimal.valueOf(100L + percent))) > 0) {
+            long actual = BigDecimal.valueOf(thisTotal).subtract(BigDecimal.valueOf(lastTotal))
+                    .multiply(BigDecimal.valueOf(100))
+                    .divide(BigDecimal.valueOf(lastTotal), 0, RoundingMode.HALF_UP)
+                    .longValueExact();
             out.add(new NotificationAlert(
                     "expense-spike",
                     thisMonth.toString(),
                     "Expenses are up",
-                    "Expenses this month are " + money(thisTotal) + " so far, already " + actual
-                            + "% above last month's " + money(lastTotal) + ".",
+                    "Expenses this month are " + money(thisTotal, currency) + " so far, already " + actual
+                            + "% above last month's " + money(lastTotal, currency) + ".",
                     "/expenses",
                     null,
                     null));
         }
     }
 
-    private long expenseTotal(int businessId, OffsetDateTime from, OffsetDateTime to) {
-        return jdbcClient.sql("""
-                        SELECT COALESCE(SUM(ei.total_cents), 0)
+    private long expenseTotal(int businessId, OffsetDateTime from, OffsetDateTime to, String targetCurrency) {
+        Map<String, Long> totalsByCurrency = jdbcClient.sql("""
+                        SELECT e.currency, COALESCE(SUM(ei.total_cents), 0) AS total_cents
                         FROM expenses e JOIN expense_items ei ON ei.expense_id = e.id
                         WHERE e.business_id = :businessId AND e.incurred_at >= :from AND e.incurred_at < :to
+                        GROUP BY e.currency
                         """)
                 .param("businessId", businessId)
                 .param("from", from)
                 .param("to", to)
-                .query(Long.class)
-                .single();
+                .query((rs, rowNum) -> Map.entry(rs.getString("currency"), rs.getLong("total_cents")))
+                .list().stream()
+                .collect(LinkedHashMap::new,
+                        (map, entry) -> map.put(entry.getKey(), entry.getValue()),
+                        LinkedHashMap::putAll);
+        return currencyTotals.convertSubtotals(totalsByCurrency, targetCurrency);
     }
 
-    private static String money(long cents) {
-        return String.format(Locale.CANADA, "$%,.2f CAD", cents / 100.0);
+    private static String money(long cents, String currency) {
+        return String.format(Locale.CANADA, "%,.2f %s", BigDecimal.valueOf(cents, 2), currency);
     }
 
     // ---------------------------------------------------------------- new devices

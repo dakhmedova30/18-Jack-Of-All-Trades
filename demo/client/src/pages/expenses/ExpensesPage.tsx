@@ -12,6 +12,7 @@ import { TagList } from '../../components/TagList';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useExpenseMonthBreakdown } from '../../hooks/useExpenseMonthBreakdown';
 import { useExpenses } from '../../hooks/useExpenses';
+import { useCurrency } from '../../hooks/useCurrency';
 import type { Expense, ExpenseInput, ExpenseSortField, SortOrder } from '../../types';
 import { usePreferences } from '../../hooks/usePreferences';
 import { formatCents } from '../../utils/money';
@@ -48,6 +49,7 @@ type DeleteTarget = { kind: 'single'; expense: Expense } | { kind: 'bulk'; ids: 
 
 export function ExpensesPage() {
   const { preferences, formatDate } = usePreferences();
+  const currency = useCurrency();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebouncedValue(searchInput.trim());
@@ -260,7 +262,7 @@ export function ExpensesPage() {
                 <td>{expense.id}</td>
                 <td>{formatDate(expense.incurredAt)}</td>
                 <td className="expense-description">{describeExpenseLines(expense)}</td>
-                <td className="numeric">{formatCents(expense.totalCents)}</td>
+                <td className="numeric">{formatCents(expense.totalCents, currency)}</td>
                 <td>
                   <TagList tags={expense.tags} />
                 </td>

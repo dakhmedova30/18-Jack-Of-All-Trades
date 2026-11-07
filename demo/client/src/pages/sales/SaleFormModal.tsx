@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { createChannel, listChannels } from '../../api/channels';
 import { usePreferences } from '../../hooks/usePreferences';
+import { useCurrency } from '../../hooks/useCurrency';
 import { listItems } from '../../api/items';
 import { getErrorMessage } from '../../api/http';
 import { Modal } from '../../components/Modal';
@@ -40,6 +41,20 @@ function linesFromSale(sale?: Sale): LineState[] {
 
 export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) {
   const isEditing = sale !== undefined;
+  const accountCurrency = useCurrency();
+  // A saved sale stays in the currency it was recorded in. In a list row `currency` is the account
+  // currency its total was converted to for display, so the lines' own currency is `originalCurrency`.
+  const currency = sale?.originalCurrency ?? accountCurrency;
+  // When a sale is edited, the server keeps the price each item already had on it.
+  const savedPrices = useMemo(
+    () =>
+      new Map(
+        (sale?.items ?? []).flatMap((line) =>
+          line.itemId === null ? [] : [[line.itemId, line.unitPriceCents] as const],
+        ),
+      ),
+    [sale],
+  );
 
   const [items, setItems] = useState<Item[] | null>(null);
   const [itemsError, setItemsError] = useState<string | null>(null);
@@ -115,14 +130,26 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
     onCancel();
   }
 
+  /** The price the server will use, or null for an item priced in another currency: it's converted when saved. */
+  function unitPriceCents(item: Item): number | null {
+    const saved = savedPrices.get(item.id);
+    if (saved !== undefined) return saved;
+    return item.currency === currency ? item.unitPriceCents : null;
+  }
+
   function lineTotalCents(line: LineState): number | null {
     const item = itemById.get(Number(line.itemId));
     const quantity = Number(line.quantity);
     if (!item || !Number.isInteger(quantity) || quantity <= 0) return null;
-    return item.unitPriceCents * quantity;
+    const price = unitPriceCents(item);
+    return price === null ? null : price * quantity;
   }
 
   const grandTotalCents = lines.reduce((sum, line) => sum + (lineTotalCents(line) ?? 0), 0);
+  const convertedOnSave = lines.some((line) => {
+    const item = itemById.get(Number(line.itemId));
+    return item !== undefined && unitPriceCents(item) === null;
+  });
 
   const autoDescription = describeLines(
     lines.flatMap((line) => {
@@ -242,8 +269,8 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
                       <option value="">Select…</option>
                       {items.map((item) => (
                         <option key={item.id} value={item.id}>
-                          {item.name} — {formatCents(item.unitPriceCents)} ({item.quantity} in
-                          stock)
+                          {item.name} — {formatCents(item.unitPriceCents, item.currency)} (
+                          {item.quantity} in stock)
                         </option>
                       ))}
                     </select>
@@ -270,7 +297,7 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
 
                   <div className="sale-line__field sale-line__field--total">
                     <span className="sale-line__total-label">Total</span>
-                    <span>{total === null ? '—' : formatCents(total)}</span>
+                    <span>{total === null ? '—' : formatCents(total, currency)}</span>
                   </div>
 
                   <button
@@ -305,8 +332,14 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
 
         <div className="sale-total">
           <span>Total</span>
-          <span>{formatCents(grandTotalCents)}</span>
+          <span>{convertedOnSave ? '—' : formatCents(grandTotalCents, currency)}</span>
         </div>
+        {convertedOnSave && (
+          <p className="muted">
+            This sale is in {currency}, so items priced in another currency are converted when you
+            save.
+          </p>
+        )}
 
         <div className="form-row">
           <label htmlFor="sale-date">

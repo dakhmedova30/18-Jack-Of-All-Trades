@@ -74,7 +74,7 @@
   --shadow-modal: 0 12px 40px hsl(var(--hue) 80% 10% / 0.2);
 
   /* Type */
-  --font-body: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-header: 'Fraunces variable', serif;
 
   /* Shape & layout */
@@ -266,6 +266,10 @@ code {
   border-radius: 4px;
 }
 
+select {
+  text-overflow: ellipsis;
+}
+
 .muted {
   color: var(--color-muted);
 }
@@ -322,7 +326,7 @@ code {
   flex-direction: column;
   gap: 2rem;
   font-family: var(--font-header);
-  height: -webkit-fill-available;
+  height: 100%;
   /* Above sticky table headers (1), below the modal backdrop (10). */
   z-index: 5;
 }
@@ -705,6 +709,58 @@ code {
   padding: 0;
 }
 
+.speech-reader {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.6rem;
+  border: var(--border-default) var(--color-border-chart);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-popover);
+}
+
+.speech-reader__rate {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.speech-reader__rate select {
+  padding: 0.35rem;
+  border: var(--border-default) var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+/* The passage being read aloud, outlined like keyboard focus. The bottom scroll margin
+   keeps it clear of the fixed reader bar when it's scrolled into view. */
+.speech-reader-highlight {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+  scroll-margin: 1rem 1rem calc(var(--speech-reader-space, 5rem) + 1rem);
+}
+
+.speech-reader__status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .page {
   display: flex;
   flex-direction: column;
@@ -764,6 +820,48 @@ code {
   flex: 1;
   font: inherit;
   color: inherit;
+}
+
+.toolbar__filters,
+.sales-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.filter-field select,
+.filter-field input {
+  font: inherit;
+  font-weight: 400;
+  color: inherit;
+  background: var(--color-search);
+  border: var(--border-default) var(--color-border-strong);
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+}
+
+.sales-filters__clear {
+  font-size: 0.85rem;
+  padding-bottom: 0.5rem;
+}
+
+/* Under the fields, on a line of its own. */
+.sales-filters__error {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.filter-field input[aria-invalid='true'] {
+  border-color: var(--color-danger);
 }
 
 /* ---------- Buttons ---------- */
@@ -870,6 +968,7 @@ code {
   gap: 0.3rem;
   padding: 1rem 1.1rem;
   border-radius: 10px;
+  min-width: 160px;
 }
 
 .stat-card__label {
@@ -1160,7 +1259,6 @@ code {
 }
 
 .form-row input {
-  width: 100%;
   border: none;
   text-align: right;
   font: inherit;
@@ -1788,6 +1886,10 @@ code {
   width: 100%;
 }
 
+.panel-row--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .panel-row .summary-panel {
   background: var(--color-surface);
   border-color: var(--color-border-chart);
@@ -1843,13 +1945,6 @@ code {
   min-height: 0;
 }
 
-.analytics-card__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
 .analytics-card__footer {
   display: flex;
   align-items: center;
@@ -1863,25 +1958,6 @@ code {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.3rem 1rem;
-}
-
-.analytics-select {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-shrink: 0;
-  padding-top: 0.2rem;
-  font-size: 0.8rem;
-  color: var(--color-muted);
-}
-
-.analytics-select select {
-  font: inherit;
-  color: inherit;
-  border: var(--border-default) var(--color-border-strong);
-  border-radius: 4px;
-  padding: 0.15rem 0.4rem;
-  background: var(--color-surface);
 }
 
 /* Sales and Expenses donuts side by side, splitting the card's chart space. */
@@ -1930,6 +2006,304 @@ code {
   color: var(--color-muted);
   font-size: 0.8rem;
   font-style: italic;
+}
+
+/* The filter side bar, then the dashboard on its right. */
+.analytics-layout {
+  display: grid;
+  grid-template-columns: 15.5rem minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.analytics-main,
+.analytics-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+/* Dims what the date filter moves while a new period loads, as the tables do. */
+.analytics-body,
+.analytics-card {
+  transition: opacity 0.15s;
+}
+
+.analytics-body.is-loading,
+.analytics-card.is-loading {
+  opacity: 0.55;
+}
+
+/* The filters with Revenue by Channel under them. Not sticky: together they can be taller than
+   the window, and a sticky column that tall would hide its bottom until the page ends. */
+.analytics-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.analytics-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1rem;
+  background: var(--color-surface);
+  border: var(--border-default) var(--color-border-chart);
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
+}
+
+.analytics-filters__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-bottom: 0.6rem;
+  border-bottom: var(--border-default) var(--color-border);
+}
+
+.analytics-filters__header .link-button {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.analytics-filters__header .link-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+  text-decoration: none;
+}
+
+.analytics-filters__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.analytics-filters__group h3 {
+  margin: 0;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.analytics-filters__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.analytics-filters__summary .muted {
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.analytics-filters__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.analytics-filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.analytics-filters__field label {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.analytics-filters__field input,
+.analytics-filters__field select {
+  font: inherit;
+  color: inherit;
+  padding: 0.35rem 0.5rem;
+  border: var(--border-default) var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-bg-solid);
+}
+
+.analytics-filters__field input:focus,
+.analytics-filters__field select:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.analytics-filters__field input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.analytics-filters__field .field-error,
+.analytics-filters__note {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+/* Revenue by Channel under the filters: padded like them so the two line up. */
+.analytics-card--side {
+  padding: 1rem;
+}
+
+/* ---------- Compact bar list (narrow bar chart) ---------- */
+
+.viz-bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.viz-bar-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.viz-bar-list__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.viz-bar-list__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viz-bar-list__value {
+  flex: none;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.viz-bar-list__track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.viz-bar-list__bar {
+  height: 100%;
+  border-radius: 4px;
+}
+
+/* Too narrow for a side bar next to the charts: the filters go above them instead. */
+@media (max-width: 1100px) {
+  .analytics-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .analytics-filters__fields {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .analytics-filters__field {
+    flex: 1 1 10rem;
+  }
+}
+
+/* ---------- Date range slider ---------- */
+
+/* Side padding of half a handle keeps the handles inside the slider at either end. */
+.range-slider {
+  padding: 0.6rem 9px 0;
+  touch-action: none;
+  user-select: none;
+}
+
+.range-slider__track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-border);
+  cursor: pointer;
+}
+
+/* The selected period; the invisible area above and below the bar makes it easy to grab. */
+.range-slider__window {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  z-index: 1;
+  cursor: grab;
+}
+
+.range-slider__window::before {
+  content: '';
+  position: absolute;
+  inset: 6px 0;
+  border-radius: 999px;
+  background: var(--color-accent);
+}
+
+.range-slider__thumb {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-accent);
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: 0 1px 3px rgb(45 6 6 / 0.3);
+  transform: translate(-50%, -50%);
+  cursor: grab;
+}
+
+.range-slider__thumb--top {
+  z-index: 3;
+}
+
+.range-slider__window:active,
+.range-slider__thumb:active {
+  cursor: grabbing;
+}
+
+.range-slider__window:focus-visible,
+.range-slider__thumb:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Jan 1 of each year inside the slider's range. */
+.range-slider__tick {
+  position: absolute;
+  top: 100%;
+  width: 1px;
+  height: 6px;
+  background: var(--color-border-chart);
+  pointer-events: none;
+}
+
+.range-slider__scale {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.6rem;
+  font-size: 0.72rem;
+  color: var(--color-muted);
+}
+
+.range-slider__year {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
 }
 
 /* ---------- Settings: layout & tabs ---------- */
@@ -2001,6 +2375,16 @@ code {
 .settings-section--danger {
   color: var(--color-danger);
   border-bottom-color: var(--color-danger);
+}
+
+.settings-currency {
+  display: flex;
+  gap: 0.5rem;
+  flex-direction: column;
+}
+
+.settings-currency button {
+  width: fit-content;
 }
 
 /* ---------- Settings: rows, forms & lists ---------- */
@@ -2402,6 +2786,15 @@ textarea.settings-row__input {
 }
 
 @media (max-width: 720px) {
+  .speech-reader {
+    right: 0.5rem;
+    bottom: 0.5rem;
+    left: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    max-width: none;
+  }
+
   .public-profile__hero {
     flex-direction: column;
   }
@@ -2469,6 +2862,25 @@ textarea.settings-row__input {
 /* ==========================================================================
    9. Responsive
    ========================================================================== */
+
+@media (max-width: 900px) {
+  .analytics-stats {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .analytics-stats .stat-card {
+    flex: 1 1 calc(50% - 0.5rem); /* two per row */
+  }
+
+  .analytics-stats .stat-card:first-child {
+    flex-basis: 100%; /* first one takes the whole row */
+  }
+
+  .analytics-row {
+    grid-template-columns: 1fr; /* one per row */
+  }
+}
 
 @media (max-width: 896px) {
   /* Settings: the tab list becomes a row above the content. */
@@ -2619,4 +3031,17 @@ textarea.settings-row__input {
   .sidebar-view--inactive {
     transition: none;
   }
+}
+
+/* ---------- Room for the read-aloud bar ---------- */
+
+/* The fixed .speech-reader bar would otherwise cover the end of every page, so each scrolling
+   container leaves room for it at its bottom: .content for the logged-in pages, and the auth
+   and legal pages (including public profiles), which scroll the whole window. SpeechReader keeps
+   --speech-reader-space equal to the space the bar covers; 5rem is a fallback. Last in the file
+   so it wins over each container's own padding. */
+.content,
+.auth-page,
+.legal-page {
+  padding-bottom: var(--speech-reader-space, 5rem);
 }

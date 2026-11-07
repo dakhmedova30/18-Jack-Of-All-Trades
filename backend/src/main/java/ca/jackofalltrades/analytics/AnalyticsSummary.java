@@ -3,8 +3,10 @@ package ca.jackofalltrades.analytics;
 import java.util.List;
 
 /**
- * The {@code GET /api/analytics/summary} JSON (contract §6). Totals cover every record from the
- * window's start onward, as the demo; each series' values line up with {@code buckets}.
+ * The {@code GET /api/analytics/summary} JSON (contract §6). For a "Show by" range, totals cover
+ * every record from the window's start onward, as the demo; for a chosen period ({@code range}
+ * "custom"), only that period. Each series' values line up with {@code buckets}; {@code granularity}
+ * is "day", "week" or "month". {@code revenueByChannel} lists every channel with revenue, largest first.
  */
 public record AnalyticsSummary(
         String range,
@@ -16,7 +18,8 @@ public record AnalyticsSummary(
         long netProfitCents,
         List<TagSeries> revenueSeries,
         List<TagSeries> expenseSeries,
-        List<TagTotal> salesByTag) {
+        List<TagTotal> salesByTag,
+        List<TagTotal> revenueByChannel) {
 
     public record TagSeries(String label, List<Long> values) {}
 

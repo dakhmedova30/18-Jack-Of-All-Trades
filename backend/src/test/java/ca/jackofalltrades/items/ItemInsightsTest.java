@@ -74,7 +74,8 @@ class ItemInsightsTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.totalUnits").value(0))
                 .andExpect(jsonPath("$.periodStart").value(start.toString()))
                 .andExpect(jsonPath("$.periodEnd").value(end.toString()))
-                .andExpect(jsonPath("$.bestSellers").isEmpty());
+                .andExpect(jsonPath("$.bestSellers").isEmpty())
+                .andExpect(jsonPath("$.notSelling").isEmpty());
     }
 
     @Test
@@ -134,6 +135,29 @@ class ItemInsightsTest extends PostgresTestBase {
 
         mockMvc.perform(get("/api/items/insights").cookie(cookie))
                 .andExpect(jsonPath("$.bestSellers").isEmpty());
+    }
+
+    @Test
+    void notSellingListsInStockItemsWithNoSalesThisMonth() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        int neverSold = insertItem(business, "Zine", 4, 500);
+        int soldLastMonth = insertItem(business, "Mug", 2, 1200);
+        int soldThisMonth = insertItem(business, "Print", 8, 1000);
+        insertItem(business, "Sold out", 0, 800);
+        insertItem(businessId(registerAndLogin()), "Other business", 3, 100);
+
+        insertSale(business, startOfThisMonth().minusSeconds(60), soldLastMonth, "Mug", 1, 1200);
+        insertSale(business, startOfThisMonth().plusSeconds(60), soldThisMonth, "Print", 2, 1000);
+
+        // Sold out and the other business's item are left out; the rest are sorted by name.
+        mockMvc.perform(get("/api/items/insights").cookie(cookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.notSelling", hasSize(2)))
+                .andExpect(jsonPath("$.notSelling[*].name", contains("Mug", "Zine")))
+                .andExpect(jsonPath("$.notSelling[0].id").value(soldLastMonth))
+                .andExpect(jsonPath("$.notSelling[0].quantity").value(2))
+                .andExpect(jsonPath("$.notSelling[1].id").value(neverSold));
     }
 
     @Test

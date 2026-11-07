@@ -1,6 +1,7 @@
 import { SummaryPanel } from '../../components/SummaryPanel';
 import type { SalesMonthSummary } from '../../types';
 import { usePreferences } from '../../hooks/usePreferences';
+import { useCurrency } from '../../hooks/useCurrency';
 import { formatCents } from '../../utils/money';
 
 export interface MonthGlancePanelProps {
@@ -13,6 +14,7 @@ export interface MonthGlancePanelProps {
 /** This month's sales count, average sale value and largest sale as separate panels. */
 export function MonthGlancePanel({ data, error, loading, reload }: MonthGlancePanelProps) {
   const { formatDate } = usePreferences();
+  const currency = useCurrency();
   const month = data
     ? new Date(data.periodStart).toLocaleDateString('en-CA', { month: 'long', timeZone: 'UTC' })
     : undefined;
@@ -26,12 +28,12 @@ export function MonthGlancePanel({ data, error, loading, reload }: MonthGlancePa
         },
         {
           title: 'Average sale',
-          value: data.saleCount > 0 ? formatCents(data.averageSaleCents) : '—',
+          value: data.saleCount > 0 ? formatCents(data.averageSaleCents, currency) : '—',
           detail: data.saleCount > 0 ? 'per sale' : 'No sales yet',
         },
         {
           title: 'Largest sale',
-          value: data.largestSale ? formatCents(data.largestSale.totalCents) : '—',
+          value: data.largestSale ? formatCents(data.largestSale.totalCents, currency) : '—',
           detail: data.largestSale ? `on ${formatDate(data.largestSale.soldAt)}` : 'No sales yet',
         },
       ]

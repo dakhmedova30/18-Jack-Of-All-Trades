@@ -2,9 +2,10 @@
 
 > For each team member: name, role, and specific contributions. Be precise about what you did, not how much you wrote.
 
-
 > [Specific contributions: features built, PRs reviewed, infrastructure set up, etc.]
 
+**Allie Huynh**, Front-end
+- Error handling for the following: login (email in use, valid email check, password length), registration (wrong email or password), and error handling for errors that apply to both (can't reach the server), errors announced for accessibility users.
 
 **Minh Tran**, Front-end and UI design & implementation
 - Features built: Sidebar reorganization, User menu (user icon at bottom of sidebar), Settings page (all subpages under Settings and their functionalities except Public Profile), Help & Support, Privacy, Terms, Date Filter in Analytics.

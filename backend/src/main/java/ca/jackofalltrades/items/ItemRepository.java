@@ -4,6 +4,8 @@ import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.repository.Repository;
 
@@ -21,6 +23,9 @@ public interface ItemRepository extends Repository<Item, Integer> {
 
     Optional<Item> findByIdAndBusinessId(Integer id, Integer businessId);
 
+    /** Whether the business has any items; the demo seeder adds sample data only when it has none. */
+    boolean existsByBusinessId(Integer businessId);
+
     /** Locks the row like the method below, so a PATCH or delete waits for a sale in progress. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Item> findLockedByIdAndBusinessId(Integer id, Integer businessId);
@@ -31,4 +36,10 @@ public interface ItemRepository extends Repository<Item, Integer> {
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<Item> findLockedByIdInAndBusinessIdOrderByIdAsc(Collection<Integer> ids, Integer businessId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from Item i where i.businessId = :businessId order by i.id")
+    List<Item> findAllLockedByBusinessId(@Param("businessId") Integer businessId);
+
+    List<Item> findAllByBusinessIdOrderByIdAsc(Integer businessId);
 }

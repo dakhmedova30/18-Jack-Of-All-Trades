@@ -99,7 +99,7 @@ public class AuthController {
                 .orElseThrow(() -> new UnauthorizedException("Not logged in"));
     }
 
-    /** Changes the business name and details (type, country, time zone, currency). */
+    /** Changes the business name and details other than currency, which has its own conversion flow. */
     @PatchMapping("/me")
     public BusinessResponse updateMe(@Valid @RequestBody UpdateBusinessRequest body) {
         return BusinessResponse.from(authService.update(currentBusiness.id(), body));

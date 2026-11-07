@@ -2,6 +2,7 @@ package ca.jackofalltrades.items;
 
 import ca.jackofalltrades.common.api.LikePatterns;
 import ca.jackofalltrades.common.api.Paginated;
+import ca.jackofalltrades.currency.CurrencyTotals;
 import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -11,6 +12,8 @@ import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Comparator;
+import java.util.stream.Collectors;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -32,9 +35,11 @@ public class ItemQueries {
     private static final RowMapper<ItemResponse> ROW_MAPPER = ItemQueries::mapRow;
 
     private final JdbcClient jdbcClient;
+    private final CurrencyTotals currencyTotals;
 
-    public ItemQueries(JdbcClient jdbcClient) {
+    public ItemQueries(JdbcClient jdbcClient, CurrencyTotals currencyTotals) {
         this.jdbcClient = jdbcClient;
+        this.currencyTotals = currencyTotals;
     }
 
     /**
@@ -86,24 +91,65 @@ public class ItemQueries {
      * The {@code limit} items with the most units sold in {@code [from, to)}, most first, from the
      * demo's bestSellers. Only lines still linked to an item count: a deleted item has no place here.
      */
-    public List<InventoryInsights.BestSeller> bestSellers(int businessId, Instant from, Instant to, int limit) {
-        return jdbcClient.sql("""
-                        SELECT i.id, i.name, SUM(si.quantity::bigint) AS units_sold,
+    public List<InventoryInsights.BestSeller> bestSellers(
+            int businessId, Instant from, Instant to, int limit, String targetCurrency) {
+        List<RawBestSeller> rows = jdbcClient.sql("""
+                        SELECT i.id, i.name, s.currency, SUM(si.quantity::bigint) AS units_sold,
                                SUM(si.total_cents::bigint) AS revenue_cents
                         FROM sale_items si
                         JOIN sales s ON s.id = si.sale_id
                         JOIN items i ON i.id = si.item_id
                         WHERE s.business_id = :businessId AND s.sold_at >= :from AND s.sold_at < :to
-                        GROUP BY i.id, i.name
-                        ORDER BY units_sold DESC, revenue_cents DESC, i.name ASC
-                        LIMIT :limit
+                        GROUP BY i.id, i.name, s.currency
                         """)
                 .param("businessId", businessId)
                 .param("from", OffsetDateTime.ofInstant(from, ZoneOffset.UTC))
                 .param("to", OffsetDateTime.ofInstant(to, ZoneOffset.UTC))
-                .param("limit", limit)
-                .query((rs, rowNum) -> new InventoryInsights.BestSeller(
-                        rs.getInt("id"), rs.getString("name"), rs.getLong("units_sold"), rs.getLong("revenue_cents")))
+                .query((rs, rowNum) -> new RawBestSeller(
+                        rs.getInt("id"),
+                        rs.getString("name"),
+                        rs.getString("currency"),
+                        rs.getLong("units_sold"),
+                        rs.getLong("revenue_cents")))
+                .list();
+        return rows.stream()
+                .collect(Collectors.groupingBy(RawBestSeller::id))
+                .values().stream()
+                .map(itemRows -> {
+                    RawBestSeller first = itemRows.getFirst();
+                    Map<String, Long> totalsByCurrency = itemRows.stream().collect(Collectors.toMap(
+                            RawBestSeller::currency, RawBestSeller::revenueCents, Long::sum));
+                    long revenue = currencyTotals.convertSubtotals(totalsByCurrency, targetCurrency);
+                    long units = itemRows.stream().mapToLong(RawBestSeller::unitsSold).sum();
+                    return new InventoryInsights.BestSeller(first.id(), first.name(), units, revenue);
+                })
+                .sorted(Comparator.comparingLong(InventoryInsights.BestSeller::unitsSold).reversed()
+                        .thenComparing(Comparator.comparingLong(InventoryInsights.BestSeller::revenueCents).reversed())
+                        .thenComparing(InventoryInsights.BestSeller::name))
+                .limit(limit)
+                .toList();
+    }
+
+    /** In-stock items with no sale lines in {@code [from, to)}, by name. */
+    public List<InventoryInsights.NotSellingItem> notSelling(int businessId, Instant from, Instant to) {
+        return jdbcClient.sql("""
+                        SELECT i.id, i.name, i.quantity
+                        FROM items i
+                        WHERE i.business_id = :businessId AND i.quantity > 0
+                          AND NOT EXISTS (
+                              SELECT 1
+                              FROM sale_items si
+                              JOIN sales s ON s.id = si.sale_id
+                              WHERE si.item_id = i.id AND s.business_id = :businessId
+                                AND s.sold_at >= :from AND s.sold_at < :to
+                          )
+                        ORDER BY i.name ASC, i.id ASC
+                        """)
+                .param("businessId", businessId)
+                .param("from", OffsetDateTime.ofInstant(from, ZoneOffset.UTC))
+                .param("to", OffsetDateTime.ofInstant(to, ZoneOffset.UTC))
+                .query((rs, rowNum) -> new InventoryInsights.NotSellingItem(
+                        rs.getInt("id"), rs.getString("name"), rs.getInt("quantity")))
                 .list();
     }
 
@@ -133,12 +179,17 @@ public class ItemQueries {
                 rs.getString("name"),
                 rs.getInt("quantity"),
                 rs.getInt("unit_price_cents"),
+                rs.getString("currency"),
+                rs.getBigDecimal("original_price"),
+                rs.getString("original_currency"),
                 List.of((String[]) tags.getArray()),
                 rs.getString("note"),
                 rs.getBoolean("is_public"),
                 rs.getObject("created_at", OffsetDateTime.class).toInstant(),
                 rs.getObject("updated_at", OffsetDateTime.class).toInstant());
     }
+
+    private record RawBestSeller(Integer id, String name, String currency, long unitsSold, long revenueCents) {}
 
     /** Every tag in use on this business's items with its item count: most used first, then A to Z. */
     public List<ItemTagCount> tagCounts(int businessId) {
