@@ -36,6 +36,7 @@ import {
   csvId,
   itemCsvRow,
   itemInputFromCsv,
+  upsertFromCsv,
   ITEM_CSV_HEADERS,
   ITEM_IMPORT_HEADERS,
 } from '../../utils/businessCsv';
@@ -122,12 +123,11 @@ export function InventoryPage() {
   async function importItem(record: Record<string, string>) {
     const id = csvId(record);
     const input = itemInputFromCsv(record);
-    if (id) {
-      await updateItem(id, input);
-      return 'updated' as const;
-    }
-    await createItem(input);
-    return 'created' as const;
+    return upsertFromCsv(
+      id,
+      (existingId) => updateItem(existingId, input),
+      () => createItem(input),
+    );
   }
 
   /** Clicking the current sort column flips its direction; a new column starts ascending. */

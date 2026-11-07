@@ -48,7 +48,7 @@ Log in as the demo account, then:
 
 ### CSV Import and Export
 
-Use **Import CSV** and **Export CSV** above Inventory, Sales and Expenses to move business records in or out. Imports with an `id` update that record; rows with an empty `id` create a new record. IDs only refer to records in the current business. Import continues after row errors and reports which rows failed. Analytics has an export-only control for the selected date range and channel, along with the current inventory-by-tag snapshot.
+Use **Import CSV** and **Export CSV** above Inventory, Sales and Expenses to move business records in or out. Imports with an `id` update that record; rows with an empty `id`, or an `id` that no longer exists (for example after deleting it), create a new record with a new ID. IDs only refer to records in the current business. Import continues after row errors and reports which rows failed. Analytics has an export-only control for the selected date range and channel, along with the current inventory-by-tag snapshot.
 
 The export contains the record fields, including IDs, timestamps, computed totals and currencies. Imports require these columns:
 

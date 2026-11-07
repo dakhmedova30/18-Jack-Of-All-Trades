@@ -23,6 +23,7 @@ import {
   csvId,
   expenseCsvRow,
   expenseInputFromCsv,
+  upsertFromCsv,
   EXPENSE_CSV_HEADERS,
   EXPENSE_IMPORT_HEADERS,
 } from '../../utils/businessCsv';
@@ -88,12 +89,11 @@ export function ExpensesPage() {
   async function importExpense(record: Record<string, string>) {
     const id = csvId(record);
     const input = expenseInputFromCsv(record);
-    if (id) {
-      await updateExpense(id, input);
-      return 'updated' as const;
-    }
-    await createExpense(input);
-    return 'created' as const;
+    return upsertFromCsv(
+      id,
+      (existingId) => updateExpense(existingId, input),
+      () => createExpense(input),
+    );
   }
 
   /** Clicking the current sort column flips its direction; a new column starts ascending. */

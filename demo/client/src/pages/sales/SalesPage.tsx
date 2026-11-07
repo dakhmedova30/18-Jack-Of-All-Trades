@@ -17,6 +17,7 @@ import {
   csvId,
   saleCsvRow,
   saleInputFromCsv,
+  upsertFromCsv,
   SALE_CSV_HEADERS,
   SALE_IMPORT_HEADERS,
 } from '../../utils/businessCsv';
@@ -88,12 +89,11 @@ export function SalesPage() {
   async function importSale(record: Record<string, string>) {
     const id = csvId(record);
     const input = saleInputFromCsv(record);
-    if (id) {
-      await updateSale(id, input);
-      return 'updated' as const;
-    }
-    await createSale(input);
-    return 'created' as const;
+    return upsertFromCsv(
+      id,
+      (existingId) => updateSale(existingId, input),
+      () => createSale(input),
+    );
   }
 
   /** Clicking the current sort column flips its direction; a new column starts ascending. */

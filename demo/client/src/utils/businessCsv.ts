@@ -1,4 +1,5 @@
 import type { Expense, ExpenseInput, Item, ItemInput, Sale, SaleInput } from '../types';
+import { ApiError } from '../api/http';
 import {
   csvInteger,
   csvJsonArray,
@@ -62,6 +63,27 @@ export function csvId(record: CsvRecord): number | undefined {
   const id = Number(text);
   if (!Number.isSafeInteger(id) || id < 1) throw new Error('id must be a positive whole number.');
   return id;
+}
+
+/**
+ * Updates the record with this id, or creates a new one when the row has no id or the id no longer
+ * exists (e.g. re-importing an export after deleting records).
+ */
+export async function upsertFromCsv(
+  id: number | undefined,
+  update: (id: number) => Promise<unknown>,
+  create: () => Promise<unknown>,
+): Promise<'created' | 'updated'> {
+  if (id) {
+    try {
+      await update(id);
+      return 'updated';
+    } catch (error) {
+      if (!(error instanceof ApiError && error.status === 404)) throw error;
+    }
+  }
+  await create();
+  return 'created';
 }
 
 export function itemInputFromCsv(record: CsvRecord): ItemInput {
