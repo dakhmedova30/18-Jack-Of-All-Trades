@@ -175,6 +175,10 @@ export interface SaleItem {
   quantity: number;
   unitPriceCents: number;
   totalCents: number;
+  kind: 'ITEM' | 'DISCOUNT' | 'CHARGE' | 'TIP';
+  isFree: boolean;
+  isTrade: boolean;
+  discountId: number | null;
 }
 
 /** One alert that applies right now (GET /api/notifications). */
@@ -271,6 +275,7 @@ export interface Sale {
   originalAmount: number;
   originalCurrency: string;
   items: SaleItem[];
+  marketId: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -278,6 +283,10 @@ export interface Sale {
 export interface SaleLineItemInput {
   itemId: number;
   quantity: number;
+  /** Overrides the item's price. */
+  unitPriceCents?: number | null;
+  isFree?: boolean;
+  isTrade?: boolean;
 }
 
 export interface SaleInput {
@@ -287,6 +296,11 @@ export interface SaleInput {
   description: string;
   tags: string[];
   items: SaleLineItemInput[];
+  marketId?: number | null;
+  currency?: CurrencyCode;
+  tipCents?: number | null;
+  /** Discounts and charges from the library, applied by the server. */
+  discountIds?: number[];
 }
 
 export interface ExpenseItem {
@@ -381,4 +395,46 @@ export interface Paginated<T> {
   pageSize: number;
   total: number;
   totalPages: number;
+}
+
+export const MARKET_STATUSES = ['PENDING', 'ACCEPTED', 'WAITLISTED', 'REJECTED'] as const;
+export type MarketStatus = (typeof MARKET_STATUSES)[number];
+export const MARKET_GOING = ['PENDING', 'YES', 'NO'] as const;
+export type MarketGoing = (typeof MARKET_GOING)[number];
+
+export interface Market {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+  location: string;
+  tableFeeCents: number;
+  extraExpensesCents: number;
+  currency: CurrencyCode;
+  website: string | null;
+  status: MarketStatus;
+  going: MarketGoing;
+  tags: string[];
+  /** Computed, in the market's currency. */
+  expensesCents: number;
+  revenueCents: number;
+  tipsCents: number;
+  salesCount: number;
+  profitCents: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MarketInput {
+  name: string;
+  startDate: string;
+  endDate: string;
+  location: string;
+  tableFeeCents: number;
+  extraExpensesCents: number;
+  currency: CurrencyCode;
+  website: string | null;
+  status: MarketStatus;
+  going: MarketGoing;
+  tags: string[];
 }

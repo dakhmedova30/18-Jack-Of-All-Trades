@@ -16,6 +16,7 @@ export interface ListSalesParams {
   sort?: SaleSortField;
   order?: SortOrder;
   channelId?: number;
+  marketId?: number;
   /** "2026-10-01": sales from the start of this UTC day. */
   from?: string;
   /** "2026-10-31": sales up to the end of this UTC day. */
@@ -29,6 +30,7 @@ export function listSales({
   sort,
   order,
   channelId,
+  marketId,
   from,
   to,
 }: ListSalesParams): Promise<Paginated<Sale>> {
@@ -37,6 +39,7 @@ export function listSales({
   if (sort) query.set('sort', sort);
   if (order) query.set('order', order);
   if (channelId) query.set('channelId', String(channelId));
+  if (marketId) query.set('marketId', String(marketId));
   if (from) query.set('from', from);
   if (to) query.set('to', to);
   return apiRequest(`/sales?${query}`);

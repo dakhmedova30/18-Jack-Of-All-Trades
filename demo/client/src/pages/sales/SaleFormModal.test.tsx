@@ -72,8 +72,20 @@ describe('SaleFormModal', () => {
       originalAmount: 6,
       originalCurrency: 'EUR',
       items: [
-        { id: 1, itemId: 1, itemName: 'Tea', quantity: 2, unitPriceCents: 300, totalCents: 600 },
+        {
+          id: 1,
+          itemId: 1,
+          itemName: 'Tea',
+          quantity: 2,
+          unitPriceCents: 300,
+          totalCents: 600,
+          kind: 'ITEM',
+          isFree: false,
+          isTrade: false,
+          discountId: null,
+        },
       ],
+      marketId: null,
       createdAt: '2026-10-20T00:00:00.000Z',
       updatedAt: '2026-10-20T00:00:00.000Z',
     };

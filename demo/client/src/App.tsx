@@ -7,6 +7,8 @@ import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ExpensesPage } from './pages/expenses/ExpensesPage';
 import { DiscountsPage } from './pages/discounts/DiscountsPage';
+import { MarketDetailPage } from './pages/markets/MarketDetailPage';
+import { MarketsPage } from './pages/markets/MarketsPage';
 import { ComingSoonPage } from './pages/ComingSoonPage';
 import { HelpPage } from './pages/HelpPage';
 import { HomePage } from './pages/HomePage';
@@ -50,6 +52,8 @@ export function App() {
       '/privacy': 'Privacy policy',
       '/inventory': 'Inventory',
       '/sales': 'Sales',
+      '/sales/in-person': 'In-Person Market',
+      '/discounts': 'Discounts & Charges',
       '/expenses': 'Expenses',
       '/analytics': 'Analytics',
       '/help': 'Help and Support',
@@ -65,6 +69,7 @@ export function App() {
     };
     const title =
       titles[pathname] ??
+      (pathname.startsWith('/sales/in-person/') ? 'In-Person Market' : undefined) ??
       (settingsTab ? settingsLabels[settingsTab] : undefined) ??
       (pathname.startsWith('/p/') ? 'Public profile' : 'Page not found');
     document.title = `${title} | Jack-Of-All-Trades`;
@@ -89,7 +94,8 @@ export function App() {
           <Route index element={<HomePage />} />
           <Route path="inventory" element={<InventoryPage />} />
           <Route path="sales" element={<SalesPage />} />
-          <Route path="sales/in-person" element={<ComingSoonPage title="In-Person Market" />} />
+          <Route path="sales/in-person" element={<MarketsPage />} />
+          <Route path="sales/in-person/:marketId" element={<MarketDetailPage />} />
           <Route path="sales/online" element={<ComingSoonPage title="Online Shop" />} />
           <Route path="sales/commissions" element={<ComingSoonPage title="Commissions" />} />
           <Route path="sales/misc" element={<ComingSoonPage title="Miscellaneous" />} />

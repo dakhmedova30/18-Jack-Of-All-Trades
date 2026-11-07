@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { bulkDeleteSales, createSale, deleteSale, updateSale } from '../../api/sales';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
@@ -36,6 +37,7 @@ type FormState = { mode: 'create' } | { mode: 'edit'; sale: Sale } | null;
 type DeleteTarget = { kind: 'single'; sale: Sale } | { kind: 'bulk'; ids: number[] } | null;
 
 export function SalesPage() {
+  const navigate = useNavigate();
   const { preferences, formatDate } = usePreferences();
   const currency = useCurrency();
   const [page, setPage] = useState(1);
@@ -116,6 +118,12 @@ export function SalesPage() {
       }
       return next;
     });
+  }
+
+  /** Market sales (with discounts, tips and free items) are edited on their market's page. */
+  function openSale(sale: Sale) {
+    if (sale.marketId !== null) navigate(`/sales/in-person/${sale.marketId}`);
+    else setFormState({ mode: 'edit', sale });
   }
 
   async function handleSave(input: SaleInput) {
@@ -248,12 +256,12 @@ export function SalesPage() {
                 className="table__row"
                 tabIndex={0}
                 aria-label={`Edit sale ${sale.id}`}
-                onClick={() => setFormState({ mode: 'edit', sale })}
+                onClick={() => openSale(sale)}
                 onKeyDown={(event) => {
                   if (event.target !== event.currentTarget) return;
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
-                    setFormState({ mode: 'edit', sale });
+                    openSale(sale);
                   }
                 }}
               >
