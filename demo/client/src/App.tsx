@@ -6,6 +6,7 @@ import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ExpensesPage } from './pages/expenses/ExpensesPage';
+import { DiscountsPage } from './pages/discounts/DiscountsPage';
 import { ComingSoonPage } from './pages/ComingSoonPage';
 import { HelpPage } from './pages/HelpPage';
 import { HomePage } from './pages/HomePage';
@@ -93,7 +94,7 @@ export function App() {
           <Route path="sales/commissions" element={<ComingSoonPage title="Commissions" />} />
           <Route path="sales/misc" element={<ComingSoonPage title="Miscellaneous" />} />
           <Route path="expenses" element={<ExpensesPage />} />
-          <Route path="discounts" element={<ComingSoonPage title="Discounts & Charges" />} />
+          <Route path="discounts" element={<DiscountsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="help" element={<HelpPage />} />
           <Route path="settings" element={<Navigate to="/settings/account" replace />} />

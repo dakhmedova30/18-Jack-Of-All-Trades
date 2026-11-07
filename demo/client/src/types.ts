@@ -213,6 +213,46 @@ export interface Channel {
   name: string;
 }
 
+export const DISCOUNT_KINDS = ['PRESET', 'PER_AMOUNT', 'SOLID'] as const;
+export type DiscountKind = (typeof DISCOUNT_KINDS)[number];
+export type DiscountValueType = 'AMOUNT' | 'PERCENT';
+
+export interface DiscountTier {
+  count: number;
+  priceCents: number;
+}
+
+/** A reusable discount or charge. Money values are in `currency`; percentages are 0–100. */
+export interface Discount {
+  id: number;
+  name: string;
+  /** An item tag; null means every item. */
+  appliesTo: string | null;
+  kind: DiscountKind;
+  isCharge: boolean;
+  valueType: DiscountValueType | null;
+  value: number | null;
+  buyCount: number | null;
+  getCount: number | null;
+  tiers: DiscountTier[];
+  currency: CurrencyCode;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DiscountInput {
+  name: string;
+  appliesTo: string | null;
+  kind: DiscountKind;
+  isCharge: boolean;
+  valueType: DiscountValueType | null;
+  value: number | null;
+  buyCount: number | null;
+  getCount: number | null;
+  tiers: DiscountTier[];
+  currency: CurrencyCode;
+}
+
 /** One choice in the expense form's Tag dropdown. Expenses store the name in `tags`. */
 export interface ExpenseTag {
   id: number;
