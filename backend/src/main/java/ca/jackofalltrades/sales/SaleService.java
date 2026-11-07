@@ -5,6 +5,9 @@ import ca.jackofalltrades.channels.ChannelRepository;
 import ca.jackofalltrades.auth.Business;
 import ca.jackofalltrades.auth.BusinessRepository;
 import ca.jackofalltrades.currency.CurrencyTotals;
+import ca.jackofalltrades.discounts.DiscountCalculator;
+import ca.jackofalltrades.discounts.DiscountResponse;
+import ca.jackofalltrades.discounts.DiscountService;
 import ca.jackofalltrades.common.api.BadRequestException;
 import ca.jackofalltrades.common.api.NotFoundException;
 import ca.jackofalltrades.common.api.Paginated;
@@ -47,10 +50,14 @@ public class SaleService {
     private final CurrentBusiness currentBusiness;
     private final BusinessRepository businesses;
     private final CurrencyTotals currencyTotals;
+    private final DiscountService discounts;
+    private final MarketLookup markets;
 
     public SaleService(SaleRepository sales, SaleQueries queries, ItemRepository items,
             ChannelRepository channels, CurrentBusiness currentBusiness, BusinessRepository businesses,
-            CurrencyTotals currencyTotals) {
+            CurrencyTotals currencyTotals, DiscountService discounts, MarketLookup markets) {
+        this.discounts = discounts;
+        this.markets = markets;
         this.sales = sales;
         this.queries = queries;
         this.items = items;
@@ -157,9 +164,21 @@ public class SaleService {
      */
     private void apply(Sale sale, SaleInput input, Channel channel, Map<Integer, Item> locked, String currency) {
         List<SaleLine> lines = new ArrayList<>();
-        Map<Integer, Integer> existingPrices = sale.getLines().stream()
-                .filter(line -> line.getItemId() != null)
+        String saleCurrency = input.currency() != null ? input.currency()
+                : sale.getCurrency() != null ? sale.getCurrency() : currency;
+        boolean repricing = sale.getCurrency() != null && !sale.getCurrency().equals(saleCurrency);
+        Map<Integer, Integer> existingPrices = repricing ? Map.of() : sale.getLines().stream()
+                .filter(line -> line.getItemId() != null && "ITEM".equals(line.getKind()) && !line.isFree()
+                        && !line.isTrade())
                 .collect(Collectors.toMap(SaleLine::getItemId, SaleLine::getUnitPriceCents, (first, ignored) -> first));
+        if (input.items().isEmpty() && input.tipCents() == null) {
+            throw new BadRequestException("A sale needs at least one item or a tip");
+        }
+        if (input.marketId() != null && !markets.exists(sale.getBusinessId(), input.marketId())) {
+            throw new BadRequestException("Market " + input.marketId() + " does not exist");
+        }
+        List<Integer> eligiblePrices = new ArrayList<>();
+        List<Item> soldItems = new ArrayList<>();
         for (SaleInput.Line line : input.items()) {
             Item item = locked.get(line.itemId());
             if (item == null) {
@@ -174,18 +193,53 @@ public class SaleService {
             }
             item.adjustQuantity(-line.quantity());
             item.adjustAmountSold(line.quantity());
-            String saleCurrency = sale.getCurrency() == null ? currency : sale.getCurrency();
-            int unitPriceCents = existingPrices.containsKey(item.getId())
-                    ? existingPrices.get(item.getId())
-                    : item.getCurrency().equals(saleCurrency)
-                            ? item.getUnitPriceCents()
-                            : convertedUnitPrice(item.getUnitPriceCents(), item.getCurrency(), saleCurrency);
+            boolean free = Boolean.TRUE.equals(line.isFree());
+            boolean trade = Boolean.TRUE.equals(line.isTrade());
+            int unitPriceCents;
+            if (free || trade) {
+                unitPriceCents = 0;
+            } else if (line.unitPriceCents() != null) {
+                unitPriceCents = line.unitPriceCents();
+            } else if (existingPrices.containsKey(item.getId())) {
+                unitPriceCents = existingPrices.get(item.getId());
+            } else if (item.getCurrency().equals(saleCurrency)) {
+                unitPriceCents = item.getUnitPriceCents();
+            } else {
+                unitPriceCents = convertedUnitPrice(item.getUnitPriceCents(), item.getCurrency(), saleCurrency);
+            }
             int total = multiplyCents(unitPriceCents, line.quantity());
-            lines.add(new SaleLine(item.getId(), item.getName(), line.quantity(), unitPriceCents, total));
+            lines.add(new SaleLine(item.getId(), item.getName(), line.quantity(), unitPriceCents, total, free,
+                    trade));
+            if (!free && !trade) {
+                for (int i = 0; i < line.quantity(); i++) {
+                    eligiblePrices.add(unitPriceCents);
+                    soldItems.add(item);
+                }
+            }
+        }
+        for (Integer discountId : input.discountIds()) {
+            DiscountResponse discount = discounts.find(sale.getBusinessId(), discountId)
+                    .orElseThrow(() -> new BadRequestException("Discount " + discountId + " does not exist"));
+            List<Integer> prices = new ArrayList<>();
+            for (int i = 0; i < soldItems.size(); i++) {
+                if (discount.appliesTo() == null || soldItems.get(i).getTags().contains(discount.appliesTo())) {
+                    prices.add(eligiblePrices.get(i));
+                }
+            }
+            long amount = DiscountCalculator.amountOffCents(discounts.toRule(discount, saleCurrency), prices);
+            if (amount <= 0) {
+                continue;
+            }
+            int signed = Math.toIntExact(discount.isCharge() ? amount : -amount);
+            lines.add(SaleLine.adjustment(discount.isCharge() ? "CHARGE" : "DISCOUNT", discount.name(), signed,
+                    discount.id()));
+        }
+        if (input.tipCents() != null) {
+            lines.add(SaleLine.adjustment("TIP", "Tip", input.tipCents(), null));
         }
         String description = input.description().isEmpty() ? describe(lines) : input.description();
         sale.replace(OffsetDateTime.parse(input.soldAt()).toInstant(), channel, description, input.tags(), lines,
-                currency);
+                saleCurrency, input.marketId());
     }
 
     private Business lockBusiness(Integer businessId) {
@@ -239,8 +293,12 @@ public class SaleService {
     /** The default description, as the demo's describeLines.ts: "Flower Print x 2, Keychain x 1". */
     static String describe(List<SaleLine> lines) {
         String text = lines.stream()
+                .filter(line -> "ITEM".equals(line.getKind()))
                 .map(line -> line.getItemName() + " x " + line.getQuantity())
                 .collect(Collectors.joining(", "));
+        if (text.isEmpty()) {
+            return "Tip";
+        }
         return text.length() <= DESCRIPTION_MAX ? text : text.substring(0, DESCRIPTION_MAX - 1) + "…";
     }
 
