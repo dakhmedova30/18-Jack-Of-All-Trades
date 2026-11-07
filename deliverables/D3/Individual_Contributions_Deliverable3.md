@@ -64,12 +64,20 @@ Precise description:
 - Analytics channel filter (#16): added a sales channel dropdown to the Analytics filter sidebar that narrows the revenue figures. Expenses aren't tied to a channel, so they stay whole, and Net Profit is hidden when a single channel is selected. Added a Revenue by Channel card showing each channel's share of revenue for the chosen period. `GET /api/analytics/summary` takes an optional `channelId` and returns `revenueByChannel`. After Minh's review, moved the card under the filter to fill the empty left column. 4 backend tests; documented in the API contract.
 - **PRs reviewed:** #18 (approved after running all 22 tests, lint, typecheck and format locally; flagged the Analytics test that #16 would break), #19 (found four problems that were fixed before merge: editing an old record changed its currency, so a €100 expense became CA$100; every conversion retried the rate fetch while the rates API was down; relabel rewrote records in other currencies; and the exchange settings were in a new `application.properties` instead of `application.yml`).
 
-
-**[Name]**, [Role]
-> [Specific contributions]
-
-**[Name]**, [Role]
-> [Specific contributions]
-
-**[Name]**, [Role]
-> [Specific contributions]
+**Diana Akhmedova**, Full-stack Developer; TTS, frontend testing, CSV import/export, inventory/currency, sales channels
+- Text-to-speech / read-aloud (`tts` branch, PR #17): built the `SpeechReader` read-aloud bar and wrote the PR description for it.
+- Frontend Testing (PR #18): Created a PR for tests for registration, login, protected-page access, logout, inventory creation, and sale and expense submission. Included tests for analytics range changes and for date and money utilities, using mocked API responses so no live database is needed.
+- CSV import/export (`feature/csv-import-export`, PR #30):
+  - Added Import CSV and Export CSV to Inventory, Sales and Expenses, and an export-only control on Analytics.
+  - Export downloads every record, not just the current page. Analytics export follows the selected date range and channel.
+  - Import updates records whose `id` matches and creates records with no `id`. Invalid rows are reported by row number while the rest still import.
+  - Wrote the CSV parser and encoder (quoted fields, line breaks, UTF-8 BOM, duplicate columns), unit tests for them, and the README documentation.
+- Additional item fields and multi-currency (`additional-item-fields`, still in progress):
+  - Inventory: Added item size (inches or centimetres), an item type, an optional starting "Amount sold" count, and the ability to deactivate an item without losing past sales and restocks. Also reworked the Inventory table.
+  - Currency: Added a currency picker for items, sales and expenses (CAD default). Rates are fetched daily from open.er-api.com, cached in Postgres, and fall back to the cache. Sales and expense totals are stored in CAD with the original currency kept.
+  - Backend: Wrote the database migration, the item, sale and expense service changes, and updated the public-profile fields.
+  - Frontend: Updated the item, sale and expense forms for the new fields and currencies.
+- Sales and Business Tabs (still in progress): Added In-Person Market (with a faster sale-entry form), Online Shop, Commissions and Miscellaneous tabs, plus reusable sale adjustments (Discounts and Charges).
+- Navigation and Layout (still in progress): Grouped the sales-type tabs under a collapsible Sales menu placed between Inventory and Expenses, moved Discounts and Charges below Expenses, and restyled the Expenses tab to follow the new flowchart design.
+- Records and Filters (still in progress): Added IDs, delete and bulk delete, and consistent formatting across tabs. Made every field searchable and filterable, with multiple filters combinable (for example type and amount sold). Fixed the revenue, expenses and profit summary formatting on Commissions and Miscellaneous.
+- **PRs reviewed:** #17, #18
