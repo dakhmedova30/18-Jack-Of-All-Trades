@@ -80,4 +80,4 @@ Precise description:
 - Sales and Business Tabs (still in progress): Added In-Person Market (with a faster sale-entry form), Online Shop, Commissions and Miscellaneous tabs, plus reusable sale adjustments (Discounts and Charges).
 - Navigation and Layout (still in progress): Grouped the sales-type tabs under a collapsible Sales menu placed between Inventory and Expenses, moved Discounts and Charges below Expenses, and restyled the Expenses tab to follow the new flowchart design.
 - Records and Filters (still in progress): Added IDs, delete and bulk delete, and consistent formatting across tabs. Made every field searchable and filterable, with multiple filters combinable (for example type and amount sold). Fixed the revenue, expenses and profit summary formatting on Commissions and Miscellaneous.
-- **PRs reviewed:** #17, #18
+- **PRs reviewed:** #17, #18, #30, #31
