@@ -1,0 +1,4 @@
+name,quantity,unitPriceCents,tags,note,isPublic
+Sample Greeting Card,40,550,"[""paper"",""gift""]",Blank inside,true
+Sample Sticker Pack,120,300,"[""stickers""]","Waterproof, matte finish",true
+Sample Ceramic Mug,15,1800,"[""kitchen"",""gift""]",Hand painted,false
