@@ -5,8 +5,8 @@
 **[Name]**, [Role]
 > [Specific contributions: features built, PRs reviewed, infrastructure set up, etc.]
 
-**[Name]**, [Role]
-> [Specific contributions]
+Allie Huynh, Frontend
+Error handling for the following: login (email in use, valid email check, password length), registration (wrong email or password), and error handling for errors that apply to both (can't reach the server), errors announced for accessibility users.
 
 **[Name]**, [Role]
 > [Specific contributions]
