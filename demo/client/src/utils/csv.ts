@@ -112,18 +112,24 @@ export function parseCsv(text: string): { headers: string[]; records: CsvRecord[
     (index === 0 ? header.replace(/^\uFEFF/, '') : header).trim(),
   );
   if (headers.some((header) => !header)) throw new Error('The CSV has an empty column name.');
-  if (new Set(headers).size !== headers.length) throw new Error('The CSV has duplicate column names.');
+  if (new Set(headers).size !== headers.length)
+    throw new Error('The CSV has duplicate column names.');
 
   const records = rows.slice(1).map((values, index) => {
     if (values.length !== headers.length) {
-      throw new Error(`CSV row ${index + 2} has ${values.length} values; expected ${headers.length}.`);
+      throw new Error(
+        `CSV row ${index + 2} has ${values.length} values; expected ${headers.length}.`,
+      );
     }
     return Object.fromEntries(headers.map((header, column) => [header, values[column]]));
   });
   return { headers, records };
 }
 
-export function encodeCsv(headers: string[], rows: Array<Array<string | number | boolean | null>>): string {
+export function encodeCsv(
+  headers: string[],
+  rows: Array<Array<string | number | boolean | null>>,
+): string {
   const escape = (value: string | number | boolean | null) => {
     const text = value === null ? '' : String(value);
     return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
@@ -132,7 +138,9 @@ export function encodeCsv(headers: string[], rows: Array<Array<string | number |
 }
 
 export function downloadCsv(filename: string, content: string): void {
-  const url = URL.createObjectURL(new Blob(['\uFEFF', content], { type: 'text/csv;charset=utf-8' }));
+  const url = URL.createObjectURL(
+    new Blob(['\uFEFF', content], { type: 'text/csv;charset=utf-8' }),
+  );
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;

@@ -178,9 +178,11 @@ export function ExpensesPage() {
           <CsvTransfer
             filename="expenses"
             headers={EXPENSE_CSV_HEADERS}
-            loadRows={() => fetchAllPages((requestedPage, pageSize) =>
-              listExpenses({ page: requestedPage, pageSize }),
-            )}
+            loadRows={() =>
+              fetchAllPages((requestedPage, pageSize) =>
+                listExpenses({ page: requestedPage, pageSize }),
+              )
+            }
             exportRow={expenseCsvRow}
             importHeaders={EXPENSE_IMPORT_HEADERS}
             importRow={importExpense}

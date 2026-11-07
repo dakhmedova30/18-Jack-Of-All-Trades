@@ -31,10 +31,7 @@ export function CsvTransfer<T>({
     setMessage('');
     try {
       const records = await loadRows();
-      downloadCsv(
-        `${filename}.csv`,
-        encodeCsv(headers, records.map(exportRow)),
-      );
+      downloadCsv(`${filename}.csv`, encodeCsv(headers, records.map(exportRow)));
       setMessage(`Exported ${records.length} record(s).`);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'The CSV export failed.');
@@ -64,7 +61,9 @@ export function CsvTransfer<T>({
           if (result === 'created') created += 1;
           else updated += 1;
         } catch (reason) {
-          failures.push(`Row ${index + 2}: ${reason instanceof Error ? reason.message : String(reason)}`);
+          failures.push(
+            `Row ${index + 2}: ${reason instanceof Error ? reason.message : String(reason)}`,
+          );
         }
       }
       if (created + updated > 0) onImported?.();
@@ -113,8 +112,16 @@ export function CsvTransfer<T>({
           />
         </>
       )}
-      {message && <span className="muted" role="status">{message}</span>}
-      {error && <span className="form-error" role="alert">{error}</span>}
+      {message && (
+        <span className="muted" role="status">
+          {message}
+        </span>
+      )}
+      {error && (
+        <span className="form-error" role="alert">
+          {error}
+        </span>
+      )}
     </div>
   );
 }

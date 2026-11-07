@@ -3,10 +3,7 @@ import { encodeCsv, parseCsv } from './csv';
 
 describe('CSV helpers', () => {
   it('round-trips commas, quotes, line breaks, empty values and a UTF-8 BOM', () => {
-    const csv = encodeCsv(
-      ['name', 'note', 'empty'],
-      [['Garden, set', 'A "special"\nitem', null]],
-    );
+    const csv = encodeCsv(['name', 'note', 'empty'], [['Garden, set', 'A "special"\nitem', null]]);
 
     expect(parseCsv(`\uFEFF${csv}`)).toEqual({
       headers: ['name', 'note', 'empty'],

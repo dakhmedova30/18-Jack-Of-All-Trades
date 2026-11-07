@@ -264,9 +264,11 @@ export function InventoryPage() {
           <CsvTransfer
             filename="inventory"
             headers={ITEM_CSV_HEADERS}
-            loadRows={() => fetchAllPages((requestedPage, pageSize) =>
-              listItems({ page: requestedPage, pageSize }),
-            )}
+            loadRows={() =>
+              fetchAllPages((requestedPage, pageSize) =>
+                listItems({ page: requestedPage, pageSize }),
+              )
+            }
             exportRow={itemCsvRow}
             importHeaders={ITEM_IMPORT_HEADERS}
             importRow={importItem}

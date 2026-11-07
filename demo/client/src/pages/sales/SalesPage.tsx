@@ -182,9 +182,11 @@ export function SalesPage() {
           <CsvTransfer
             filename="sales"
             headers={SALE_CSV_HEADERS}
-            loadRows={() => fetchAllPages((requestedPage, pageSize) =>
-              listSales({ page: requestedPage, pageSize }),
-            )}
+            loadRows={() =>
+              fetchAllPages((requestedPage, pageSize) =>
+                listSales({ page: requestedPage, pageSize }),
+              )
+            }
             exportRow={saleCsvRow}
             importHeaders={SALE_IMPORT_HEADERS}
             importRow={importSale}

@@ -19,12 +19,7 @@ import {
   LineChart,
   type DonutSegment,
 } from './charts';
-import type {
-  AnalyticsDateRange,
-  AnalyticsSummary,
-  DateRange,
-  InventoryByTag,
-} from '../../types';
+import type { AnalyticsDateRange, AnalyticsSummary, DateRange, InventoryByTag } from '../../types';
 
 /** How long the period must stay still (e.g. while dragging the slider) before it reloads. */
 const RELOAD_DELAY_MS = 250;
@@ -118,7 +113,9 @@ function AnalyticsDashboard({ dates }: { dates: AnalyticsDateRange }) {
       getAnalyticsSummary(requested, channelFilter),
       getInventoryByTag(),
     ]);
-    return [{ from: requested.from, to: requested.to, channelId: channelId || '', summary, inventory }];
+    return [
+      { from: requested.from, to: requested.to, channelId: channelId || '', summary, inventory },
+    ];
   }
 
   return (
