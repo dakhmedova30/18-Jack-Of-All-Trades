@@ -276,6 +276,7 @@ export interface Sale {
   originalCurrency: string;
   items: SaleItem[];
   marketId: number | null;
+  commissionId: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -297,6 +298,7 @@ export interface SaleInput {
   tags: string[];
   items: SaleLineItemInput[];
   marketId?: number | null;
+  commissionId?: number | null;
   currency?: CurrencyCode;
   tipCents?: number | null;
   /** Discounts and charges from the library, applied by the server. */
@@ -468,4 +470,32 @@ export interface OnlineExpenseInput {
   amountCents: number;
   currency: CurrencyCode;
   tags: string[];
+}
+
+export interface Commission {
+  id: number;
+  name: string;
+  contact: string;
+  request: string;
+  deadline: string;
+  tags: string[];
+  salesCount: number;
+  expensesCents: number;
+  revenueCents: number;
+  profitCents: number;
+  currency: CurrencyCode;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CommissionInput {
+  name: string;
+  contact: string;
+  request: string;
+  deadline: string;
+  tags: string[];
+}
+
+export interface CommissionExpense extends OnlineExpense {
+  commissionId: number | null;
 }

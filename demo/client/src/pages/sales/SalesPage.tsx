@@ -120,9 +120,10 @@ export function SalesPage() {
     });
   }
 
-  /** Market sales (with discounts, tips and free items) are edited on their market's page. */
+  /** Linked sales are edited on their owning market or commission page. */
   function openSale(sale: Sale) {
     if (sale.marketId !== null) navigate(`/sales/in-person/${sale.marketId}`);
+    else if (sale.commissionId !== null) navigate(`/sales/commissions/${sale.commissionId}`);
     else setFormState({ mode: 'edit', sale });
   }
 

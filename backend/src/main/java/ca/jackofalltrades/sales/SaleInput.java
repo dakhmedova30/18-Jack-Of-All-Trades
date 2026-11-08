@@ -47,7 +47,10 @@ public record SaleInput(
         Integer tipCents,
 
         @Size(max = 10, message = "At most 10 discounts or charges")
-        List<@NotNull(message = "Required") @Positive(message = "Must be a positive number") Integer> discountIds) {
+        List<@NotNull(message = "Required") @Positive(message = "Must be a positive number") Integer> discountIds,
+
+        @Positive(message = "Must be a positive number")
+        Integer commissionId) {
 
     public SaleInput {
         description = description == null ? "" : description.strip();
@@ -56,7 +59,7 @@ public record SaleInput(
     }
 
     public SaleInput(String soldAt, Integer channelId, String description, List<String> tags, List<Line> items) {
-        this(soldAt, channelId, description, tags, items, null, null, null, null);
+        this(soldAt, channelId, description, tags, items, null, null, null, null, null);
     }
 
     /**

@@ -17,9 +17,10 @@ import {
 import { dateInputValueToIso, isoToDateInputValue } from '../../utils/date';
 import { centsToInputValue, MAX_AMOUNT_CENTS, parseDollarsToCents } from '../../utils/money';
 
-/** Where a sale is recorded: a market (in person) or the online shop. */
+/** The target that determines where this itemized sale is recorded. */
 export interface SaleTarget {
   marketId: number | null;
+  commissionId: number | null;
   /** The channel the sale is put on, matched by name ignoring case. */
   channelName: string;
   title: string;
@@ -178,6 +179,7 @@ export function MarketSaleFormModal({ target, sale, onCancel, onSubmit }: Market
       tags: sale?.tags ?? [],
       items: parsed,
       marketId: target.marketId,
+      commissionId: target.commissionId,
       currency,
       tipCents,
       discountIds: [...discountIds],

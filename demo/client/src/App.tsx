@@ -12,6 +12,8 @@ import { MarketsPage } from './pages/markets/MarketsPage';
 import { ComingSoonPage } from './pages/ComingSoonPage';
 import { OnlineMonthPage } from './pages/online/OnlineMonthPage';
 import { OnlineShopPage } from './pages/online/OnlineShopPage';
+import { CommissionDetailPage } from './pages/commissions/CommissionDetailPage';
+import { CommissionsPage } from './pages/commissions/CommissionsPage';
 import { HelpPage } from './pages/HelpPage';
 import { HomePage } from './pages/HomePage';
 import { InventoryPage } from './pages/inventory/InventoryPage';
@@ -56,6 +58,7 @@ export function App() {
       '/sales': 'Sales',
       '/sales/in-person': 'In-Person Market',
       '/sales/online': 'Online Shop',
+      '/sales/commissions': 'Commissions',
       '/discounts': 'Discounts & Charges',
       '/expenses': 'Expenses',
       '/analytics': 'Analytics',
@@ -74,6 +77,7 @@ export function App() {
       titles[pathname] ??
       (pathname.startsWith('/sales/in-person/') ? 'In-Person Market' : undefined) ??
       (pathname.startsWith('/sales/online/') ? 'Online Shop' : undefined) ??
+      (pathname.startsWith('/sales/commissions/') ? 'Commissions' : undefined) ??
       (settingsTab ? settingsLabels[settingsTab] : undefined) ??
       (pathname.startsWith('/p/') ? 'Public profile' : 'Page not found');
     document.title = `${title} | Jack-Of-All-Trades`;
@@ -102,7 +106,8 @@ export function App() {
           <Route path="sales/in-person/:marketId" element={<MarketDetailPage />} />
           <Route path="sales/online" element={<OnlineShopPage />} />
           <Route path="sales/online/:month" element={<OnlineMonthPage />} />
-          <Route path="sales/commissions" element={<ComingSoonPage title="Commissions" />} />
+          <Route path="sales/commissions" element={<CommissionsPage />} />
+          <Route path="sales/commissions/:commissionId" element={<CommissionDetailPage />} />
           <Route path="sales/misc" element={<ComingSoonPage title="Miscellaneous" />} />
           <Route path="expenses" element={<ExpensesPage />} />
           <Route path="discounts" element={<DiscountsPage />} />

@@ -71,6 +71,10 @@ public class SaleQueries {
             params.put("marketId", filters.marketId());
             where += " AND s.market_id = :marketId";
         }
+        if (filters.commissionId() != null) {
+            params.put("commissionId", filters.commissionId());
+            where += " AND s.commission_id = :commissionId";
+        }
         // Whole UTC days: from the start of `from` up to (not including) the day after `to`.
         if (filters.from() != null) {
             params.put("from", startOfUtcDay(filters.from()));
@@ -101,7 +105,7 @@ public class SaleQueries {
         List<SaleResponse> data = rows.stream()
                 .map(row -> SaleResponse.of(row.id(), row.soldAt(), row.channel(), row.description(), row.tags(),
                         lines.getOrDefault(row.id(), List.of()), row.createdAt(), row.updatedAt(), row.currency(),
-                        row.originalAmount(), row.originalCurrency(), row.marketId()))
+                        row.originalAmount(), row.originalCurrency(), row.marketId(), row.commissionId()))
                 .toList();
         return Paginated.of(data, page, pageSize, total);
     }
@@ -180,7 +184,7 @@ public class SaleQueries {
 
     private record SaleRow(Integer id, Instant soldAt, ChannelResponse channel, String description,
             List<String> tags, Instant createdAt, Instant updatedAt, String currency, BigDecimal originalAmount,
-            String originalCurrency, Integer marketId) {}
+            String originalCurrency, Integer marketId, Integer commissionId) {}
 
     private static SaleRow mapSale(ResultSet rs, int rowNum) throws SQLException {
         return new SaleRow(
@@ -194,6 +198,7 @@ public class SaleQueries {
                 rs.getString("currency"),
                 rs.getBigDecimal("original_amount"),
                 rs.getString("original_currency"),
-                rs.getObject("market_id", Integer.class));
+                rs.getObject("market_id", Integer.class),
+                rs.getObject("commission_id", Integer.class));
     }
 }

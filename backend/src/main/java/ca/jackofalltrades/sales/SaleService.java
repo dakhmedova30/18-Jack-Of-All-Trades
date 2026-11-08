@@ -52,12 +52,15 @@ public class SaleService {
     private final CurrencyTotals currencyTotals;
     private final DiscountService discounts;
     private final MarketLookup markets;
+    private final CommissionLookup commissions;
 
     public SaleService(SaleRepository sales, SaleQueries queries, ItemRepository items,
             ChannelRepository channels, CurrentBusiness currentBusiness, BusinessRepository businesses,
-            CurrencyTotals currencyTotals, DiscountService discounts, MarketLookup markets) {
+            CurrencyTotals currencyTotals, DiscountService discounts, MarketLookup markets,
+            CommissionLookup commissions) {
         this.discounts = discounts;
         this.markets = markets;
+        this.commissions = commissions;
         this.sales = sales;
         this.queries = queries;
         this.items = items;
@@ -174,8 +177,14 @@ public class SaleService {
         if (input.items().isEmpty() && input.tipCents() == null) {
             throw new BadRequestException("A sale needs at least one item or a tip");
         }
+        if (input.marketId() != null && input.commissionId() != null) {
+            throw new BadRequestException("A sale cannot belong to both a market and a commission");
+        }
         if (input.marketId() != null && !markets.exists(sale.getBusinessId(), input.marketId())) {
             throw new BadRequestException("Market " + input.marketId() + " does not exist");
+        }
+        if (input.commissionId() != null && !commissions.exists(sale.getBusinessId(), input.commissionId())) {
+            throw new BadRequestException("Commission " + input.commissionId() + " does not exist");
         }
         List<Integer> eligiblePrices = new ArrayList<>();
         List<Item> soldItems = new ArrayList<>();
@@ -239,7 +248,7 @@ public class SaleService {
         }
         String description = input.description().isEmpty() ? describe(lines) : input.description();
         sale.replace(OffsetDateTime.parse(input.soldAt()).toInstant(), channel, description, input.tags(), lines,
-                saleCurrency, input.marketId());
+                saleCurrency, input.marketId(), input.commissionId());
     }
 
     private Business lockBusiness(Integer businessId) {

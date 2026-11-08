@@ -51,11 +51,13 @@ public class SaleController {
             @Min(value = 1, message = "Must be at least 1") Integer channelId,
             @RequestParam(required = false)
             @Min(value = 1, message = "Must be at least 1") Integer marketId,
+            @RequestParam(required = false)
+            @Min(value = 1, message = "Must be at least 1") Integer commissionId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         String trimmed = search == null ? null : search.strip();
         SaleFilters filters = new SaleFilters(trimmed == null || trimmed.isEmpty() ? null : trimmed, channelId, from,
-                to, marketId);
+                to, marketId, commissionId);
         return saleService.list(filters, sort, order, page, pageSize);
     }
 

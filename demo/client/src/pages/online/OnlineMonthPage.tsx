@@ -385,6 +385,7 @@ export function OnlineMonthPage() {
         <MarketSaleFormModal
           target={{
             marketId: null,
+            commissionId: null,
             channelName: 'online',
             title: 'Add online sale',
             currency,

@@ -313,6 +313,7 @@ export function MarketDetailPage() {
         <MarketSaleFormModal
           target={{
             marketId: info.id,
+            commissionId: null,
             channelName: 'in person',
             title: `Add sale to ${info.name}`,
             currency: info.currency,
