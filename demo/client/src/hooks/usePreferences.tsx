@@ -23,6 +23,7 @@ export interface Preferences {
   defaultChannelId: number | null;
   /** Pre-selected in the Add expense form; null = nothing pre-selected. */
   defaultExpenseTag: string | null;
+  showSpeechReader: boolean;
 }
 
 const DEFAULTS: Preferences = {
@@ -30,6 +31,7 @@ const DEFAULTS: Preferences = {
   rowsPerPage: 15,
   defaultChannelId: null,
   defaultExpenseTag: null,
+  showSpeechReader: true,
 };
 
 const DATE_FORMATS: DateFormat[] = ['medium', 'iso', 'dmy', 'mdy'];
@@ -52,6 +54,8 @@ function load(businessId: number): Preferences {
       defaultChannelId: typeof saved.defaultChannelId === 'number' ? saved.defaultChannelId : null,
       defaultExpenseTag:
         typeof saved.defaultExpenseTag === 'string' ? saved.defaultExpenseTag : null,
+      showSpeechReader:
+        typeof saved.showSpeechReader === 'boolean' ? saved.showSpeechReader : DEFAULTS.showSpeechReader,
     };
   } catch {
     return DEFAULTS;

@@ -9,7 +9,13 @@ import java.time.LocalDate;
  *
  * @param search already trimmed; null for no search
  */
-public record SaleFilters(String search, Integer channelId, LocalDate from, LocalDate to) {
+public record SaleFilters(
+        String search, Integer channelId, LocalDate from, LocalDate to, Integer marketId, Integer commissionId,
+        Integer miscId) {
+
+    public SaleFilters(String search, Integer channelId, LocalDate from, LocalDate to) {
+        this(search, channelId, from, to, null, null, null);
+    }
 
     /** As far as a date input goes; a later year is a typo, and would overflow "the day after {@code to}". */
     static final int MAX_YEAR = 9999;

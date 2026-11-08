@@ -16,12 +16,18 @@ public record ItemResponse(
         List<String> tags,
         String note,
         boolean isPublic,
+        BigDecimal width,
+        BigDecimal height,
+        String sizeUnit,
+        int amountSold,
+        boolean isActive,
         Instant createdAt,
         Instant updatedAt) {
 
     static ItemResponse from(Item item) {
         return new ItemResponse(item.getId(), item.getName(), item.getQuantity(), item.getUnitPriceCents(),
                 item.getCurrency(), item.getOriginalPrice(), item.getOriginalCurrency(), List.copyOf(item.getTags()),
-                item.getNote(), item.isPublic(), item.getCreatedAt(), item.getUpdatedAt());
+                item.getNote(), item.isPublic(), item.getWidth(), item.getHeight(), item.getSizeUnit(),
+                item.getAmountSold(), item.isActive(), item.getCreatedAt(), item.getUpdatedAt());
     }
 }

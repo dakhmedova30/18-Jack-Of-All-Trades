@@ -52,6 +52,12 @@ public class Sale {
     @Column(nullable = false)
     private String description;
 
+    private Integer marketId;
+
+    private Integer commissionId;
+
+    private Integer miscId;
+
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(nullable = false)
     private List<String> tags;
@@ -75,13 +81,19 @@ public class Sale {
         this.businessId = businessId;
     }
 
-    /** Sets editable fields and replaces lines; monetary metadata is initialized only on creation. */
+    /**
+     * Sets editable fields and replaces lines. Monetary metadata is initialized on creation and
+     * reset if the sale's currency is changed (the new lines are priced in the new currency).
+     */
     void replace(Instant soldAt, Channel channel, String description, List<String> tags, List<SaleLine> newLines,
-            String currency) {
+            String currency, Integer marketId, Integer commissionId, Integer miscId) {
         Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS); // Postgres keeps microseconds
         boolean creating = createdAt == null;
+        boolean currencyChanged = !creating && !currency.equals(this.currency);
         if (creating) {
             createdAt = now;
+        }
+        if (creating || currencyChanged) {
             this.currency = currency;
             this.originalCurrency = currency;
         }
@@ -89,6 +101,9 @@ public class Sale {
         this.soldAt = soldAt;
         this.channel = channel;
         this.description = description;
+        this.marketId = marketId;
+        this.commissionId = commissionId;
+        this.miscId = miscId;
         this.tags = new ArrayList<>(tags);
         lines.clear();
         for (SaleLine line : newLines) {
@@ -96,9 +111,21 @@ public class Sale {
             lines.add(line);
         }
         long totalCents = newLines.stream().mapToLong(SaleLine::getTotalCents).sum();
-        if (creating) {
+        if (creating || currencyChanged) {
             this.originalAmount = BigDecimal.valueOf(totalCents, 2);
         }
+    }
+
+    public Integer getMarketId() {
+        return marketId;
+    }
+
+    public Integer getCommissionId() {
+        return commissionId;
+    }
+
+    public Integer getMiscId() {
+        return miscId;
     }
 
     public Integer getId() {

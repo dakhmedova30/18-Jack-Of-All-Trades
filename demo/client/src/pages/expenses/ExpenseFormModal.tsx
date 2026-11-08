@@ -18,6 +18,7 @@ import {
   parseDollarsToCents,
 } from '../../utils/money';
 import type { Expense, ExpenseInput, Item } from '../../types';
+import { CURRENCY_CODES, EXPENSE_LINE_TYPES, type CurrencyCode, type ExpenseLineType } from '../../types';
 
 interface ExpenseFormModalProps {
   /** Pass an expense to edit it ("Modify expense"); omit to record one ("Add expense"). */
@@ -33,12 +34,25 @@ interface LineState {
   description: string;
   quantity: string;
   unitCost: string;
+  category: string;
+  subcategory: string;
+  manufacturer: string;
+  type: ExpenseLineType;
 }
 
 let nextKey = 0;
-function newLine(itemId = '', description = '', quantity = '1', unitCost = ''): LineState {
+function newLine(
+  itemId = '',
+  description = '',
+  quantity = '1',
+  unitCost = '',
+  category = '',
+  subcategory = '',
+  manufacturer = '',
+  type: ExpenseLineType = itemId ? 'product' : 'other',
+): LineState {
   nextKey += 1;
-  return { key: `line-${nextKey}`, itemId, description, quantity, unitCost };
+  return { key: `line-${nextKey}`, itemId, description, quantity, unitCost, category, subcategory, manufacturer, type };
 }
 
 function linesFromExpense(expense?: Expense): LineState[] {
@@ -49,6 +63,10 @@ function linesFromExpense(expense?: Expense): LineState[] {
       item.itemId === null ? item.itemName : '',
       String(item.quantity),
       centsToInputValue(item.unitCostCents),
+      item.category,
+      item.subcategory,
+      item.manufacturer,
+      item.type,
     ),
   );
 }
@@ -59,7 +77,9 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
   // A saved expense stays in the currency it was recorded in, and so do its line costs. In a list
   // row `currency` is the account currency its total was converted to for display, so the lines'
   // own currency is `originalCurrency`.
-  const currency = expense?.originalCurrency ?? accountCurrency;
+  const [currency, setCurrency] = useState<CurrencyCode>(
+    (expense?.originalCurrency ?? accountCurrency) as CurrencyCode,
+  );
 
   const [items, setItems] = useState<Item[] | null>(null);
   const [itemsError, setItemsError] = useState<string | null>(null);
@@ -184,6 +204,10 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
         description: hasItem ? '' : line.description.trim(),
         quantity,
         unitCostCents: unitCostCents ?? 0,
+        category: line.category.trim(),
+        subcategory: line.subcategory.trim(),
+        manufacturer: line.manufacturer.trim(),
+        type: line.type,
       };
     });
     setLineErrors(errors);
@@ -191,6 +215,7 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
     if (!incurredAt || !tag || Object.keys(errors).length > 0) return null;
     return {
       incurredAt,
+      currency,
       // Blank lets the server describe it from the lines, the same text as autoDescription.
       description: customDescription?.trim() ?? '',
       // The chosen tag first; keep any extra tags an older expense already has.
@@ -216,7 +241,7 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
 
   return (
     <Modal
-      title={isEditing ? 'Modify expense' : 'Add expense'}
+      title={isEditing ? 'Modify Expense' : 'Add Expense'}
       onClose={handleCancel}
       footer={
         <>
@@ -235,6 +260,23 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
       }
     >
       <form id="expense-form" className="item-form" onSubmit={handleSubmit} noValidate>
+        <div className="form-row">
+          <label htmlFor="expense-currency">Currency</label>
+          <div className="form-row__control">
+            <select
+              id="expense-currency"
+              value={currency}
+              onChange={(event) => {
+                setHasUnsavedInput(true);
+                setCurrency(event.target.value as CurrencyCode);
+              }}
+            >
+              {CURRENCY_CODES.map((code) => (
+                <option key={code} value={code}>{code}</option>
+              ))}
+            </select>
+          </div>
+        </div>
         <DescriptionRow
           id="expense-description"
           customDescription={customDescription}
@@ -266,7 +308,12 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
                     <select
                       id={`${line.key}-item`}
                       value={line.itemId}
-                      onChange={(event) => updateLine(line.key, { itemId: event.target.value })}
+                      onChange={(event) =>
+                        updateLine(line.key, {
+                          itemId: event.target.value,
+                          type: event.target.value ? 'product' : 'other',
+                        })
+                      }
                       aria-invalid={lineErrors[line.key] ? true : undefined}
                       aria-describedby={lineErrors[line.key] ? errorId : undefined}
                     >
@@ -329,7 +376,7 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
                   <div className="sale-line__field sale-line__field--qty">
                     <label htmlFor={`${line.key}-cost`}>
                       <span>
-                        Unit cost
+                        Price per product
                         <span className="required-marker" aria-hidden="true">
                           {' '}
                           *
@@ -363,6 +410,50 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
                   >
                     <TrashIcon />
                   </button>
+
+                  <div className="expense-line__metadata">
+                    <div className="sale-line__field">
+                      <label htmlFor={`${line.key}-type`}>Type</label>
+                      <select
+                        id={`${line.key}-type`}
+                        value={line.type}
+                        onChange={(event) =>
+                          updateLine(line.key, { type: event.target.value as ExpenseLineType })
+                        }
+                      >
+                        {EXPENSE_LINE_TYPES.map((type) => (
+                          <option key={type} value={type}>{type[0].toUpperCase() + type.slice(1)}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="sale-line__field">
+                      <label htmlFor={`${line.key}-category`}>Category</label>
+                      <input
+                        id={`${line.key}-category`}
+                        value={line.category}
+                        maxLength={60}
+                        onChange={(event) => updateLine(line.key, { category: event.target.value })}
+                      />
+                    </div>
+                    <div className="sale-line__field">
+                      <label htmlFor={`${line.key}-subcategory`}>Sub-category</label>
+                      <input
+                        id={`${line.key}-subcategory`}
+                        value={line.subcategory}
+                        maxLength={60}
+                        onChange={(event) => updateLine(line.key, { subcategory: event.target.value })}
+                      />
+                    </div>
+                    <div className="sale-line__field">
+                      <label htmlFor={`${line.key}-manufacturer`}>Manufacturer</label>
+                      <input
+                        id={`${line.key}-manufacturer`}
+                        value={line.manufacturer}
+                        maxLength={100}
+                        onChange={(event) => updateLine(line.key, { manufacturer: event.target.value })}
+                      />
+                    </div>
+                  </div>
 
                   {lineErrors[line.key] && (
                     <span id={errorId} className="field-error sale-line__error" aria-live="polite">

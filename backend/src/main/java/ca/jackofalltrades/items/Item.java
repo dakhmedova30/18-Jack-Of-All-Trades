@@ -45,6 +45,23 @@ public class Item {
     @Column(nullable = false, length = 3)
     private String originalCurrency;
 
+    @Column(precision = 10, scale = 2)
+    private BigDecimal width;
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal height;
+
+    @Column(length = 2)
+    private String sizeUnit;
+
+    /** Units sold: starts from what the owner enters and moves with sales. */
+    @Column(nullable = false)
+    private int amountSold;
+
+    /** Inactive items stay in history but can't be sold. */
+    @Column(nullable = false)
+    private boolean isActive = true;
+
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(nullable = false)
     private List<String> tags;
@@ -114,6 +131,26 @@ public class Item {
         return originalCurrency;
     }
 
+    public BigDecimal getWidth() {
+        return width;
+    }
+
+    public BigDecimal getHeight() {
+        return height;
+    }
+
+    public String getSizeUnit() {
+        return sizeUnit;
+    }
+
+    public int getAmountSold() {
+        return amountSold;
+    }
+
+    public boolean isActive() {
+        return isActive;
+    }
+
     public List<String> getTags() {
         return tags;
     }
@@ -160,6 +197,32 @@ public class Item {
         this.currency = targetCurrency;
         this.originalPrice = BigDecimal.valueOf(unitPriceCents, 2);
         this.originalCurrency = targetCurrency;
+    }
+
+    void setSize(BigDecimal width, BigDecimal height, String sizeUnit) {
+        this.width = width;
+        this.height = height;
+        this.sizeUnit = sizeUnit;
+    }
+
+    void setAmountSold(int amountSold) {
+        this.amountSold = amountSold;
+    }
+
+    void setActive(boolean isActive) {
+        this.isActive = isActive;
+    }
+
+    /** Sets the item's own currency; the price is in this currency as entered, not converted. */
+    void setCurrency(String currency) {
+        this.currency = currency;
+        this.originalCurrency = currency;
+        this.originalPrice = BigDecimal.valueOf(unitPriceCents, 2);
+    }
+
+    /** Moves the sold count by {@code delta}, never below zero. */
+    public void adjustAmountSold(int delta) {
+        amountSold = Math.max(0, Math.addExact(amountSold, delta));
     }
 
     void setTags(List<String> tags) {

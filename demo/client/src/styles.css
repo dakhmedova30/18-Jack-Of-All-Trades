@@ -452,6 +452,66 @@ select {
   border-color: var(--color-sidebar-text);
 }
 
+/* Sales drop-down: the arrow sits beside the link, sub-pages hang off a vertical line. */
+.sidebar__group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sidebar__group-head .sidebar__link {
+  flex: 1;
+}
+
+.sidebar__expand {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--color-sidebar-hover);
+  color: inherit;
+  cursor: pointer;
+}
+
+.sidebar__expand svg {
+  width: 0.8rem;
+  height: 0.8rem;
+  transition: transform 0.15s;
+}
+
+.sidebar__expand svg.is-open {
+  transform: rotate(180deg);
+}
+
+.sidebar__sub {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0.35rem 0 0.35rem 1.6rem;
+  padding-left: 1rem;
+  border-left: var(--border-default) var(--color-sidebar-text);
+}
+
+.sidebar__sublink {
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.sidebar__sublink:hover,
+.sidebar__sublink.is-active {
+  background: var(--color-sidebar-hover);
+}
+
+.sidebar__sublink.is-active {
+  font-weight: 600;
+}
+
 /* ---------- Sidebar account (avatar pill) ---------- */
 
 .sidebar__account {
@@ -1394,13 +1454,50 @@ select {
   align-items: end;
 }
 
-/* Expenses reuse .sale-line__field etc., with two extra columns
-   (Description, Unit cost) since a line can restock an item or be free-text. */
+/* Expenses reuse .sale-line__field etc., with extra columns for costs and classification. */
 .expense-line {
   display: grid;
   grid-template-columns: 1.25rem 1.3fr 1.3fr 4rem 5.5rem 6rem auto;
   gap: 0.6rem;
   align-items: end;
+}
+
+.expense-line__metadata {
+  grid-column: 2 / -2;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.expense-report-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  align-items: end;
+  gap: 0.75rem;
+  margin-block: 1rem;
+}
+
+.expense-report-controls .form-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  margin: 0;
+}
+
+.expense-report-controls .form-row select,
+.expense-report-controls .form-row input {
+  width: 100%;
+  min-width: 0;
+}
+
+.expense-report__subcategory {
+  padding-left: 2rem !important;
+}
+
+.expense-report__line {
+  padding-left: 3.5rem !important;
 }
 
 .sale-line__index {
@@ -2407,6 +2504,12 @@ select {
   gap: 0.5rem;
 }
 
+.settings-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .settings-row__value {
   overflow-wrap: anywhere;
 }
@@ -2785,6 +2888,95 @@ textarea.settings-row__input {
   gap: 0.5rem;
 }
 
+.item-form__size {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.item-form__size input:not([type='checkbox']) {
+  min-width: 0;
+  flex: 1;
+}
+
+.item-form__check input {
+  flex: 0 0 auto;
+}
+
+.sale-item-row select {
+  min-width: 12rem;
+  flex: 2 1 12rem;
+}
+
+.sale-total-preview {
+  padding: 0.75rem 0;
+  text-align: right;
+  border-top: var(--border-default) var(--color-border);
+}
+
+.market-location-suggestions {
+  display: grid;
+  gap: 0.25rem;
+  max-height: 14rem;
+  margin: 0.4rem 0 0;
+  padding: 0.35rem;
+  overflow-y: auto;
+  list-style: none;
+  border: var(--border-default) var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+}
+
+.market-location-suggestions button {
+  width: 100%;
+  padding: 0.5rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.market-location-suggestions button:hover,
+.market-location-suggestions button:focus-visible {
+  background: var(--color-bg);
+}
+
+.item-form__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.item-form__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  font-size: 0.75rem;
+  padding: 0.05rem 0.2rem 0.05rem 0.5rem;
+  border-radius: 4px;
+}
+
+.item-form__tag .icon-button {
+  color: inherit;
+  padding: 0 0.25rem;
+}
+
+/* Inactive or sold-out rows are grayed out but stay clickable. */
+.table__row.is-inactive td {
+  color: var(--color-muted);
+  opacity: 0.6;
+}
+
+.table tfoot td {
+  font-weight: 600;
+  border-top: 2px solid var(--color-border);
+}
+
 @media (max-width: 720px) {
   .speech-reader {
     right: 0.5rem;
@@ -2980,6 +3172,15 @@ textarea.settings-row__input {
     gap: 0.35rem;
     padding-bottom: 0.75rem;
     border-bottom: var(--border-default) var(--color-border);
+  }
+
+  .expense-line__metadata {
+    grid-column: 1;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .expense-report-controls {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .sale-line__index {

@@ -45,13 +45,19 @@ describe('ExpenseFormModal', () => {
 
     await screen.findByLabelText(/^Tag\b/);
     await user.type(screen.getByPlaceholderText('Rent, packaging tape, …'), 'Rent');
-    await user.type(screen.getByLabelText(/^Unit cost\b/), '125.50');
+    await user.type(screen.getByLabelText(/^Price per product\b/), '125.50');
     await user.type(screen.getByLabelText(/^Date\b/), '2026-10-20');
+    await user.selectOptions(screen.getByLabelText(/^Currency\b/), 'USD');
+    await user.selectOptions(screen.getByLabelText(/^Type\b/), 'fee');
+    await user.type(screen.getByLabelText(/^Category\b/), 'Overhead');
+    await user.type(screen.getByLabelText(/^Sub-category\b/), 'Studio');
+    await user.type(screen.getByLabelText(/^Manufacturer\b/), 'Acme');
     await user.selectOptions(await screen.findByLabelText(/^Tag\b/), 'Utilities');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(onSubmit).toHaveBeenCalledWith({
       incurredAt: '2026-10-20T00:00:00.000Z',
+      currency: 'USD',
       description: '',
       tags: ['Utilities'],
       items: [
@@ -60,6 +66,10 @@ describe('ExpenseFormModal', () => {
           description: 'Rent',
           quantity: 1,
           unitCostCents: 12550,
+          category: 'Overhead',
+          subcategory: 'Studio',
+          manufacturer: 'Acme',
+          type: 'fee',
         },
       ],
     });
@@ -85,6 +95,10 @@ describe('ExpenseFormModal', () => {
           quantity: 1,
           unitCostCents: 10000,
           totalCents: 10000,
+          category: 'Housing',
+          subcategory: 'Rent',
+          manufacturer: 'Studio',
+          type: 'other',
         },
       ],
       createdAt: '2026-10-20T00:00:00.000Z',
@@ -96,6 +110,6 @@ describe('ExpenseFormModal', () => {
 
     // The line total and the grand total.
     await waitFor(() => expect(screen.getAllByText('100.00 EUR')).toHaveLength(2));
-    expect(screen.queryByText(/CAD$/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/^Currency\b/)).toHaveValue('EUR');
   });
 });

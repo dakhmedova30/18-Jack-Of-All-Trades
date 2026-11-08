@@ -6,6 +6,15 @@ import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ExpensesPage } from './pages/expenses/ExpensesPage';
+import { DiscountsPage } from './pages/discounts/DiscountsPage';
+import { MarketDetailPage } from './pages/markets/MarketDetailPage';
+import { MarketsPage } from './pages/markets/MarketsPage';
+import { OnlineMonthPage } from './pages/online/OnlineMonthPage';
+import { OnlineShopPage } from './pages/online/OnlineShopPage';
+import { CommissionDetailPage } from './pages/commissions/CommissionDetailPage';
+import { CommissionsPage } from './pages/commissions/CommissionsPage';
+import { MiscellaneousDetailPage } from './pages/misc/MiscellaneousDetailPage';
+import { MiscellaneousPage } from './pages/misc/MiscellaneousPage';
 import { HelpPage } from './pages/HelpPage';
 import { HomePage } from './pages/HomePage';
 import { InventoryPage } from './pages/inventory/InventoryPage';
@@ -48,6 +57,11 @@ export function App() {
       '/privacy': 'Privacy policy',
       '/inventory': 'Inventory',
       '/sales': 'Sales',
+      '/sales/in-person': 'In-Person Markets',
+      '/sales/online': 'Online Shop',
+      '/sales/commissions': 'Commissions',
+      '/sales/misc': 'Miscellaneous',
+      '/discounts': 'Discounts & Charges',
       '/expenses': 'Expenses',
       '/analytics': 'Analytics',
       '/help': 'Help and Support',
@@ -63,6 +77,10 @@ export function App() {
     };
     const title =
       titles[pathname] ??
+      (pathname.startsWith('/sales/in-person/') ? 'In-Person Markets' : undefined) ??
+      (pathname.startsWith('/sales/online/') ? 'Online Shop' : undefined) ??
+      (pathname.startsWith('/sales/commissions/') ? 'Commissions' : undefined) ??
+      (pathname.startsWith('/sales/misc/') ? 'Miscellaneous' : undefined) ??
       (settingsTab ? settingsLabels[settingsTab] : undefined) ??
       (pathname.startsWith('/p/') ? 'Public profile' : 'Page not found');
     document.title = `${title} | Jack-Of-All-Trades`;
@@ -87,7 +105,16 @@ export function App() {
           <Route index element={<HomePage />} />
           <Route path="inventory" element={<InventoryPage />} />
           <Route path="sales" element={<SalesPage />} />
+          <Route path="sales/in-person" element={<MarketsPage />} />
+          <Route path="sales/in-person/:marketId" element={<MarketDetailPage />} />
+          <Route path="sales/online" element={<OnlineShopPage />} />
+          <Route path="sales/online/:month" element={<OnlineMonthPage />} />
+          <Route path="sales/commissions" element={<CommissionsPage />} />
+          <Route path="sales/commissions/:commissionId" element={<CommissionDetailPage />} />
+          <Route path="sales/misc" element={<MiscellaneousPage />} />
+          <Route path="sales/misc/:miscId" element={<MiscellaneousDetailPage />} />
           <Route path="expenses" element={<ExpensesPage />} />
+          <Route path="discounts" element={<DiscountsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="help" element={<HelpPage />} />
           <Route path="settings" element={<Navigate to="/settings/account" replace />} />

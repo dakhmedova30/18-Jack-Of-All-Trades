@@ -1,8 +1,10 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import {
   bulkDeleteExpenses,
   createExpense,
   deleteExpense,
+  getExpense,
+  listExpenseLines,
   updateExpense,
 } from '../../api/expenses';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -13,10 +15,19 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useExpenseMonthBreakdown } from '../../hooks/useExpenseMonthBreakdown';
 import { useExpenses } from '../../hooks/useExpenses';
 import { useCurrency } from '../../hooks/useCurrency';
-import type { Expense, ExpenseInput, ExpenseSortField, SortOrder } from '../../types';
+import {
+  EXPENSE_LINE_TYPES,
+  type Expense,
+  type ExpenseInput,
+  type ExpenseLineReport,
+  type ExpenseLineType,
+  type ExpenseSortField,
+  type SortOrder,
+} from '../../types';
 import { usePreferences } from '../../hooks/usePreferences';
 import { formatCents } from '../../utils/money';
 import { ExpenseFormModal } from './ExpenseFormModal';
+import { ExpenseLineReportView } from './ExpenseLineReport';
 import { MoneyBreakdownPanel } from './MoneyBreakdownPanel';
 import { TopRestockPanel } from './TopRestockPanel';
 
@@ -50,10 +61,23 @@ type DeleteTarget = { kind: 'single'; expense: Expense } | { kind: 'bulk'; ids: 
 export function ExpensesPage() {
   const { preferences, formatDate } = usePreferences();
   const currency = useCurrency();
+  const [view, setView] = useState<'individual' | 'category' | 'manufacturer'>('individual');
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebouncedValue(searchInput.trim());
   const [sort, setSort] = useState(DEFAULT_SORT);
+  const [category, setCategory] = useState<string | undefined>();
+  const [subcategory, setSubcategory] = useState<string | undefined>();
+  const [manufacturer, setManufacturer] = useState<string | undefined>();
+  const [type, setType] = useState<ExpenseLineType | undefined>();
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [lineReport, setLineReport] = useState<ExpenseLineReport[] | null>(null);
+  const [lineReportError, setLineReportError] = useState<string | null>(null);
+  const [lineReportLoading, setLineReportLoading] = useState(true);
+  const [reportReload, setReportReload] = useState(0);
+  const [openExpenseError, setOpenExpenseError] = useState<string | null>(null);
+  const invalidDateRange = Boolean(from && to && from > to);
   const {
     data,
     error,
@@ -65,14 +89,41 @@ export function ExpensesPage() {
     search,
     sort: sort.field,
     order: sort.order,
+    category,
+    subcategory,
+    manufacturer,
+    type,
+    from: invalidDateRange ? undefined : from || undefined,
+    to: invalidDateRange ? undefined : to || undefined,
   });
 
   const breakdown = useExpenseMonthBreakdown();
+
+  useEffect(() => {
+    let cancelled = false;
+    setLineReportLoading(true);
+    listExpenseLines()
+      .then((lines) => {
+        if (cancelled) return;
+        setLineReport(lines);
+        setLineReportError(null);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setLineReportError(error instanceof Error ? error.message : 'Could not load expense lines');
+      })
+      .finally(() => {
+        if (!cancelled) setLineReportLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [reportReload]);
 
   // Any add/edit/delete can change this month's split, so refresh both together.
   function reload() {
     reloadExpenses();
     breakdown.reload();
+    setReportReload((current) => current + 1);
   }
 
   /** Clicking the current sort column flips its direction; a new column starts ascending. */
@@ -135,10 +186,61 @@ export function ExpensesPage() {
     if (page > 1 && removedFromPage === expenses.length) {
       setPage(page - 1);
       breakdown.reload();
+      setReportReload((current) => current + 1);
     } else reload();
   }
 
   const isEmpty = data !== undefined && data.total === 0;
+  const reportOptions = lineReport ?? [];
+  const categories = useMemo(() => [...new Set(reportOptions.map((line) => line.category))].sort(), [reportOptions]);
+  const subcategories = useMemo(
+    () => [...new Set(reportOptions.map((line) => line.subcategory))].sort(),
+    [reportOptions],
+  );
+  const manufacturers = useMemo(
+    () => [...new Set(reportOptions.map((line) => line.manufacturer))].sort(),
+    [reportOptions],
+  );
+  const reportLines = useMemo(
+    () =>
+      reportOptions.filter((line) => {
+        const date = line.incurredAt.slice(0, 10);
+        const matchesSearch =
+          !search ||
+          [
+            line.itemName,
+            line.expenseDescription,
+            line.category,
+            line.subcategory,
+            line.manufacturer,
+            line.type,
+            String(line.expenseId),
+          ]
+            .join(' ')
+            .toLowerCase()
+            .includes(search.toLowerCase());
+        return (
+          (category === undefined || line.category === category) &&
+          (subcategory === undefined || line.subcategory === subcategory) &&
+          (manufacturer === undefined || line.manufacturer === manufacturer) &&
+          (!type || line.type === type) &&
+          (!from || date >= from) &&
+          (!to || date <= to) &&
+          !invalidDateRange &&
+          matchesSearch
+        );
+      }),
+    [reportOptions, category, subcategory, manufacturer, type, from, to, invalidDateRange, search],
+  );
+
+  async function openExpense(id: number) {
+    setOpenExpenseError(null);
+    try {
+      setFormState({ mode: 'edit', expense: await getExpense(id) });
+    } catch (error) {
+      setOpenExpenseError(error instanceof Error ? error.message : 'Could not open the expense');
+    }
+  }
 
   return (
     <section className="page">
@@ -152,10 +254,96 @@ export function ExpensesPage() {
         <TopRestockPanel {...breakdown} />
       </div>
 
+      <div className="expense-report-controls">
+        <div className="form-row">
+          <label htmlFor="expenses-view">View</label>
+          <select
+            id="expenses-view"
+            value={view}
+            onChange={(event) => setView(event.target.value as typeof view)}
+          >
+            <option value="individual">Individual expenses</option>
+            <option value="category">Category / sub-category groups</option>
+            <option value="manufacturer">Manufacturer groups</option>
+          </select>
+        </div>
+        <div className="form-row">
+          <label htmlFor="expense-filter-category">Category</label>
+          <select
+            id="expense-filter-category"
+            value={category === undefined ? '__all__' : category === '' ? '__blank__' : category}
+            onChange={(event) => {
+              const value = event.target.value;
+              setCategory(value === '__all__' ? undefined : value === '__blank__' ? '' : value);
+              setPage(1);
+            }}
+          >
+            <option value="__all__">All categories</option>
+            <option value="__blank__">Uncategorized</option>
+            {categories.filter(Boolean).map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </div>
+        <div className="form-row">
+          <label htmlFor="expense-filter-subcategory">Sub-category</label>
+          <select
+            id="expense-filter-subcategory"
+            value={subcategory === undefined ? '__all__' : subcategory === '' ? '__blank__' : subcategory}
+            onChange={(event) => {
+              const value = event.target.value;
+              setSubcategory(value === '__all__' ? undefined : value === '__blank__' ? '' : value);
+              setPage(1);
+            }}
+          >
+            <option value="__all__">All sub-categories</option>
+            <option value="__blank__">Uncategorized</option>
+            {subcategories.filter(Boolean).map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </div>
+        <div className="form-row">
+          <label htmlFor="expense-filter-manufacturer">Manufacturer</label>
+          <select
+            id="expense-filter-manufacturer"
+            value={manufacturer === undefined ? '__all__' : manufacturer === '' ? '__blank__' : manufacturer}
+            onChange={(event) => {
+              const value = event.target.value;
+              setManufacturer(value === '__all__' ? undefined : value === '__blank__' ? '' : value);
+              setPage(1);
+            }}
+          >
+            <option value="__all__">All manufacturers</option>
+            <option value="__blank__">Unspecified</option>
+            {manufacturers.filter(Boolean).map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </div>
+        <div className="form-row">
+          <label htmlFor="expense-filter-type">Type</label>
+          <select
+            id="expense-filter-type"
+            value={type ?? ''}
+            onChange={(event) => {
+              setType((event.target.value || undefined) as ExpenseLineType | undefined);
+              setPage(1);
+            }}
+          >
+            <option value="">All types</option>
+            {EXPENSE_LINE_TYPES.map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </div>
+        <div className="form-row">
+          <label htmlFor="expense-filter-from">Date from</label>
+          <input id="expense-filter-from" type="date" value={from} onChange={(event) => { setFrom(event.target.value); setPage(1); }} />
+        </div>
+        <div className="form-row">
+          <label htmlFor="expense-filter-to">Date to</label>
+          <input id="expense-filter-to" type="date" value={to} onChange={(event) => { setTo(event.target.value); setPage(1); }} />
+        </div>
+      </div>
+      {invalidDateRange && <p className="form-error" role="alert">The start date must be on or before the end date.</p>}
+
       <div className="toolbar">
         <div className="toolbar__actions">
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
-            Add <PlusIcon />
+            Add Expense <PlusIcon />
           </button>
           <button
             type="button"
@@ -163,7 +351,7 @@ export function ExpensesPage() {
             disabled={selectedIds.size === 0}
             onClick={() => setDeleteTarget({ kind: 'bulk', ids: [...selectedIds] })}
           >
-            Bulk delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
+            Bulk Delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
           </button>
         </div>
         <div className="search-field">
@@ -178,7 +366,7 @@ export function ExpensesPage() {
                 setSearchInput(event.target.value);
                 setPage(1);
               }}
-              aria-label="Search expenses by tag or item"
+              aria-label="Search expenses by tag, item or line details"
             />
             <SearchIcon />
           </div>
@@ -193,7 +381,17 @@ export function ExpensesPage() {
           </button>
         </div>
       )}
+      {openExpenseError && (
+        <div className="banner banner--error" role="alert">{openExpenseError}</div>
+      )}
+      {lineReportError && view !== 'individual' && (
+        <div className="banner banner--error" role="alert">
+          {lineReportError}{' '}
+          <button type="button" className="link-button" onClick={reload}>Retry</button>
+        </div>
+      )}
 
+      {view === 'individual' ? (
       <div className={`table-wrap${loading && data ? ' is-loading' : ''}`}>
         <table className="table">
           <thead>
@@ -299,8 +497,32 @@ export function ExpensesPage() {
         )}
         {isEmpty && search && <p className="empty-state">No expenses match “{search}”.</p>}
       </div>
+      ) : (
+        <div className={lineReportLoading ? 'is-loading' : undefined}>
+          {lineReportLoading && !lineReport && <p className="empty-state">Loading expense lines…</p>}
+          {!lineReportLoading && reportLines.length === 0 && (
+            <p className="empty-state">{invalidDateRange ? 'Choose a valid date range.' : 'No expense lines match these filters.'}</p>
+          )}
+          {reportLines.length > 0 && (
+            <>
+              <p className="muted">{reportLines.length} matching line(s)</p>
+              <ExpenseLineReportView
+                lines={reportLines}
+                mode={view}
+                currency={currency}
+                formatDate={formatDate}
+                selectedIds={selectedIds}
+                onToggleExpense={toggleSelected}
+                onOpenExpense={openExpense}
+              />
+            </>
+          )}
+        </div>
+      )}
 
-      {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}
+      {view === 'individual' && data && (
+        <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />
+      )}
 
       {formState && (
         <ExpenseFormModal

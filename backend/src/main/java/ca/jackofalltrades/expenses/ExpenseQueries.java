@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
@@ -50,13 +51,30 @@ public class ExpenseQueries {
      * @param order  "asc" or "desc"
      */
     public Paginated<ExpenseResponse> findPage(
-            int businessId, String search, String sort, String order, int page, int pageSize) {
+            int businessId, String search, String sort, String order, int page, int pageSize,
+            String category, String subcategory, String manufacturer, String type, LocalDate from, LocalDate to) {
         Map<String, Object> params = new HashMap<>();
         params.put("businessId", businessId);
         String where = "WHERE e.business_id = :businessId";
         if (search != null) {
             params.put("pattern", LikePatterns.contains(search));
             where += SEARCH;
+        }
+        if (from != null) {
+            params.put("from", from.atStartOfDay().atOffset(ZoneOffset.UTC));
+            where += " AND e.incurred_at >= :from";
+        }
+        if (to != null) {
+            params.put("to", to.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC));
+            where += " AND e.incurred_at < :to";
+        }
+        StringBuilder lineWhere = new StringBuilder();
+        addLineFilter(lineWhere, params, "category", category);
+        addLineFilter(lineWhere, params, "subcategory", subcategory);
+        addLineFilter(lineWhere, params, "manufacturer", manufacturer);
+        addLineFilter(lineWhere, params, "line_type", type);
+        if (!lineWhere.isEmpty()) {
+            where += " AND EXISTS (SELECT 1 FROM expense_items ei WHERE ei.expense_id = e.id" + lineWhere + ")";
         }
 
         long total = jdbcClient.sql("SELECT COUNT(*) FROM expenses e " + where)
@@ -82,6 +100,13 @@ public class ExpenseQueries {
                         row.originalAmount(), row.originalCurrency()))
                 .toList();
         return Paginated.of(data, page, pageSize, total);
+    }
+
+    private static void addLineFilter(StringBuilder where, Map<String, Object> params,
+            String column, String value) {
+        if (value == null) return;
+        where.append(" AND ei.").append(column).append(" = :").append(column);
+        params.put(column, value);
     }
 
     /**
@@ -166,10 +191,45 @@ public class ExpenseQueries {
                         rs.getString("item_name"),
                         rs.getInt("quantity"),
                         rs.getInt("unit_cost_cents"),
-                        rs.getInt("total_cents"))))
+                        rs.getInt("total_cents"),
+                        rs.getString("category"),
+                        rs.getString("subcategory"),
+                        rs.getString("manufacturer"),
+                        rs.getString("line_type"))))
                 .list().stream()
                 .collect(Collectors.groupingBy(Map.Entry::getKey,
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
+    }
+
+    /** All classified lines in the business, preserving their source transaction IDs. */
+    public List<ExpenseLineReportResponse> findLineReport(int businessId) {
+        return jdbcClient.sql("""
+                        SELECT ei.id AS line_id, e.id AS expense_id, e.incurred_at, e.description AS expense_description,
+                               e.currency, e.original_currency, ei.item_name, ei.quantity, ei.unit_cost_cents,
+                               ei.total_cents, ei.category, ei.subcategory, ei.manufacturer, ei.line_type
+                        FROM expense_items ei
+                        JOIN expenses e ON e.id = ei.expense_id
+                        WHERE e.business_id = :businessId
+                        ORDER BY e.incurred_at DESC, e.id DESC, ei.id
+                        """)
+                .param("businessId", businessId)
+                .query((rs, rowNum) -> new ExpenseLineReportResponse(
+                        rs.getInt("line_id"),
+                        rs.getInt("expense_id"),
+                        rs.getObject("incurred_at", OffsetDateTime.class).toInstant(),
+                        rs.getString("expense_description"),
+                        rs.getString("currency"),
+                        rs.getString("original_currency"),
+                        rs.getString("item_name"),
+                        rs.getInt("quantity"),
+                        rs.getInt("unit_cost_cents"),
+                        rs.getLong("total_cents"),
+                        rs.getLong("total_cents"),
+                        rs.getString("category"),
+                        rs.getString("subcategory"),
+                        rs.getString("manufacturer"),
+                        rs.getString("line_type")))
+                .list();
     }
 
     private record ExpenseRow(Integer id, Instant incurredAt, String description, List<String> tags,

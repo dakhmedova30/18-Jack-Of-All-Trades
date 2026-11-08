@@ -63,14 +63,35 @@ export interface Item {
   note: string;
   /** Shown on the business's public profile. */
   isPublic: boolean;
+  /** Optional size; width, height and unit are all set or all null. */
+  width: number | null;
+  height: number | null;
+  sizeUnit: SizeUnit | null;
+  amountSold: number;
+  /** Inactive items stay in history but can't be sold. */
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export type ItemInput = Pick<
-  Item,
-  'name' | 'quantity' | 'unitPriceCents' | 'tags' | 'note' | 'isPublic'
->;
+export const CURRENCY_CODES = ['CAD', 'USD', 'EUR', 'GBP', 'AUD'] as const;
+export type CurrencyCode = (typeof CURRENCY_CODES)[number];
+
+export const SIZE_UNITS = ['in', 'cm', 'mm', 'ft'] as const;
+export type SizeUnit = (typeof SIZE_UNITS)[number];
+
+export interface ItemInput
+  extends Pick<Item, 'name' | 'quantity' | 'unitPriceCents' | 'tags' | 'note' | 'isPublic'> {
+  currency: CurrencyCode;
+  width: number | null;
+  height: number | null;
+  sizeUnit: SizeUnit | null;
+  amountSold: number;
+  isActive: boolean;
+}
+
+/** PATCH body: the input fields, plus `clearSize` to remove a size. */
+export type ItemUpdateInput = Partial<ItemInput> & { clearSize?: boolean };
 
 /** An item as customers see it: no stock count, note or tags. */
 export interface PublicItem {
@@ -154,6 +175,10 @@ export interface SaleItem {
   quantity: number;
   unitPriceCents: number;
   totalCents: number;
+  kind: 'ITEM' | 'DISCOUNT' | 'CHARGE' | 'TIP';
+  isFree: boolean;
+  isTrade: boolean;
+  discountId: number | null;
 }
 
 /** One alert that applies right now (GET /api/notifications). */
@@ -192,6 +217,46 @@ export interface Channel {
   name: string;
 }
 
+export const DISCOUNT_KINDS = ['PRESET', 'PER_AMOUNT', 'SOLID'] as const;
+export type DiscountKind = (typeof DISCOUNT_KINDS)[number];
+export type DiscountValueType = 'AMOUNT' | 'PERCENT';
+
+export interface DiscountTier {
+  count: number;
+  priceCents: number;
+}
+
+/** A reusable discount or charge. Money values are in `currency`; percentages are 0–100. */
+export interface Discount {
+  id: number;
+  name: string;
+  /** An item tag; null means every item. */
+  appliesTo: string | null;
+  kind: DiscountKind;
+  isCharge: boolean;
+  valueType: DiscountValueType | null;
+  value: number | null;
+  buyCount: number | null;
+  getCount: number | null;
+  tiers: DiscountTier[];
+  currency: CurrencyCode;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DiscountInput {
+  name: string;
+  appliesTo: string | null;
+  kind: DiscountKind;
+  isCharge: boolean;
+  valueType: DiscountValueType | null;
+  value: number | null;
+  buyCount: number | null;
+  getCount: number | null;
+  tiers: DiscountTier[];
+  currency: CurrencyCode;
+}
+
 /** One choice in the expense form's Tag dropdown. Expenses store the name in `tags`. */
 export interface ExpenseTag {
   id: number;
@@ -210,13 +275,22 @@ export interface Sale {
   originalAmount: number;
   originalCurrency: string;
   items: SaleItem[];
+  marketId: number | null;
+  commissionId: number | null;
+  miscId: number | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface SaleLineItemInput {
-  itemId: number;
+  itemId: number | null;
   quantity: number;
+  /** Required when no inventory item is selected. */
+  itemName?: string;
+  /** Overrides the item's price. */
+  unitPriceCents?: number | null;
+  isFree?: boolean;
+  isTrade?: boolean;
 }
 
 export interface SaleInput {
@@ -226,6 +300,13 @@ export interface SaleInput {
   description: string;
   tags: string[];
   items: SaleLineItemInput[];
+  marketId?: number | null;
+  commissionId?: number | null;
+  miscId?: number | null;
+  currency?: CurrencyCode;
+  tipCents?: number | null;
+  /** Discounts and charges from the library, applied by the server. */
+  discountIds?: number[];
 }
 
 export interface ExpenseItem {
@@ -235,7 +316,14 @@ export interface ExpenseItem {
   quantity: number;
   unitCostCents: number;
   totalCents: number;
+  category: string;
+  subcategory: string;
+  manufacturer: string;
+  type: ExpenseLineType;
 }
+
+export const EXPENSE_LINE_TYPES = ['product', 'shipping', 'fee', 'other'] as const;
+export type ExpenseLineType = (typeof EXPENSE_LINE_TYPES)[number];
 
 export interface Expense {
   id: number;
@@ -257,14 +345,37 @@ export interface ExpenseLineItemInput {
   description: string;
   quantity: number;
   unitCostCents: number;
+  category: string;
+  subcategory: string;
+  manufacturer: string;
+  type: ExpenseLineType;
 }
 
 export interface ExpenseInput {
   incurredAt: string;
+  currency: CurrencyCode;
   /** Leave blank and the server writes "Item x qty, ..." from the lines. */
   description: string;
   tags: string[];
   items: ExpenseLineItemInput[];
+}
+
+export interface ExpenseLineReport {
+  lineId: number;
+  expenseId: number;
+  incurredAt: string;
+  expenseDescription: string;
+  currency: CurrencyCode;
+  originalCurrency: CurrencyCode;
+  itemName: string;
+  quantity: number;
+  unitCostCents: number;
+  totalCents: number;
+  displayTotalCents: number;
+  category: string;
+  subcategory: string;
+  manufacturer: string;
+  type: ExpenseLineType;
 }
 
 export interface AnalyticsTagSeries {
@@ -320,4 +431,132 @@ export interface Paginated<T> {
   pageSize: number;
   total: number;
   totalPages: number;
+}
+
+export const MARKET_STATUSES = ['PENDING', 'ACCEPTED', 'WAITLISTED', 'REJECTED'] as const;
+export type MarketStatus = (typeof MARKET_STATUSES)[number];
+export const MARKET_GOING = ['PENDING', 'YES', 'NO'] as const;
+export type MarketGoing = (typeof MARKET_GOING)[number];
+
+export interface Market {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+  location: string;
+  tableFeeCents: number;
+  extraExpensesCents: number;
+  currency: CurrencyCode;
+  website: string | null;
+  status: MarketStatus;
+  going: MarketGoing;
+  tags: string[];
+  /** Computed, in the market's currency. */
+  expensesCents: number;
+  revenueCents: number;
+  tipsCents: number;
+  salesCount: number;
+  profitCents: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MarketInput {
+  name: string;
+  startDate: string;
+  endDate: string;
+  location: string;
+  tableFeeCents: number;
+  extraExpensesCents: number;
+  currency: CurrencyCode;
+  website: string | null;
+  status: MarketStatus;
+  going: MarketGoing;
+  tags: string[];
+}
+
+/** One month of the online shop; `month` is `YYYY-MM` and amounts are in `currency`. */
+export interface OnlineMonth {
+  month: string;
+  salesCount: number;
+  expensesCents: number;
+  revenueCents: number;
+  profitCents: number;
+  currency: CurrencyCode;
+}
+
+export interface OnlineExpense {
+  id: number;
+  spentOn: string;
+  description: string;
+  category: string;
+  amountCents: number;
+  currency: CurrencyCode;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OnlineExpenseInput {
+  spentOn: string;
+  description: string;
+  category: string;
+  amountCents: number;
+  currency: CurrencyCode;
+  tags: string[];
+}
+
+export interface Commission {
+  id: number;
+  name: string;
+  contact: string;
+  request: string;
+  receivedOn: string;
+  deadline: string;
+  tags: string[];
+  salesCount: number;
+  expensesCents: number;
+  revenueCents: number;
+  tipsCents: number;
+  profitCents: number;
+  currency: CurrencyCode;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CommissionInput {
+  name: string;
+  contact: string;
+  request: string;
+  receivedOn: string;
+  deadline: string;
+  tags: string[];
+}
+
+export interface CommissionExpense extends OnlineExpense {
+  commissionId: number | null;
+}
+
+export interface MiscellaneousRecord {
+  id: number;
+  name: string;
+  receivedOn: string;
+  tags: string[];
+  salesCount: number;
+  expensesCents: number;
+  revenueCents: number;
+  profitCents: number;
+  currency: CurrencyCode;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MiscellaneousInput {
+  name: string;
+  receivedOn: string;
+  tags: string[];
+}
+
+export interface MiscExpense extends OnlineExpense {
+  miscId: number | null;
 }

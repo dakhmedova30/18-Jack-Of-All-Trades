@@ -67,17 +67,17 @@ public class Expense {
         this.businessId = businessId;
     }
 
-    /** Sets editable fields and replaces lines; monetary metadata is initialized only on creation. */
+    /** Sets editable fields and replaces lines in the selected transaction currency. */
     void replace(Instant incurredAt, String description, List<String> tags, List<ExpenseLine> newLines,
             String currency) {
         Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS); // Postgres keeps microseconds
         boolean creating = createdAt == null;
         if (creating) {
             createdAt = now;
-            this.currency = currency;
-            this.originalCurrency = currency;
         }
         updatedAt = now;
+        this.currency = currency;
+        this.originalCurrency = currency;
         this.incurredAt = incurredAt;
         this.description = description;
         this.tags = new ArrayList<>(tags);
@@ -87,9 +87,7 @@ public class Expense {
             lines.add(line);
         }
         long totalCents = newLines.stream().mapToLong(ExpenseLine::getTotalCents).sum();
-        if (creating) {
-            this.originalAmount = BigDecimal.valueOf(totalCents, 2);
-        }
+        this.originalAmount = BigDecimal.valueOf(totalCents, 2);
     }
 
     public Integer getId() {
