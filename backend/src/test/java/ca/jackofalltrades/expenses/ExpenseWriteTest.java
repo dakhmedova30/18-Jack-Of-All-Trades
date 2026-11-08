@@ -132,6 +132,48 @@ class ExpenseWriteTest extends PostgresTestBase {
     }
 
     @Test
+    void recordsLineClassificationAndSelectedCurrency() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        int item = insertItem(business, "Clay", 2);
+
+        record(cookie, """
+                {"incurredAt": "2026-10-10T08:00:00-04:00", "currency": "USD",
+                 "items": [{"itemId": %d, "quantity": 3, "unitCostCents": 500,
+                   "category": "Materials", "subcategory": "Clay", "manufacturer": "Studio Co.",
+                   "type": "product"}]}
+                """.formatted(item))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.currency").value("USD"))
+                .andExpect(jsonPath("$.originalCurrency").value("USD"))
+                .andExpect(jsonPath("$.originalAmount").value(15.00))
+                .andExpect(jsonPath("$.items[0].category").value("Materials"))
+                .andExpect(jsonPath("$.items[0].subcategory").value("Clay"))
+                .andExpect(jsonPath("$.items[0].manufacturer").value("Studio Co."))
+                .andExpect(jsonPath("$.items[0].type").value("product"));
+
+        assertThat(stock(item)).isEqualTo(5);
+
+        mockMvc.perform(get("/api/expenses")
+                        .cookie(cookie)
+                        .param("category", "Materials")
+                        .param("subcategory", "Clay")
+                        .param("manufacturer", "Studio Co.")
+                        .param("type", "product")
+                        .param("from", "2026-10-10")
+                        .param("to", "2026-10-10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1));
+
+        mockMvc.perform(get("/api/expenses/line-report").cookie(cookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].expenseId").isNumber())
+                .andExpect(jsonPath("$[0].originalCurrency").value("USD"))
+                .andExpect(jsonPath("$[0].category").value("Materials"))
+                .andExpect(jsonPath("$[0].displayTotalCents").isNumber());
+    }
+
+    @Test
     void omittedItemIdIsAPlainCostAndAnItemWinsOverADescription() throws Exception {
         Cookie cookie = registerAndLogin();
         int business = businessId(cookie);
@@ -270,11 +312,17 @@ class ExpenseWriteTest extends PostgresTestBase {
         int expenseId = recordedId(record(cookie, input(restock(print, 10, 50))));
         assertThat(stock(print)).isEqualTo(10);
 
-        replace(cookie, expenseId, input(restock(print, 4, 50), restock(keychain, 2, 30), cost("Shipping", 1, 500)))
+        String replacement = input(
+                restock(print, 4, 50), restock(keychain, 2, 30), cost("Shipping", 1, 500))
+                .replace("\"items\": [", "\"currency\": \"EUR\", \"items\": [");
+        replace(cookie, expenseId, replacement)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(expenseId))
                 .andExpect(jsonPath("$.description").value("Print x 4, Keychain x 2, Shipping x 1"))
                 .andExpect(jsonPath("$.items[*].itemName", contains("Print", "Keychain", "Shipping")))
+                .andExpect(jsonPath("$.currency").value("EUR"))
+                .andExpect(jsonPath("$.originalCurrency").value("EUR"))
+                .andExpect(jsonPath("$.originalAmount").value(7.60))
                 .andExpect(jsonPath("$.totalCents").value(760));
         assertThat(stock(print)).isEqualTo(4);
         assertThat(stock(keychain)).isEqualTo(3);

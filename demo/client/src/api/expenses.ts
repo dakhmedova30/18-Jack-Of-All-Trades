@@ -1,6 +1,7 @@
 import type {
   Expense,
   ExpenseInput,
+  ExpenseLineReport,
   ExpenseMonthBreakdown,
   ExpenseSortField,
   Paginated,
@@ -15,6 +16,12 @@ export interface ListExpensesParams {
   /** Server default: newest expense first. */
   sort?: ExpenseSortField;
   order?: SortOrder;
+  category?: string;
+  subcategory?: string;
+  manufacturer?: string;
+  type?: string;
+  from?: string;
+  to?: string;
 }
 
 export function listExpenses({
@@ -23,12 +30,32 @@ export function listExpenses({
   search,
   sort,
   order,
+  category,
+  subcategory,
+  manufacturer,
+  type,
+  from,
+  to,
 }: ListExpensesParams): Promise<Paginated<Expense>> {
   const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (search) query.set('search', search);
   if (sort) query.set('sort', sort);
   if (order) query.set('order', order);
+  if (category !== undefined) query.set('category', category);
+  if (subcategory !== undefined) query.set('subcategory', subcategory);
+  if (manufacturer !== undefined) query.set('manufacturer', manufacturer);
+  if (type) query.set('type', type);
+  if (from) query.set('from', from);
+  if (to) query.set('to', to);
   return apiRequest(`/expenses?${query}`);
+}
+
+export function listExpenseLines(): Promise<ExpenseLineReport[]> {
+  return apiRequest('/expenses/line-report');
+}
+
+export function getExpense(id: number): Promise<Expense> {
+  return apiRequest(`/expenses/${id}`);
 }
 
 /** This month's spending split into restocks vs running costs. */

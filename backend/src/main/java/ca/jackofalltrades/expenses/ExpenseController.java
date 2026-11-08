@@ -2,11 +2,14 @@ package ca.jackofalltrades.expenses;
 
 import ca.jackofalltrades.common.api.Ids;
 import ca.jackofalltrades.common.api.Paginated;
+import ca.jackofalltrades.common.api.BadRequestException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -44,15 +47,41 @@ public class ExpenseController {
             @Pattern(regexp = "id|incurredAt|total|tags",
                     message = "Must be one of id, incurredAt, total, tags") String sort,
             @RequestParam(defaultValue = "desc")
-            @Pattern(regexp = "asc|desc", message = "Must be one of asc, desc") String order) {
+            @Pattern(regexp = "asc|desc", message = "Must be one of asc, desc") String order,
+            @RequestParam(required = false) @Size(max = 60) String category,
+            @RequestParam(required = false) @Size(max = 60) String subcategory,
+            @RequestParam(required = false) @Size(max = 100) String manufacturer,
+            @RequestParam(required = false) @Pattern(regexp = "product|shipping|fee|other") String type,
+            @RequestParam(required = false) @Pattern(regexp = "\\d{4}-\\d{2}-\\d{2}") String from,
+            @RequestParam(required = false) @Pattern(regexp = "\\d{4}-\\d{2}-\\d{2}") String to) {
         String trimmed = search == null ? null : search.strip();
-        return expenseService.list(trimmed == null || trimmed.isEmpty() ? null : trimmed, sort, order, page, pageSize);
+        LocalDate parsedFrom = parseDate(from);
+        LocalDate parsedTo = parseDate(to);
+        if (parsedFrom != null && parsedTo != null && parsedFrom.isAfter(parsedTo)) {
+            throw new BadRequestException("Start date must be on or before end date");
+        }
+        return expenseService.list(trimmed == null || trimmed.isEmpty() ? null : trimmed, sort, order, page,
+                pageSize, category, subcategory, manufacturer, type, parsedFrom, parsedTo);
+    }
+
+    private static LocalDate parseDate(String value) {
+        if (value == null) return null;
+        try {
+            return LocalDate.parse(value);
+        } catch (DateTimeParseException e) {
+            throw new BadRequestException("Date must be a valid YYYY-MM-DD date");
+        }
     }
 
     /** A literal path, so Spring matches it before {@code /{id}}; "month-breakdown" is never parsed as an id. */
     @GetMapping("/month-breakdown")
     public ExpenseMonthBreakdown monthBreakdown() {
         return expenseService.monthBreakdown();
+    }
+
+    @GetMapping("/line-report")
+    public java.util.List<ExpenseLineReportResponse> lineReport() {
+        return expenseService.lineReport();
     }
 
     @GetMapping("/{id}")

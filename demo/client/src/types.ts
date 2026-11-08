@@ -314,7 +314,14 @@ export interface ExpenseItem {
   quantity: number;
   unitCostCents: number;
   totalCents: number;
+  category: string;
+  subcategory: string;
+  manufacturer: string;
+  type: ExpenseLineType;
 }
+
+export const EXPENSE_LINE_TYPES = ['product', 'shipping', 'fee', 'other'] as const;
+export type ExpenseLineType = (typeof EXPENSE_LINE_TYPES)[number];
 
 export interface Expense {
   id: number;
@@ -336,14 +343,37 @@ export interface ExpenseLineItemInput {
   description: string;
   quantity: number;
   unitCostCents: number;
+  category: string;
+  subcategory: string;
+  manufacturer: string;
+  type: ExpenseLineType;
 }
 
 export interface ExpenseInput {
   incurredAt: string;
+  currency: CurrencyCode;
   /** Leave blank and the server writes "Item x qty, ..." from the lines. */
   description: string;
   tags: string[];
   items: ExpenseLineItemInput[];
+}
+
+export interface ExpenseLineReport {
+  lineId: number;
+  expenseId: number;
+  incurredAt: string;
+  expenseDescription: string;
+  currency: CurrencyCode;
+  originalCurrency: CurrencyCode;
+  itemName: string;
+  quantity: number;
+  unitCostCents: number;
+  totalCents: number;
+  displayTotalCents: number;
+  category: string;
+  subcategory: string;
+  manufacturer: string;
+  type: ExpenseLineType;
 }
 
 export interface AnalyticsTagSeries {

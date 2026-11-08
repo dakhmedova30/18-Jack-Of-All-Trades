@@ -59,12 +59,23 @@ public class ExpenseService {
     }
 
     @Transactional(readOnly = true)
-    public Paginated<ExpenseResponse> list(String search, String sort, String order, int page, int pageSize) {
+    public Paginated<ExpenseResponse> list(String search, String sort, String order, int page, int pageSize,
+            String category, String subcategory, String manufacturer, String type, LocalDate from, LocalDate to) {
         String targetCurrency = accountCurrency();
-        Paginated<ExpenseResponse> result = queries.findPage(currentBusiness.id(), search, sort, order, page, pageSize);
+        Paginated<ExpenseResponse> result = queries.findPage(currentBusiness.id(), search, sort, order, page, pageSize,
+                category, subcategory, manufacturer, type, from, to);
         return new Paginated<>(result.data().stream()
                 .map(expense -> displayedIn(expense, targetCurrency))
                 .toList(), result.page(), result.pageSize(), result.total(), result.totalPages());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ExpenseLineReportResponse> lineReport() {
+        String targetCurrency = accountCurrency();
+        return queries.findLineReport(currentBusiness.id()).stream()
+                .map(line -> line.displayedIn(targetCurrency,
+                        currencyTotals.convertCents(line.totalCents(), line.originalCurrency(), targetCurrency)))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -89,7 +100,7 @@ public class ExpenseService {
         Business business = lockBusiness(businessId);
         Map<Integer, Item> locked = lockItems(businessId, itemIds(input.items()));
         Expense expense = new Expense(businessId);
-        apply(expense, input, locked, business.getCurrency());
+        apply(expense, input, locked, input.currency() == null ? business.getCurrency() : input.currency());
         return ExpenseResponse.from(expenses.saveAndFlush(expense));
     }
 
@@ -97,7 +108,7 @@ public class ExpenseService {
     @Transactional
     public ExpenseResponse replace(int id, ExpenseInput input) {
         Integer businessId = currentBusiness.id();
-        Business business = lockBusiness(businessId);
+        lockBusiness(businessId);
         Expense expense = expenses.findLockedByIdAndBusinessId(id, businessId)
                 .orElseThrow(() -> new NotFoundException("Expense", id));
         Set<Integer> touched = new LinkedHashSet<>(lineItemIds(List.of(expense)));
@@ -105,7 +116,8 @@ public class ExpenseService {
         Map<Integer, Item> locked = lockItems(businessId, touched);
 
         undoRestocks(expense, locked);
-        apply(expense, input, locked, business.getCurrency());
+        apply(expense, input, locked,
+                input.currency() == null ? expense.getOriginalCurrency() : input.currency());
         return ExpenseResponse.from(expenses.saveAndFlush(expense));
     }
 
@@ -154,7 +166,8 @@ public class ExpenseService {
         for (ExpenseInput.Line line : input.items()) {
             int total = multiplyCents(line.unitCostCents(), line.quantity());
             if (line.itemId() == null) {
-                lines.add(new ExpenseLine(null, line.description(), line.quantity(), line.unitCostCents(), total));
+                lines.add(new ExpenseLine(null, line.description(), line.quantity(), line.unitCostCents(), total,
+                        line.category(), line.subcategory(), line.manufacturer(), typeFor(line)));
                 continue;
             }
             Item item = locked.get(line.itemId());
@@ -162,11 +175,16 @@ public class ExpenseService {
                 throw new BadRequestException("Item " + line.itemId() + " does not exist");
             }
             adjustStock(item, line.quantity());
-            lines.add(new ExpenseLine(item.getId(), item.getName(), line.quantity(), line.unitCostCents(), total));
+            lines.add(new ExpenseLine(item.getId(), item.getName(), line.quantity(), line.unitCostCents(), total,
+                    line.category(), line.subcategory(), line.manufacturer(), typeFor(line)));
         }
         String description = input.description().isEmpty() ? describe(lines) : input.description();
         expense.replace(OffsetDateTime.parse(input.incurredAt()).toInstant(), description, input.tags(), lines,
                 currency);
+    }
+
+    private static String typeFor(ExpenseInput.Line line) {
+        return line.type() == null ? (line.itemId() == null ? "other" : "product") : line.type();
     }
 
     private Business lockBusiness(Integer businessId) {

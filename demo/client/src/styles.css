@@ -1454,13 +1454,40 @@ select {
   align-items: end;
 }
 
-/* Expenses reuse .sale-line__field etc., with two extra columns
-   (Description, Unit cost) since a line can restock an item or be free-text. */
+/* Expenses reuse .sale-line__field etc., with extra columns for costs and classification. */
 .expense-line {
   display: grid;
   grid-template-columns: 1.25rem 1.3fr 1.3fr 4rem 5.5rem 6rem auto;
   gap: 0.6rem;
   align-items: end;
+}
+
+.expense-line__metadata {
+  grid-column: 2 / -2;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.expense-report-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  align-items: end;
+  gap: 0.75rem;
+  margin-block: 1rem;
+}
+
+.expense-report-controls .form-row {
+  margin: 0;
+}
+
+.expense-report__subcategory {
+  padding-left: 2rem !important;
+}
+
+.expense-report__line {
+  padding-left: 3.5rem !important;
 }
 
 .sale-line__index {
@@ -1514,6 +1541,11 @@ select {
   margin: 0;
   padding: 0;
   border: 0;
+}
+
+.expense-line__metadata {
+  grid-column: 1;
+  grid-template-columns: 1fr;
 }
 
 .visually-hidden {

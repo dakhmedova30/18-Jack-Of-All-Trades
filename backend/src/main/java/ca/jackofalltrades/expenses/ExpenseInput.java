@@ -12,6 +12,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -35,10 +36,17 @@ public record ExpenseInput(
         @Size(max = 10, message = "At most 10 tags")
         List<@NotBlank(message = "Tags cannot be empty") @Size(max = 30, message = "Tags must be at most 30 characters") String> tags,
 
+        @Pattern(regexp = "CAD|USD|EUR|GBP|AUD", message = "Currency must be one of: CAD, USD, EUR, GBP, AUD")
+        String currency,
+
         @NotNull(message = "Required")
         @Size(min = 1, message = "An expense needs at least one line")
         @Size(max = 50, message = "At most 50 line items")
         List<@NotNull(message = "Required") @Valid Line> items) {
+
+    public ExpenseInput(String incurredAt, String description, List<String> tags, List<Line> items) {
+        this(incurredAt, description, tags, null, items);
+    }
 
     public ExpenseInput {
         description = description == null ? "" : description.strip();
@@ -64,10 +72,30 @@ public record ExpenseInput(
             @NotNull(message = "Required")
             @PositiveOrZero(message = "Cost must be between 0.00 and 9,999,999.99")
             @Max(value = 999_999_999, message = "Cost must be between 0.00 and 9,999,999.99")
-            Integer unitCostCents) {
+            Integer unitCostCents,
+
+            @Size(max = 60, message = "Category must be at most 60 characters")
+            String category,
+
+            @Size(max = 60, message = "Sub-category must be at most 60 characters")
+            String subcategory,
+
+            @Size(max = 100, message = "Manufacturer must be at most 100 characters")
+            String manufacturer,
+
+            @Pattern(regexp = "product|shipping|fee|other", message = "Type must be product, shipping, fee, or other")
+            String type) {
+
+        public Line(Integer itemId, String description, Integer quantity, Integer unitCostCents) {
+            this(itemId, description, quantity, unitCostCents, null, null, null, null);
+        }
 
         public Line {
             description = description == null ? "" : description.strip();
+            category = category == null ? "" : category.strip();
+            subcategory = subcategory == null ? "" : subcategory.strip();
+            manufacturer = manufacturer == null ? "" : manufacturer.strip();
+            type = type == null || type.isBlank() ? null : type.strip().toLowerCase();
         }
     }
 

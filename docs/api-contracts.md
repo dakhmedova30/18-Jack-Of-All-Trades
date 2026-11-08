@@ -367,8 +367,11 @@ were recorded in different currencies.
 *Source: `claude-demo`; sorting and `month-breakdown` from `merge-ui-mods`; description and expense tags from `implement-user-login` (Oct 22).*
 
 Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `month-summary`.
+`GET /api/expenses/line-report` returns all classified expense lines with their original transaction IDs,
+source and display currencies, and line totals for the grouped expense views.
 
 - **List:** `search` matches tags, the description, or line names (item names and plain-cost descriptions). `sort` is `incurredAt` (default), `id`, `total` or `tags` (first tag, ignoring case); `order` is `desc` (default) or `asc`. Untagged expenses go last either way.
+- **Filters:** optional `category`, `subcategory`, `manufacturer`, `type`, `from` and `to` filters can be combined. Classification filters match an expense when at least one of its lines matches; `from` and `to` are inclusive UTC calendar dates. `type` is `product`, `shipping`, `fee` or `other`.
 
 ```json
 // Expense
@@ -380,8 +383,8 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
   "currency": "CAD", "originalAmount": 175.00, "originalCurrency": "CAD",
   "totalCents": 17500,
   "items": [
-    { "id": 11, "itemId": 7, "itemName": "Flower Print", "quantity": 200, "unitCostCents": 75, "totalCents": 15000 },
-    { "id": 12, "itemId": null, "itemName": "Shipping", "quantity": 1, "unitCostCents": 2500, "totalCents": 2500 }
+    { "id": 11, "itemId": 7, "itemName": "Flower Print", "quantity": 200, "unitCostCents": 75, "totalCents": 15000, "category": "Materials", "subcategory": "Prints", "manufacturer": "Studio", "type": "product" },
+    { "id": 12, "itemId": null, "itemName": "Shipping", "quantity": 1, "unitCostCents": 2500, "totalCents": 2500, "category": "Delivery", "subcategory": "", "manufacturer": "", "type": "shipping" }
   ],
   "createdAt": "2026-10-10T12:01:00.000Z",
   "updatedAt": "2026-10-10T12:01:00.000Z"
@@ -390,11 +393,12 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
 // ExpenseInput
 {
   "incurredAt": "2026-10-10T08:00:00-04:00",
+  "currency": "CAD",
   "description": "",
   "tags": ["supplies"],
   "items": [
-    { "itemId": 7, "quantity": 200, "unitCostCents": 75 },
-    { "itemId": null, "description": "Shipping", "quantity": 1, "unitCostCents": 2500 }
+    { "itemId": 7, "quantity": 200, "unitCostCents": 75, "category": "Materials", "subcategory": "Prints", "manufacturer": "Studio", "type": "product" },
+    { "itemId": null, "description": "Shipping", "quantity": 1, "unitCostCents": 2500, "category": "Delivery", "subcategory": "", "manufacturer": "", "type": "shipping" }
   ]
 }
 
@@ -409,6 +413,7 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
 | `ExpenseInput` field | Rules |
 | --- | --- |
 | `incurredAt` | Required; ISO-8601 timestamp with an offset |
+| `currency` | Optional on older clients; one of CAD, USD, EUR, GBP or AUD; defaults to the account currency |
 | `description` | Optional; ≤ 200 characters, trimmed; default `""`. Blank → the server writes it from the lines: `"Flower Print x 200, Shipping x 1"` (cut to 200 characters with `…`) |
 | `tags` | As for items; default `[]`. The form offers the business's expense tags (§5.1), but any tag is accepted |
 | `items` | 1–50 lines |
@@ -416,6 +421,9 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
 | line `description` | Required when `itemId` is `null` (`Pick an item or enter a description`, on `items.N.description`); ≤ 120 characters, trimmed. Ignored when `itemId` is set |
 | line `quantity` | ≥ 1 |
 | line `unitCostCents` | 0–999,999,999 cents ($0.00–$9,999,999.99) |
+| line `category` / `subcategory` | Optional; up to 60 characters each |
+| line `manufacturer` | Optional; up to 100 characters |
+| line `type` | Optional; `product`, `shipping`, `fee` or `other`; defaults to `product` for restocks and `other` for free-text costs |
 
 **Behavior:**
 - A restock line increases the item's stock and copies the item's current name into `itemName`; a plain-cost line's `itemName` is its `description`. Unlike sales, the cost is whatever the client sends, not the item's price.
