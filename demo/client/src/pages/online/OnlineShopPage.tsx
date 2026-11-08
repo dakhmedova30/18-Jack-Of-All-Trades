@@ -98,10 +98,10 @@ export function OnlineShopPage() {
       <div className="toolbar">
         <div className="toolbar__actions">
           <button type="button" className="button" onClick={() => setFormState('sale')}>
-            Add sale <PlusIcon />
+            Add Sale <PlusIcon />
           </button>
           <button type="button" className="button" onClick={() => setFormState('expense')}>
-            Add expense <PlusIcon />
+            Add Expense <PlusIcon />
           </button>
           <button
             type="button"
@@ -109,7 +109,7 @@ export function OnlineShopPage() {
             disabled={selected.size === 0}
             onClick={() => setDeleteMonths([...selected])}
           >
-            Bulk delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
+            Bulk Delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
           </button>
         </div>
         <label className="toolbar__field">
@@ -240,6 +240,7 @@ export function OnlineShopPage() {
         <OnlineExpenseFormModal
           defaultDate={today}
           knownTags={knownTags}
+          hideDescriptionCategory
           onCancel={() => setFormState(null)}
           onSubmit={handleSaveExpense}
         />

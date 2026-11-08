@@ -343,7 +343,7 @@ export function ExpensesPage() {
       <div className="toolbar">
         <div className="toolbar__actions">
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
-            Add <PlusIcon />
+            Add Expense <PlusIcon />
           </button>
           <button
             type="button"
@@ -351,7 +351,7 @@ export function ExpensesPage() {
             disabled={selectedIds.size === 0}
             onClick={() => setDeleteTarget({ kind: 'bulk', ids: [...selectedIds] })}
           >
-            Bulk delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
+            Bulk Delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
           </button>
         </div>
         <div className="search-field">

@@ -107,7 +107,7 @@ export function MiscellaneousPage() {
               })
             }
           >
-            Bulk delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
+            Bulk Delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
           </button>
         </div>
       </div>
@@ -135,6 +135,7 @@ export function MiscellaneousPage() {
               </th>
               <th>ID</th>
               <th>Name</th>
+              <th>Date</th>
               <th>Tags</th>
               <th className="numeric">Sales</th>
               <th className="numeric">Expenses</th>
@@ -173,6 +174,7 @@ export function MiscellaneousPage() {
                     {record.name}
                   </Link>
                 </td>
+                <td>{formatDate(record.receivedOn)}</td>
                 <td>
                   <TagList tags={record.tags} />
                 </td>
@@ -199,7 +201,7 @@ export function MiscellaneousPage() {
           {records.length > 0 && (
             <tfoot>
               <tr>
-                <th scope="row" colSpan={4}>
+                <th scope="row" colSpan={5}>
                   Total ({currency})
                 </th>
                 <td className="numeric">{totals.sales}</td>

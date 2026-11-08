@@ -57,7 +57,7 @@ export function App() {
       '/privacy': 'Privacy policy',
       '/inventory': 'Inventory',
       '/sales': 'Sales',
-      '/sales/in-person': 'In-Person Market',
+      '/sales/in-person': 'In-Person Markets',
       '/sales/online': 'Online Shop',
       '/sales/commissions': 'Commissions',
       '/sales/misc': 'Miscellaneous',
@@ -77,7 +77,7 @@ export function App() {
     };
     const title =
       titles[pathname] ??
-      (pathname.startsWith('/sales/in-person/') ? 'In-Person Market' : undefined) ??
+      (pathname.startsWith('/sales/in-person/') ? 'In-Person Markets' : undefined) ??
       (pathname.startsWith('/sales/online/') ? 'Online Shop' : undefined) ??
       (pathname.startsWith('/sales/commissions/') ? 'Commissions' : undefined) ??
       (pathname.startsWith('/sales/misc/') ? 'Miscellaneous' : undefined) ??

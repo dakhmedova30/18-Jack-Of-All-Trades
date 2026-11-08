@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError, getErrorMessage } from '../../api/http';
 import { FormRow } from '../../components/FormRow';
 import { Modal } from '../../components/Modal';
@@ -26,6 +26,9 @@ interface MarketFormModalProps {
 }
 
 type Errors = Partial<Record<'name' | 'startDate' | 'endDate' | 'tableFee' | 'extra' | 'tags', string>>;
+interface LocationResult {
+  label: string;
+}
 
 const STATUS_LABELS: Record<MarketStatus, string> = {
   PENDING: 'Pending',
@@ -49,6 +52,10 @@ export function MarketFormModal({ market, knownTags, onCancel, onSubmit }: Marke
   const [startDate, setStartDate] = useState(market?.startDate ?? '');
   const [endDate, setEndDate] = useState(market?.endDate ?? '');
   const [location, setLocation] = useState(market?.location ?? '');
+  const [locationHasBeenEdited, setLocationHasBeenEdited] = useState(false);
+  const [locationResults, setLocationResults] = useState<LocationResult[]>([]);
+  const [locationSearchError, setLocationSearchError] = useState<string | null>(null);
+  const [searchingLocation, setSearchingLocation] = useState(false);
   const [tableFee, setTableFee] = useState(market ? centsToInputValue(market.tableFeeCents) : '');
   const [extra, setExtra] = useState(market ? centsToInputValue(market.extraExpensesCents) : '');
   const [currency, setCurrency] = useState<CurrencyCode>(
@@ -76,6 +83,66 @@ export function MarketFormModal({ market, knownTags, onCancel, onSubmit }: Marke
     }
     onCancel();
   }
+
+  useEffect(() => {
+    const query = location.trim();
+    if (!locationHasBeenEdited || query.length < 3) {
+      setLocationResults([]);
+      setLocationSearchError(null);
+      setSearchingLocation(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setSearchingLocation(true);
+      setLocationSearchError(null);
+      try {
+        const url = new URL('https://photon.komoot.io/api/');
+        url.searchParams.set('limit', '5');
+        url.searchParams.set('q', query);
+        const response = await fetch(url, { signal: controller.signal });
+        if (!response.ok) throw new Error(`Address suggestions failed (${response.status})`);
+        const body: unknown = await response.json();
+        const features =
+          typeof body === 'object' && body !== null && 'features' in body && Array.isArray(body.features)
+            ? body.features
+            : [];
+        const results = features.flatMap((feature): LocationResult[] => {
+          if (typeof feature !== 'object' || feature === null || !('properties' in feature)) return [];
+          const properties = feature.properties;
+          if (typeof properties !== 'object' || properties === null) return [];
+          const address = [
+            'name',
+            'housenumber',
+            'street',
+            'postcode',
+            'city',
+            'state',
+            'country',
+          ]
+            .flatMap((key) => {
+              const value = key in properties ? properties[key] : null;
+              return typeof value === 'string' && value.trim() ? [value.trim()] : [];
+            })
+            .filter((value, index, list) => list.indexOf(value) === index);
+          return address.length > 0 ? [{ label: address.join(', ') }] : [];
+        });
+        setLocationResults(results);
+        if (results.length === 0) setLocationSearchError('No matching places found.');
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        setLocationSearchError(error instanceof Error ? error.message : 'Address suggestions failed');
+      } finally {
+        if (!controller.signal.aborted) setSearchingLocation(false);
+      }
+    }, 1000);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [location, locationHasBeenEdited]);
 
   const tagOptions = [...new Set([...knownTags, ...tags])]
     .filter((tag) => !tags.includes(tag))
@@ -185,8 +252,54 @@ export function MarketFormModal({ market, knownTags, onCancel, onSubmit }: Marke
             id="market-location"
             value={location}
             maxLength={200}
-            onChange={(event) => touch(setLocation)(event.target.value)}
+            autoComplete="off"
+            onChange={(event) => {
+              setLocationHasBeenEdited(true);
+              touch(setLocation)(event.target.value);
+            }}
           />
+          <small className="muted">
+            Address suggestions by{' '}
+            <a href="https://photon.komoot.io/" target="_blank" rel="noreferrer">
+              Photon
+            </a>
+            {' '}using{' '}
+            <a href="https://www.openstreetmap.org/" target="_blank" rel="noreferrer">
+              OpenStreetMap data
+            </a>
+            {location.trim() && (
+              <>
+                {' · '}
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.trim())}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  View on Google Maps
+                </a>
+              </>
+            )}
+          </small>
+          {searchingLocation && <span className="muted" role="status">Searching…</span>}
+          {locationResults.length > 0 && (
+            <ul className="market-location-suggestions" aria-label="Address suggestions">
+              {locationResults.map((result) => (
+                <li key={result.label}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLocationHasBeenEdited(false);
+                      touch(setLocation)(result.label.slice(0, 200));
+                      setLocationResults([]);
+                    }}
+                  >
+                    {result.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {locationSearchError && <span className="form-row__error" role="alert">{locationSearchError}</span>}
         </FormRow>
         <FormRow label="Currency" htmlFor="market-currency">
           <select

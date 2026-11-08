@@ -86,7 +86,7 @@ export function MarketsPage() {
   return (
     <section className="page">
       <div>
-        <h1>In-Person Market</h1>
+        <h1>In-Person Markets</h1>
         <p className="muted">
           Markets you’ve applied to or attended. Open a market’s name to record its sales and tips.
         </p>
@@ -103,7 +103,7 @@ export function MarketsPage() {
             disabled={selected.size === 0}
             onClick={() => setDeleteTarget({ kind: 'bulk', ids: [...selected] })}
           >
-            Bulk delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
+            Bulk Delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
           </button>
         </div>
       </div>
@@ -182,7 +182,20 @@ export function MarketsPage() {
                   </Link>
                 </td>
                 <td>{formatRange(market.startDate, market.endDate, formatDate)}</td>
-                <td>{market.location || <span className="muted">—</span>}</td>
+                <td>
+                  {market.location ? (
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(market.location)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      {market.location}
+                    </a>
+                  ) : (
+                    <span className="muted">—</span>
+                  )}
+                </td>
                 <td className="numeric">{formatCents(market.tableFeeCents, market.currency)}</td>
                 <td className="numeric">{formatCents(market.extraExpensesCents, market.currency)}</td>
                 <td>{market.currency}</td>

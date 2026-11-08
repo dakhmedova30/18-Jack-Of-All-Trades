@@ -206,7 +206,7 @@ export function SaleFormModal({ sale, onCancel, onSubmit }: SaleFormModalProps) 
 
   return (
     <Modal
-      title={isEditing ? 'Modify sale' : 'Add sale'}
+      title={isEditing ? 'Modify Sale' : 'Add Sale'}
       onClose={handleCancel}
       footer={
         <>

@@ -58,8 +58,8 @@ public class MiscellaneousService {
     @Transactional
     public MiscellaneousResponse create(MiscellaneousInput input) {
         int id = jdbc.sql("""
-                        INSERT INTO miscellaneous_records (business_id, name, tags)
-                        VALUES (:b, :name, :tags)
+                        INSERT INTO miscellaneous_records (business_id, name, received_on, tags)
+                        VALUES (:b, :name, COALESCE(CAST(:receivedOn AS DATE), CURRENT_DATE), :tags)
                         RETURNING id
                         """)
                 .params(columns(input))
@@ -71,7 +71,9 @@ public class MiscellaneousService {
     @Transactional
     public MiscellaneousResponse replace(int id, MiscellaneousInput input) {
         int updated = jdbc.sql("""
-                        UPDATE miscellaneous_records SET name = :name, tags = :tags, updated_at = now()
+                        UPDATE miscellaneous_records SET name = :name,
+                               received_on = COALESCE(CAST(:receivedOn AS DATE), received_on),
+                               tags = :tags, updated_at = now()
                         WHERE id = :id AND business_id = :b
                         """)
                 .params(columns(input))
@@ -249,10 +251,12 @@ public class MiscellaneousService {
     }
 
     private Map<String, Object> columns(MiscellaneousInput input) {
-        return Map.of(
-                "b", currentBusiness.id(),
-                "name", input.name(),
-                "tags", input.tags().toArray(String[]::new));
+        Map<String, Object> params = new HashMap<>();
+        params.put("b", currentBusiness.id());
+        params.put("name", input.name());
+        params.put("receivedOn", input.receivedOn());
+        params.put("tags", input.tags().toArray(String[]::new));
+        return params;
     }
 
     private Map<String, Object> expenseColumns(MiscExpenseInput input) {
@@ -316,7 +320,7 @@ public class MiscellaneousService {
         Totals amount = totals.getOrDefault(id, new Totals(Map.of(), Map.of(), 0));
         long revenue = currencyTotals.convertSubtotals(amount.revenue(), currency);
         long expenses = currencyTotals.convertSubtotals(amount.expenses(), currency);
-        return new MiscellaneousResponse(id, rs.getString("name"),
+        return new MiscellaneousResponse(id, rs.getString("name"), rs.getObject("received_on", LocalDate.class),
                 List.of((String[]) rs.getArray("tags").getArray()), amount.salesCount(),
                 expenses, revenue, revenue - expenses, currency,
                 rs.getObject("created_at", OffsetDateTime.class).toInstant(),

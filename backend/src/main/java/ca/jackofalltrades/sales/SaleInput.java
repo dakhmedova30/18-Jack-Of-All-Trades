@@ -66,17 +66,20 @@ public record SaleInput(
     }
 
     /**
-     * One line: which item and how many. The price is copied from the item by the server unless
-     * {@code unitPriceCents} changes it; free and trade lines bring in no money.
+     * One line: an inventory item and quantity, or a Miscellaneous-only one-time item with a name
+     * and price. Inventory prices default from the item unless {@code unitPriceCents} overrides it;
+     * free and trade lines bring in no money.
      */
     public record Line(
-            @NotNull(message = "Required")
             @Positive(message = "Must be a positive number")
             Integer itemId,
 
             @NotNull(message = "Required")
             @Positive(message = "Must be a positive number")
             Integer quantity,
+
+            @Size(max = 200, message = "Item name must be at most 200 characters")
+            String itemName,
 
             @Min(value = 0, message = "Price cannot be negative")
             @Max(value = 999_999_999, message = "Price is too large")
@@ -86,8 +89,16 @@ public record SaleInput(
 
             Boolean isTrade) {
 
+        public Line {
+            itemName = itemName == null ? null : itemName.strip();
+        }
+
         public Line(Integer itemId, Integer quantity) {
-            this(itemId, quantity, null, null, null);
+            this(itemId, quantity, null, null, null, null);
+        }
+
+        public Line(Integer itemId, Integer quantity, Integer unitPriceCents, Boolean isFree, Boolean isTrade) {
+            this(itemId, quantity, null, unitPriceCents, isFree, isTrade);
         }
     }
 }

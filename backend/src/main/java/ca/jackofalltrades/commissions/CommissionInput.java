@@ -19,6 +19,8 @@ public record CommissionInput(
         @Size(max = 1000, message = "Request must be at most 1000 characters")
         String request,
 
+        LocalDate receivedOn,
+
         @NotNull(message = "Required") LocalDate deadline,
 
         @Size(max = 10, message = "At most 10 tags")
@@ -29,5 +31,9 @@ public record CommissionInput(
         contact = contact == null ? "" : contact.strip();
         request = request == null ? "" : request.strip();
         tags = Tags.normalize(tags);
+    }
+
+    public CommissionInput(String name, String contact, String request, LocalDate deadline, List<String> tags) {
+        this(name, contact, request, null, deadline, tags);
     }
 }

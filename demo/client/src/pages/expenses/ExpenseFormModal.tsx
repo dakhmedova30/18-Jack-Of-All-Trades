@@ -241,7 +241,7 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
 
   return (
     <Modal
-      title={isEditing ? 'Modify expense' : 'Add expense'}
+      title={isEditing ? 'Modify Expense' : 'Add Expense'}
       onClose={handleCancel}
       footer={
         <>

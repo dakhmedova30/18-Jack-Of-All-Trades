@@ -330,12 +330,14 @@ were recorded in different currencies.
 | `channelId` | Required; one of your channels (§4.1) |
 | `description` | Optional; ≤ 200 characters, trimmed; default `""`. Blank → the server writes it from the lines: `"Flower Print x 2, Flower Keychain x 1"` (cut to 200 characters with `…`) |
 | `tags` | As for items; default `[]` |
-| `items` | 1–50 lines; each `itemId` must be one of your items; `quantity` ≥ 1 |
+| `items` | 1–50 lines; inventory lines use one of your `itemId`s; `quantity` ≥ 1. A Miscellaneous sale may also include a one-time line with `itemId: null`, `itemName` and `unitPriceCents` (unless free or trade) |
 
 **Behavior:**
 - A `channelId` that isn't one of yours → `400 Channel 3 does not exist`. It's checked before the lines.
 - An `itemId` that isn't one of yours → `400 Item 7 does not exist`.
 - Each line's price is the item's **current** `unitPriceCents`, copied into the sale. Later price changes don't affect past sales.
+- One-time lines are allowed only when `miscId` is set. They retain their name and price in sale history, do not change inventory, and can be mixed with inventory items.
+- Commission sale summaries expose `tipsCents` separately from `revenueCents`; `profitCents` includes revenue and tips less expenses. Commission and Miscellaneous records include a `receivedOn` date; create requests that omit it default to the current date, while updates that omit it preserve the stored date.
 - `totalCents` (line and sale) is calculated by the server.
 - Recording a sale decreases stock; editing restores the old lines and applies the new ones; deleting restores stock.
 - Not enough stock → `400 Not enough stock for "Flower Print" (have 1, need 2)`, and nothing is saved.

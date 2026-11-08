@@ -20,7 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class CommissionService {
 
-    private record Totals(Map<String, Long> revenue, Map<String, Long> expenses, int salesCount) {}
+    private record Totals(
+            Map<String, Long> revenue, Map<String, Long> tips, Map<String, Long> expenses, int salesCount) {}
 
     private final JdbcClient jdbc;
     private final CurrentBusiness currentBusiness;
@@ -58,8 +59,9 @@ public class CommissionService {
     @Transactional
     public CommissionResponse create(CommissionInput input) {
         int id = jdbc.sql("""
-                        INSERT INTO commissions (business_id, name, contact, request, deadline, tags)
-                        VALUES (:b, :name, :contact, :request, :deadline, :tags)
+                        INSERT INTO commissions (business_id, name, contact, request, received_on, deadline, tags)
+                        VALUES (:b, :name, :contact, :request,
+                                COALESCE(CAST(:receivedOn AS DATE), CURRENT_DATE), :deadline, :tags)
                         RETURNING id
                         """)
                 .params(columns(input))
@@ -72,6 +74,7 @@ public class CommissionService {
     public CommissionResponse replace(int id, CommissionInput input) {
         int updated = jdbc.sql("""
                         UPDATE commissions SET name = :name, contact = :contact, request = :request,
+                               received_on = COALESCE(CAST(:receivedOn AS DATE), received_on),
                                deadline = :deadline, tags = :tags, updated_at = now()
                         WHERE id = :id AND business_id = :b
                         """)
@@ -265,6 +268,7 @@ public class CommissionService {
         params.put("name", input.name());
         params.put("contact", input.contact());
         params.put("request", input.request());
+        params.put("receivedOn", input.receivedOn());
         params.put("deadline", input.deadline());
         params.put("tags", input.tags().toArray(String[]::new));
         return params;
@@ -283,11 +287,15 @@ public class CommissionService {
     }
 
     private Map<Integer, Totals> totals(Integer onlyCommissionId) {
-        record Row(int commissionId, String currency, long amount) {}
+        record Row(int commissionId, String currency, long revenue, long tips) {}
+        record ExpenseRow(int commissionId, String currency, long amount) {}
         Map<Integer, Totals> result = new HashMap<>();
         jdbc.sql("""
                         SELECT commission_id, original_currency AS currency,
-                               SUM(COALESCE((SELECT SUM(si.total_cents) FROM sale_items si WHERE si.sale_id = s.id), 0)) amount,
+                               SUM(COALESCE((SELECT SUM(si.total_cents) FROM sale_items si
+                                             WHERE si.sale_id = s.id AND si.kind <> 'TIP'), 0)) revenue,
+                               SUM(COALESCE((SELECT SUM(si.total_cents) FROM sale_items si
+                                             WHERE si.sale_id = s.id AND si.kind = 'TIP'), 0)) tips,
                                COUNT(*) AS sales
                         FROM sales s
                         WHERE business_id = :b AND commission_id IS NOT NULL
@@ -297,15 +305,18 @@ public class CommissionService {
                 .param("b", currentBusiness.id())
                 .param("only", onlyCommissionId)
                 .query((rs, i) -> Map.entry(
-                        new Row(rs.getInt("commission_id"), rs.getString("currency").strip(), rs.getLong("amount")),
+                        new Row(rs.getInt("commission_id"), rs.getString("currency").strip(),
+                                rs.getLong("revenue"), rs.getLong("tips")),
                         rs.getInt("sales")))
                 .list()
                 .forEach(entry -> {
                     Totals current = result.computeIfAbsent(entry.getKey().commissionId(),
-                            key -> new Totals(new HashMap<>(), new HashMap<>(), 0));
-                    current.revenue().merge(entry.getKey().currency(), entry.getKey().amount(), Long::sum);
+                            key -> new Totals(new HashMap<>(), new HashMap<>(), new HashMap<>(), 0));
+                    current.revenue().merge(entry.getKey().currency(), entry.getKey().revenue(), Long::sum);
+                    current.tips().merge(entry.getKey().currency(), entry.getKey().tips(), Long::sum);
                     result.put(entry.getKey().commissionId(),
-                            new Totals(current.revenue(), current.expenses(), current.salesCount() + entry.getValue()));
+                            new Totals(current.revenue(), current.tips(), current.expenses(),
+                                    current.salesCount() + entry.getValue()));
                 });
         jdbc.sql("""
                         SELECT commission_id, currency, SUM(amount_cents) amount
@@ -316,12 +327,12 @@ public class CommissionService {
                         """)
                 .param("b", currentBusiness.id())
                 .param("only", onlyCommissionId)
-                .query((rs, i) -> new Row(rs.getInt("commission_id"), rs.getString("currency").strip(),
+                .query((rs, i) -> new ExpenseRow(rs.getInt("commission_id"), rs.getString("currency").strip(),
                         rs.getLong("amount")))
                 .list()
                 .forEach(row -> {
                     Totals current = result.computeIfAbsent(row.commissionId(),
-                            key -> new Totals(new HashMap<>(), new HashMap<>(), 0));
+                            key -> new Totals(new HashMap<>(), new HashMap<>(), new HashMap<>(), 0));
                     current.expenses().merge(row.currency(), row.amount(), Long::sum);
                 });
         return result;
@@ -330,12 +341,14 @@ public class CommissionService {
     private CommissionResponse toResponse(ResultSet rs, Map<Integer, Totals> totals, String currency)
             throws SQLException {
         int id = rs.getInt("id");
-        Totals amounts = totals.getOrDefault(id, new Totals(Map.of(), Map.of(), 0));
+        Totals amounts = totals.getOrDefault(id, new Totals(Map.of(), Map.of(), Map.of(), 0));
         long revenue = currencyTotals.convertSubtotals(amounts.revenue(), currency);
+        long tips = currencyTotals.convertSubtotals(amounts.tips(), currency);
         long expenses = currencyTotals.convertSubtotals(amounts.expenses(), currency);
         return new CommissionResponse(id, rs.getString("name"), rs.getString("contact"), rs.getString("request"),
-                rs.getObject("deadline", LocalDate.class), List.of((String[]) rs.getArray("tags").getArray()),
-                amounts.salesCount(), expenses, revenue, revenue - expenses, currency,
+                rs.getObject("received_on", LocalDate.class), rs.getObject("deadline", LocalDate.class),
+                List.of((String[]) rs.getArray("tags").getArray()),
+                amounts.salesCount(), expenses, revenue, tips, revenue + tips - expenses, currency,
                 rs.getObject("created_at", OffsetDateTime.class).toInstant(),
                 rs.getObject("updated_at", OffsetDateTime.class).toInstant());
     }

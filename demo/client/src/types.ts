@@ -283,8 +283,10 @@ export interface Sale {
 }
 
 export interface SaleLineItemInput {
-  itemId: number;
+  itemId: number | null;
   quantity: number;
+  /** Required when no inventory item is selected. */
+  itemName?: string;
   /** Overrides the item's price. */
   unitPriceCents?: number | null;
   isFree?: boolean;
@@ -509,11 +511,13 @@ export interface Commission {
   name: string;
   contact: string;
   request: string;
+  receivedOn: string;
   deadline: string;
   tags: string[];
   salesCount: number;
   expensesCents: number;
   revenueCents: number;
+  tipsCents: number;
   profitCents: number;
   currency: CurrencyCode;
   createdAt: string;
@@ -524,6 +528,7 @@ export interface CommissionInput {
   name: string;
   contact: string;
   request: string;
+  receivedOn: string;
   deadline: string;
   tags: string[];
 }
@@ -535,6 +540,7 @@ export interface CommissionExpense extends OnlineExpense {
 export interface MiscellaneousRecord {
   id: number;
   name: string;
+  receivedOn: string;
   tags: string[];
   salesCount: number;
   expensesCents: number;
@@ -547,6 +553,7 @@ export interface MiscellaneousRecord {
 
 export interface MiscellaneousInput {
   name: string;
+  receivedOn: string;
   tags: string[];
 }
 

@@ -196,19 +196,35 @@ public class SaleService {
         List<Integer> eligiblePrices = new ArrayList<>();
         List<Item> soldItems = new ArrayList<>();
         for (SaleInput.Line line : input.items()) {
-            Item item = locked.get(line.itemId());
+            Item item = line.itemId() == null ? null : locked.get(line.itemId());
+            String itemName;
             if (item == null) {
-                throw new BadRequestException("Item " + line.itemId() + " does not exist");
+                if (line.itemId() != null) {
+                    throw new BadRequestException("Item " + line.itemId() + " does not exist");
+                }
+                if (input.miscId() == null) {
+                    throw new BadRequestException("One-time items can only be sold in Miscellaneous");
+                }
+                itemName = line.itemName() == null ? "" : line.itemName().strip();
+                if (itemName.isEmpty()) {
+                    throw new BadRequestException("A name is required for a one-time item");
+                }
+                if (!Boolean.TRUE.equals(line.isFree()) && !Boolean.TRUE.equals(line.isTrade())
+                        && line.unitPriceCents() == null) {
+                    throw new BadRequestException("A price is required for a one-time item");
+                }
+            } else {
+                itemName = item.getName();
+                if (!item.isActive() && !existingPrices.containsKey(item.getId())) {
+                    throw new BadRequestException("\"" + itemName + "\" is inactive and can't be sold");
+                }
+                if (item.getQuantity() < line.quantity()) {
+                    throw new BadRequestException("Not enough stock for \"" + itemName + "\" (have "
+                            + item.getQuantity() + ", need " + line.quantity() + ")");
+                }
+                item.adjustQuantity(-line.quantity());
+                item.adjustAmountSold(line.quantity());
             }
-            if (!item.isActive() && !existingPrices.containsKey(item.getId())) {
-                throw new BadRequestException("\"" + item.getName() + "\" is inactive and can't be sold");
-            }
-            if (item.getQuantity() < line.quantity()) {
-                throw new BadRequestException("Not enough stock for \"" + item.getName() + "\" (have "
-                        + item.getQuantity() + ", need " + line.quantity() + ")");
-            }
-            item.adjustQuantity(-line.quantity());
-            item.adjustAmountSold(line.quantity());
             boolean free = Boolean.TRUE.equals(line.isFree());
             boolean trade = Boolean.TRUE.equals(line.isTrade());
             int unitPriceCents;
@@ -216,15 +232,15 @@ public class SaleService {
                 unitPriceCents = 0;
             } else if (line.unitPriceCents() != null) {
                 unitPriceCents = line.unitPriceCents();
-            } else if (existingPrices.containsKey(item.getId())) {
+            } else if (item != null && existingPrices.containsKey(item.getId())) {
                 unitPriceCents = existingPrices.get(item.getId());
-            } else if (item.getCurrency().equals(saleCurrency)) {
-                unitPriceCents = item.getUnitPriceCents();
+            } else if (item == null || item.getCurrency().equals(saleCurrency)) {
+                unitPriceCents = item == null ? 0 : item.getUnitPriceCents();
             } else {
                 unitPriceCents = convertedUnitPrice(item.getUnitPriceCents(), item.getCurrency(), saleCurrency);
             }
             int total = multiplyCents(unitPriceCents, line.quantity());
-            lines.add(new SaleLine(item.getId(), item.getName(), line.quantity(), unitPriceCents, total, free,
+            lines.add(new SaleLine(item == null ? null : item.getId(), itemName, line.quantity(), unitPriceCents, total, free,
                     trade));
             if (!free && !trade) {
                 for (int i = 0; i < line.quantity(); i++) {
@@ -238,7 +254,9 @@ public class SaleService {
                     .orElseThrow(() -> new BadRequestException("Discount " + discountId + " does not exist"));
             List<Integer> prices = new ArrayList<>();
             for (int i = 0; i < soldItems.size(); i++) {
-                if (discount.appliesTo() == null || soldItems.get(i).getTags().contains(discount.appliesTo())) {
+                Item item = soldItems.get(i);
+                if (discount.appliesTo() == null
+                        || item != null && item.getTags().contains(discount.appliesTo())) {
                     prices.add(eligiblePrices.get(i));
                 }
             }
@@ -319,7 +337,8 @@ public class SaleService {
     }
 
     private static Set<Integer> itemIds(List<SaleInput.Line> lines) {
-        return lines.stream().map(SaleInput.Line::itemId).collect(Collectors.toCollection(LinkedHashSet::new));
+        return lines.stream().map(SaleInput.Line::itemId).filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private static Set<Integer> lineItemIds(List<Sale> sales) {

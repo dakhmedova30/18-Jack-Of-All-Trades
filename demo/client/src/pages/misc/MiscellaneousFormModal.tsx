@@ -19,6 +19,7 @@ export function MiscellaneousFormModal({
   onSubmit,
 }: MiscellaneousFormModalProps) {
   const [name, setName] = useState(record?.name ?? '');
+  const [receivedOn, setReceivedOn] = useState(record?.receivedOn ?? new Date().toISOString().slice(0, 10));
   const [tags, setTags] = useState<string[]>(record?.tags ?? []);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -37,6 +38,10 @@ export function MiscellaneousFormModal({
       setError('Name is required');
       return;
     }
+    if (!receivedOn) {
+      setError('Pick a date');
+      return;
+    }
     if (tags.length > 10) {
       setError('At most 10 tags');
       return;
@@ -44,7 +49,7 @@ export function MiscellaneousFormModal({
     setSubmitting(true);
     setError(null);
     try {
-      await onSubmit({ name: name.trim(), tags });
+      await onSubmit({ name: name.trim(), receivedOn, tags });
     } catch (caught) {
       setError(getErrorMessage(caught));
       setSubmitting(false);
@@ -83,6 +88,17 @@ export function MiscellaneousFormModal({
             onChange={(event) => {
               setDirty(true);
               setName(event.target.value);
+            }}
+          />
+        </FormRow>
+        <FormRow label="Date" htmlFor="miscellaneous-date" required>
+          <input
+            id="miscellaneous-date"
+            type="date"
+            value={receivedOn}
+            onChange={(event) => {
+              setDirty(true);
+              setReceivedOn(event.target.value);
             }}
           />
         </FormRow>

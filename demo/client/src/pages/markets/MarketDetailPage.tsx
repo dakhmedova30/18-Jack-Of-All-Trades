@@ -104,12 +104,23 @@ export function MarketDetailPage() {
     <section className="page">
       <div>
         <p>
-          <Link to="/sales/in-person">← In-Person Market</Link>
+          <Link to="/sales/in-person">← In-Person Markets</Link>
         </p>
         <h1>{info?.name ?? 'Market'}</h1>
         {info && (
           <p className="muted">
-            {info.location ? `${info.location} · ` : ''}
+            {info.location ? (
+              <>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(info.location)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {info.location}
+                </a>
+                {' · '}
+              </>
+            ) : null}
             {formatDate(info.startDate)}
             {info.endDate !== info.startDate && ` – ${formatDate(info.endDate)}`} · {info.currency}
           </p>
@@ -124,7 +135,7 @@ export function MarketDetailPage() {
             disabled={!info}
             onClick={() => setFormState({ kind: 'sale' })}
           >
-            Add sale <PlusIcon />
+            Add Sale <PlusIcon />
           </button>
           <button
             type="button"
@@ -140,7 +151,7 @@ export function MarketDetailPage() {
             disabled={selected.size === 0}
             onClick={() => setDeleteTarget({ kind: 'bulk', ids: [...selected] })}
           >
-            Bulk delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
+            Bulk Delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
           </button>
         </div>
       </div>

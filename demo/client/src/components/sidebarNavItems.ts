@@ -18,7 +18,7 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
     icon: ReceiptIcon,
     end: true,
     children: [
-      { to: '/sales/in-person', label: 'In-Person Market' },
+      { to: '/sales/in-person', label: 'In-Person Markets' },
       { to: '/sales/online', label: 'Online Shop' },
       { to: '/sales/commissions', label: 'Commissions' },
       { to: '/sales/misc', label: 'Miscellaneous' },

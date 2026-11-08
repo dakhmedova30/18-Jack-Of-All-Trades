@@ -39,12 +39,12 @@ export function CommissionsPage() {
   const currency = commissions[0]?.currency ?? accountCurrency;
   const totals = commissions.reduce(
     (acc, commission) => ({
-      sales: acc.sales + commission.salesCount,
       expenses: acc.expenses + commission.expensesCents,
       revenue: acc.revenue + commission.revenueCents,
+      tips: acc.tips + (Number.isFinite(commission.tipsCents) ? commission.tipsCents : 0),
       profit: acc.profit + commission.profitCents,
     }),
-    { sales: 0, expenses: 0, revenue: 0, profit: 0 },
+    { expenses: 0, revenue: 0, tips: 0, profit: 0 },
   );
 
   function toggle(id: number) {
@@ -105,7 +105,7 @@ export function CommissionsPage() {
               })
             }
           >
-            Bulk delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
+            Bulk Delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
           </button>
         </div>
       </div>
@@ -135,11 +135,12 @@ export function CommissionsPage() {
               <th>Name</th>
               <th>Contact</th>
               <th>Request</th>
+              <th>Date received</th>
               <th>Deadline</th>
               <th>Tags</th>
-              <th className="numeric">Sales</th>
               <th className="numeric">Expenses</th>
               <th className="numeric">Revenue</th>
+              <th className="numeric">Tips</th>
               <th className="numeric">Profit</th>
               <th className="table__action">Delete</th>
             </tr>
@@ -181,13 +182,16 @@ export function CommissionsPage() {
                 <td className="table__description" title={commission.request}>
                   {commission.request || <span className="muted">—</span>}
                 </td>
+                <td>{formatDate(commission.receivedOn)}</td>
                 <td>{formatDate(commission.deadline)}</td>
                 <td>
                   <TagList tags={commission.tags} />
                 </td>
-                <td className="numeric">{commission.salesCount}</td>
                 <td className="numeric">{formatCents(commission.expensesCents, commission.currency)}</td>
                 <td className="numeric">{formatCents(commission.revenueCents, commission.currency)}</td>
+                <td className="numeric">
+                  {formatCents(Number.isFinite(commission.tipsCents) ? commission.tipsCents : 0, commission.currency)}
+                </td>
                 <td className="numeric">{formatCents(commission.profitCents, commission.currency)}</td>
                 <td className="table__action">
                   <button
@@ -208,12 +212,12 @@ export function CommissionsPage() {
           {commissions.length > 0 && (
             <tfoot>
               <tr>
-                <th scope="row" colSpan={7}>
+                <th scope="row" colSpan={8}>
                   Total ({currency})
                 </th>
-                <td className="numeric">{totals.sales}</td>
                 <td className="numeric">{formatCents(totals.expenses, currency)}</td>
                 <td className="numeric">{formatCents(totals.revenue, currency)}</td>
+                <td className="numeric">{formatCents(totals.tips, currency)}</td>
                 <td className="numeric">{formatCents(totals.profit, currency)}</td>
                 <td />
               </tr>

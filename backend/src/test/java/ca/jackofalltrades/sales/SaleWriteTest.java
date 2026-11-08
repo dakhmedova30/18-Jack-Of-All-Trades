@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -126,6 +127,50 @@ class SaleWriteTest extends PostgresTestBase {
 
         assertThat(stock(print)).isEqualTo(3);
         assertThat(stock(keychain)).isEqualTo(2);
+    }
+
+    @Test
+    void miscellaneousSalesCanMixOneTimeAndInventoryItemsWithoutChangingOneTimeStock() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        int miscChannel = channelId(business, "Misc");
+        int inventoryItem = insertItem(business, "Inventory print", 5, 1200);
+        int miscId = jdbcClient.sql("""
+                        INSERT INTO miscellaneous_records (business_id, name)
+                        VALUES (:b, 'Craft fair') RETURNING id
+                        """)
+                .param("b", business)
+                .query(Integer.class)
+                .single();
+
+        record(cookie, """
+                {"soldAt":"2026-10-18T15:30:00-04:00","channelId":%d,"miscId":%d,"currency":"CAD",
+                 "items":[
+                   {"itemId":%d,"quantity":1},
+                   {"itemId":null,"itemName":"Custom bookmark","quantity":2,"unitPriceCents":400}
+                 ]}
+                """.formatted(miscChannel, miscId, inventoryItem))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.items", hasSize(2)))
+                .andExpect(jsonPath("$.items[1].itemId").value(nullValue()))
+                .andExpect(jsonPath("$.items[1].itemName").value("Custom bookmark"))
+                .andExpect(jsonPath("$.items[1].unitPriceCents").value(400))
+                .andExpect(jsonPath("$.items[1].totalCents").value(800))
+                .andExpect(jsonPath("$.totalCents").value(2000));
+
+        assertThat(stock(inventoryItem)).isEqualTo(4);
+    }
+
+    @Test
+    void oneTimeItemsAreRestrictedToMiscellaneousSales() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        record(cookie, """
+                {"soldAt":"2026-10-18T15:30:00-04:00","channelId":%d,
+                 "items":[{"itemId":null,"itemName":"Custom bookmark","quantity":1,"unitPriceCents":400}]}
+                """.formatted(channelId(business, "Online")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("One-time items can only be sold in Miscellaneous"));
     }
 
     @Test

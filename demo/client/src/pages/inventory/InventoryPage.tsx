@@ -255,7 +255,7 @@ export function InventoryPage() {
             disabled={selected.size === 0}
             onClick={() => setDeleteTarget({ kind: 'bulk', ids: [...selected.keys()] })}
           >
-            Bulk delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
+            Bulk Delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
           </button>
           {/* Each is enabled only when some selected item would change; the count is how many. */}
           <button

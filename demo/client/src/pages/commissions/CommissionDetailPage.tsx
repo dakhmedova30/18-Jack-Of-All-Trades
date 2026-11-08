@@ -138,7 +138,8 @@ export function CommissionDetailPage() {
         {info && (
           <>
             <p className="muted">
-              {info.contact ? `${info.contact} · ` : ''}Deadline {formatDate(info.deadline)}
+              {info.contact ? `${info.contact} · ` : ''}
+              Received {formatDate(info.receivedOn)} · Deadline {formatDate(info.deadline)}
             </p>
             {info.request && <p>{info.request}</p>}
             <TagList tags={info.tags} />
@@ -159,7 +160,7 @@ export function CommissionDetailPage() {
             disabled={commissionChannelId === undefined}
             onClick={() => setFormState({ kind: 'sale' })}
           >
-            Add sale <PlusIcon />
+            Add Sale <PlusIcon />
           </button>
           <button
             type="button"
@@ -167,7 +168,7 @@ export function CommissionDetailPage() {
             disabled={selectedSales.size === 0}
             onClick={() => setDeleteTarget({ kind: 'sales', ids: [...selectedSales] })}
           >
-            Bulk delete sales{selectedSales.size > 0 && ` (${selectedSales.size})`} <TrashIcon />
+            Bulk Delete Sales{selectedSales.size > 0 && ` (${selectedSales.size})`} <TrashIcon />
           </button>
         </div>
       </div>
@@ -247,9 +248,16 @@ export function CommissionDetailPage() {
             <tfoot>
               <tr>
                 <th scope="row" colSpan={5}>
-                  Total revenue ({info.salesCount} sales)
+                  Revenue
                 </th>
                 <td className="numeric">{formatCents(info.revenueCents, currency)}</td>
+                <td />
+              </tr>
+              <tr>
+                <th scope="row" colSpan={5}>Tips</th>
+                <td className="numeric">
+                  {formatCents(Number.isFinite(info.tipsCents) ? info.tipsCents : 0, currency)}
+                </td>
                 <td />
               </tr>
             </tfoot>
@@ -261,7 +269,7 @@ export function CommissionDetailPage() {
       <div className="toolbar">
         <div className="toolbar__actions">
           <button type="button" className="button" onClick={() => setFormState({ kind: 'expense' })}>
-            Add expense <PlusIcon />
+            Add Expense <PlusIcon />
           </button>
           <button
             type="button"

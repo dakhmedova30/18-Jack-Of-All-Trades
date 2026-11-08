@@ -162,7 +162,7 @@ export function OnlineMonthPage() {
             disabled={onlineChannelId === undefined}
             onClick={() => setFormState({ kind: 'sale' })}
           >
-            Add sale <PlusIcon />
+            Add Sale <PlusIcon />
           </button>
           <button
             type="button"
@@ -170,7 +170,7 @@ export function OnlineMonthPage() {
             disabled={selectedSales.size === 0}
             onClick={() => setDeleteTarget({ kind: 'sale', ids: [...selectedSales] })}
           >
-            Bulk delete sales{selectedSales.size > 0 && ` (${selectedSales.size})`} <TrashIcon />
+            Bulk Delete Sales{selectedSales.size > 0 && ` (${selectedSales.size})`} <TrashIcon />
           </button>
         </div>
       </div>
@@ -194,6 +194,7 @@ export function OnlineMonthPage() {
               <th>Date</th>
               <th>Items</th>
               <th>Tags</th>
+              <th>Currency</th>
               <th className="numeric">Total</th>
               <th className="table__action">Delete</th>
             </tr>
@@ -230,6 +231,7 @@ export function OnlineMonthPage() {
                 <td>
                   <TagList tags={sale.tags} />
                 </td>
+                <td>{sale.originalCurrency}</td>
                 <td className="numeric">{formatCents(saleTotal(sale), sale.originalCurrency)}</td>
                 <td className="table__action">
                   <button
@@ -250,7 +252,7 @@ export function OnlineMonthPage() {
           {info && (
             <tfoot>
               <tr>
-                <th scope="row" colSpan={5}>
+                <th scope="row" colSpan={6}>
                   Total revenue ({info.salesCount} sales)
                 </th>
                 <td className="numeric">{formatCents(info.revenueCents, info.currency)}</td>
@@ -267,7 +269,7 @@ export function OnlineMonthPage() {
       <div className="toolbar">
         <div className="toolbar__actions">
           <button type="button" className="button" onClick={() => setFormState({ kind: 'expense' })}>
-            Add expense <PlusIcon />
+            Add Expense <PlusIcon />
           </button>
           <button
             type="button"
@@ -275,7 +277,7 @@ export function OnlineMonthPage() {
             disabled={selectedExpenses.size === 0}
             onClick={() => setDeleteTarget({ kind: 'expense', ids: [...selectedExpenses] })}
           >
-            Bulk delete expenses{selectedExpenses.size > 0 && ` (${selectedExpenses.size})`}{' '}
+            Bulk Delete Expenses{selectedExpenses.size > 0 && ` (${selectedExpenses.size})`}{' '}
             <TrashIcon />
           </button>
         </div>
@@ -300,8 +302,6 @@ export function OnlineMonthPage() {
               </th>
               <th>ID</th>
               <th>Date</th>
-              <th>Description</th>
-              <th>Category</th>
               <th>Tags</th>
               <th>Currency</th>
               <th className="numeric">Amount</th>
@@ -334,8 +334,6 @@ export function OnlineMonthPage() {
                 </td>
                 <td>{expense.id}</td>
                 <td>{formatDate(expense.spentOn)}</td>
-                <td>{expense.description || <span className="muted">—</span>}</td>
-                <td>{expense.category || <span className="muted">—</span>}</td>
                 <td>
                   <TagList tags={expense.tags} />
                 </td>
@@ -360,14 +358,14 @@ export function OnlineMonthPage() {
           {info && (
             <tfoot>
               <tr>
-                <th scope="row" colSpan={7}>
+                <th scope="row" colSpan={5}>
                   Total expenses
                 </th>
                 <td className="numeric">{formatCents(info.expensesCents, info.currency)}</td>
                 <td />
               </tr>
               <tr>
-                <th scope="row" colSpan={7}>
+                <th scope="row" colSpan={5}>
                   Profit
                 </th>
                 <td className="numeric">{formatCents(info.profitCents, info.currency)}</td>
@@ -402,6 +400,7 @@ export function OnlineMonthPage() {
           expense={formState.expense}
           defaultDate={firstOfMonth}
           knownTags={knownTags}
+          hideDescriptionCategory
           onCancel={() => setFormState(null)}
           onSubmit={handleSaveExpense}
         />

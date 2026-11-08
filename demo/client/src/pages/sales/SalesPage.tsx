@@ -178,7 +178,7 @@ export function SalesPage() {
             disabled={selectedIds.size === 0}
             onClick={() => setDeleteTarget({ kind: 'bulk', ids: [...selectedIds] })}
           >
-            Bulk delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
+            Bulk Delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
           </button>
         </div>
         <div className="toolbar__filters">

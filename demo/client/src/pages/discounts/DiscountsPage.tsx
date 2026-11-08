@@ -81,7 +81,7 @@ export function DiscountsPage() {
       <div>
         <h1>Discounts &amp; Charges</h1>
         <p className="muted">
-          Reusable discounts and charges you can apply when recording In-Person Market and
+          Reusable discounts and charges you can apply when recording In-Person Markets and
           Miscellaneous sales.
         </p>
       </div>
@@ -97,7 +97,7 @@ export function DiscountsPage() {
             disabled={selected.size === 0}
             onClick={() => setDeleteTarget({ kind: 'bulk', ids: [...selected] })}
           >
-            Bulk delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
+            Bulk Delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
           </button>
         </div>
       </div>

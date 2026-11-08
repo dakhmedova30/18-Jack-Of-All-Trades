@@ -21,6 +21,7 @@ export function CommissionFormModal({
   const [name, setName] = useState(commission?.name ?? '');
   const [contact, setContact] = useState(commission?.contact ?? '');
   const [request, setRequest] = useState(commission?.request ?? '');
+  const [receivedOn, setReceivedOn] = useState(commission?.receivedOn ?? new Date().toISOString().slice(0, 10));
   const [deadline, setDeadline] = useState(commission?.deadline ?? new Date().toISOString().slice(0, 10));
   const [tags, setTags] = useState<string[]>(commission?.tags ?? []);
   const [error, setError] = useState<string | null>(null);
@@ -36,14 +37,21 @@ export function CommissionFormModal({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!name.trim() || !deadline) {
-      setError(!name.trim() ? 'Name is required' : 'Pick a deadline');
+    if (!name.trim() || !receivedOn || !deadline) {
+      setError(!name.trim() ? 'Name is required' : !receivedOn ? 'Pick a date received' : 'Pick a deadline');
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      await onSubmit({ name: name.trim(), contact: contact.trim(), request: request.trim(), deadline, tags });
+      await onSubmit({
+        name: name.trim(),
+        contact: contact.trim(),
+        request: request.trim(),
+        receivedOn,
+        deadline,
+        tags,
+      });
     } catch (caught) {
       setError(getErrorMessage(caught));
       setSubmitting(false);
@@ -105,6 +113,17 @@ export function CommissionFormModal({
             onChange={(event) => {
               setDirty(true);
               setRequest(event.target.value);
+            }}
+          />
+        </FormRow>
+        <FormRow label="Date received" htmlFor="commission-received" required>
+          <input
+            id="commission-received"
+            type="date"
+            value={receivedOn}
+            onChange={(event) => {
+              setDirty(true);
+              setReceivedOn(event.target.value);
             }}
           />
         </FormRow>

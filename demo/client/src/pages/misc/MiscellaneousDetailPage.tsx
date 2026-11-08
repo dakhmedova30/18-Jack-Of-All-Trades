@@ -129,7 +129,12 @@ export function MiscellaneousDetailPage() {
           <Link to="/sales/misc">← Miscellaneous</Link>
         </p>
         <h1>{info?.name ?? 'Miscellaneous'}</h1>
-        {info && <TagList tags={info.tags} />}
+        {info && (
+          <>
+            <p className="muted">Date {formatDate(info.receivedOn)}</p>
+            <TagList tags={info.tags} />
+          </>
+        )}
       </div>
       {error && (
         <div className="banner banner--error" role="alert">
@@ -145,7 +150,7 @@ export function MiscellaneousDetailPage() {
             disabled={miscChannelId === undefined}
             onClick={() => setFormState({ kind: 'sale' })}
           >
-            Add sale <PlusIcon />
+            Add Sale <PlusIcon />
           </button>
           <button
             type="button"
@@ -153,7 +158,7 @@ export function MiscellaneousDetailPage() {
             disabled={selectedSales.size === 0}
             onClick={() => setDeleteTarget({ kind: 'sales', ids: [...selectedSales] })}
           >
-            Bulk delete sales{selectedSales.size > 0 && ` (${selectedSales.size})`} <TrashIcon />
+            Bulk Delete Sales{selectedSales.size > 0 && ` (${selectedSales.size})`} <TrashIcon />
           </button>
         </div>
       </div>
@@ -247,7 +252,7 @@ export function MiscellaneousDetailPage() {
       <div className="toolbar">
         <div className="toolbar__actions">
           <button type="button" className="button" onClick={() => setFormState({ kind: 'expense' })}>
-            Add expense <PlusIcon />
+            Add Expense <PlusIcon />
           </button>
           <button
             type="button"
@@ -255,7 +260,7 @@ export function MiscellaneousDetailPage() {
             disabled={selectedExpenses.size === 0}
             onClick={() => setDeleteTarget({ kind: 'expenses', ids: [...selectedExpenses] })}
           >
-            Bulk delete expenses{selectedExpenses.size > 0 && ` (${selectedExpenses.size})`}{' '}
+            Bulk Delete Expenses{selectedExpenses.size > 0 && ` (${selectedExpenses.size})`}{' '}
             <TrashIcon />
           </button>
         </div>
