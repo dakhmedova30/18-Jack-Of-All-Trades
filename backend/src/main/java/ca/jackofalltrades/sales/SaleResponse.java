@@ -20,27 +20,28 @@ public record SaleResponse(
         BigDecimal originalAmount,
         String originalCurrency,
         Integer marketId,
-        Integer commissionId) {
+        Integer commissionId,
+        Integer miscId) {
 
     static SaleResponse from(Sale sale) {
         List<SaleLineResponse> lines = sale.getLines().stream().map(SaleLineResponse::from).toList();
         return of(sale.getId(), sale.getSoldAt(), ChannelResponse.from(sale.getChannel()), sale.getDescription(),
                 List.copyOf(sale.getTags()), lines, sale.getCreatedAt(), sale.getUpdatedAt(),
                 sale.getCurrency(), sale.getOriginalAmount(), sale.getOriginalCurrency(), sale.getMarketId(),
-                sale.getCommissionId());
+                sale.getCommissionId(), sale.getMiscId());
     }
 
     static SaleResponse of(Integer id, Instant soldAt, ChannelResponse channel, String description,
             List<String> tags, List<SaleLineResponse> lines, Instant createdAt, Instant updatedAt,
             String currency, BigDecimal originalAmount, String originalCurrency, Integer marketId,
-            Integer commissionId) {
+            Integer commissionId, Integer miscId) {
         long total = lines.stream().mapToLong(SaleLineResponse::totalCents).sum();
         return new SaleResponse(id, soldAt, channel, description, tags, total, lines, createdAt, updatedAt,
-                currency, originalAmount, originalCurrency, marketId, commissionId);
+                currency, originalAmount, originalCurrency, marketId, commissionId, miscId);
     }
 
     SaleResponse displayedIn(String targetCurrency, long convertedTotalCents) {
         return new SaleResponse(id, soldAt, channel, description, tags, convertedTotalCents, items, createdAt,
-                updatedAt, targetCurrency, originalAmount, originalCurrency, marketId, commissionId);
+                updatedAt, targetCurrency, originalAmount, originalCurrency, marketId, commissionId, miscId);
     }
 }

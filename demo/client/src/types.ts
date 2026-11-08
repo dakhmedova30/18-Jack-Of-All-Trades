@@ -277,6 +277,7 @@ export interface Sale {
   items: SaleItem[];
   marketId: number | null;
   commissionId: number | null;
+  miscId: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -299,6 +300,7 @@ export interface SaleInput {
   items: SaleLineItemInput[];
   marketId?: number | null;
   commissionId?: number | null;
+  miscId?: number | null;
   currency?: CurrencyCode;
   tipCents?: number | null;
   /** Discounts and charges from the library, applied by the server. */
@@ -498,4 +500,26 @@ export interface CommissionInput {
 
 export interface CommissionExpense extends OnlineExpense {
   commissionId: number | null;
+}
+
+export interface MiscellaneousRecord {
+  id: number;
+  name: string;
+  tags: string[];
+  salesCount: number;
+  expensesCents: number;
+  revenueCents: number;
+  profitCents: number;
+  currency: CurrencyCode;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MiscellaneousInput {
+  name: string;
+  tags: string[];
+}
+
+export interface MiscExpense extends OnlineExpense {
+  miscId: number | null;
 }

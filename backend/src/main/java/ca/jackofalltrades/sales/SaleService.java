@@ -53,14 +53,16 @@ public class SaleService {
     private final DiscountService discounts;
     private final MarketLookup markets;
     private final CommissionLookup commissions;
+    private final MiscLookup miscellaneous;
 
     public SaleService(SaleRepository sales, SaleQueries queries, ItemRepository items,
             ChannelRepository channels, CurrentBusiness currentBusiness, BusinessRepository businesses,
             CurrencyTotals currencyTotals, DiscountService discounts, MarketLookup markets,
-            CommissionLookup commissions) {
+            CommissionLookup commissions, MiscLookup miscellaneous) {
         this.discounts = discounts;
         this.markets = markets;
         this.commissions = commissions;
+        this.miscellaneous = miscellaneous;
         this.sales = sales;
         this.queries = queries;
         this.items = items;
@@ -177,14 +179,19 @@ public class SaleService {
         if (input.items().isEmpty() && input.tipCents() == null) {
             throw new BadRequestException("A sale needs at least one item or a tip");
         }
-        if (input.marketId() != null && input.commissionId() != null) {
-            throw new BadRequestException("A sale cannot belong to both a market and a commission");
+        long assignedTargets = java.util.stream.Stream.of(input.marketId(), input.commissionId(), input.miscId())
+                .filter(Objects::nonNull).count();
+        if (assignedTargets > 1) {
+            throw new BadRequestException("A sale can belong to only one market, commission, or miscellaneous group");
         }
         if (input.marketId() != null && !markets.exists(sale.getBusinessId(), input.marketId())) {
             throw new BadRequestException("Market " + input.marketId() + " does not exist");
         }
         if (input.commissionId() != null && !commissions.exists(sale.getBusinessId(), input.commissionId())) {
             throw new BadRequestException("Commission " + input.commissionId() + " does not exist");
+        }
+        if (input.miscId() != null && !miscellaneous.exists(sale.getBusinessId(), input.miscId())) {
+            throw new BadRequestException("Miscellaneous group " + input.miscId() + " does not exist");
         }
         List<Integer> eligiblePrices = new ArrayList<>();
         List<Item> soldItems = new ArrayList<>();
@@ -248,7 +255,7 @@ public class SaleService {
         }
         String description = input.description().isEmpty() ? describe(lines) : input.description();
         sale.replace(OffsetDateTime.parse(input.soldAt()).toInstant(), channel, description, input.tags(), lines,
-                saleCurrency, input.marketId(), input.commissionId());
+                saleCurrency, input.marketId(), input.commissionId(), input.miscId());
     }
 
     private Business lockBusiness(Integer businessId) {

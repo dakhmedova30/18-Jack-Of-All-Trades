@@ -314,6 +314,7 @@ export function MarketDetailPage() {
           target={{
             marketId: info.id,
             commissionId: null,
+            miscId: null,
             channelName: 'in person',
             title: `Add sale to ${info.name}`,
             currency: info.currency,

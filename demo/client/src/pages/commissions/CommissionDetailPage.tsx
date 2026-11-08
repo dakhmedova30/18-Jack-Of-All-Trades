@@ -377,6 +377,7 @@ export function CommissionDetailPage() {
           target={{
             marketId: null,
             commissionId,
+            miscId: null,
             channelName: 'commission',
             title: `Add sale to ${info?.name ?? 'commission'}`,
             currency,

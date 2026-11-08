@@ -226,6 +226,7 @@ export function OnlineShopPage() {
           target={{
             marketId: null,
             commissionId: null,
+            miscId: null,
             channelName: 'online',
             title: 'Add online sale',
             currency,

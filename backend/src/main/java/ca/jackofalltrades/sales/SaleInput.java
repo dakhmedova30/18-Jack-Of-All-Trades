@@ -50,7 +50,10 @@ public record SaleInput(
         List<@NotNull(message = "Required") @Positive(message = "Must be a positive number") Integer> discountIds,
 
         @Positive(message = "Must be a positive number")
-        Integer commissionId) {
+        Integer commissionId,
+
+        @Positive(message = "Must be a positive number")
+        Integer miscId) {
 
     public SaleInput {
         description = description == null ? "" : description.strip();
@@ -59,7 +62,7 @@ public record SaleInput(
     }
 
     public SaleInput(String soldAt, Integer channelId, String description, List<String> tags, List<Line> items) {
-        this(soldAt, channelId, description, tags, items, null, null, null, null, null);
+        this(soldAt, channelId, description, tags, items, null, null, null, null, null, null);
     }
 
     /**

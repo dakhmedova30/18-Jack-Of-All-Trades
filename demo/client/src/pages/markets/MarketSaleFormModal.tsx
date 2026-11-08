@@ -21,6 +21,7 @@ import { centsToInputValue, MAX_AMOUNT_CENTS, parseDollarsToCents } from '../../
 export interface SaleTarget {
   marketId: number | null;
   commissionId: number | null;
+  miscId: number | null;
   /** The channel the sale is put on, matched by name ignoring case. */
   channelName: string;
   title: string;
@@ -180,6 +181,7 @@ export function MarketSaleFormModal({ target, sale, onCancel, onSubmit }: Market
       items: parsed,
       marketId: target.marketId,
       commissionId: target.commissionId,
+      miscId: target.miscId,
       currency,
       tipCents,
       discountIds: [...discountIds],

@@ -56,6 +56,8 @@ public class Sale {
 
     private Integer commissionId;
 
+    private Integer miscId;
+
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(nullable = false)
     private List<String> tags;
@@ -84,7 +86,7 @@ public class Sale {
      * reset if the sale's currency is changed (the new lines are priced in the new currency).
      */
     void replace(Instant soldAt, Channel channel, String description, List<String> tags, List<SaleLine> newLines,
-            String currency, Integer marketId, Integer commissionId) {
+            String currency, Integer marketId, Integer commissionId, Integer miscId) {
         Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS); // Postgres keeps microseconds
         boolean creating = createdAt == null;
         boolean currencyChanged = !creating && !currency.equals(this.currency);
@@ -101,6 +103,7 @@ public class Sale {
         this.description = description;
         this.marketId = marketId;
         this.commissionId = commissionId;
+        this.miscId = miscId;
         this.tags = new ArrayList<>(tags);
         lines.clear();
         for (SaleLine line : newLines) {
@@ -119,6 +122,10 @@ public class Sale {
 
     public Integer getCommissionId() {
         return commissionId;
+    }
+
+    public Integer getMiscId() {
+        return miscId;
     }
 
     public Integer getId() {

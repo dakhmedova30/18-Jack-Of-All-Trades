@@ -386,6 +386,7 @@ export function OnlineMonthPage() {
           target={{
             marketId: null,
             commissionId: null,
+            miscId: null,
             channelName: 'online',
             title: 'Add online sale',
             currency,

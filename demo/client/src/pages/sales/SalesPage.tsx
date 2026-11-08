@@ -124,6 +124,7 @@ export function SalesPage() {
   function openSale(sale: Sale) {
     if (sale.marketId !== null) navigate(`/sales/in-person/${sale.marketId}`);
     else if (sale.commissionId !== null) navigate(`/sales/commissions/${sale.commissionId}`);
+    else if (sale.miscId !== null) navigate(`/sales/misc/${sale.miscId}`);
     else setFormState({ mode: 'edit', sale });
   }
 

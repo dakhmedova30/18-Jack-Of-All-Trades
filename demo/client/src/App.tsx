@@ -9,11 +9,12 @@ import { ExpensesPage } from './pages/expenses/ExpensesPage';
 import { DiscountsPage } from './pages/discounts/DiscountsPage';
 import { MarketDetailPage } from './pages/markets/MarketDetailPage';
 import { MarketsPage } from './pages/markets/MarketsPage';
-import { ComingSoonPage } from './pages/ComingSoonPage';
 import { OnlineMonthPage } from './pages/online/OnlineMonthPage';
 import { OnlineShopPage } from './pages/online/OnlineShopPage';
 import { CommissionDetailPage } from './pages/commissions/CommissionDetailPage';
 import { CommissionsPage } from './pages/commissions/CommissionsPage';
+import { MiscellaneousDetailPage } from './pages/misc/MiscellaneousDetailPage';
+import { MiscellaneousPage } from './pages/misc/MiscellaneousPage';
 import { HelpPage } from './pages/HelpPage';
 import { HomePage } from './pages/HomePage';
 import { InventoryPage } from './pages/inventory/InventoryPage';
@@ -59,6 +60,7 @@ export function App() {
       '/sales/in-person': 'In-Person Market',
       '/sales/online': 'Online Shop',
       '/sales/commissions': 'Commissions',
+      '/sales/misc': 'Miscellaneous',
       '/discounts': 'Discounts & Charges',
       '/expenses': 'Expenses',
       '/analytics': 'Analytics',
@@ -78,6 +80,7 @@ export function App() {
       (pathname.startsWith('/sales/in-person/') ? 'In-Person Market' : undefined) ??
       (pathname.startsWith('/sales/online/') ? 'Online Shop' : undefined) ??
       (pathname.startsWith('/sales/commissions/') ? 'Commissions' : undefined) ??
+      (pathname.startsWith('/sales/misc/') ? 'Miscellaneous' : undefined) ??
       (settingsTab ? settingsLabels[settingsTab] : undefined) ??
       (pathname.startsWith('/p/') ? 'Public profile' : 'Page not found');
     document.title = `${title} | Jack-Of-All-Trades`;
@@ -108,7 +111,8 @@ export function App() {
           <Route path="sales/online/:month" element={<OnlineMonthPage />} />
           <Route path="sales/commissions" element={<CommissionsPage />} />
           <Route path="sales/commissions/:commissionId" element={<CommissionDetailPage />} />
-          <Route path="sales/misc" element={<ComingSoonPage title="Miscellaneous" />} />
+          <Route path="sales/misc" element={<MiscellaneousPage />} />
+          <Route path="sales/misc/:miscId" element={<MiscellaneousDetailPage />} />
           <Route path="expenses" element={<ExpensesPage />} />
           <Route path="discounts" element={<DiscountsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
