@@ -25,7 +25,9 @@ interface MarketFormModalProps {
   onSubmit: (input: MarketInput) => Promise<void>;
 }
 
-type Errors = Partial<Record<'name' | 'startDate' | 'endDate' | 'tableFee' | 'extra' | 'tags', string>>;
+type Errors = Partial<
+  Record<'name' | 'startDate' | 'endDate' | 'tableFee' | 'extra' | 'tags', string>
+>;
 interface LocationResult {
   label: string;
 }
@@ -78,7 +80,10 @@ export function MarketFormModal({ market, knownTags, onCancel, onSubmit }: Marke
   }
 
   function handleCancel() {
-    if (dirty && !window.confirm('You have unsaved information. Are you sure you want to discard it?')) {
+    if (
+      dirty &&
+      !window.confirm('You have unsaved information. Are you sure you want to discard it?')
+    ) {
       return;
     }
     onCancel();
@@ -86,12 +91,7 @@ export function MarketFormModal({ market, knownTags, onCancel, onSubmit }: Marke
 
   useEffect(() => {
     const query = location.trim();
-    if (!locationHasBeenEdited || query.length < 3) {
-      setLocationResults([]);
-      setLocationSearchError(null);
-      setSearchingLocation(false);
-      return;
-    }
+    if (!locationHasBeenEdited || query.length < 3) return;
 
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
@@ -105,22 +105,18 @@ export function MarketFormModal({ market, knownTags, onCancel, onSubmit }: Marke
         if (!response.ok) throw new Error(`Address suggestions failed (${response.status})`);
         const body: unknown = await response.json();
         const features =
-          typeof body === 'object' && body !== null && 'features' in body && Array.isArray(body.features)
+          typeof body === 'object' &&
+          body !== null &&
+          'features' in body &&
+          Array.isArray(body.features)
             ? body.features
             : [];
         const results = features.flatMap((feature): LocationResult[] => {
-          if (typeof feature !== 'object' || feature === null || !('properties' in feature)) return [];
+          if (typeof feature !== 'object' || feature === null || !('properties' in feature))
+            return [];
           const properties = feature.properties;
           if (typeof properties !== 'object' || properties === null) return [];
-          const address = [
-            'name',
-            'housenumber',
-            'street',
-            'postcode',
-            'city',
-            'state',
-            'country',
-          ]
+          const address = ['name', 'housenumber', 'street', 'postcode', 'city', 'state', 'country']
             .flatMap((key) => {
               const value = key in properties ? properties[key] : null;
               return typeof value === 'string' && value.trim() ? [value.trim()] : [];
@@ -132,7 +128,9 @@ export function MarketFormModal({ market, knownTags, onCancel, onSubmit }: Marke
         if (results.length === 0) setLocationSearchError('No matching places found.');
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
-        setLocationSearchError(error instanceof Error ? error.message : 'Address suggestions failed');
+        setLocationSearchError(
+          error instanceof Error ? error.message : 'Address suggestions failed',
+        );
       } finally {
         if (!controller.signal.aborted) setSearchingLocation(false);
       }
@@ -256,14 +254,19 @@ export function MarketFormModal({ market, knownTags, onCancel, onSubmit }: Marke
             onChange={(event) => {
               setLocationHasBeenEdited(true);
               touch(setLocation)(event.target.value);
+              if (event.target.value.trim().length < 3) {
+                setLocationResults([]);
+                setLocationSearchError(null);
+                setSearchingLocation(false);
+              }
             }}
           />
           <small className="muted">
             Address suggestions by{' '}
             <a href="https://photon.komoot.io/" target="_blank" rel="noreferrer">
               Photon
-            </a>
-            {' '}using{' '}
+            </a>{' '}
+            using{' '}
             <a href="https://www.openstreetmap.org/" target="_blank" rel="noreferrer">
               OpenStreetMap data
             </a>
@@ -280,7 +283,11 @@ export function MarketFormModal({ market, knownTags, onCancel, onSubmit }: Marke
               </>
             )}
           </small>
-          {searchingLocation && <span className="muted" role="status">Searching…</span>}
+          {searchingLocation && (
+            <span className="muted" role="status">
+              Searching…
+            </span>
+          )}
           {locationResults.length > 0 && (
             <ul className="market-location-suggestions" aria-label="Address suggestions">
               {locationResults.map((result) => (
@@ -291,6 +298,8 @@ export function MarketFormModal({ market, knownTags, onCancel, onSubmit }: Marke
                       setLocationHasBeenEdited(false);
                       touch(setLocation)(result.label.slice(0, 200));
                       setLocationResults([]);
+                      setLocationSearchError(null);
+                      setSearchingLocation(false);
                     }}
                   >
                     {result.label}
@@ -299,7 +308,11 @@ export function MarketFormModal({ market, knownTags, onCancel, onSubmit }: Marke
               ))}
             </ul>
           )}
-          {locationSearchError && <span className="form-row__error" role="alert">{locationSearchError}</span>}
+          {locationSearchError && (
+            <span className="form-row__error" role="alert">
+              {locationSearchError}
+            </span>
+          )}
         </FormRow>
         <FormRow label="Currency" htmlFor="market-currency">
           <select

@@ -14,19 +14,52 @@ interface ExpensesResult {
  * on screen (no flicker) and `loading` is true. Call `reload()` after a mutation.
  */
 export function useExpenses({
-  page, pageSize, search, sort, order, category, subcategory, manufacturer, type, from, to,
+  page,
+  pageSize,
+  search,
+  sort,
+  order,
+  category,
+  subcategory,
+  manufacturer,
+  type,
+  from,
+  to,
 }: ListExpensesParams) {
   const [reloadToken, setReloadToken] = useState(0);
   const [result, setResult] = useState<ExpensesResult | null>(null);
   const [lastData, setLastData] = useState<Paginated<Expense> | undefined>(undefined);
 
   const requestKey = JSON.stringify([
-    page, pageSize, search, sort, order, category, subcategory, manufacturer, type, from, to, reloadToken,
+    page,
+    pageSize,
+    search,
+    sort,
+    order,
+    category,
+    subcategory,
+    manufacturer,
+    type,
+    from,
+    to,
+    reloadToken,
   ]);
 
   useEffect(() => {
     let cancelled = false;
-    listExpenses({ page, pageSize, search, sort, order, category, subcategory, manufacturer, type, from, to })
+    listExpenses({
+      page,
+      pageSize,
+      search,
+      sort,
+      order,
+      category,
+      subcategory,
+      manufacturer,
+      type,
+      from,
+      to,
+    })
       .then((data) => {
         if (cancelled) return;
         setResult({ key: requestKey, data });
@@ -38,7 +71,20 @@ export function useExpenses({
     return () => {
       cancelled = true;
     };
-  }, [requestKey, page, pageSize, search, sort, order, category, subcategory, manufacturer, type, from, to]);
+  }, [
+    requestKey,
+    page,
+    pageSize,
+    search,
+    sort,
+    order,
+    category,
+    subcategory,
+    manufacturer,
+    type,
+    from,
+    to,
+  ]);
 
   const reload = useCallback(() => setReloadToken((token) => token + 1), []);
   const isCurrent = result?.key === requestKey;

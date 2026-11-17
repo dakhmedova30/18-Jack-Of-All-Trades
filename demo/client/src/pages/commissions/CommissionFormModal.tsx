@@ -21,15 +21,22 @@ export function CommissionFormModal({
   const [name, setName] = useState(commission?.name ?? '');
   const [contact, setContact] = useState(commission?.contact ?? '');
   const [request, setRequest] = useState(commission?.request ?? '');
-  const [receivedOn, setReceivedOn] = useState(commission?.receivedOn ?? new Date().toISOString().slice(0, 10));
-  const [deadline, setDeadline] = useState(commission?.deadline ?? new Date().toISOString().slice(0, 10));
+  const [receivedOn, setReceivedOn] = useState(
+    commission?.receivedOn ?? new Date().toISOString().slice(0, 10),
+  );
+  const [deadline, setDeadline] = useState(
+    commission?.deadline ?? new Date().toISOString().slice(0, 10),
+  );
   const [tags, setTags] = useState<string[]>(commission?.tags ?? []);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [dirty, setDirty] = useState(false);
 
   function close() {
-    if (dirty && !window.confirm('You have unsaved information. Are you sure you want to discard it?')) {
+    if (
+      dirty &&
+      !window.confirm('You have unsaved information. Are you sure you want to discard it?')
+    ) {
       return;
     }
     onCancel();
@@ -38,7 +45,13 @@ export function CommissionFormModal({
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!name.trim() || !receivedOn || !deadline) {
-      setError(!name.trim() ? 'Name is required' : !receivedOn ? 'Pick a date received' : 'Pick a deadline');
+      setError(
+        !name.trim()
+          ? 'Name is required'
+          : !receivedOn
+            ? 'Pick a date received'
+            : 'Pick a deadline',
+      );
       return;
     }
     setSubmitting(true);

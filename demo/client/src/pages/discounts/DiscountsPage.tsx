@@ -120,7 +120,9 @@ export function DiscountsPage() {
                   type="checkbox"
                   checked={allSelected}
                   onChange={() =>
-                    setSelected(allSelected ? new Set() : new Set(discounts.map((entry) => entry.id)))
+                    setSelected(
+                      allSelected ? new Set() : new Set(discounts.map((entry) => entry.id)),
+                    )
                   }
                   aria-label="Select all discounts"
                 />
@@ -192,7 +194,11 @@ export function DiscountsPage() {
         {data && discounts.length === 0 && (
           <div className="empty-state">
             <p>Add a discount or charge to reuse on your sales</p>
-            <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
+            <button
+              type="button"
+              className="button"
+              onClick={() => setFormState({ mode: 'create' })}
+            >
               Add <PlusIcon />
             </button>
           </div>

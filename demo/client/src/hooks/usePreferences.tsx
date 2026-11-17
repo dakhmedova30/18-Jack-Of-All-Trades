@@ -55,7 +55,9 @@ function load(businessId: number): Preferences {
       defaultExpenseTag:
         typeof saved.defaultExpenseTag === 'string' ? saved.defaultExpenseTag : null,
       showSpeechReader:
-        typeof saved.showSpeechReader === 'boolean' ? saved.showSpeechReader : DEFAULTS.showSpeechReader,
+        typeof saved.showSpeechReader === 'boolean'
+          ? saved.showSpeechReader
+          : DEFAULTS.showSpeechReader,
     };
   } catch {
     return DEFAULTS;

@@ -16,24 +16,16 @@ import { TagList } from '../../components/TagList';
 import { useCurrency } from '../../hooks/useCurrency';
 import { useLoad } from '../../hooks/useLoad';
 import { usePreferences } from '../../hooks/usePreferences';
-import type {
-  CurrencyCode,
-  OnlineExpense,
-  OnlineExpenseInput,
-  Sale,
-  SaleInput,
-} from '../../types';
+import type { CurrencyCode, OnlineExpense, OnlineExpenseInput, Sale, SaleInput } from '../../types';
 import { formatCents } from '../../utils/money';
 import { describeSale, saleTotal } from '../markets/MarketDetailPage';
 import { MarketSaleFormModal } from '../markets/MarketSaleFormModal';
 import { OnlineExpenseFormModal } from './OnlineExpenseFormModal';
 import { formatMonth } from './OnlineShopPage';
 
-type FormState = { kind: 'sale'; sale?: Sale } | { kind: 'expense'; expense?: OnlineExpense } | null;
-type DeleteTarget =
-  | { kind: 'sale'; ids: number[] }
-  | { kind: 'expense'; ids: number[] }
-  | null;
+type FormState =
+  { kind: 'sale'; sale?: Sale } | { kind: 'expense'; expense?: OnlineExpense } | null;
+type DeleteTarget = { kind: 'sale'; ids: number[] } | { kind: 'expense'; ids: number[] } | null;
 
 function lastDayOf(month: string): string {
   const [year, number] = month.split('-').map(Number);
@@ -134,7 +126,8 @@ export function OnlineMonthPage() {
     );
   }
 
-  const allSalesSelected = saleRows.length > 0 && saleRows.every((sale) => selectedSales.has(sale.id));
+  const allSalesSelected =
+    saleRows.length > 0 && saleRows.every((sale) => selectedSales.has(sale.id));
   const allExpensesSelected =
     expenseRows.length > 0 && expenseRows.every((expense) => selectedExpenses.has(expense.id));
 
@@ -185,7 +178,9 @@ export function OnlineMonthPage() {
                   type="checkbox"
                   checked={allSalesSelected}
                   onChange={() =>
-                    setSelectedSales(allSalesSelected ? new Set() : new Set(saleRows.map((s) => s.id)))
+                    setSelectedSales(
+                      allSalesSelected ? new Set() : new Set(saleRows.map((s) => s.id)),
+                    )
                   }
                   aria-label="Select all sales"
                 />
@@ -268,7 +263,11 @@ export function OnlineMonthPage() {
 
       <div className="toolbar">
         <div className="toolbar__actions">
-          <button type="button" className="button" onClick={() => setFormState({ kind: 'expense' })}>
+          <button
+            type="button"
+            className="button"
+            onClick={() => setFormState({ kind: 'expense' })}
+          >
             Add Expense <PlusIcon />
           </button>
           <button

@@ -21,14 +21,8 @@ import { describeSale, saleTotal } from '../markets/MarketDetailPage';
 import { MarketSaleFormModal } from '../markets/MarketSaleFormModal';
 import { OnlineExpenseFormModal } from '../online/OnlineExpenseFormModal';
 
-type FormState =
-  | { kind: 'sale'; sale?: Sale }
-  | { kind: 'expense'; expense?: MiscExpense }
-  | null;
-type DeleteTarget =
-  | { kind: 'sales'; ids: number[] }
-  | { kind: 'expenses'; ids: number[] }
-  | null;
+type FormState = { kind: 'sale'; sale?: Sale } | { kind: 'expense'; expense?: MiscExpense } | null;
+type DeleteTarget = { kind: 'sales'; ids: number[] } | { kind: 'expenses'; ids: number[] } | null;
 
 function toggle(set: Set<number>, id: number): Set<number> {
   const next = new Set(set);
@@ -87,11 +81,15 @@ export function MiscellaneousDetailPage() {
     if (deleteTarget.kind === 'sales') {
       if (deleteTarget.ids.length === 1) await deleteSale(deleteTarget.ids[0]);
       else await bulkDeleteSales(deleteTarget.ids);
-      setSelectedSales((current) => new Set([...current].filter((id) => !deleteTarget.ids.includes(id))));
+      setSelectedSales(
+        (current) => new Set([...current].filter((id) => !deleteTarget.ids.includes(id))),
+      );
     } else {
       if (deleteTarget.ids.length === 1) await deleteMiscExpense(miscId, deleteTarget.ids[0]);
       else await bulkDeleteMiscExpenses(miscId, deleteTarget.ids);
-      setSelectedExpenses((current) => new Set([...current].filter((id) => !deleteTarget.ids.includes(id))));
+      setSelectedExpenses(
+        (current) => new Set([...current].filter((id) => !deleteTarget.ids.includes(id))),
+      );
     }
     setDeleteTarget(null);
     reloadAll();
@@ -118,7 +116,8 @@ export function MiscellaneousDetailPage() {
     );
   }
 
-  const allSalesSelected = saleRows.length > 0 && saleRows.every((sale) => selectedSales.has(sale.id));
+  const allSalesSelected =
+    saleRows.length > 0 && saleRows.every((sale) => selectedSales.has(sale.id));
   const allExpensesSelected =
     expenseRows.length > 0 && expenseRows.every((expense) => selectedExpenses.has(expense.id));
 
@@ -172,7 +171,9 @@ export function MiscellaneousDetailPage() {
                   type="checkbox"
                   checked={allSalesSelected}
                   onChange={() =>
-                    setSelectedSales(allSalesSelected ? new Set() : new Set(saleRows.map((sale) => sale.id)))
+                    setSelectedSales(
+                      allSalesSelected ? new Set() : new Set(saleRows.map((sale) => sale.id)),
+                    )
                   }
                   aria-label="Select all sales"
                 />
@@ -246,12 +247,18 @@ export function MiscellaneousDetailPage() {
             </tfoot>
           )}
         </table>
-        {sales.data && saleRows.length === 0 && <p className="empty-state">No miscellaneous sales yet</p>}
+        {sales.data && saleRows.length === 0 && (
+          <p className="empty-state">No miscellaneous sales yet</p>
+        )}
       </div>
 
       <div className="toolbar">
         <div className="toolbar__actions">
-          <button type="button" className="button" onClick={() => setFormState({ kind: 'expense' })}>
+          <button
+            type="button"
+            className="button"
+            onClick={() => setFormState({ kind: 'expense' })}
+          >
             Add Expense <PlusIcon />
           </button>
           <button
@@ -276,7 +283,9 @@ export function MiscellaneousDetailPage() {
                   checked={allExpensesSelected}
                   onChange={() =>
                     setSelectedExpenses(
-                      allExpensesSelected ? new Set() : new Set(expenseRows.map((expense) => expense.id)),
+                      allExpensesSelected
+                        ? new Set()
+                        : new Set(expenseRows.map((expense) => expense.id)),
                     )
                   }
                   aria-label="Select all expenses"
@@ -360,7 +369,9 @@ export function MiscellaneousDetailPage() {
             </tfoot>
           )}
         </table>
-        {expenses.data && expenseRows.length === 0 && <p className="empty-state">No miscellaneous expenses yet</p>}
+        {expenses.data && expenseRows.length === 0 && (
+          <p className="empty-state">No miscellaneous expenses yet</p>
+        )}
       </div>
       {formState?.kind === 'sale' && (
         <MarketSaleFormModal

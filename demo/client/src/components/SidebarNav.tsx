@@ -71,9 +71,7 @@ export function SidebarNav({ compact = false }: SidebarNavProps) {
                   <NavLink
                     key={child.to}
                     to={child.to}
-                    className={({ isActive }) =>
-                      `sidebar__sublink${isActive ? ' is-active' : ''}`
-                    }
+                    className={({ isActive }) => `sidebar__sublink${isActive ? ' is-active' : ''}`}
                   >
                     {child.label}
                   </NavLink>

@@ -88,7 +88,8 @@ export function MiscellaneousPage() {
       <div>
         <h1>Miscellaneous</h1>
         <p className="muted">
-          Group itemized sales, discounts and expenses that don’t belong to a market, online shop or commission.
+          Group itemized sales, discounts and expenses that don’t belong to a market, online shop or
+          commission.
         </p>
       </div>
       <div className="toolbar">
@@ -128,7 +129,9 @@ export function MiscellaneousPage() {
                   type="checkbox"
                   checked={allSelected}
                   onChange={() =>
-                    setSelected(allSelected ? new Set() : new Set(records.map((record) => record.id)))
+                    setSelected(
+                      allSelected ? new Set() : new Set(records.map((record) => record.id)),
+                    )
                   }
                   aria-label="Select all miscellaneous records"
                 />
@@ -170,7 +173,10 @@ export function MiscellaneousPage() {
                 </td>
                 <td>{record.id}</td>
                 <td>
-                  <Link to={`/sales/misc/${record.id}`} onClick={(event) => event.stopPropagation()}>
+                  <Link
+                    to={`/sales/misc/${record.id}`}
+                    onClick={(event) => event.stopPropagation()}
+                  >
                     {record.name}
                   </Link>
                 </td>
@@ -217,7 +223,11 @@ export function MiscellaneousPage() {
         {data && records.length === 0 && (
           <div className="empty-state">
             <p>Add a miscellaneous group to track its sales and expenses</p>
-            <button type="button" className="button" onClick={() => setFormState({ kind: 'create' })}>
+            <button
+              type="button"
+              className="button"
+              onClick={() => setFormState({ kind: 'create' })}
+            >
               Add <PlusIcon />
             </button>
           </div>
@@ -226,7 +236,9 @@ export function MiscellaneousPage() {
       {detachedExpenses.length > 0 && (
         <section>
           <h2>Detached miscellaneous expenses</h2>
-          <p className="muted">These expenses remain after their group was deleted and aren’t included in totals.</p>
+          <p className="muted">
+            These expenses remain after their group was deleted and aren’t included in totals.
+          </p>
           <div className="toolbar">
             <button
               type="button"
@@ -300,7 +312,9 @@ export function MiscellaneousPage() {
                       <TagList tags={expense.tags} />
                     </td>
                     <td>{expense.currency}</td>
-                    <td className="numeric">{formatCents(expense.amountCents, expense.currency)}</td>
+                    <td className="numeric">
+                      {formatCents(expense.amountCents, expense.currency)}
+                    </td>
                     <td className="table__action">
                       <button
                         type="button"

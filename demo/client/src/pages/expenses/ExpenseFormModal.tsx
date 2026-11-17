@@ -18,7 +18,12 @@ import {
   parseDollarsToCents,
 } from '../../utils/money';
 import type { Expense, ExpenseInput, Item } from '../../types';
-import { CURRENCY_CODES, EXPENSE_LINE_TYPES, type CurrencyCode, type ExpenseLineType } from '../../types';
+import {
+  CURRENCY_CODES,
+  EXPENSE_LINE_TYPES,
+  type CurrencyCode,
+  type ExpenseLineType,
+} from '../../types';
 
 interface ExpenseFormModalProps {
   /** Pass an expense to edit it ("Modify expense"); omit to record one ("Add expense"). */
@@ -52,7 +57,17 @@ function newLine(
   type: ExpenseLineType = itemId ? 'product' : 'other',
 ): LineState {
   nextKey += 1;
-  return { key: `line-${nextKey}`, itemId, description, quantity, unitCost, category, subcategory, manufacturer, type };
+  return {
+    key: `line-${nextKey}`,
+    itemId,
+    description,
+    quantity,
+    unitCost,
+    category,
+    subcategory,
+    manufacturer,
+    type,
+  };
 }
 
 function linesFromExpense(expense?: Expense): LineState[] {
@@ -272,7 +287,9 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
               }}
             >
               {CURRENCY_CODES.map((code) => (
-                <option key={code} value={code}>{code}</option>
+                <option key={code} value={code}>
+                  {code}
+                </option>
               ))}
             </select>
           </div>
@@ -422,7 +439,9 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
                         }
                       >
                         {EXPENSE_LINE_TYPES.map((type) => (
-                          <option key={type} value={type}>{type[0].toUpperCase() + type.slice(1)}</option>
+                          <option key={type} value={type}>
+                            {type[0].toUpperCase() + type.slice(1)}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -441,7 +460,9 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
                         id={`${line.key}-subcategory`}
                         value={line.subcategory}
                         maxLength={60}
-                        onChange={(event) => updateLine(line.key, { subcategory: event.target.value })}
+                        onChange={(event) =>
+                          updateLine(line.key, { subcategory: event.target.value })
+                        }
                       />
                     </div>
                     <div className="sale-line__field">
@@ -450,7 +471,9 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
                         id={`${line.key}-manufacturer`}
                         value={line.manufacturer}
                         maxLength={100}
-                        onChange={(event) => updateLine(line.key, { manufacturer: event.target.value })}
+                        onChange={(event) =>
+                          updateLine(line.key, { manufacturer: event.target.value })
+                        }
                       />
                     </div>
                   </div>

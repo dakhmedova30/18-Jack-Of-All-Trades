@@ -74,58 +74,85 @@ export function ExpenseLineReportView({
             </tr>
           </thead>
           <tbody>
-            {[...categories.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([category, subcategories]) => {
-              const categoryLines = [...subcategories.values()].flat();
-              const categoryKey = `category:${category}`;
-              const categoryIds = expenseIds(categoryLines);
-              const categoryOpen = expanded.has(categoryKey);
-              return (
-                <FragmentGroup key={categoryKey}>
-                  <tr>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={categoryIds.length > 0 && categoryIds.every((id) => selectedIds.has(id))}
-                        onChange={() => toggleGroup(categoryIds)}
-                        aria-label={`Select expenses in ${category || 'Uncategorized'}`}
-                      />
-                      <button type="button" className="link-button" aria-expanded={categoryOpen} onClick={() => toggle(categoryKey)}>
-                        {categoryOpen ? '▾' : '▸'} {category || 'Uncategorized'}
-                      </button>
-                    </td>
-                    <td>{categoryLines.length}</td>
-                    <td className="numeric">{formatCents(sum(categoryLines), currency)}</td>
-                  </tr>
-                  {categoryOpen && [...subcategories.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([subcategory, subLines]) => {
-                    const subcategoryKey = `${categoryKey}:subcategory:${subcategory}`;
-                    const subcategoryIds = expenseIds(subLines);
-                    const subcategoryOpen = expanded.has(subcategoryKey);
-                    return (
-                      <FragmentGroup key={subcategoryKey}>
-                        <tr>
-                          <td className="expense-report__subcategory">
-                            <input
-                              type="checkbox"
-                              checked={subcategoryIds.length > 0 && subcategoryIds.every((id) => selectedIds.has(id))}
-                              onChange={() => toggleGroup(subcategoryIds)}
-                              aria-label={`Select expenses in ${subcategory || 'Uncategorized'}`}
-                            />
-                            <button type="button" className="link-button" aria-expanded={subcategoryOpen} onClick={() => toggle(subcategoryKey)}>
-                              {subcategoryOpen ? '▾' : '▸'} {subcategory || 'Uncategorized'}
-                            </button>
-                          </td>
-                          <td>{subLines.length}</td>
-                          <td className="numeric">{formatCents(sum(subLines), currency)}</td>
-                        </tr>
-                        {subcategoryOpen && subLines.map((line) => (
-                          <LineRow key={line.lineId} line={line} currency={currency} formatDate={formatDate} onOpenExpense={onOpenExpense} />
-                        ))}
-                      </FragmentGroup>
-                    );
-                  })}
-                </FragmentGroup>
-              );
-            })}
+            {[...categories.entries()]
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([category, subcategories]) => {
+                const categoryLines = [...subcategories.values()].flat();
+                const categoryKey = `category:${category}`;
+                const categoryIds = expenseIds(categoryLines);
+                const categoryOpen = expanded.has(categoryKey);
+                return (
+                  <FragmentGroup key={categoryKey}>
+                    <tr>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={
+                            categoryIds.length > 0 && categoryIds.every((id) => selectedIds.has(id))
+                          }
+                          onChange={() => toggleGroup(categoryIds)}
+                          aria-label={`Select expenses in ${category || 'Uncategorized'}`}
+                        />
+                        <button
+                          type="button"
+                          className="link-button"
+                          aria-expanded={categoryOpen}
+                          onClick={() => toggle(categoryKey)}
+                        >
+                          {categoryOpen ? '▾' : '▸'} {category || 'Uncategorized'}
+                        </button>
+                      </td>
+                      <td>{categoryLines.length}</td>
+                      <td className="numeric">{formatCents(sum(categoryLines), currency)}</td>
+                    </tr>
+                    {categoryOpen &&
+                      [...subcategories.entries()]
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([subcategory, subLines]) => {
+                          const subcategoryKey = `${categoryKey}:subcategory:${subcategory}`;
+                          const subcategoryIds = expenseIds(subLines);
+                          const subcategoryOpen = expanded.has(subcategoryKey);
+                          return (
+                            <FragmentGroup key={subcategoryKey}>
+                              <tr>
+                                <td className="expense-report__subcategory">
+                                  <input
+                                    type="checkbox"
+                                    checked={
+                                      subcategoryIds.length > 0 &&
+                                      subcategoryIds.every((id) => selectedIds.has(id))
+                                    }
+                                    onChange={() => toggleGroup(subcategoryIds)}
+                                    aria-label={`Select expenses in ${subcategory || 'Uncategorized'}`}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="link-button"
+                                    aria-expanded={subcategoryOpen}
+                                    onClick={() => toggle(subcategoryKey)}
+                                  >
+                                    {subcategoryOpen ? '▾' : '▸'} {subcategory || 'Uncategorized'}
+                                  </button>
+                                </td>
+                                <td>{subLines.length}</td>
+                                <td className="numeric">{formatCents(sum(subLines), currency)}</td>
+                              </tr>
+                              {subcategoryOpen &&
+                                subLines.map((line) => (
+                                  <LineRow
+                                    key={line.lineId}
+                                    line={line}
+                                    currency={currency}
+                                    formatDate={formatDate}
+                                    onOpenExpense={onOpenExpense}
+                                  />
+                                ))}
+                            </FragmentGroup>
+                          );
+                        })}
+                  </FragmentGroup>
+                );
+              })}
           </tbody>
           <ReportFooter count={lines.length} total={grandTotal} currency={currency} />
         </table>
@@ -152,33 +179,47 @@ export function ExpenseLineReportView({
           </tr>
         </thead>
         <tbody>
-          {[...manufacturers.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([manufacturer, items]) => {
-            const key = `manufacturer:${manufacturer}`;
-            const ids = expenseIds(items);
-            const isOpen = expanded.has(key);
-            return (
-              <FragmentGroup key={key}>
-                <tr>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={ids.length > 0 && ids.every((id) => selectedIds.has(id))}
-                      onChange={() => toggleGroup(ids)}
-                      aria-label={`Select expenses from ${manufacturer || 'Unspecified manufacturer'}`}
-                    />
-                    <button type="button" className="link-button" aria-expanded={isOpen} onClick={() => toggle(key)}>
-                      {isOpen ? '▾' : '▸'} {manufacturer || 'Unspecified manufacturer'}
-                    </button>
-                  </td>
-                  <td>{items.length}</td>
-                  <td className="numeric">{formatCents(sum(items), currency)}</td>
-                </tr>
-                {isOpen && items.map((line) => (
-                  <LineRow key={line.lineId} line={line} currency={currency} formatDate={formatDate} onOpenExpense={onOpenExpense} />
-                ))}
-              </FragmentGroup>
-            );
-          })}
+          {[...manufacturers.entries()]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([manufacturer, items]) => {
+              const key = `manufacturer:${manufacturer}`;
+              const ids = expenseIds(items);
+              const isOpen = expanded.has(key);
+              return (
+                <FragmentGroup key={key}>
+                  <tr>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={ids.length > 0 && ids.every((id) => selectedIds.has(id))}
+                        onChange={() => toggleGroup(ids)}
+                        aria-label={`Select expenses from ${manufacturer || 'Unspecified manufacturer'}`}
+                      />
+                      <button
+                        type="button"
+                        className="link-button"
+                        aria-expanded={isOpen}
+                        onClick={() => toggle(key)}
+                      >
+                        {isOpen ? '▾' : '▸'} {manufacturer || 'Unspecified manufacturer'}
+                      </button>
+                    </td>
+                    <td>{items.length}</td>
+                    <td className="numeric">{formatCents(sum(items), currency)}</td>
+                  </tr>
+                  {isOpen &&
+                    items.map((line) => (
+                      <LineRow
+                        key={line.lineId}
+                        line={line}
+                        currency={currency}
+                        formatDate={formatDate}
+                        onOpenExpense={onOpenExpense}
+                      />
+                    ))}
+                </FragmentGroup>
+              );
+            })}
         </tbody>
         <ReportFooter count={lines.length} total={grandTotal} currency={currency} />
       </table>
@@ -208,7 +249,8 @@ function LineRow({
         <span className="muted"> · {formatDate(line.incurredAt)}</span>
       </td>
       <td>
-        {line.type} · {line.manufacturer || 'Unspecified manufacturer'} · {line.category || 'Uncategorized'}
+        {line.type} · {line.manufacturer || 'Unspecified manufacturer'} ·{' '}
+        {line.category || 'Uncategorized'}
         {line.subcategory ? ` / ${line.subcategory}` : ''}
       </td>
       <td className="numeric">
@@ -225,7 +267,15 @@ function LineRow({
   );
 }
 
-function ReportFooter({ count, total, currency }: { count: number; total: number; currency: string }) {
+function ReportFooter({
+  count,
+  total,
+  currency,
+}: {
+  count: number;
+  total: number;
+  currency: string;
+}) {
   return (
     <tfoot>
       <tr>

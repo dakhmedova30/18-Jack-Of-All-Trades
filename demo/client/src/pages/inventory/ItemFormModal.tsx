@@ -26,7 +26,8 @@ interface ItemFormModalProps {
   onSubmit: (input: ItemInput) => Promise<void>;
 }
 
-type FieldName = 'name' | 'quantity' | 'unitPrice' | 'width' | 'height' | 'amountSold' | 'tags' | 'note';
+type FieldName =
+  'name' | 'quantity' | 'unitPrice' | 'width' | 'height' | 'amountSold' | 'tags' | 'note';
 type FormValues = Record<FieldName, string>;
 type FieldErrors = Partial<Record<FieldName, string>>;
 

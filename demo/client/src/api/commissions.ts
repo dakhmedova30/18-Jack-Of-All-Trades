@@ -1,9 +1,4 @@
-import type {
-  Commission,
-  CommissionExpense,
-  CommissionInput,
-  OnlineExpenseInput,
-} from '../types';
+import type { Commission, CommissionExpense, CommissionInput, OnlineExpenseInput } from '../types';
 import { apiRequest } from './http';
 
 export function listCommissions(): Promise<Commission[]> {
@@ -42,8 +37,13 @@ export function deleteUnassignedCommissionExpense(id: number): Promise<void> {
   return apiRequest(`/commissions/expenses/unassigned/${id}`, { method: 'DELETE' });
 }
 
-export function bulkDeleteUnassignedCommissionExpenses(ids: number[]): Promise<{ deleted: number }> {
-  return apiRequest('/commissions/expenses/unassigned/bulk-delete', { method: 'POST', json: { ids } });
+export function bulkDeleteUnassignedCommissionExpenses(
+  ids: number[],
+): Promise<{ deleted: number }> {
+  return apiRequest('/commissions/expenses/unassigned/bulk-delete', {
+    method: 'POST',
+    json: { ids },
+  });
 }
 
 export function createCommissionExpense(
@@ -58,7 +58,10 @@ export function updateCommissionExpense(
   id: number,
   input: OnlineExpenseInput,
 ): Promise<CommissionExpense> {
-  return apiRequest(`/commissions/${commissionId}/expenses/${id}`, { method: 'PATCH', json: input });
+  return apiRequest(`/commissions/${commissionId}/expenses/${id}`, {
+    method: 'PATCH',
+    json: input,
+  });
 }
 
 export function deleteCommissionExpense(commissionId: number, id: number): Promise<void> {

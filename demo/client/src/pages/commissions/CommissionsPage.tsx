@@ -21,7 +21,10 @@ import { formatCents } from '../../utils/money';
 import { CommissionFormModal } from './CommissionFormModal';
 
 type FormState = { kind: 'create' } | { kind: 'edit'; commission: Commission } | null;
-type DeleteTarget = { kind: 'commissions'; commissions: Commission[] } | { kind: 'expenses'; expenses: CommissionExpense[] } | null;
+type DeleteTarget =
+  | { kind: 'commissions'; commissions: Commission[] }
+  | { kind: 'expenses'; expenses: CommissionExpense[] }
+  | null;
 
 export function CommissionsPage() {
   const { data, error, loading, reload } = useLoad(listCommissions);
@@ -34,7 +37,8 @@ export function CommissionsPage() {
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
   const commissions = data ?? [];
   const detachedExpenses = orphanedExpenses.data ?? [];
-  const allSelected = commissions.length > 0 && commissions.every((commission) => selected.has(commission.id));
+  const allSelected =
+    commissions.length > 0 && commissions.every((commission) => selected.has(commission.id));
   const knownTags = [...new Set(commissions.flatMap((commission) => commission.tags))];
   const currency = commissions[0]?.currency ?? accountCurrency;
   const totals = commissions.reduce(
@@ -74,8 +78,8 @@ export function CommissionsPage() {
       const ids = deleteTarget.expenses.map((expense) => expense.id);
       if (ids.length === 1) await deleteUnassignedCommissionExpense(ids[0]);
       else await bulkDeleteUnassignedCommissionExpenses(ids);
-      setSelectedOrphanExpenses((current) =>
-        new Set([...current].filter((id) => !ids.includes(id))),
+      setSelectedOrphanExpenses(
+        (current) => new Set([...current].filter((id) => !ids.includes(id))),
       );
     }
     setDeleteTarget(null);
@@ -87,7 +91,9 @@ export function CommissionsPage() {
     <section className="page">
       <div>
         <h1>Commissions</h1>
-        <p className="muted">Track requests, deadlines, itemized sales and expenses for each commission.</p>
+        <p className="muted">
+          Track requests, deadlines, itemized sales and expenses for each commission.
+        </p>
       </div>
       <div className="toolbar">
         <div className="toolbar__actions">
@@ -126,7 +132,9 @@ export function CommissionsPage() {
                   type="checkbox"
                   checked={allSelected}
                   onChange={() =>
-                    setSelected(allSelected ? new Set() : new Set(commissions.map((entry) => entry.id)))
+                    setSelected(
+                      allSelected ? new Set() : new Set(commissions.map((entry) => entry.id)),
+                    )
                   }
                   aria-label="Select all commissions"
                 />
@@ -187,12 +195,21 @@ export function CommissionsPage() {
                 <td>
                   <TagList tags={commission.tags} />
                 </td>
-                <td className="numeric">{formatCents(commission.expensesCents, commission.currency)}</td>
-                <td className="numeric">{formatCents(commission.revenueCents, commission.currency)}</td>
                 <td className="numeric">
-                  {formatCents(Number.isFinite(commission.tipsCents) ? commission.tipsCents : 0, commission.currency)}
+                  {formatCents(commission.expensesCents, commission.currency)}
                 </td>
-                <td className="numeric">{formatCents(commission.profitCents, commission.currency)}</td>
+                <td className="numeric">
+                  {formatCents(commission.revenueCents, commission.currency)}
+                </td>
+                <td className="numeric">
+                  {formatCents(
+                    Number.isFinite(commission.tipsCents) ? commission.tipsCents : 0,
+                    commission.currency,
+                  )}
+                </td>
+                <td className="numeric">
+                  {formatCents(commission.profitCents, commission.currency)}
+                </td>
                 <td className="table__action">
                   <button
                     type="button"
@@ -228,7 +245,11 @@ export function CommissionsPage() {
         {data && commissions.length === 0 && (
           <div className="empty-state">
             <p>Add your first commission to start tracking requests, sales and expenses</p>
-            <button type="button" className="button" onClick={() => setFormState({ kind: 'create' })}>
+            <button
+              type="button"
+              className="button"
+              onClick={() => setFormState({ kind: 'create' })}
+            >
               Add <PlusIcon />
             </button>
           </div>
@@ -238,8 +259,8 @@ export function CommissionsPage() {
         <section>
           <h2>Detached commission expenses</h2>
           <p className="muted">
-            These expenses were kept when their commission was deleted. They are no longer included in a
-            commission total.
+            These expenses were kept when their commission was deleted. They are no longer included
+            in a commission total.
           </p>
           <div className="toolbar">
             <button
@@ -249,12 +270,14 @@ export function CommissionsPage() {
               onClick={() =>
                 setDeleteTarget({
                   kind: 'expenses',
-                  expenses: detachedExpenses.filter((expense) => selectedOrphanExpenses.has(expense.id)),
+                  expenses: detachedExpenses.filter((expense) =>
+                    selectedOrphanExpenses.has(expense.id),
+                  ),
                 })
               }
             >
-              Delete detached expenses{selectedOrphanExpenses.size > 0 && ` (${selectedOrphanExpenses.size})`}{' '}
-              <TrashIcon />
+              Delete detached expenses
+              {selectedOrphanExpenses.size > 0 && ` (${selectedOrphanExpenses.size})`} <TrashIcon />
             </button>
           </div>
           <div className="table-wrap">
@@ -270,7 +293,9 @@ export function CommissionsPage() {
                       }
                       onChange={() =>
                         setSelectedOrphanExpenses(
-                          detachedExpenses.every((expense) => selectedOrphanExpenses.has(expense.id))
+                          detachedExpenses.every((expense) =>
+                            selectedOrphanExpenses.has(expense.id),
+                          )
                             ? new Set()
                             : new Set(detachedExpenses.map((expense) => expense.id)),
                         )
@@ -314,7 +339,9 @@ export function CommissionsPage() {
                       <TagList tags={expense.tags} />
                     </td>
                     <td>{expense.currency}</td>
-                    <td className="numeric">{formatCents(expense.amountCents, expense.currency)}</td>
+                    <td className="numeric">
+                      {formatCents(expense.amountCents, expense.currency)}
+                    </td>
                     <td className="table__action">
                       <button
                         type="button"

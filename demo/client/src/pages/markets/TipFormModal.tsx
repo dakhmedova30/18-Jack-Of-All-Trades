@@ -18,7 +18,9 @@ interface TipFormModalProps {
 /** A tip is saved as a dated, item-free sale on the market, so it counts toward revenue. */
 export function TipFormModal({ market, channelId, sale, onCancel, onSubmit }: TipFormModalProps) {
   const [date, setDate] = useState(sale ? isoToDateInputValue(sale.soldAt) : market.startDate);
-  const [amount, setAmount] = useState(sale ? centsToInputValue(sale.items[0]?.totalCents ?? 0) : '');
+  const [amount, setAmount] = useState(
+    sale ? centsToInputValue(sale.items[0]?.totalCents ?? 0) : '',
+  );
   const [errors, setErrors] = useState<{ date?: string; amount?: string }>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -72,7 +74,12 @@ export function TipFormModal({ market, channelId, sale, onCancel, onSubmit }: Ti
         <FormRow label="Date" htmlFor="tip-date" error={errors.date} required>
           <input id="tip-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </FormRow>
-        <FormRow label={`Amount (${market.currency})`} htmlFor="tip-amount" error={errors.amount} required>
+        <FormRow
+          label={`Amount (${market.currency})`}
+          htmlFor="tip-amount"
+          error={errors.amount}
+          required
+        >
           <input
             id="tip-amount"
             inputMode="decimal"

@@ -11,7 +11,12 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { PlusIcon, TrashIcon } from '../../components/icons';
 import { useCurrency } from '../../hooks/useCurrency';
 import { useLoad } from '../../hooks/useLoad';
-import { CURRENCY_CODES, type CurrencyCode, type OnlineExpenseInput, type SaleInput } from '../../types';
+import {
+  CURRENCY_CODES,
+  type CurrencyCode,
+  type OnlineExpenseInput,
+  type SaleInput,
+} from '../../types';
 import { formatCents } from '../../utils/money';
 import { MarketSaleFormModal } from '../markets/MarketSaleFormModal';
 import { OnlineExpenseFormModal } from './OnlineExpenseFormModal';
@@ -81,7 +86,9 @@ export function OnlineShopPage() {
   async function handleConfirmDelete() {
     if (!deleteMonths) return;
     await deleteOnlineMonths(deleteMonths);
-    setSelected((current) => new Set([...current].filter((month) => !deleteMonths.includes(month))));
+    setSelected(
+      (current) => new Set([...current].filter((month) => !deleteMonths.includes(month))),
+    );
     setDeleteMonths(null);
     reloadAll();
   }
@@ -146,7 +153,9 @@ export function OnlineShopPage() {
                   type="checkbox"
                   checked={allSelected}
                   onChange={() =>
-                    setSelected(allSelected ? new Set() : new Set(months.map((entry) => entry.month)))
+                    setSelected(
+                      allSelected ? new Set() : new Set(months.map((entry) => entry.month)),
+                    )
                   }
                   aria-label="Select all months"
                 />

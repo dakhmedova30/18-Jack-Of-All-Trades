@@ -80,8 +80,10 @@ export type CurrencyCode = (typeof CURRENCY_CODES)[number];
 export const SIZE_UNITS = ['in', 'cm', 'mm', 'ft'] as const;
 export type SizeUnit = (typeof SIZE_UNITS)[number];
 
-export interface ItemInput
-  extends Pick<Item, 'name' | 'quantity' | 'unitPriceCents' | 'tags' | 'note' | 'isPublic'> {
+export interface ItemInput extends Pick<
+  Item,
+  'name' | 'quantity' | 'unitPriceCents' | 'tags' | 'note' | 'isPublic'
+> {
   currency: CurrencyCode;
   width: number | null;
   height: number | null;

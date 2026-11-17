@@ -15,7 +15,12 @@ import {
   type SaleInput,
 } from '../../types';
 import { dateInputValueToIso, isoToDateInputValue } from '../../utils/date';
-import { centsToInputValue, formatCents, MAX_AMOUNT_CENTS, parseDollarsToCents } from '../../utils/money';
+import {
+  centsToInputValue,
+  formatCents,
+  MAX_AMOUNT_CENTS,
+  parseDollarsToCents,
+} from '../../utils/money';
 
 /** The target that determines where this itemized sale is recorded. */
 export interface SaleTarget {
@@ -103,7 +108,9 @@ function estimateDiscount(discount: Discount, prices: number[]): number {
     while (index < sorted.length) {
       const tier = tiers.filter((entry) => entry.count <= sorted.length - index).at(-1);
       if (!tier) break;
-      const regular = sorted.slice(index, index + tier.count).reduce((sum, price) => sum + price, 0);
+      const regular = sorted
+        .slice(index, index + tier.count)
+        .reduce((sum, price) => sum + price, 0);
       amount += Math.max(0, regular - tier.priceCents);
       index += tier.count;
     }
@@ -111,11 +118,18 @@ function estimateDiscount(discount: Discount, prices: number[]): number {
   return Math.max(0, Math.min(amount, subtotal));
 }
 
-export function MarketSaleFormModal({ target, sale, onCancel, onSubmit }: MarketSaleFormModalProps) {
+export function MarketSaleFormModal({
+  target,
+  sale,
+  onCancel,
+  onSubmit,
+}: MarketSaleFormModalProps) {
   const isEditing = sale !== undefined;
   const [items, setItems] = useState<Item[] | null>(null);
   const [discounts, setDiscounts] = useState<Discount[]>([]);
-  const [inPersonChannelId, setInPersonChannelId] = useState<number | null>(sale?.channel?.id ?? null);
+  const [inPersonChannelId, setInPersonChannelId] = useState<number | null>(
+    sale?.channel?.id ?? null,
+  );
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [date, setDate] = useState(() =>
@@ -190,7 +204,7 @@ export function MarketSaleFormModal({ target, sale, onCancel, onSubmit }: Market
     const amount = estimateDiscount(discount, eligible);
     return total + (discount.isCharge ? amount : -amount);
   }, 0);
-  const parsedTip = tip.trim() ? parseDollarsToCents(tip) ?? 0 : 0;
+  const parsedTip = tip.trim() ? (parseDollarsToCents(tip) ?? 0) : 0;
   const estimatedGross = lines.reduce((sum, line) => {
     if (line.isFree || line.isTrade) return sum;
     const quantity = Number(line.quantity);
@@ -219,12 +233,17 @@ export function MarketSaleFormModal({ target, sale, onCancel, onSubmit }: Market
 
   function updateLine(key: string, changes: Partial<LineState>) {
     setDirty(true);
-    setLines((current) => current.map((line) => (line.key === key ? { ...line, ...changes } : line)));
+    setLines((current) =>
+      current.map((line) => (line.key === key ? { ...line, ...changes } : line)),
+    );
     setLineErrors((current) => ({ ...current, [key]: '' }));
   }
 
   function handleCancel() {
-    if (dirty && !window.confirm('You have unsaved information. Are you sure you want to discard it?')) {
+    if (
+      dirty &&
+      !window.confirm('You have unsaved information. Are you sure you want to discard it?')
+    ) {
       return;
     }
     onCancel();
@@ -251,9 +270,12 @@ export function MarketSaleFormModal({ target, sale, onCancel, onSubmit }: Market
       const itemId = customItem ? null : Number(line.itemId);
       const quantity = Number(line.quantity);
       let unitPriceCents: number | null = null;
-      if (customItem && target.miscId === null) errors[line.key] = 'One-time items are only available in Miscellaneous';
-      else if (customItem && !line.itemName.trim()) errors[line.key] = 'Enter a name for the one-time item';
-      else if (!customItem && (!line.itemId || !itemById.has(Number(line.itemId)))) errors[line.key] = 'Pick an item';
+      if (customItem && target.miscId === null)
+        errors[line.key] = 'One-time items are only available in Miscellaneous';
+      else if (customItem && !line.itemName.trim())
+        errors[line.key] = 'Enter a name for the one-time item';
+      else if (!customItem && (!line.itemId || !itemById.has(Number(line.itemId))))
+        errors[line.key] = 'Pick an item';
       else if (!Number.isInteger(quantity) || quantity <= 0)
         errors[line.key] = 'Enter a whole number, 1 or more';
       else if (line.price.trim() !== '' && !line.isFree && !line.isTrade) {
@@ -381,7 +403,9 @@ export function MarketSaleFormModal({ target, sale, onCancel, onSubmit }: Market
                 <select
                   id={`market-sale-item-${index}`}
                   value={line.itemId}
-                  onChange={(event) => updateLine(line.key, { itemId: event.target.value, itemName: '', price: '' })}
+                  onChange={(event) =>
+                    updateLine(line.key, { itemId: event.target.value, itemName: '', price: '' })
+                  }
                 >
                   <option value="">Pick an item</option>
                   {selectableItems.map((entry) => (
@@ -417,8 +441,8 @@ export function MarketSaleFormModal({ target, sale, onCancel, onSubmit }: Market
                     line.itemId === 'custom' && !adjusted
                       ? `Price (${currency})`
                       : item && !adjusted
-                      ? `Change price (now ${centsToInputValue(item.unitPriceCents)} ${item.currency})`
-                      : 'Change price'
+                        ? `Change price (now ${centsToInputValue(item.unitPriceCents)} ${item.currency})`
+                        : 'Change price'
                   }
                   onChange={(event) => updateLine(line.key, { price: event.target.value })}
                 />
@@ -503,7 +527,11 @@ export function MarketSaleFormModal({ target, sale, onCancel, onSubmit }: Market
           </div>
         </FormRow>
 
-        <FormRow label={`Tip (${currency})`} htmlFor="market-sale-tip" error={tipError ?? undefined}>
+        <FormRow
+          label={`Tip (${currency})`}
+          htmlFor="market-sale-tip"
+          error={tipError ?? undefined}
+        >
           <input
             id="market-sale-tip"
             inputMode="decimal"
@@ -523,7 +551,10 @@ export function MarketSaleFormModal({ target, sale, onCancel, onSubmit }: Market
             <span className="muted"> Currency conversion may change this estimate.</span>
           )}
           {hasLargeQuantity && (
-            <span className="muted"> Discount estimate is limited for quantities over 1,000 per line.</span>
+            <span className="muted">
+              {' '}
+              Discount estimate is limited for quantities over 1,000 per line.
+            </span>
           )}
         </div>
 

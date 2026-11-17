@@ -54,8 +54,12 @@ export function DiscountFormModal({ discount, onCancel, onSubmit }: DiscountForm
   );
   const [valueType, setValueType] = useState<DiscountValueType>(discount?.valueType ?? 'PERCENT');
   const [value, setValue] = useState(discount?.value != null ? String(discount.value) : '');
-  const [buyCount, setBuyCount] = useState(discount?.buyCount != null ? String(discount.buyCount) : '');
-  const [getCount, setGetCount] = useState(discount?.getCount != null ? String(discount.getCount) : '');
+  const [buyCount, setBuyCount] = useState(
+    discount?.buyCount != null ? String(discount.buyCount) : '',
+  );
+  const [getCount, setGetCount] = useState(
+    discount?.getCount != null ? String(discount.getCount) : '',
+  );
   const [tiers, setTiers] = useState<TierRow[]>(
     discount && discount.tiers.length > 0
       ? discount.tiers.map((tier) => ({
@@ -77,7 +81,10 @@ export function DiscountFormModal({ discount, onCancel, onSubmit }: DiscountForm
   }
 
   function handleCancel() {
-    if (dirty && !window.confirm('You have unsaved information. Are you sure you want to discard it?')) {
+    if (
+      dirty &&
+      !window.confirm('You have unsaved information. Are you sure you want to discard it?')
+    ) {
       return;
     }
     onCancel();
@@ -102,7 +109,8 @@ export function DiscountFormModal({ discount, onCancel, onSubmit }: DiscountForm
     if (kind === 'PRESET' || kind === 'SOLID') {
       const cents = parseDollarsToCents(value);
       if (cents === null || cents < 0) found.value = 'Enter a number like 10 or 2.50';
-      else if (valueType === 'PERCENT' && cents > 10000) found.value = 'A percentage can’t be more than 100';
+      else if (valueType === 'PERCENT' && cents > 10000)
+        found.value = 'A percentage can’t be more than 100';
       else parsedValue = cents / 100;
     }
     if (kind === 'PER_AMOUNT') {
@@ -218,13 +226,13 @@ export function DiscountFormModal({ discount, onCancel, onSubmit }: DiscountForm
             onChange={(event) => touch(setAppliesTo)(event.target.value)}
           >
             <option value="">All items</option>
-            {[...new Set([...(appliesToOptions.data ?? []), ...(appliesTo ? [appliesTo] : [])])].map(
-              (tag) => (
-                <option key={tag} value={tag}>
-                  {tag}
-                </option>
-              ),
-            )}
+            {[
+              ...new Set([...(appliesToOptions.data ?? []), ...(appliesTo ? [appliesTo] : [])]),
+            ].map((tag) => (
+              <option key={tag} value={tag}>
+                {tag}
+              </option>
+            ))}
           </select>
         </FormRow>
 

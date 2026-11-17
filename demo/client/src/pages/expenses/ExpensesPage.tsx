@@ -101,7 +101,6 @@ export function ExpensesPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setLineReportLoading(true);
     listExpenseLines()
       .then((lines) => {
         if (cancelled) return;
@@ -109,7 +108,10 @@ export function ExpensesPage() {
         setLineReportError(null);
       })
       .catch((error: unknown) => {
-        if (!cancelled) setLineReportError(error instanceof Error ? error.message : 'Could not load expense lines');
+        if (!cancelled)
+          setLineReportError(
+            error instanceof Error ? error.message : 'Could not load expense lines',
+          );
       })
       .finally(() => {
         if (!cancelled) setLineReportLoading(false);
@@ -119,11 +121,16 @@ export function ExpensesPage() {
     };
   }, [reportReload]);
 
+  function reloadReport() {
+    setLineReportLoading(true);
+    setReportReload((current) => current + 1);
+  }
+
   // Any add/edit/delete can change this month's split, so refresh both together.
   function reload() {
     reloadExpenses();
     breakdown.reload();
-    setReportReload((current) => current + 1);
+    reloadReport();
   }
 
   /** Clicking the current sort column flips its direction; a new column starts ascending. */
@@ -186,13 +193,16 @@ export function ExpensesPage() {
     if (page > 1 && removedFromPage === expenses.length) {
       setPage(page - 1);
       breakdown.reload();
-      setReportReload((current) => current + 1);
+      reloadReport();
     } else reload();
   }
 
   const isEmpty = data !== undefined && data.total === 0;
   const reportOptions = lineReport ?? [];
-  const categories = useMemo(() => [...new Set(reportOptions.map((line) => line.category))].sort(), [reportOptions]);
+  const categories = useMemo(
+    () => [...new Set(reportOptions.map((line) => line.category))].sort(),
+    [reportOptions],
+  );
   const subcategories = useMemo(
     () => [...new Set(reportOptions.map((line) => line.subcategory))].sort(),
     [reportOptions],
@@ -280,14 +290,20 @@ export function ExpensesPage() {
           >
             <option value="__all__">All categories</option>
             <option value="__blank__">Uncategorized</option>
-            {categories.filter(Boolean).map((value) => <option key={value} value={value}>{value}</option>)}
+            {categories.filter(Boolean).map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
           </select>
         </div>
         <div className="form-row">
           <label htmlFor="expense-filter-subcategory">Sub-category</label>
           <select
             id="expense-filter-subcategory"
-            value={subcategory === undefined ? '__all__' : subcategory === '' ? '__blank__' : subcategory}
+            value={
+              subcategory === undefined ? '__all__' : subcategory === '' ? '__blank__' : subcategory
+            }
             onChange={(event) => {
               const value = event.target.value;
               setSubcategory(value === '__all__' ? undefined : value === '__blank__' ? '' : value);
@@ -296,14 +312,24 @@ export function ExpensesPage() {
           >
             <option value="__all__">All sub-categories</option>
             <option value="__blank__">Uncategorized</option>
-            {subcategories.filter(Boolean).map((value) => <option key={value} value={value}>{value}</option>)}
+            {subcategories.filter(Boolean).map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
           </select>
         </div>
         <div className="form-row">
           <label htmlFor="expense-filter-manufacturer">Manufacturer</label>
           <select
             id="expense-filter-manufacturer"
-            value={manufacturer === undefined ? '__all__' : manufacturer === '' ? '__blank__' : manufacturer}
+            value={
+              manufacturer === undefined
+                ? '__all__'
+                : manufacturer === ''
+                  ? '__blank__'
+                  : manufacturer
+            }
             onChange={(event) => {
               const value = event.target.value;
               setManufacturer(value === '__all__' ? undefined : value === '__blank__' ? '' : value);
@@ -312,7 +338,11 @@ export function ExpensesPage() {
           >
             <option value="__all__">All manufacturers</option>
             <option value="__blank__">Unspecified</option>
-            {manufacturers.filter(Boolean).map((value) => <option key={value} value={value}>{value}</option>)}
+            {manufacturers.filter(Boolean).map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
           </select>
         </div>
         <div className="form-row">
@@ -326,19 +356,43 @@ export function ExpensesPage() {
             }}
           >
             <option value="">All types</option>
-            {EXPENSE_LINE_TYPES.map((value) => <option key={value} value={value}>{value}</option>)}
+            {EXPENSE_LINE_TYPES.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
           </select>
         </div>
         <div className="form-row">
           <label htmlFor="expense-filter-from">Date from</label>
-          <input id="expense-filter-from" type="date" value={from} onChange={(event) => { setFrom(event.target.value); setPage(1); }} />
+          <input
+            id="expense-filter-from"
+            type="date"
+            value={from}
+            onChange={(event) => {
+              setFrom(event.target.value);
+              setPage(1);
+            }}
+          />
         </div>
         <div className="form-row">
           <label htmlFor="expense-filter-to">Date to</label>
-          <input id="expense-filter-to" type="date" value={to} onChange={(event) => { setTo(event.target.value); setPage(1); }} />
+          <input
+            id="expense-filter-to"
+            type="date"
+            value={to}
+            onChange={(event) => {
+              setTo(event.target.value);
+              setPage(1);
+            }}
+          />
         </div>
       </div>
-      {invalidDateRange && <p className="form-error" role="alert">The start date must be on or before the end date.</p>}
+      {invalidDateRange && (
+        <p className="form-error" role="alert">
+          The start date must be on or before the end date.
+        </p>
+      )}
 
       <div className="toolbar">
         <div className="toolbar__actions">
@@ -382,126 +436,136 @@ export function ExpensesPage() {
         </div>
       )}
       {openExpenseError && (
-        <div className="banner banner--error" role="alert">{openExpenseError}</div>
+        <div className="banner banner--error" role="alert">
+          {openExpenseError}
+        </div>
       )}
       {lineReportError && view !== 'individual' && (
         <div className="banner banner--error" role="alert">
           {lineReportError}{' '}
-          <button type="button" className="link-button" onClick={reload}>Retry</button>
+          <button type="button" className="link-button" onClick={reload}>
+            Retry
+          </button>
         </div>
       )}
 
       {view === 'individual' ? (
-      <div className={`table-wrap${loading && data ? ' is-loading' : ''}`}>
-        <table className="table">
-          <thead>
-            <tr>
-              <th className="table__check">
-                <input
-                  type="checkbox"
-                  checked={allOnPageSelected}
-                  onChange={toggleSelectAllOnPage}
-                  aria-label="Select all expenses on this page"
-                />
-              </th>
-              {SORTABLE_COLUMNS.map(({ field, label, numeric }) => {
-                const active = sort.field === field;
-                return (
-                  <Fragment key={field}>
-                    <th
-                      className={numeric ? 'numeric' : undefined}
-                      aria-sort={
-                        active ? (sort.order === 'asc' ? 'ascending' : 'descending') : 'none'
-                      }
-                    >
-                      <button
-                        type="button"
-                        className={`sort-button${active ? ' is-active' : ''}`}
-                        onClick={() => toggleSort(field)}
-                      >
-                        {label}
-                        <span className="sort-button__arrow" aria-hidden="true">
-                          {active ? (sort.order === 'asc' ? '▲' : '▼') : '↕'}
-                        </span>
-                      </button>
-                    </th>
-                    {/* Description sits between Date and Total; it isn't sortable. */}
-                    {field === 'incurredAt' && <th>Description</th>}
-                  </Fragment>
-                );
-              })}
-              <th className="table__action">Delete</th>
-            </tr>
-          </thead>
-          <tbody>
-            {expenses.map((expense) => (
-              <tr
-                key={expense.id}
-                className="table__row"
-                tabIndex={0}
-                aria-label={`Edit expense ${expense.id}`}
-                onClick={() => setFormState({ mode: 'edit', expense })}
-                onKeyDown={(event) => {
-                  if (event.target !== event.currentTarget) return;
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    setFormState({ mode: 'edit', expense });
-                  }
-                }}
-              >
-                <td className="table__check" onClick={(event) => event.stopPropagation()}>
+        <div className={`table-wrap${loading && data ? ' is-loading' : ''}`}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th className="table__check">
                   <input
                     type="checkbox"
-                    checked={selectedIds.has(expense.id)}
-                    onChange={() => toggleSelected(expense.id)}
-                    aria-label={`Select expense ${expense.id}`}
+                    checked={allOnPageSelected}
+                    onChange={toggleSelectAllOnPage}
+                    aria-label="Select all expenses on this page"
                   />
-                </td>
-                <td>{expense.id}</td>
-                <td>{formatDate(expense.incurredAt)}</td>
-                <td className="expense-description">{describeExpenseLines(expense)}</td>
-                <td className="numeric">{formatCents(expense.totalCents, currency)}</td>
-                <td>
-                  <TagList tags={expense.tags} />
-                </td>
-                <td className="table__action">
-                  <button
-                    type="button"
-                    className="icon-button"
-                    aria-label={`Delete expense ${expense.id}`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setDeleteTarget({ kind: 'single', expense });
-                    }}
-                  >
-                    <TrashIcon />
-                  </button>
-                </td>
+                </th>
+                {SORTABLE_COLUMNS.map(({ field, label, numeric }) => {
+                  const active = sort.field === field;
+                  return (
+                    <Fragment key={field}>
+                      <th
+                        className={numeric ? 'numeric' : undefined}
+                        aria-sort={
+                          active ? (sort.order === 'asc' ? 'ascending' : 'descending') : 'none'
+                        }
+                      >
+                        <button
+                          type="button"
+                          className={`sort-button${active ? ' is-active' : ''}`}
+                          onClick={() => toggleSort(field)}
+                        >
+                          {label}
+                          <span className="sort-button__arrow" aria-hidden="true">
+                            {active ? (sort.order === 'asc' ? '▲' : '▼') : '↕'}
+                          </span>
+                        </button>
+                      </th>
+                      {/* Description sits between Date and Total; it isn't sortable. */}
+                      {field === 'incurredAt' && <th>Description</th>}
+                    </Fragment>
+                  );
+                })}
+                <th className="table__action">Delete</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {expenses.map((expense) => (
+                <tr
+                  key={expense.id}
+                  className="table__row"
+                  tabIndex={0}
+                  aria-label={`Edit expense ${expense.id}`}
+                  onClick={() => setFormState({ mode: 'edit', expense })}
+                  onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) return;
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setFormState({ mode: 'edit', expense });
+                    }
+                  }}
+                >
+                  <td className="table__check" onClick={(event) => event.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(expense.id)}
+                      onChange={() => toggleSelected(expense.id)}
+                      aria-label={`Select expense ${expense.id}`}
+                    />
+                  </td>
+                  <td>{expense.id}</td>
+                  <td>{formatDate(expense.incurredAt)}</td>
+                  <td className="expense-description">{describeExpenseLines(expense)}</td>
+                  <td className="numeric">{formatCents(expense.totalCents, currency)}</td>
+                  <td>
+                    <TagList tags={expense.tags} />
+                  </td>
+                  <td className="table__action">
+                    <button
+                      type="button"
+                      className="icon-button"
+                      aria-label={`Delete expense ${expense.id}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setDeleteTarget({ kind: 'single', expense });
+                      }}
+                    >
+                      <TrashIcon />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-        {!data && loading && <p className="empty-state">Loading…</p>}
-        {isEmpty && !search && (
-          <div className="empty-state">
-            <p>Add a new expense into the table</p>
-            <button
-              type="button"
-              className="button"
-              onClick={() => setFormState({ mode: 'create' })}
-            >
-              Add <PlusIcon />
-            </button>
-          </div>
-        )}
-        {isEmpty && search && <p className="empty-state">No expenses match “{search}”.</p>}
-      </div>
+          {!data && loading && <p className="empty-state">Loading…</p>}
+          {isEmpty && !search && (
+            <div className="empty-state">
+              <p>Add a new expense into the table</p>
+              <button
+                type="button"
+                className="button"
+                onClick={() => setFormState({ mode: 'create' })}
+              >
+                Add <PlusIcon />
+              </button>
+            </div>
+          )}
+          {isEmpty && search && <p className="empty-state">No expenses match “{search}”.</p>}
+        </div>
       ) : (
         <div className={lineReportLoading ? 'is-loading' : undefined}>
-          {lineReportLoading && !lineReport && <p className="empty-state">Loading expense lines…</p>}
+          {lineReportLoading && !lineReport && (
+            <p className="empty-state">Loading expense lines…</p>
+          )}
           {!lineReportLoading && reportLines.length === 0 && (
-            <p className="empty-state">{invalidDateRange ? 'Choose a valid date range.' : 'No expense lines match these filters.'}</p>
+            <p className="empty-state">
+              {invalidDateRange
+                ? 'Choose a valid date range.'
+                : 'No expense lines match these filters.'}
+            </p>
           )}
           {reportLines.length > 0 && (
             <>

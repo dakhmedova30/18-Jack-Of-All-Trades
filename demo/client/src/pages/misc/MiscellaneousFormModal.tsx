@@ -19,14 +19,19 @@ export function MiscellaneousFormModal({
   onSubmit,
 }: MiscellaneousFormModalProps) {
   const [name, setName] = useState(record?.name ?? '');
-  const [receivedOn, setReceivedOn] = useState(record?.receivedOn ?? new Date().toISOString().slice(0, 10));
+  const [receivedOn, setReceivedOn] = useState(
+    record?.receivedOn ?? new Date().toISOString().slice(0, 10),
+  );
   const [tags, setTags] = useState<string[]>(record?.tags ?? []);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [dirty, setDirty] = useState(false);
 
   function close() {
-    if (dirty && !window.confirm('You have unsaved information. Are you sure you want to discard it?')) {
+    if (
+      dirty &&
+      !window.confirm('You have unsaved information. Are you sure you want to discard it?')
+    ) {
       return;
     }
     onCancel();

@@ -426,9 +426,7 @@ export function InventoryPage() {
                 <td colSpan={2}>Totals (this page)</td>
                 <td className="numeric">{items.reduce((sum, item) => sum + item.quantity, 0)}</td>
                 <td />
-                <td className="numeric">
-                  {items.reduce((sum, item) => sum + item.amountSold, 0)}
-                </td>
+                <td className="numeric">{items.reduce((sum, item) => sum + item.amountSold, 0)}</td>
                 <td colSpan={4} />
               </tr>
             </tfoot>

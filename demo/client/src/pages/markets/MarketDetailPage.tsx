@@ -12,10 +12,7 @@ import { formatCents } from '../../utils/money';
 import { MarketSaleFormModal } from './MarketSaleFormModal';
 import { TipFormModal } from './TipFormModal';
 
-type FormState =
-  | { kind: 'sale'; sale?: Sale }
-  | { kind: 'tip'; sale?: Sale }
-  | null;
+type FormState = { kind: 'sale'; sale?: Sale } | { kind: 'tip'; sale?: Sale } | null;
 type DeleteTarget = { kind: 'single'; sale: Sale } | { kind: 'bulk'; ids: number[] } | null;
 
 const isTipOnly = (sale: Sale) => sale.items.every((line) => line.kind === 'TIP');
@@ -40,7 +37,10 @@ export function MarketDetailPage() {
   const marketId = Number(useParams().marketId);
   const { formatDate } = usePreferences();
   const market = useLoad(() => getMarket(marketId), [marketId]);
-  const sales = useLoad(() => listSales({ page: 1, pageSize: 100, marketId, sort: 'soldAt', order: 'asc' }), [marketId]);
+  const sales = useLoad(
+    () => listSales({ page: 1, pageSize: 100, marketId, sort: 'soldAt', order: 'asc' }),
+    [marketId],
+  );
   const channels = useLoad(listChannels);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [formState, setFormState] = useState<FormState>(null);

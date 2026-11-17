@@ -58,7 +58,10 @@ export function OnlineExpenseFormModal({
   }
 
   function handleCancel() {
-    if (dirty && !window.confirm('You have unsaved information. Are you sure you want to discard it?')) {
+    if (
+      dirty &&
+      !window.confirm('You have unsaved information. Are you sure you want to discard it?')
+    ) {
       return;
     }
     onCancel();
@@ -173,7 +176,12 @@ export function OnlineExpenseFormModal({
             ))}
           </select>
         </FormRow>
-        <FormRow label={`Amount (${currency})`} htmlFor="online-expense-amount" error={errors.amount} required>
+        <FormRow
+          label={`Amount (${currency})`}
+          htmlFor="online-expense-amount"
+          error={errors.amount}
+          required
+        >
           <input
             id="online-expense-amount"
             inputMode="decimal"

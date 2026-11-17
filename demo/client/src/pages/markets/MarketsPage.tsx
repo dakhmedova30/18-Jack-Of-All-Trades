@@ -197,7 +197,9 @@ export function MarketsPage() {
                   )}
                 </td>
                 <td className="numeric">{formatCents(market.tableFeeCents, market.currency)}</td>
-                <td className="numeric">{formatCents(market.extraExpensesCents, market.currency)}</td>
+                <td className="numeric">
+                  {formatCents(market.extraExpensesCents, market.currency)}
+                </td>
                 <td>{market.currency}</td>
                 <td onClick={(event) => event.stopPropagation()}>
                   {market.website ? (
@@ -256,7 +258,11 @@ export function MarketsPage() {
         {data && markets.length === 0 && (
           <div className="empty-state">
             <p>Add your first market to start tracking sales</p>
-            <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
+            <button
+              type="button"
+              className="button"
+              onClick={() => setFormState({ mode: 'create' })}
+            >
               Add <PlusIcon />
             </button>
           </div>

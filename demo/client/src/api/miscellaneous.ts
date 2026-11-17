@@ -1,4 +1,9 @@
-import type { MiscExpense, MiscellaneousInput, MiscellaneousRecord, OnlineExpenseInput } from '../types';
+import type {
+  MiscExpense,
+  MiscellaneousInput,
+  MiscellaneousRecord,
+  OnlineExpenseInput,
+} from '../types';
 import { apiRequest } from './http';
 
 export function listMiscellaneous(): Promise<MiscellaneousRecord[]> {
@@ -13,7 +18,10 @@ export function createMiscellaneous(input: MiscellaneousInput): Promise<Miscella
   return apiRequest('/miscellaneous', { method: 'POST', json: input });
 }
 
-export function updateMiscellaneous(id: number, input: MiscellaneousInput): Promise<MiscellaneousRecord> {
+export function updateMiscellaneous(
+  id: number,
+  input: MiscellaneousInput,
+): Promise<MiscellaneousRecord> {
   return apiRequest(`/miscellaneous/${id}`, { method: 'PATCH', json: input });
 }
 
@@ -45,8 +53,14 @@ export function deleteMiscExpense(miscId: number, id: number): Promise<void> {
   return apiRequest(`/miscellaneous/${miscId}/expenses/${id}`, { method: 'DELETE' });
 }
 
-export function bulkDeleteMiscExpenses(miscId: number, ids: number[]): Promise<{ deleted: number }> {
-  return apiRequest(`/miscellaneous/${miscId}/expenses/bulk-delete`, { method: 'POST', json: { ids } });
+export function bulkDeleteMiscExpenses(
+  miscId: number,
+  ids: number[],
+): Promise<{ deleted: number }> {
+  return apiRequest(`/miscellaneous/${miscId}/expenses/bulk-delete`, {
+    method: 'POST',
+    json: { ids },
+  });
 }
 
 export function listUnassignedMiscExpenses(): Promise<MiscExpense[]> {
@@ -58,5 +72,8 @@ export function deleteUnassignedMiscExpense(id: number): Promise<void> {
 }
 
 export function bulkDeleteUnassignedMiscExpenses(ids: number[]): Promise<{ deleted: number }> {
-  return apiRequest('/miscellaneous/expenses/unassigned/bulk-delete', { method: 'POST', json: { ids } });
+  return apiRequest('/miscellaneous/expenses/unassigned/bulk-delete', {
+    method: 'POST',
+    json: { ids },
+  });
 }
