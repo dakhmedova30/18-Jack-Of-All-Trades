@@ -131,3 +131,56 @@ describe('HomePage period', () => {
     );
   });
 });
+
+describe('HomePage revenue after a new sale', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    localStorage.clear();
+    vi.mocked(authApi.getCurrentBusiness).mockResolvedValue(undefined);
+    vi.mocked(itemApi.listItems).mockResolvedValue({
+      data: [],
+      page: 1,
+      pageSize: 1,
+      total: 0,
+      totalPages: 0,
+    });
+    vi.mocked(itemApi.getLowStock).mockResolvedValue({ count: 0, threshold: 5, items: [] });
+    vi.mocked(salesApi.listSales).mockResolvedValue({
+      data: [],
+      page: 1,
+      pageSize: 5,
+      total: 0,
+      totalPages: 0,
+    });
+  });
+
+  /** The value shown on the Revenue tile. */
+  async function revenueTileValue(): Promise<string | null> {
+    const label = await screen.findByText('Revenue · this month');
+    return label.parentElement?.querySelector('.stat-card__value')?.textContent ?? null;
+  }
+
+  it('shows the new overall revenue total when the dashboard is opened after a sale', async () => {
+    // $500 of sales so far this month.
+    vi.mocked(analyticsApi.getAnalyticsSummary).mockResolvedValue(
+      summaryFor('month', 50000, 20000),
+    );
+    const { unmount } = render(
+      <MemoryRouter>
+        <HomePage />
+      </MemoryRouter>,
+      { wrapper: PageProviders },
+    );
+    await waitFor(async () => expect(await revenueTileValue()).toBe('500.00 CAD'));
+    unmount();
+
+    // A $25 sale is recorded on the Sales page, then the user comes back to the dashboard.
+    vi.mocked(analyticsApi.getAnalyticsSummary).mockResolvedValue(
+      summaryFor('month', 52500, 20000),
+    );
+    renderHome();
+
+    await waitFor(async () => expect(await revenueTileValue()).toBe('525.00 CAD'));
+    expect(analyticsApi.getAnalyticsSummary).toHaveBeenCalledTimes(2);
+  });
+});
