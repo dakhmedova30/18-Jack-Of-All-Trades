@@ -98,6 +98,69 @@ describe('InventoryPage', () => {
     );
   });
 
+  /** The stock shown in the Qty column of `name`'s row. */
+  function stockFor(name: string): string | undefined {
+    const row = screen.getByRole('row', { name: `Edit ${name}` });
+    return within(row).getAllByRole('cell')[3]?.textContent ?? undefined;
+  }
+
+  it('adds a product, then lists it with the stock entered', async () => {
+    const user = userEvent.setup();
+    const coffee = { ...testItem, id: 2, name: 'Coffee', quantity: 5, unitPriceCents: 325 };
+    vi.mocked(itemApi.createItem).mockResolvedValue(coffee);
+    render(<InventoryPage />, { wrapper: PageProviders });
+    await screen.findByText('Tea');
+
+    // The list the server returns once the product exists.
+    vi.mocked(itemApi.listItems).mockResolvedValue({
+      data: [testItem, coffee],
+      page: 1,
+      pageSize: 15,
+      total: 2,
+      totalPages: 1,
+    });
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Coffee');
+    await user.type(screen.getByRole('textbox', { name: 'Qty' }), '5');
+    await user.type(screen.getByRole('textbox', { name: /^Unit price \(CAD\)/ }), '3.25');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(itemApi.createItem).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Coffee', quantity: 5, unitPriceCents: 325 }),
+    );
+    expect(await screen.findByText('Coffee')).toBeInTheDocument();
+    expect(stockFor('Coffee')).toBe('5');
+    expect(screen.queryByRole('dialog', { name: 'Add new item' })).not.toBeInTheDocument();
+  });
+
+  it("changes an existing item's quantity, then shows the new stock", async () => {
+    const user = userEvent.setup();
+    const restocked = { ...testItem, quantity: 20 };
+    vi.mocked(itemApi.updateItem).mockResolvedValue(restocked);
+    render(<InventoryPage />, { wrapper: PageProviders });
+    await screen.findByText('Tea');
+    expect(stockFor('Tea')).toBe('12');
+
+    vi.mocked(itemApi.listItems).mockResolvedValue({
+      data: [restocked],
+      page: 1,
+      pageSize: 15,
+      total: 1,
+      totalPages: 1,
+    });
+    await user.click(screen.getByRole('row', { name: 'Edit Tea' }));
+    const qty = screen.getByRole('textbox', { name: 'Qty' });
+    await user.clear(qty);
+    await user.type(qty, '20');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(itemApi.updateItem).toHaveBeenCalledWith(
+      testItem.id,
+      expect.objectContaining({ quantity: 20 }),
+    );
+    await waitFor(() => expect(stockFor('Tea')).toBe('20'));
+  });
+
   it('shows the selected items on the public profile, and says when the profile is off', async () => {
     const user = userEvent.setup();
     vi.mocked(itemApi.bulkSetItemsPublic).mockResolvedValue({ updated: 1 });
