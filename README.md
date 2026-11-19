@@ -91,7 +91,7 @@ Log in as the demo account, then:
 ### Production Readiness
 
 - **CI/CD:** every pull request runs lint, type checks, both test suites and a build, each job with a time limit; `main` deploys only after they pass ([Actions](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/actions)).
-- **Health and failures:** Render checks `/api/health`; if the database is down, requests fail fast with "Database is unavailable, try again shortly" (503) instead of hanging; if exchange rates can't load, the app falls back to cached or bundled rates.
+- **Health and failures:** Render checks `/api/health/live`, which never queries the database so Neon can scale to zero while the app is idle; if the database is down, requests fail fast with "Database is unavailable, try again shortly" (503) instead of hanging; if exchange rates can't load, the app falls back to cached or bundled rates.
 - **Repeatable deploys:** one Docker image serves the API and the web app, and Flyway applies database migrations on startup ([Deploying to Render](#deploying-to-render)).
 
 ## Development Requirements
@@ -226,7 +226,7 @@ See [`docs/api-contracts.md`](docs/api-contracts.md) for the authoritative, endp
 
 All error responses share one shape: `{ "error": { "message": string, "details"?: [{ "field", "message" }] } }`. Money is always sent as integer cents.
 
-Every route except `/api/health`, `/api/auth/*` and the read-only `/api/public/*` requires a logged-in session
+Every route except `/api/health`, `/api/health/live`, `/api/auth/*` and the read-only `/api/public/*` requires a logged-in session
 (a cookie set by register/login) and returns 401 without one. Items, sales,
 expenses, channels, expense tags and analytics are all scoped to the logged-in
 business: one business can never see or modify another's data, even by
@@ -235,6 +235,7 @@ guessing an id in the URL.
 | Method | Endpoint                 | Description                                |
 | ------ | ------------------------ | ------------------------------------------ |
 | GET    | `/api/health`            | Health check (also checks the database)    |
+| GET    | `/api/health/live`       | Render's check; never queries the database |
 | POST   | `/api/auth/register`     | Create a business account, logs you in     |
 | POST   | `/api/auth/login`        | Log in (`{ email, password }`)             |
 | POST   | `/api/auth/logout`       | Log out                                    |
@@ -320,7 +321,7 @@ Vite reads `demo/client/.env` by itself when `npm run dev` or `npm run build` st
 1. Create a Neon (or other hosted Postgres) database and copy its connection string.
 2. In Render: since this repo isn't owned by the account deploying it, use **New > Web Service > Public Git Repository** (rather than **New > Blueprint**) and paste this repo's URL. (If you fork the repo into your own GitHub account, **New > Blueprint** on your fork reads `backend/render.yaml` and fills in steps 3–6 for you. You're still asked for the three `SPRING_DATASOURCE_*` values.)
 3. Language: **Docker**. Dockerfile Path: `backend/Dockerfile`. Docker Build Context Directory: leave as `.` (the repo root — the Dockerfile needs both `backend/` and `demo/client/`).
-4. Health Check Path: `/api/health` (exactly — a trailing/duplicated path here will make every deploy time out waiting on the health check).
+4. Health Check Path: `/api/health/live` (exactly — a trailing/duplicated path here will make every deploy time out waiting on the health check). Don't use `/api/health`: it queries the database, and Render's checks every few seconds would keep a Neon database awake around the clock and use up its monthly compute hours.
 5. Environment variables: `SPRING_DATASOURCE_URL` (JDBC form, e.g. `jdbc:postgresql://<host>/<db>?sslmode=require`), `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, and `SPRING_PROFILES_ACTIVE=demo`.
 6. The free instance type's 0.1 CPU is too slow to boot the JVM within Render's health-check window — every free-tier deploy we tried either failed outright or took 15+ minutes. Use the $7/month instance (0.5 CPU), which boots in under a minute.
 7. Deploys are triggered from GitHub Actions, not by Render itself: "Public Git Repository"
