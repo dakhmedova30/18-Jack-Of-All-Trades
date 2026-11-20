@@ -22,7 +22,8 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
     to: '/analytics',
     label: 'Analytics',
     icon: ChartIcon,
-    end: true,
+    // Stays highlighted on its sub-pages, which matters most in the collapsed sidebar.
+    end: false,
     children: ANALYTICS_SECTIONS.map(({ to, label, title }) => ({ to, label, ariaLabel: title })),
   },
 ];

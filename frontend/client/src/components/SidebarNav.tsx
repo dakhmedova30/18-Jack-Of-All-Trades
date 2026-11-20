@@ -11,17 +11,26 @@ interface SidebarNavProps {
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `sidebar__link${isActive ? ' is-active' : ''}`;
 
+/** The items whose drop-down holds the page at `pathname`. */
+function itemsContaining(pathname: string): string[] {
+  return SIDEBAR_NAV_ITEMS.filter((item) =>
+    item.children?.some((child) => pathname.startsWith(child.to)),
+  ).map((item) => item.to);
+}
+
 export function SidebarNav({ compact = false }: SidebarNavProps) {
   const { pathname } = useLocation();
-  // Open on load when the current page is under the item; the arrow toggles it after that.
-  const [openItems, setOpenItems] = useState<Set<string>>(
-    () =>
-      new Set(
-        SIDEBAR_NAV_ITEMS.filter((item) =>
-          item.children?.some((child) => pathname.startsWith(child.to)),
-        ).map((item) => item.to),
-      ),
-  );
+  // The sidebar stays mounted between pages, so open the drop-down holding the current page
+  // whenever the page changes (e.g. from a card on Analytics); the arrow toggles it after that.
+  const [openItems, setOpenItems] = useState<Set<string>>(() => new Set(itemsContaining(pathname)));
+  const [openedFor, setOpenedFor] = useState(pathname);
+  if (openedFor !== pathname) {
+    setOpenedFor(pathname);
+    const containing = itemsContaining(pathname);
+    if (containing.some((to) => !openItems.has(to))) {
+      setOpenItems((current) => new Set([...current, ...containing]));
+    }
+  }
 
   function toggle(to: string) {
     setOpenItems((current) => {
@@ -41,6 +50,9 @@ export function SidebarNav({ compact = false }: SidebarNavProps) {
             end={end}
             title={compact ? label : undefined}
             aria-label={compact ? label : undefined}
+            // On one of its sub-pages the item stays highlighted, but only marks the section
+            // the current page is in; the sub-link is the current page.
+            aria-current={children && pathname !== to ? 'true' : 'page'}
             className={linkClass}
           >
             <NavIcon />
