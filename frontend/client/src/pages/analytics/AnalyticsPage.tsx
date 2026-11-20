@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAnalyticsDateRange } from '../../hooks/useAnalyticsDateRange';
 import { useAnalyticsSummary } from '../../hooks/useAnalyticsSummary';
 import { useChannels } from '../../hooks/useChannels';
@@ -8,6 +9,7 @@ import { useCurrency } from '../../hooks/useCurrency';
 import { formatDate, startOfMonth } from '../../utils/date';
 import { formatCents, formatCentsCompact } from '../../utils/money';
 import { AnalyticsFilters } from './AnalyticsFilters';
+import { ANALYTICS_SECTIONS } from './analyticsSections';
 import {
   ChartLegend,
   CompactBarList,
@@ -45,16 +47,29 @@ function periodPhrase({ from, to }: DateRange): string {
 
 function AnalyticsHeader() {
   return (
-    <div className="analytics-header">
-      <div>
-        <h1>Analytics</h1>
-        <p className="muted">
-          Revenue, expenses and sales group by each record's first tag (top 3, the rest folded into
-          "Other"). The filters set the period and sales channel for everything here except
-          Inventory Overview, which always shows current stock.
-        </p>
+    <>
+      <div className="analytics-header">
+        <div>
+          <h1>Analytics</h1>
+          <p className="muted">
+            Revenue, expenses and sales group by each record's first tag (top 3, the rest folded
+            into "Other"). The filters set the period and sales channel for everything here except
+            Inventory Overview, which always shows current stock.
+          </p>
+        </div>
       </div>
-    </div>
+      <nav className="analytics-sections" aria-label="Deeper analytics">
+        {ANALYTICS_SECTIONS.map(({ to, title, description, icon: SectionIcon }) => (
+          <Link key={to} to={to} className="analytics-section-link">
+            <SectionIcon />
+            <span>
+              <span className="analytics-section-link__title">{title}</span>
+              <span className="analytics-section-link__text">{description}</span>
+            </span>
+          </Link>
+        ))}
+      </nav>
+    </>
   );
 }
 
