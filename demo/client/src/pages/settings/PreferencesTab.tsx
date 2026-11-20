@@ -302,6 +302,16 @@ export function PreferencesTab() {
 
       <h3 className="settings-section">Display</h3>
       <p className="muted">These are saved in this browser.</p>
+      <SettingsRow label="Text To Speech controls">
+        <label className="settings-checkbox">
+          <input
+            type="checkbox"
+            checked={preferences.showSpeechReader}
+            onChange={(event) => update({ showSpeechReader: event.target.checked })}
+          />
+          Show floating controls
+        </label>
+      </SettingsRow>
       <SettingsRow label="Date format">
         <select
           className="settings-row__input"

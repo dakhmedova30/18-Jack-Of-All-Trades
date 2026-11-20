@@ -1,9 +1,9 @@
 import { AccountMenu } from './AccountMenu';
 import { useAuth } from '../hooks/useAuth';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { NotificationBell } from './NotificationBell';
 import { MenuIcon } from './icons';
-import { SIDEBAR_NAV_ITEMS } from './sidebarNavItems';
+import { SidebarNav } from './SidebarNav';
 
 type ClosedSidebarProps = {
   onOpen: () => void;
@@ -34,21 +34,7 @@ export function ClosedSidebar({ onOpen, active = true }: ClosedSidebarProps) {
         </button>
         <NotificationBell key={active ? 'active' : 'inactive'} />
       </div>
-      <nav className="sidebar__nav" aria-label="Main">
-        {SIDEBAR_NAV_ITEMS.map(({ to, label, icon: NavIcon, end }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
-            title={label}
-            aria-label={label}
-            className={({ isActive }) => `sidebar__link${isActive ? ' is-active' : ''}`}
-          >
-            <NavIcon />
-            <span className="sidebar__link-label">{label}</span>
-          </NavLink>
-        ))}
-      </nav>
+      <SidebarNav compact />
       {business && (
         <div className="sidebar__account">
           <AccountMenu

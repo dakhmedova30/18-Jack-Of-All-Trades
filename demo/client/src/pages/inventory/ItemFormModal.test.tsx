@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as authApi from '../../api/auth';
+import * as itemApi from '../../api/items';
 import { PageProviders } from '../../test/providers';
 import type { ItemInput } from '../../types';
 import { ItemFormModal } from './ItemFormModal';
@@ -10,16 +11,21 @@ import { ItemFormModal } from './ItemFormModal';
 // a range hint, so fields are found by their accessible name rather than the label's full text.
 const nameField = () => screen.getByRole('textbox', { name: 'Name' });
 const qtyField = () => screen.getByRole('textbox', { name: 'Qty' });
-const priceField = () => screen.getByRole('textbox', { name: /^Unit price \(CAD\)/ });
+const priceField = () => screen.getByRole('textbox', { name: /^Price \(CAD\)/ });
 
 // The form shows prices in the account's currency, read through the login provider.
 vi.mock('../../api/auth', () => ({
   getCurrentBusiness: vi.fn(),
 }));
 
+vi.mock('../../api/items', () => ({
+  listItemTags: vi.fn(),
+}));
+
 describe('ItemFormModal', () => {
   beforeEach(() => {
     vi.mocked(authApi.getCurrentBusiness).mockResolvedValue(undefined);
+    vi.mocked(itemApi.listItemTags).mockResolvedValue([{ name: 'Drinks', itemCount: 1 }]);
   });
 
   it('shows validation errors and does not submit invalid input', async () => {
@@ -57,7 +63,11 @@ describe('ItemFormModal', () => {
     await user.type(nameField(), '  Tea  ');
     await user.type(qtyField(), '12');
     await user.type(priceField(), '4.5');
-    await user.type(screen.getByLabelText('Tags'), ' Drinks, Tea, Drinks ');
+    await screen.findByRole('option', { name: 'Drinks' });
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Tags' }), 'Drinks');
+    await user.click(screen.getByRole('button', { name: /New tag/ }));
+    await user.type(screen.getByLabelText('Tags'), 'Tea');
+    await user.click(screen.getByRole('button', { name: 'Add' }));
     await user.type(screen.getByLabelText('Note'), '  Loose leaf  ');
     await user.click(screen.getByRole('checkbox', { name: /Show on my public profile/ }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -66,9 +76,15 @@ describe('ItemFormModal', () => {
       name: 'Tea',
       quantity: 12,
       unitPriceCents: 450,
+      currency: 'CAD',
+      width: null,
+      height: null,
+      sizeUnit: null,
+      amountSold: 0,
       tags: ['Drinks', 'Tea'],
       note: 'Loose leaf',
       isPublic: true,
+      isActive: true,
     });
   });
 });

@@ -41,16 +41,33 @@ public class ExpenseLine {
     @Column(nullable = false)
     private int totalCents;
 
+    @Column(nullable = false)
+    private String category;
+
+    @Column(nullable = false)
+    private String subcategory;
+
+    @Column(nullable = false)
+    private String manufacturer;
+
+    @Column(name = "line_type", nullable = false)
+    private String type;
+
     protected ExpenseLine() {
         // for JPA
     }
 
-    ExpenseLine(Integer itemId, String itemName, int quantity, int unitCostCents, int totalCents) {
+    ExpenseLine(Integer itemId, String itemName, int quantity, int unitCostCents, int totalCents,
+            String category, String subcategory, String manufacturer, String type) {
         this.itemId = itemId;
         this.itemName = itemName;
         this.quantity = quantity;
         this.unitCostCents = unitCostCents;
         this.totalCents = totalCents;
+        this.category = category;
+        this.subcategory = subcategory;
+        this.manufacturer = manufacturer;
+        this.type = type;
     }
 
     void setExpense(Expense expense) {
@@ -79,5 +96,21 @@ public class ExpenseLine {
 
     public int getTotalCents() {
         return totalCents;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public String getSubcategory() {
+        return subcategory;
+    }
+
+    public String getManufacturer() {
+        return manufacturer;
+    }
+
+    public String getType() {
+        return type;
     }
 }

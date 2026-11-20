@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { bulkDeleteSales, createSale, deleteSale, updateSale } from '../../api/sales';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
@@ -36,6 +37,7 @@ type FormState = { mode: 'create' } | { mode: 'edit'; sale: Sale } | null;
 type DeleteTarget = { kind: 'single'; sale: Sale } | { kind: 'bulk'; ids: number[] } | null;
 
 export function SalesPage() {
+  const navigate = useNavigate();
   const { preferences, formatDate } = usePreferences();
   const currency = useCurrency();
   const [page, setPage] = useState(1);
@@ -118,6 +120,14 @@ export function SalesPage() {
     });
   }
 
+  /** Linked sales are edited on their owning market or commission page. */
+  function openSale(sale: Sale) {
+    if (sale.marketId !== null) navigate(`/sales/in-person/${sale.marketId}`);
+    else if (sale.commissionId !== null) navigate(`/sales/commissions/${sale.commissionId}`);
+    else if (sale.miscId !== null) navigate(`/sales/misc/${sale.miscId}`);
+    else setFormState({ mode: 'edit', sale });
+  }
+
   async function handleSave(input: SaleInput) {
     if (formState?.mode === 'edit') await updateSale(formState.sale.id, input);
     else await createSale(input);
@@ -168,7 +178,7 @@ export function SalesPage() {
             disabled={selectedIds.size === 0}
             onClick={() => setDeleteTarget({ kind: 'bulk', ids: [...selectedIds] })}
           >
-            Bulk delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
+            Bulk Delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
           </button>
         </div>
         <div className="toolbar__filters">
@@ -248,12 +258,12 @@ export function SalesPage() {
                 className="table__row"
                 tabIndex={0}
                 aria-label={`Edit sale ${sale.id}`}
-                onClick={() => setFormState({ mode: 'edit', sale })}
+                onClick={() => openSale(sale)}
                 onKeyDown={(event) => {
                   if (event.target !== event.currentTarget) return;
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
-                    setFormState({ mode: 'edit', sale });
+                    openSale(sale);
                   }
                 }}
               >

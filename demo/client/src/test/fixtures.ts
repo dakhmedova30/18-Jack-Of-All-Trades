@@ -44,6 +44,11 @@ export const testItem: Item = {
   tags: ['Drinks'],
   note: '',
   isPublic: false,
+  width: null,
+  height: null,
+  sizeUnit: null,
+  amountSold: 0,
+  isActive: true,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
