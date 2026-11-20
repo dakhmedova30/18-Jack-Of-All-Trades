@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    // Forward /api/* to the Express server so the browser only talks to one origin.
+    // Forward /api/* to the Spring Boot backend so the browser only talks to one origin.
     proxy: {
       '/api': 'http://localhost:4000',
     },
