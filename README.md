@@ -86,7 +86,7 @@ Log in as the demo account, then:
 - **Input validation:** every request body is validated, with a message per field (e.g. a price must be between 0.00 and 9,999,999.99, and quantities reject `2.7` and `"5"`).
 - **SQL injection:** every query uses named parameters; sort columns come from a fixed list.
 - **Errors never expose internals:** clients get a short JSON message, e.g. `{"error":{"message":"Log in to continue"}}`; an unexpected error returns `"Internal server error"`, with details only in the server log.
-- **No secrets in the repo:** configuration comes from environment variables (templates in `backend/.env.example` and `demo/client/.env.example`); the deploy hook is a GitHub secret. Public profiles return only an allowlist of fields.
+- **No secrets in the repo:** configuration comes from environment variables (templates in `backend/.env.example` and `frontend/client/.env.example`); the deploy hook is a GitHub secret. Public profiles return only an allowlist of fields.
 
 ### Production Readiness
 
@@ -105,7 +105,7 @@ Log in as the demo account, then:
    ```bash
    export JAVA_HOME="$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home"
    ```
- * [Node.js](https://nodejs.org/) 22.13 or newer (24 LTS works too; `nvm use` reads `.nvmrc`) and npm 10+, to build/run `demo/client`
+ * [Node.js](https://nodejs.org/) 22.13 or newer (24 LTS works too; `nvm use` reads `.nvmrc`) and npm 10+, to build/run `frontend/client`
  * A PostgreSQL database, either hosted (Neon, AWS RDS, Supabase, ...) or local (`docker compose up -d` in `backend/`)
 
 ### Tech stack
@@ -130,7 +130,7 @@ cd backend && docker compose up -d && cd ..
 # 2. Backend — seeds the demo account with sample data, picks up the local Postgres above by default
 cd backend && SPRING_PROFILES_ACTIVE=demo ./mvnw spring-boot:run
 # in a second terminal:
-cd demo && npm install && npm run dev -w client   # web app on http://localhost:5173
+cd frontend && npm install && npm run dev -w client   # web app on http://localhost:5173
 ```
 
 No Docker? Point the backend at any hosted Postgres instead by setting `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD` (copy `backend/.env.example`; see [Configuration](#configuration)) before `./mvnw spring-boot:run`. Flyway creates the schema automatically on first connect either way.
@@ -146,7 +146,7 @@ Open http://localhost:5173. In development the Vite dev server forwards `/api/*`
 
 ### Scripts
 
-Frontend (run from `demo/`, not the repo root — there is no root `package.json`):
+Frontend (run from `frontend/`, not the repo root — there is no root `package.json`):
 
 | Command             | What it does                      |
 | ------------------- | ---------------------------------- |
@@ -190,7 +190,7 @@ helpers. It runs in a simulated browser (jsdom) with the API mocked, so it needs
 Docker nor the backend:
 
 ```bash
-cd demo
+cd frontend
 npm test
 ```
 
@@ -201,7 +201,7 @@ pass. See recent runs in the [Actions tab](https://github.com/dakhmedova30/18-Ja
 ### Project structure
 
 ```
-demo/
+frontend/
   client/                    React app
     src/api/                 fetch wrappers, one file per resource
     src/components/          shared UI: layout, modal, pagination, icons
@@ -285,11 +285,11 @@ scoped to it, so changing it moves the whole page together.
 
 Every variable is optional. Without any of them, `backend/src/main/resources/application.yml` defaults to the local Docker Postgres from `docker compose up -d`, so the [Setup](#setup) steps work as-is.
 
-Templates with every variable and a comment for each are committed as `backend/.env.example` and `demo/client/.env.example`. To use them, copy each to `.env` next to it, then uncomment and fill in only the variables you need (an unedited copy changes nothing). Both `.env` files are gitignored; **never commit real credentials**, and never put them in the `.env.example` files.
+Templates with every variable and a comment for each are committed as `backend/.env.example` and `frontend/client/.env.example`. To use them, copy each to `.env` next to it, then uncomment and fill in only the variables you need (an unedited copy changes nothing). Both `.env` files are gitignored; **never commit real credentials**, and never put them in the `.env.example` files.
 
 ```bash
 cp backend/.env.example backend/.env
-cp demo/client/.env.example demo/client/.env
+cp frontend/client/.env.example frontend/client/.env
 ```
 
 Spring Boot doesn't read `.env` on its own, so load it into your shell before starting the backend (or paste the values into your IDE's run configuration):
@@ -298,7 +298,7 @@ Spring Boot doesn't read `.env` on its own, so load it into your shell before st
 cd backend && set -a && source .env && set +a && ./mvnw spring-boot:run
 ```
 
-Vite reads `demo/client/.env` by itself when `npm run dev` or `npm run build` starts.
+Vite reads `frontend/client/.env` by itself when `npm run dev` or `npm run build` starts.
 
 **Backend** (`backend/.env`; on Render, the service's **Environment** tab):
 
@@ -310,7 +310,7 @@ Vite reads `demo/client/.env` by itself when `npm run dev` or `npm run build` st
 | `SPRING_PROFILES_ACTIVE`       | No       | Set to `demo` to seed the demo account on startup                           |
 | `PORT`                         | No       | Defaults to 4000 (Render sets it automatically)                             |
 
-**Client** (`demo/client/.env`, read at build time):
+**Client** (`frontend/client/.env`, read at build time):
 
 | Variable              | Required | Description                                                                              |
 | --------------------- | -------- | ---------------------------------------------------------------------------------------- |
@@ -320,7 +320,7 @@ Vite reads `demo/client/.env` by itself when `npm run dev` or `npm run build` st
 
 1. Create a Neon (or other hosted Postgres) database and copy its connection string.
 2. In Render: since this repo isn't owned by the account deploying it, use **New > Web Service > Public Git Repository** (rather than **New > Blueprint**) and paste this repo's URL. (If you fork the repo into your own GitHub account, **New > Blueprint** on your fork reads `backend/render.yaml` and fills in steps 3–6 for you. You're still asked for the three `SPRING_DATASOURCE_*` values.)
-3. Language: **Docker**. Dockerfile Path: `backend/Dockerfile`. Docker Build Context Directory: leave as `.` (the repo root — the Dockerfile needs both `backend/` and `demo/client/`).
+3. Language: **Docker**. Dockerfile Path: `backend/Dockerfile`. Docker Build Context Directory: leave as `.` (the repo root — the Dockerfile needs both `backend/` and `frontend/client/`).
 4. Health Check Path: `/api/health/live` (exactly — a trailing/duplicated path here will make every deploy time out waiting on the health check). Don't use `/api/health`: it queries the database, and Render's checks every few seconds would keep a Neon database awake around the clock and use up its monthly compute hours.
 5. Environment variables: `SPRING_DATASOURCE_URL` (JDBC form, e.g. `jdbc:postgresql://<host>/<db>?sslmode=require`), `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, and `SPRING_PROFILES_ACTIVE=demo`.
 6. The free instance type's 0.1 CPU is too slow to boot the JVM within Render's health-check window — every free-tier deploy we tried either failed outright or took 15+ minutes. Use the $7/month instance (0.5 CPU), which boots in under a minute.
