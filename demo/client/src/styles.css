@@ -789,6 +789,17 @@ select {
   gap: 0.5rem;
 }
 
+.csv-transfer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.csv-transfer .form-error {
+  white-space: pre-line;
+}
+
 .search-field {
   display: flex;
   flex-direction: column;
