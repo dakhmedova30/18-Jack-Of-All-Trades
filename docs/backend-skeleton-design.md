@@ -329,7 +329,7 @@ The demo's `analytics.test.ts` and `items.test.ts` cover these edge cases (empty
 
   ```bash
   cd backend && docker compose up -d && ./mvnw spring-boot:run    # Windows: mvnw.cmd; http://localhost:4000
-  cd demo/client && npm install && npm run dev                   # http://localhost:5173
+  cd frontend/client && npm install && npm run dev                   # http://localhost:5173
   ```
 
 - **Health:** `GET /api/health` runs `SELECT 1`. Render uses it as the health check.

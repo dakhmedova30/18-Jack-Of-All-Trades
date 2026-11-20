@@ -23,7 +23,7 @@ Check that it's up: `curl http://localhost:4000/api/health` should return `{"sta
 To run the React client against this backend, start it in a second terminal:
 
 ```bash
-cd demo/client
+cd frontend/client
 npm install
 npm run dev                   # http://localhost:5173, proxies /api to port 4000
 ```
@@ -74,7 +74,7 @@ startup validation rejects blank or scheme-less values.
 
 ## Docker image
 
-Build from the **repo root**, not from `backend/`, because the image also builds `demo/client`:
+Build from the **repo root**, not from `backend/`, because the image also builds `frontend/client`:
 
 ```bash
 docker build -f backend/Dockerfile -t jack .
