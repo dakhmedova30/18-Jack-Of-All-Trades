@@ -45,7 +45,8 @@ public class SecurityConfig {
                 .securityContext(context -> context.securityContextRepository(securityContextRepository))
                 .authorizeHttpRequests(auth -> auth
                         // /api/public/** is the public business profile, readable without logging in.
-                        .requestMatchers("/api/health", "/api/auth/**", "/api/public/**").permitAll()
+                        .requestMatchers("/api/health", "/api/health/live", "/api/auth/**", "/api/public/**")
+                        .permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()) // the React app's files
                 .exceptionHandling(exceptions -> exceptions

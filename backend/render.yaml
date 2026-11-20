@@ -16,7 +16,9 @@ services:
     plan: 0.5c-512mb
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .
-    healthCheckPath: /api/health
+    # Not /api/health: that one queries the database, and checks every few seconds would keep
+    # Neon's compute awake around the clock.
+    healthCheckPath: /api/health/live
     # Deploys are triggered by the deploy job in .github/workflows/ci.yml (through the
     # RENDER_DEPLOY_HOOK_URL secret) only after the checks and tests pass on main, so Render
     # doesn't also deploy on every commit by itself.
