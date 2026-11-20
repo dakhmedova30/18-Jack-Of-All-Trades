@@ -4,15 +4,11 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
-import { useInventoryInsights } from '../../hooks/useInventoryInsights';
-import { useSalesMonthSummary } from '../../hooks/useSalesMonthSummary';
 import { useSales } from '../../hooks/useSales';
 import { useCurrency } from '../../hooks/useCurrency';
 import type { Sale, SaleInput, SaleSortField, SortOrder } from '../../types';
 import { usePreferences } from '../../hooks/usePreferences';
 import { formatCents } from '../../utils/money';
-import { BestSellersPanel } from './BestSellersPanel';
-import { MonthGlancePanel } from './MonthGlancePanel';
 import { SaleFormModal } from './SaleFormModal';
 import {
   canApplySaleFilters,
@@ -51,12 +47,7 @@ export function SalesPage() {
     setApplied(settledFilters);
   }
   const filtered = hasSaleFilters(applied);
-  const {
-    data,
-    error,
-    loading,
-    reload: reloadSales,
-  } = useSales({
+  const { data, error, loading, reload } = useSales({
     page,
     pageSize: preferences.rowsPerPage,
     search,
@@ -66,15 +57,6 @@ export function SalesPage() {
     from: applied.from || undefined,
     to: applied.to || undefined,
   });
-  const insights = useInventoryInsights();
-  const monthSummary = useSalesMonthSummary();
-
-  // Any add/edit/delete can change this month's numbers, so refresh everything together.
-  function reload() {
-    reloadSales();
-    insights.reload();
-    monthSummary.reload();
-  }
 
   /** Clicking the current sort column flips its direction; a new column starts ascending. */
   function toggleSort(field: SaleSortField) {
@@ -137,11 +119,8 @@ export function SalesPage() {
 
     // If we just emptied the last page, step back one page instead of showing nothing.
     const removedFromPage = sales.filter((sale) => ids.includes(sale.id)).length;
-    if (page > 1 && removedFromPage === sales.length) {
-      setPage(page - 1);
-      insights.reload();
-      monthSummary.reload();
-    } else reload();
+    if (page > 1 && removedFromPage === sales.length) setPage(page - 1);
+    else reload();
   }
 
   const isEmpty = data !== undefined && data.total === 0;
@@ -153,10 +132,6 @@ export function SalesPage() {
         <p className="muted">A recap of sales made over the chosen date range.</p>
       </div>
 
-      <div className="panel-row">
-        <MonthGlancePanel {...monthSummary} />
-        <BestSellersPanel {...insights} />
-      </div>
       <div className="toolbar">
         <div className="toolbar__actions">
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>

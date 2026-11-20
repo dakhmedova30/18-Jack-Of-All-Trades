@@ -20,7 +20,7 @@ export const ANALYTICS_SECTIONS: AnalyticsSection[] = [
     to: '/analytics/inventory',
     label: 'Inventory',
     title: 'Inventory Analytics',
-    description: 'A closer look at your stock.',
+    description: 'Stock value, low stock, and items not selling this month.',
     icon: BoxIcon,
   },
   {
@@ -28,7 +28,7 @@ export const ANALYTICS_SECTIONS: AnalyticsSection[] = [
     to: '/analytics/sales',
     label: 'Sales',
     title: 'Sales Analytics',
-    description: 'A closer look at your sales.',
+    description: "This month's sales count, average and largest sale, and best sellers.",
     icon: ReceiptIcon,
   },
   {
@@ -36,7 +36,7 @@ export const ANALYTICS_SECTIONS: AnalyticsSection[] = [
     to: '/analytics/expenses',
     label: 'Expenses',
     title: 'Expense Analytics',
-    description: 'A closer look at your expenses.',
+    description: "Where this month's money goes, and the biggest restock spending.",
     icon: WalletIcon,
   },
 ];

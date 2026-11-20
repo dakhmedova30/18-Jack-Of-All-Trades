@@ -9,30 +9,17 @@ import {
   updateItem,
 } from '../../api/items';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { SummaryPanel } from '../../components/SummaryPanel';
 import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
 import { TagList } from '../../components/TagList';
 import { useAuth } from '../../hooks/useAuth';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
-import { useInventoryInsights } from '../../hooks/useInventoryInsights';
 import { useItems } from '../../hooks/useItems';
 import { usePreferences } from '../../hooks/usePreferences';
-import { useLowStock } from '../../hooks/useLowStock';
 import { useCurrency } from '../../hooks/useCurrency';
-import type {
-  InventoryInsights,
-  Item,
-  ItemInput,
-  ItemSortField,
-  LowStock,
-  SortOrder,
-} from '../../types';
+import type { Item, ItemInput, ItemSortField, SortOrder } from '../../types';
 import { formatCents } from '../../utils/money';
 import { ItemFormModal } from './ItemFormModal';
-
-/** The server's max; enough to list every low item for any realistic shop. */
-const LOW_STOCK_LIST_LIMIT = 100;
 
 const SORTABLE_COLUMNS: { field: ItemSortField; label: string; numeric?: boolean }[] = [
   { field: 'id', label: 'ID' },
@@ -87,27 +74,13 @@ export function InventoryPage() {
     order: 'asc',
   });
   const search = useDebouncedValue(searchInput.trim());
-  const {
-    data,
-    error,
-    loading,
-    reload: reloadItems,
-  } = useItems({
+  const { data, error, loading, reload } = useItems({
     page,
     pageSize: preferences.rowsPerPage,
     search,
     sort: sort.field,
     order: sort.order,
   });
-  const lowStock = useLowStock(LOW_STOCK_LIST_LIMIT);
-  const insights = useInventoryInsights();
-
-  // Any add/edit/delete can change what's low and what stock is worth, so refresh all together.
-  function reload() {
-    reloadItems();
-    lowStock.reload();
-    insights.reload();
-  }
 
   /** Clicking the current sort column flips its direction; a new column starts ascending. */
   function toggleSort(field: ItemSortField) {
@@ -178,11 +151,8 @@ export function InventoryPage() {
 
     // If we just emptied the last page, step back one page instead of showing nothing.
     const removedFromPage = items.filter((item) => ids.includes(item.id)).length;
-    if (page > 1 && removedFromPage === items.length) {
-      setPage(page - 1);
-      lowStock.reload();
-      insights.reload();
-    } else reload();
+    if (page > 1 && removedFromPage === items.length) setPage(page - 1);
+    else reload();
   }
 
   /** Sends only the items that change; throws on failure, so the caller shows the error. */
@@ -199,7 +169,7 @@ export function InventoryPage() {
     });
     setSelected(new Map());
     setVisibilityTarget(null);
-    reloadItems();
+    reload();
   }
 
   /**
@@ -233,11 +203,6 @@ export function InventoryPage() {
         <p className="muted">A view of your current inventory.</p>
       </div>
 
-      <div className="panel-row">
-        <StockValuePanel {...insights} />
-        <LowStockPanel {...lowStock} />
-        <NotSellingPanel {...insights} />
-      </div>
       <div className="toolbar">
         <div className="toolbar__actions">
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
@@ -457,159 +422,5 @@ export function InventoryPage() {
         />
       )}
     </section>
-  );
-}
-
-interface NotSellingPanelProps {
-  data?: InventoryInsights;
-  error?: string;
-  loading: boolean;
-  reload: () => void;
-}
-
-/** In-stock items without sales this month, shown in a scrollable list. */
-function NotSellingPanel({ data, error, loading, reload }: NotSellingPanelProps) {
-  const [expanded, setExpanded] = useState(false);
-  const month = data
-    ? new Date(data.periodStart).toLocaleDateString('en-CA', {
-        month: 'long',
-        timeZone: 'UTC',
-      })
-    : '';
-
-  return (
-    <SummaryPanel
-      title={`Not selling${data ? ` (${data.notSelling.length})` : ''}`}
-      context={data && `${month}, no sales`}
-    >
-      {error ? (
-        <div className="banner banner--error" role="alert">
-          Couldn't load items not selling: {error}{' '}
-          <button type="button" className="link-button" onClick={reload}>
-            Retry
-          </button>
-        </div>
-      ) : !data ? (
-        <p className="empty-state">{loading ? 'Loading…' : 'No data.'}</p>
-      ) : data.notSelling.length === 0 ? (
-        <p className="empty-state">Every in-stock item has sold this month.</p>
-      ) : (
-        <>
-          <ul className="summary-panel__list" id="not-selling-list">
-            {(expanded ? data.notSelling : data.notSelling.slice(0, 3)).map((item) => (
-              <li key={item.id} className="summary-panel__row">
-                <span className="summary-panel__name">{item.name}</span>
-                <span className="summary-panel__detail">{item.quantity} left</span>
-              </li>
-            ))}
-          </ul>
-          {data.notSelling.length > 3 && (
-            <button
-              type="button"
-              className="link-button summary-panel__toggle"
-              aria-expanded={expanded}
-              aria-controls="not-selling-list"
-              onClick={() => setExpanded((current) => !current)}
-            >
-              {expanded ? 'Show less' : 'Expand list'}
-            </button>
-          )}
-        </>
-      )}
-    </SummaryPanel>
-  );
-}
-
-interface LowStockPanelProps {
-  data?: LowStock;
-  error?: string;
-  loading: boolean;
-  reload: () => void;
-}
-
-/** Every item at or below the low-stock threshold, lowest first, in a scrollable list. */
-function LowStockPanel({ data, error, loading, reload }: LowStockPanelProps) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <SummaryPanel
-      title={`Low stock${data ? ` (${data.count})` : ''}`}
-      context={data && `${data.threshold} or fewer in stock`}
-    >
-      {error ? (
-        <div className="banner banner--error" role="alert">
-          Couldn't load low stock: {error}{' '}
-          <button type="button" className="link-button" onClick={reload}>
-            Retry
-          </button>
-        </div>
-      ) : !data ? (
-        <p className="empty-state">{loading ? 'Loading…' : 'No data.'}</p>
-      ) : data.count === 0 ? (
-        <p className="empty-state">Nothing is low on stock.</p>
-      ) : (
-        <>
-          <ul className="summary-panel__list" id="low-stock-list">
-            {(expanded ? data.items : data.items.slice(0, 3)).map((item) => (
-              <li key={item.id} className="summary-panel__row">
-                <span className="summary-panel__name">{item.name}</span>
-                <span className={`summary-panel__detail${item.quantity === 0 ? ' is-out' : ''}`}>
-                  {item.quantity === 0 ? 'Out of stock' : `${item.quantity} left`}
-                </span>
-              </li>
-            ))}
-          </ul>
-          {data.items.length > 3 && (
-            <button
-              type="button"
-              className="link-button summary-panel__toggle"
-              aria-expanded={expanded}
-              aria-controls="low-stock-list"
-              onClick={() => setExpanded((current) => !current)}
-            >
-              {expanded ? 'Show less' : 'Expand list'}
-            </button>
-          )}
-          {data.count > data.items.length && (
-            <p className="muted">
-              Showing the {data.items.length} lowest of {data.count}.
-            </p>
-          )}
-        </>
-      )}
-    </SummaryPanel>
-  );
-}
-
-interface StockValuePanelProps {
-  data?: InventoryInsights;
-  error?: string;
-  loading: boolean;
-  reload: () => void;
-}
-
-/** What everything in stock is worth at selling price, next to Low stock. */
-function StockValuePanel({ data, error, loading, reload }: StockValuePanelProps) {
-  const currency = useCurrency();
-  return (
-    <SummaryPanel title="Stock value" context="at selling price">
-      {error ? (
-        <div className="banner banner--error" role="alert">
-          Couldn't load stock value: {error}{' '}
-          <button type="button" className="link-button" onClick={reload}>
-            Retry
-          </button>
-        </div>
-      ) : !data ? (
-        <p className="empty-state">{loading ? 'Loading…' : 'No data.'}</p>
-      ) : (
-        <div className="summary-panel__value-block">
-          <span className="summary-panel__value">
-            {formatCents(data.stockValueCents, currency)}
-          </span>
-          <span className="muted">{data.totalUnits.toLocaleString()} units in stock</span>
-        </div>
-      )}
-    </SummaryPanel>
   );
 }
