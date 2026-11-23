@@ -8,6 +8,13 @@ interface Passage {
   element: Element;
 }
 
+interface QueueItem {
+  text: string;
+  element: Element;
+  endsPassage: boolean;
+  sectionIndex: number;
+}
+
 const MAX_UTTERANCE_LENGTH = 1000;
 /** Silence between passages at normal speed, so one item is clearly over before the next starts. */
 const PASSAGE_PAUSE_MS = 600;
@@ -129,12 +136,18 @@ function SpeechReaderControls() {
   const [readingState, setReadingState] = useState<ReadingState>('idle');
   const [rate, setRate] = useState(1);
   const [status, setStatus] = useState('');
+  const [sectionIndex, setSectionIndex] = useState(0);
+  const [sectionCount, setSectionCount] = useState(0);
   const generation = useRef(0);
   const bar = useRef<HTMLElement>(null);
   const highlighted = useRef<Element | null>(null);
   const paused = useRef(false);
   // Set when Pause lands in the silence between passages: Resume calls it to carry on.
   const resumeReading = useRef<(() => void) | null>(null);
+  const queueIndex = useRef(0);
+  const pauseTimeout = useRef<number | null>(null);
+  const utteranceToken = useRef(0);
+  const skipSection = useRef<(direction: -1 | 1) => void>(() => {});
   const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window;
 
   const highlight = useCallback((element: Element | null) => {
@@ -150,10 +163,15 @@ function SpeechReaderControls() {
       generation.current += 1;
       paused.current = false;
       resumeReading.current = null;
+      utteranceToken.current += 1;
+      if (pauseTimeout.current !== null) window.clearTimeout(pauseTimeout.current);
+      pauseTimeout.current = null;
       if (canSpeak) window.speechSynthesis.cancel();
       highlight(null);
       setReadingState('idle');
       setStatus(message);
+      setSectionIndex(0);
+      setSectionCount(0);
     },
     [canSpeak, highlight],
   );
@@ -183,6 +201,9 @@ function SpeechReaderControls() {
   useEffect(
     () => () => {
       generation.current += 1;
+      utteranceToken.current += 1;
+      if (pauseTimeout.current !== null) window.clearTimeout(pauseTimeout.current);
+      pauseTimeout.current = null;
       if ('speechSynthesis' in window) window.speechSynthesis.cancel();
       highlight(null);
     },
@@ -201,23 +222,32 @@ function SpeechReaderControls() {
       return;
     }
 
-    const queue = passages.flatMap(({ text, element }) =>
+    const queue: QueueItem[] = passages.flatMap(({ text, element }, sectionIndex) =>
       splitIntoChunks(text).map((chunk, index, chunks) => ({
         text: chunk,
         element,
         endsPassage: index === chunks.length - 1,
+        sectionIndex,
       })),
     );
     const pause = Math.round(PASSAGE_PAUSE_MS / rate);
     const currentGeneration = ++generation.current;
+    utteranceToken.current += 1;
     paused.current = false;
     resumeReading.current = null;
+    if (pauseTimeout.current !== null) window.clearTimeout(pauseTimeout.current);
+    pauseTimeout.current = null;
     window.speechSynthesis.cancel();
+    queueIndex.current = 0;
+    setSectionIndex(0);
+    setSectionCount(passages.length);
     setReadingState('speaking');
     setStatus('Reading page content.');
 
     function fail() {
       generation.current += 1;
+      if (pauseTimeout.current !== null) window.clearTimeout(pauseTimeout.current);
+      pauseTimeout.current = null;
       highlight(null);
       setReadingState('idle');
       setStatus('Text-to-speech could not read this page.');
@@ -225,7 +255,11 @@ function SpeechReaderControls() {
 
     function continueAfterPause(index: number) {
       if (currentGeneration !== generation.current) return;
-      if (paused.current) resumeReading.current = () => speakNext(index);
+      const speechToken = utteranceToken.current;
+      if (paused.current)
+        resumeReading.current = () => {
+          if (utteranceToken.current === speechToken) speakNext(index);
+        };
       else speakNext(index);
     }
 
@@ -238,16 +272,32 @@ function SpeechReaderControls() {
         return;
       }
 
-      const { text, element, endsPassage } = queue[index];
+      const speechToken = utteranceToken.current;
+      queueIndex.current = index;
+      const { text, element, endsPassage, sectionIndex: nextSectionIndex } = queue[index];
+      setSectionIndex(nextSectionIndex);
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = rate;
       utterance.lang = document.documentElement.lang || navigator.language || 'en-US';
       utterance.onend = () => {
+        if (utteranceToken.current !== speechToken) return;
         if (!endsPassage || index + 1 === queue.length) speakNext(index + 1);
-        else window.setTimeout(() => continueAfterPause(index + 1), pause);
+        else {
+          if (pauseTimeout.current !== null) window.clearTimeout(pauseTimeout.current);
+          pauseTimeout.current = window.setTimeout(() => {
+            pauseTimeout.current = null;
+            if (utteranceToken.current !== speechToken) return;
+            continueAfterPause(index + 1);
+          }, pause);
+        }
       };
       utterance.onerror = (event) => {
-        if (currentGeneration !== generation.current || event.error === 'canceled') return;
+        if (
+          currentGeneration !== generation.current ||
+          utteranceToken.current !== speechToken ||
+          event.error === 'canceled'
+        )
+          return;
         fail();
       };
 
@@ -258,6 +308,26 @@ function SpeechReaderControls() {
         fail();
       }
     }
+
+    skipSection.current = (direction) => {
+      if (direction !== -1 && direction !== 1) return;
+      const currentItem = queue[queueIndex.current];
+      if (!currentItem) return;
+      const targetSection = currentItem.sectionIndex + direction;
+      if (targetSection < 0 || targetSection >= passages.length) return;
+      const targetIndex = queue.findIndex((item) => item.sectionIndex === targetSection);
+      if (targetIndex < 0) return;
+
+      if (pauseTimeout.current !== null) window.clearTimeout(pauseTimeout.current);
+      pauseTimeout.current = null;
+      paused.current = false;
+      resumeReading.current = null;
+      utteranceToken.current += 1;
+      window.speechSynthesis.cancel();
+      setReadingState('speaking');
+      setStatus(`Reading section ${targetSection + 1} of ${passages.length}.`);
+      speakNext(targetIndex);
+    };
 
     speakNext(0);
   }
@@ -298,6 +368,28 @@ function SpeechReaderControls() {
           <option value={1.5}>Faster</option>
         </select>
       </label>
+      {readingState !== 'idle' && (
+        <>
+          <button
+            type="button"
+            className="button button--ghost"
+            onClick={() => skipSection.current(-1)}
+            disabled={sectionIndex === 0}
+            aria-label="Previous section"
+          >
+            Previous section
+          </button>
+          <button
+            type="button"
+            className="button button--ghost"
+            onClick={() => skipSection.current(1)}
+            disabled={sectionIndex >= sectionCount - 1}
+            aria-label="Next section"
+          >
+            Next section
+          </button>
+        </>
+      )}
       {readingState !== 'idle' && (
         <button type="button" className="button button--ghost" onClick={togglePause}>
           {readingState === 'paused' ? 'Resume reading' : 'Pause reading'}
