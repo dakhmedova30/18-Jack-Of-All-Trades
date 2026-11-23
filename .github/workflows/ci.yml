@@ -40,10 +40,95 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
+      # The Maven wrapper downloads Maven itself on first use; caching it means a Maven Central
+      # hiccup can't fail the build (it did on Nov 19).
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/wrapper
+          key: maven-wrapper-${{ hashFiles('backend/.mvn/wrapper/maven-wrapper.properties') }}
       - run: ./mvnw -B test
 
-  deploy:
+  # End-to-end: builds the real app (the React client inside the Spring Boot jar, as the Docker
+  # image does), starts it against Postgres, and drives it in Chromium (frontend/e2e).
+  e2e:
     needs: [check, backend-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: jack
+          POSTGRES_PASSWORD: jack
+          POSTGRES_DB: jack
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/jack
+      SPRING_DATASOURCE_USERNAME: jack
+      SPRING_DATASOURCE_PASSWORD: jack
+      EXCHANGE_RATES_SOURCE: fallback # bundled rates: no outside API in the test run
+      E2E_BASE_URL: http://localhost:4000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      # The Maven wrapper downloads Maven itself on first use; caching it means a Maven Central
+      # hiccup can't fail the build (it did on Nov 19).
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/wrapper
+          key: maven-wrapper-${{ hashFiles('backend/.mvn/wrapper/maven-wrapper.properties') }}
+      - name: Build the client into the backend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+          mkdir -p ../backend/src/main/resources/static
+          cp -R client/dist/. ../backend/src/main/resources/static/
+      - name: Build and start the app
+        working-directory: backend
+        run: |
+          ./mvnw -B -q -DskipTests package
+          java -jar target/backend-*.jar > app.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:4000/api/health/live && exit 0
+            sleep 1
+          done
+          cat app.log
+          exit 1
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('frontend/package-lock.json') }}
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Run end-to-end tests
+        working-directory: frontend
+        run: npm run e2e
+      - name: Upload the report and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            frontend/e2e/playwright-report/
+            frontend/e2e/test-results/
+            backend/app.log
+          retention-days: 7
+
+  deploy:
+    needs: [check, backend-test, e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 2
