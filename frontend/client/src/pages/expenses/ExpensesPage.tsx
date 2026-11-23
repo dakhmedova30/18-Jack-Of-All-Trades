@@ -10,15 +10,12 @@ import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
 import { TagList } from '../../components/TagList';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
-import { useExpenseMonthBreakdown } from '../../hooks/useExpenseMonthBreakdown';
 import { useExpenses } from '../../hooks/useExpenses';
 import { useCurrency } from '../../hooks/useCurrency';
 import type { Expense, ExpenseInput, ExpenseSortField, SortOrder } from '../../types';
 import { usePreferences } from '../../hooks/usePreferences';
 import { formatCents } from '../../utils/money';
 import { ExpenseFormModal } from './ExpenseFormModal';
-import { MoneyBreakdownPanel } from './MoneyBreakdownPanel';
-import { TopRestockPanel } from './TopRestockPanel';
 
 const SORTABLE_COLUMNS: { field: ExpenseSortField; label: string; numeric?: boolean }[] = [
   { field: 'id', label: 'ID' },
@@ -54,26 +51,13 @@ export function ExpensesPage() {
   const [searchInput, setSearchInput] = useState('');
   const search = useDebouncedValue(searchInput.trim());
   const [sort, setSort] = useState(DEFAULT_SORT);
-  const {
-    data,
-    error,
-    loading,
-    reload: reloadExpenses,
-  } = useExpenses({
+  const { data, error, loading, reload } = useExpenses({
     page,
     pageSize: preferences.rowsPerPage,
     search,
     sort: sort.field,
     order: sort.order,
   });
-
-  const breakdown = useExpenseMonthBreakdown();
-
-  // Any add/edit/delete can change this month's split, so refresh both together.
-  function reload() {
-    reloadExpenses();
-    breakdown.reload();
-  }
 
   /** Clicking the current sort column flips its direction; a new column starts ascending. */
   function toggleSort(field: ExpenseSortField) {
@@ -132,10 +116,8 @@ export function ExpensesPage() {
 
     // If we just emptied the last page, step back one page instead of showing nothing.
     const removedFromPage = expenses.filter((expense) => ids.includes(expense.id)).length;
-    if (page > 1 && removedFromPage === expenses.length) {
-      setPage(page - 1);
-      breakdown.reload();
-    } else reload();
+    if (page > 1 && removedFromPage === expenses.length) setPage(page - 1);
+    else reload();
   }
 
   const isEmpty = data !== undefined && data.total === 0;
@@ -145,11 +127,6 @@ export function ExpensesPage() {
       <div>
         <h1>Expenses</h1>
         <p className="muted">A recap of expenses made over the chosen date range.</p>
-      </div>
-
-      <div className="panel-row">
-        <MoneyBreakdownPanel {...breakdown} />
-        <TopRestockPanel {...breakdown} />
       </div>
 
       <div className="toolbar">

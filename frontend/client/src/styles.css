@@ -452,6 +452,66 @@ select {
   border-color: var(--color-sidebar-text);
 }
 
+/* Drop-downs (e.g. Analytics): the arrow sits beside the link, sub-pages hang off a vertical line. */
+.sidebar__group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sidebar__group-head .sidebar__link {
+  flex: 1;
+}
+
+.sidebar__expand {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--color-sidebar-hover);
+  color: inherit;
+  cursor: pointer;
+}
+
+.sidebar__expand svg {
+  width: 0.8rem;
+  height: 0.8rem;
+  transition: transform 0.15s;
+}
+
+.sidebar__expand svg.is-open {
+  transform: rotate(180deg);
+}
+
+.sidebar__sub {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0.35rem 0 0.35rem 1.6rem;
+  padding-left: 1rem;
+  border-left: var(--border-default) var(--color-sidebar-text);
+}
+
+.sidebar__sublink {
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.sidebar__sublink:hover,
+.sidebar__sublink.is-active {
+  background: var(--color-sidebar-hover);
+}
+
+.sidebar__sublink.is-active {
+  font-weight: 600;
+}
+
 /* ---------- Sidebar account (avatar pill) ---------- */
 
 .sidebar__account {
@@ -1905,6 +1965,53 @@ select {
   gap: 1.5rem;
 }
 
+/* Links to the deeper Analytics pages, under the header. */
+.analytics-sections {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.analytics-section-link {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: var(--border-default) var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-tile);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 0.15s,
+    transform 0.1s;
+}
+
+.analytics-section-link:hover {
+  border-color: var(--color-border-strong);
+  transform: translateY(-2px);
+}
+
+.analytics-section-link svg {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  color: var(--color-accent);
+}
+
+.analytics-section-link__title {
+  display: block;
+  font-family: var(--font-header);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.analytics-section-link__text {
+  display: block;
+  color: var(--color-muted);
+}
+
 .analytics-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3005,7 +3112,8 @@ textarea.settings-row__input {
 
   .analytics-row,
   .analytics-stats,
-  .analytics-donuts {
+  .analytics-donuts,
+  .analytics-sections {
     grid-template-columns: 1fr;
   }
 

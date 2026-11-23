@@ -90,7 +90,7 @@ Log in as the demo account, then:
 
 ### Production Readiness
 
-- **CI/CD:** every pull request runs lint, type checks, both test suites and a build, each job with a time limit; `main` deploys only after they pass ([Actions](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/actions)).
+- **CI/CD:** every pull request runs lint, type checks, the backend and frontend test suites, a build, and end-to-end browser tests against the built app, each job with a time limit; `main` deploys only after they pass ([Actions](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/actions)).
 - **Health and failures:** Render checks `/api/health/live`, which never queries the database so Neon can scale to zero while the app is idle; if the database is down, requests fail fast with "Database is unavailable, try again shortly" (503) instead of hanging; if exchange rates can't load, the app falls back to cached or bundled rates.
 - **Repeatable deploys:** one Docker image serves the API and the web app, and Flyway applies database migrations on startup ([Deploying to Render](#deploying-to-render)).
 
@@ -152,7 +152,8 @@ Frontend (run from `frontend/`, not the repo root — there is no root `package.
 | ------------------- | ---------------------------------- |
 | `npm run dev`       | Runs the web app with hot reload   |
 | `npm test`          | Runs the frontend tests (Vitest)   |
-| `npm run typecheck` | Type-checks the client             |
+| `npm run typecheck` | Type-checks the client and e2e tests |
+| `npm run e2e`       | Runs the end-to-end tests (Playwright) against a running app |
 | `npm run lint`      | Runs ESLint                        |
 | `npm run format`    | Formats everything with Prettier   |
 | `npm run build`     | Builds `client/dist`               |
@@ -168,7 +169,7 @@ Backend (run from `backend/`):
 
 ### Running tests
 
-The backend has a JUnit 5 test suite (237 tests) covering the API endpoints, input
+The backend has a JUnit 5 test suite (240 tests) covering the API endpoints, input
 validation, auth and sessions, and the sales, expense, analytics and notification
 calculations. Tests run against a real PostgreSQL that Testcontainers starts in Docker, so
 there's no database to set up.
@@ -194,9 +195,22 @@ cd frontend
 npm test
 ```
 
-Both suites run in GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
-on every pull request into `main` and every push to `main`, and a merge only deploys if they
-pass. See recent runs in the [Actions tab](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/actions).
+The end-to-end tests (`frontend/e2e`, Playwright) drive Chromium through the real app: register,
+log out and back in, pages that need a login, adding an item and selling some (stock goes down,
+and the sale shows on Home and in Analytics), and adding an expense. Each test registers its own
+new business, so tests never share data and can run against any database. To run them locally,
+start the backend and the web app as in [Setup](#setup), then:
+
+```bash
+cd frontend
+npx playwright install chromium   # once, downloads the browser
+npm run e2e                       # against http://localhost:5173; set E2E_BASE_URL for another URL
+```
+
+All three suites run in GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
+on every pull request into `main` and every push to `main`. The end-to-end job builds the app
+the way the Docker image does and runs after the other two pass; a merge only deploys if all
+three pass. See recent runs in the [Actions tab](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/actions).
 
 ### Project structure
 
