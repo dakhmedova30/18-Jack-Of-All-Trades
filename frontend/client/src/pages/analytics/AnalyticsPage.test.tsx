@@ -1,5 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as analyticsApi from '../../api/analytics';
 import * as authApi from '../../api/auth';
@@ -44,6 +46,15 @@ const dates: AnalyticsDateRange = {
   today: '2026-11-05',
 };
 
+/** The page links to the deeper Analytics pages, so it needs a router too. */
+function Providers({ children }: { children: ReactNode }) {
+  return (
+    <MemoryRouter>
+      <PageProviders>{children}</PageProviders>
+    </MemoryRouter>
+  );
+}
+
 describe('AnalyticsPage', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -61,8 +72,27 @@ describe('AnalyticsPage', () => {
     ]);
   });
 
+  it('links to the deeper Inventory, Sales and Expense pages', async () => {
+    render(<AnalyticsPage />, { wrapper: Providers });
+
+    const nav = await screen.findByRole('navigation', { name: 'Deeper analytics' });
+    expect(within(nav).getAllByRole('link')).toHaveLength(3);
+    expect(within(nav).getByRole('link', { name: /^Inventory Analytics/ })).toHaveAttribute(
+      'href',
+      '/analytics/inventory',
+    );
+    expect(within(nav).getByRole('link', { name: /^Sales Analytics/ })).toHaveAttribute(
+      'href',
+      '/analytics/sales',
+    );
+    expect(within(nav).getByRole('link', { name: /^Expense Analytics/ })).toHaveAttribute(
+      'href',
+      '/analytics/expenses',
+    );
+  });
+
   it('opens on the 12 months up to the latest record', async () => {
-    render(<AnalyticsPage />, { wrapper: PageProviders });
+    render(<AnalyticsPage />, { wrapper: Providers });
 
     await waitFor(() =>
       expect(analyticsApi.getAnalyticsSummary).toHaveBeenCalledWith(
@@ -74,7 +104,7 @@ describe('AnalyticsPage', () => {
 
   it('reloads the summary for a typed period and a chosen channel', async () => {
     const user = userEvent.setup();
-    render(<AnalyticsPage />, { wrapper: PageProviders });
+    render(<AnalyticsPage />, { wrapper: Providers });
 
     // A complete, valid start date applies on its own; the page reloads once it settles. (The
     // slider's handle is also labelled "Start date", hence the selector.)
@@ -108,7 +138,7 @@ describe('AnalyticsPage', () => {
       lastDate: null,
       today: '2026-11-05',
     });
-    render(<AnalyticsPage />, { wrapper: PageProviders });
+    render(<AnalyticsPage />, { wrapper: Providers });
 
     expect(
       await screen.findByText('The slider appears once you have sales or expenses.'),
