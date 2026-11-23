@@ -5,7 +5,8 @@
   "description": "Business management and intelligence platform for small businesses, entrepreneurs and independent creators.",
   "license": "MIT",
   "workspaces": [
-    "client"
+    "client",
+    "e2e"
   ],
   "engines": {
     "node": ">=22.13"
@@ -14,10 +15,11 @@
     "dev": "npm run dev -w client",
     "build": "npm run build -w client",
     "test": "npm run test -w client",
-    "typecheck": "npm run typecheck -w client",
+    "typecheck": "npm run typecheck -w client -w e2e",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "e2e": "npm run test -w e2e"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
