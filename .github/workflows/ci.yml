@@ -5,6 +5,10 @@ on:
     branches: [main]
   push:
     branches: [main]
+  # Publishing a GitHub release (e.g. the D4 tag) re-runs every check on the tagged commit,
+  # then deploys that exact commit to prod.
+  release:
+    types: [published]
 
 jobs:
   check:
@@ -127,11 +131,37 @@ jobs:
             backend/app.log
           retention-days: 7
 
-  deploy:
+  # Two environments, each a Render service with its own Neon branch. Both deploys pass the
+  # commit SHA as `ref`, so Render builds exactly the commit that passed the checks, not
+  # whatever its branch points to by the time the deploy starts.
+  deploy-dev:
     needs: [check, backend-test, e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 2
+    environment:
+      name: dev
+      url: https://jack-of-all-trades-dev.onrender.com
     steps:
-      - name: Trigger Render deploy
-        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+      - name: Trigger Render deploy (dev)
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL_DEV }}
+        run: |
+          case "$HOOK" in *\?*) sep='&' ;; *) sep='?' ;; esac
+          curl -fsS -X POST "${HOOK}${sep}ref=${GITHUB_SHA}"
+
+  deploy-prod:
+    needs: [check, backend-test, e2e]
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    environment:
+      name: production
+      url: https://jack-of-all-trades-m86p.onrender.com
+    steps:
+      - name: Trigger Render deploy (prod)
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          case "$HOOK" in *\?*) sep='&' ;; *) sep='?' ;; esac
+          curl -fsS -X POST "${HOOK}${sep}ref=${GITHUB_SHA}"
