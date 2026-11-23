@@ -3,6 +3,10 @@ import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { AppLayout } from './components/AppLayout';
 import { useAuth } from './hooks/useAuth';
 import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
+import { ANALYTICS_SECTIONS } from './pages/analytics/analyticsSections';
+import { ExpenseAnalyticsPage } from './pages/analytics/ExpenseAnalyticsPage';
+import { InventoryAnalyticsPage } from './pages/analytics/InventoryAnalyticsPage';
+import { SalesAnalyticsPage } from './pages/analytics/SalesAnalyticsPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ExpensesPage } from './pages/expenses/ExpensesPage';
@@ -50,6 +54,7 @@ export function App() {
       '/sales': 'Sales',
       '/expenses': 'Expenses',
       '/analytics': 'Analytics',
+      ...Object.fromEntries(ANALYTICS_SECTIONS.map(({ to, title }) => [to, title])),
       '/help': 'Help and Support',
     };
     const settingsTab = pathname.match(/^\/settings\/([^/]+)$/)?.[1];
@@ -89,6 +94,9 @@ export function App() {
           <Route path="sales" element={<SalesPage />} />
           <Route path="expenses" element={<ExpensesPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="analytics/inventory" element={<InventoryAnalyticsPage />} />
+          <Route path="analytics/sales" element={<SalesAnalyticsPage />} />
+          <Route path="analytics/expenses" element={<ExpenseAnalyticsPage />} />
           <Route path="help" element={<HelpPage />} />
           <Route path="settings" element={<Navigate to="/settings/account" replace />} />
           <Route path="settings/:tab" element={<SettingsPage />} />

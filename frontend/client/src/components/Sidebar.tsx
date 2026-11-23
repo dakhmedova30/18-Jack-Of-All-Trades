@@ -1,9 +1,9 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { AccountMenu } from './AccountMenu';
 import { NotificationBell } from './NotificationBell';
 import { MenuIcon } from './icons';
-import { SIDEBAR_NAV_ITEMS } from './sidebarNavItems';
+import { SidebarNav } from './SidebarNav';
 
 type SidebarProps = {
   onClose: () => void;
@@ -38,19 +38,7 @@ export function Sidebar({ onClose, active = true }: SidebarProps) {
           <NotificationBell key={active ? 'active' : 'inactive'} />
         </div>
       </div>
-      <nav className="sidebar__nav" aria-label="Main">
-        {SIDEBAR_NAV_ITEMS.map(({ to, label, icon: NavIcon, end }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
-            className={({ isActive }) => `sidebar__link${isActive ? ' is-active' : ''}`}
-          >
-            <NavIcon />
-            <span className="sidebar__link-label">{label}</span>
-          </NavLink>
-        ))}
-      </nav>
+      <SidebarNav />
 
       <div className="sidebar__account">
         {/* Shows the profile picture, or the business's initials (e.g. DB) if there isn't one. */}
