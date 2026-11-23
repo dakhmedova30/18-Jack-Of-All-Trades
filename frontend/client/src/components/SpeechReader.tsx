@@ -256,9 +256,10 @@ function SpeechReaderControls() {
     function continueAfterPause(index: number) {
       if (currentGeneration !== generation.current) return;
       const speechToken = utteranceToken.current;
-      if (paused.current) resumeReading.current = () => {
-        if (utteranceToken.current === speechToken) speakNext(index);
-      };
+      if (paused.current)
+        resumeReading.current = () => {
+          if (utteranceToken.current === speechToken) speakNext(index);
+        };
       else speakNext(index);
     }
 
@@ -291,7 +292,12 @@ function SpeechReaderControls() {
         }
       };
       utterance.onerror = (event) => {
-        if (currentGeneration !== generation.current || utteranceToken.current !== speechToken || event.error === 'canceled') return;
+        if (
+          currentGeneration !== generation.current ||
+          utteranceToken.current !== speechToken ||
+          event.error === 'canceled'
+        )
+          return;
         fail();
       };
 
