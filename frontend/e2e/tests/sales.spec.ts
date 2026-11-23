@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { addButton, cellInColumn, openFromSidebar, registerNewBusiness, today } from './helpers';
+import {
+  addButton,
+  cellInColumn,
+  openFromSidebar,
+  registerNewBusiness,
+  sidebarLink,
+  today,
+} from './helpers';
 
 /**
  * The app's core loop: stock an item, sell some, and see the sale everywhere it should show up.
@@ -43,7 +50,7 @@ test('selling an item lowers its stock and shows up on Home and in Analytics', a
   await expect(await cellInColumn(page, itemRow, 'Qty')).toHaveText('7');
 
   // This month's revenue on Home and in Analytics is the 15.00 sale.
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Home' }).click();
+  await sidebarLink(page, 'Home').click();
   await expect(page.locator('.stat-card').filter({ hasText: /^Revenue/ })).toContainText('15.00');
 
   await openFromSidebar(page, 'Analytics');

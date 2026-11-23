@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { addButton, openFromSidebar, registerNewBusiness, today } from './helpers';
+import { addButton, openFromSidebar, registerNewBusiness, sidebarLink, today } from './helpers';
 
 test('an expense shows up in Expenses and in Home and Analytics totals', async ({ page }) => {
   await registerNewBusiness(page);
@@ -19,7 +19,7 @@ test('an expense shows up in Expenses and in Home and Analytics totals', async (
   await expect(expenseForm).toBeHidden();
   await expect(page.getByRole('row').filter({ hasText: 'Craft paper roll' })).toContainText('9.00');
 
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Home' }).click();
+  await sidebarLink(page, 'Home').click();
   await expect(page.locator('.stat-card').filter({ hasText: /^Expenses/ })).toContainText('9.00');
 
   await openFromSidebar(page, 'Analytics');

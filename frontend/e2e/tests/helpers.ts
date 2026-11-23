@@ -31,10 +31,20 @@ export function today(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
+/**
+ * A link in the main sidebar. Matched exactly, because the Analytics drop-down adds links such as
+ * "Sales Analytics" that a partial match for "Sales" or "Analytics" would also find.
+ */
+export function sidebarLink(page: Page, label: string): Locator {
+  return page
+    .getByRole('navigation', { name: 'Main' })
+    .getByRole('link', { name: label, exact: true });
+}
+
 /** Opens a page from the sidebar, the way a user would. */
 export async function openFromSidebar(page: Page, label: string): Promise<void> {
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: label }).click();
-  await expect(page.getByRole('heading', { level: 1, name: label })).toBeVisible();
+  await sidebarLink(page, label).click();
+  await expect(page.getByRole('heading', { level: 1, name: label, exact: true })).toBeVisible();
 }
 
 /**
