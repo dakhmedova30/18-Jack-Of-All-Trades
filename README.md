@@ -363,9 +363,14 @@ refreshes it.
 
 **Releasing to prod:** try the change on the dev site first. Then on GitHub, open **Releases >
 Draft a new release**, create a new tag on `main` (e.g. `D4` or `v1.1`), and click **Publish
-release**. CI re-runs every check on that commit and then deploys it to prod. To roll back,
-publish a release for an earlier commit, or redeploy an earlier commit from the prod service's
-**Manual Deploy** menu on Render.
+release**. CI re-runs every check on that commit and then deploys it to prod. A pre-release
+doesn't deploy; promoting it to a full release does.
+
+**Rolling back prod:** on Render, open the prod service's **Events**, find the last good deploy and
+click **Rollback**. It reuses that deploy's build, so it's quick. **Manual Deploy >
+Deploy a specific commit** works too, but rebuilds. Publishing a release for an earlier commit
+only deploys commits from after release deploys were added (PR #39), since a release runs the
+workflow file from the tagged commit, and it waits for all of CI first.
 
  ## Deployment and Github Workflow
 
