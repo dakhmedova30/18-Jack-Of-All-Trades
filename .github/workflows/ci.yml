@@ -165,7 +165,7 @@ jobs:
     timeout-minutes: 2
     environment:
       name: production
-      url: https://jack-of-all-trades-m86p.onrender.com
+      url: https://jack-of-all-trades-app.onrender.com
     steps:
       - name: Trigger Render deploy (prod)
         env:
