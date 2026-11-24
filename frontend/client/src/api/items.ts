@@ -14,6 +14,8 @@ export interface ListItemsParams {
   page: number;
   pageSize: number;
   search?: string;
+  /** Keeps items with any of these tags; empty or missing for all items. */
+  tags?: string[];
   /** Server default: id ascending. */
   sort?: ItemSortField;
   order?: SortOrder;
@@ -23,11 +25,13 @@ export function listItems({
   page,
   pageSize,
   search,
+  tags,
   sort,
   order,
 }: ListItemsParams): Promise<Paginated<Item>> {
   const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (search) query.set('search', search);
+  tags?.forEach((tag) => query.append('tag', tag));
   if (sort) query.set('sort', sort);
   if (order) query.set('order', order);
   return apiRequest(`/items?${query}`);
