@@ -232,6 +232,7 @@ A page customers can read **without logging in**: the business's public details 
 | `POST` | `/api/items/bulk-visibility` | `{ "ids": [1, 2], "isPublic": true }` (1–100 ids) | `200` `{ "updated": 2 }`; shows the items on the public profile (§2.2), or hides them with `false`. Skips ids that don't exist or aren't yours; `updated` counts only your items |
 
 - **List:** `search` matches the name or tags, case-insensitive. `sort` is `id` (default), `name`, `quantity` or `unitPriceCents`; `order` is `asc` (default) or `desc`.
+- **Tag filter** (optional, combined with `search`): repeat `tag` to keep items that have any of those tags, e.g. `?tag=stickers&tag=prints`. Tags match exactly, as `GET /api/items/tags` names them; blank values are ignored. At most 50 `tag` values, each at most 30 characters.
 - **`low-stock`:** items with quantity **≤ 5**. `limit` is 1–100 (default 5) and only caps the list; `count` covers every low item.
 
 ```json
