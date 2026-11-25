@@ -29,6 +29,8 @@ public record BusinessResponse(
         String etsy,
         String logoUrl,
         String publicSlug,
+        String publicEmail,
+        boolean showPhonePublicly,
         Instant createdAt) {
 
     /** An image's URL, or null. The version in the query string makes browsers refetch a new image. */
@@ -63,6 +65,8 @@ public record BusinessResponse(
                 business.getEtsy(),
                 imageUrl(business.getLogoUpdatedAt(), "logo"),
                 business.getPublicSlug(),
+                business.getPublicEmail(),
+                business.isShowPhonePublicly(),
                 business.getCreatedAt());
     }
 }

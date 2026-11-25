@@ -91,7 +91,7 @@ function NotificationsForm({
   business: Business;
 }) {
   const { updateBusiness } = useAuth();
-  const { reload, showDismissed } = useNotifications();
+  const { showDismissed } = useNotifications();
   const [lowStock, setLowStock] = useState(saved.lowStock);
   const [outOfStock, setOutOfStock] = useState(saved.outOfStock);
   const [newDevice, setNewDevice] = useState(saved.newDevice);
@@ -148,7 +148,6 @@ function NotificationsForm({
         await updateBusiness({ lowStockThreshold: Number(threshold) });
       }
       onSaved(next);
-      reload();
       setJustSaved(true);
     } catch (err) {
       setError(getErrorMessage(err));

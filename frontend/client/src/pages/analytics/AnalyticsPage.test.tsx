@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,11 +7,13 @@ import * as analyticsApi from '../../api/analytics';
 import * as authApi from '../../api/auth';
 import { PageProviders } from '../../test/providers';
 import type { AnalyticsDateRange, AnalyticsSummary } from '../../types';
+import * as csv from '../../utils/csv';
 import { AnalyticsPage } from './AnalyticsPage';
 
 vi.mock('../../api/analytics', () => ({
   getAnalyticsDateRange: vi.fn(),
   getAnalyticsSummary: vi.fn(),
+  getInventoryByTag: vi.fn(),
 }));
 
 // Amounts are shown in the account's currency, read through the login provider.
@@ -126,6 +129,7 @@ describe('AnalyticsPage', () => {
     fireEvent.change(await screen.findByLabelText('Start date', { selector: 'input' }), {
       target: { value: '2026-10-01' },
     });
+
     await waitFor(() =>
       expect(analyticsApi.getAnalyticsSummary).toHaveBeenLastCalledWith(
         { from: '2026-10-01', to: '2026-10-29' },
@@ -203,6 +207,33 @@ describe('AnalyticsPage', () => {
     expect(chart.getByText(/^No sales or expenses from /)).toBeInTheDocument();
     expect((await findCard('Revenue by Channel')).getByText(/^No sales from /)).toBeInTheDocument();
     expect((await findCard('Expenses by Tag')).getByText(/^No expenses from /)).toBeInTheDocument();
+  });
+
+  it("exports the period's summary, profit included, and current stock", async () => {
+    const user = userEvent.setup();
+    const download = vi.spyOn(csv, 'downloadCsv').mockImplementation(() => {});
+    vi.mocked(analyticsApi.getAnalyticsSummary).mockResolvedValue({
+      ...summary,
+      netProfitCents: -123,
+    });
+    vi.mocked(analyticsApi.getInventoryByTag).mockResolvedValue({
+      byTag: [{ label: 'prints', quantity: 12, itemCount: 3 }],
+      totalQuantity: 12,
+      totalItems: 3,
+    });
+    render(<AnalyticsPage />, { wrapper: Providers });
+
+    await user.click(await screen.findByRole('button', { name: 'Export CSV' }));
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+    // There's no channel filter here, so the export is always every channel's.
+    expect(csv.parseCsv(download.mock.calls[0][1]).records[0]).toMatchObject({
+      from: '2025-11-01',
+      to: '2026-10-29',
+      channelId: '',
+      netProfitCents: '-123',
+      inventoryTotalQuantity: '12',
+    });
+    download.mockRestore();
   });
 
   it('falls back to the 12 months up to today when there are no records yet', async () => {

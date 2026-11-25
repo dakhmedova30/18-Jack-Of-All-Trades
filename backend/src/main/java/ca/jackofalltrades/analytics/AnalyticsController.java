@@ -1,6 +1,11 @@
 package ca.jackofalltrades.analytics;
 
 import ca.jackofalltrades.common.api.BadRequestException;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
@@ -16,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Analytics endpoints (contract §6). No {@code @Validated}, for the reason given on ItemController. */
+@Tag(name = "Analytics", description = "Revenue, expenses and inventory summaries over a date range.")
 @RestController
 @RequestMapping("/api/analytics")
 public class AnalyticsController {
@@ -86,6 +92,10 @@ public class AnalyticsController {
      * would split a single value on commas, and a tag can contain one.
      */
     @GetMapping("/expense-trends")
+    // Read from the request below, so the API docs need telling about it.
+    @Parameter(name = "tag", in = ParameterIn.QUERY,
+            description = "Only expenses with this first tag (\"Untagged\" for none); repeat for several",
+            array = @ArraySchema(schema = @Schema(type = "string")))
     public ExpenseTrends expenseTrends(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,

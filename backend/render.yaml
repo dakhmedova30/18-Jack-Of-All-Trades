@@ -19,9 +19,10 @@ services:
     # Not /api/health: that one queries the database, and checks every few seconds would keep
     # Neon's compute awake around the clock.
     healthCheckPath: /api/health/live
-    # Deploys are triggered by the deploy job in .github/workflows/ci.yml (through the
-    # RENDER_DEPLOY_HOOK_URL secret) only after the checks and tests pass on main, so Render
-    # doesn't also deploy on every commit by itself.
+    # Deploys are triggered by the deploy-dev and deploy-prod jobs in .github/workflows/ci.yml
+    # (through each service's deploy hook, stored as a GitHub secret) only after the checks and
+    # tests pass, so Render doesn't also deploy on every commit by itself. See the README's
+    # "Environments and releases".
     autoDeployTrigger: "off"
     envVars:
       - key: SPRING_DATASOURCE_URL

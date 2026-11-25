@@ -1,5 +1,6 @@
 package ca.jackofalltrades.expensetags;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Expense tags (contract §5.1): the business's list, oldest first, and adding one. */
+@Tag(name = "Expense tags", description = "Labels for grouping expenses.")
 @RestController
 @RequestMapping("/api/expense-tags")
 public class ExpenseTagController {

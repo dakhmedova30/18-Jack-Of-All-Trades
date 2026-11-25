@@ -34,6 +34,10 @@ export interface Business {
   logoUrl: string | null;
   /** The public profile's link name (/p/<slug>), or null while the profile is off. */
   publicSlug: string | null;
+  /** A contact email for the public profile, separate from the login email, or null for none. */
+  publicEmail: string | null;
+  /** Whether the public profile shows `phone`. */
+  showPhonePublicly: boolean;
   createdAt: string;
 }
 
@@ -88,6 +92,10 @@ export interface PublicProfile {
   city: string | null;
   region: string | null;
   currency: string;
+  /** The public contact email (never the login email), or null if the owner hasn't set one. */
+  email: string | null;
+  /** The phone, or null unless the owner chose to show it. */
+  phone: string | null;
   website: string | null;
   instagram: string | null;
   facebook: string | null;
@@ -298,6 +306,14 @@ export interface AnalyticsDateRange {
   lastDate: string | null;
   /** The server's UTC date. */
   today: string;
+}
+
+/** Current stock by first tag, for the Analytics CSV export. A snapshot, so dates don't apply. */
+export interface InventoryByTag {
+  /** Largest first; tags past the top 7 fold into "Other" (last). */
+  byTag: { label: string; quantity: number; itemCount: number }[];
+  totalQuantity: number;
+  totalItems: number;
 }
 
 export interface AnalyticsSummary {

@@ -1,4 +1,7 @@
+import type { ReactNode } from 'react';
 import { useState } from 'react';
+import { getAnalyticsSummary, getInventoryByTag } from '../../api/analytics';
+import { CsvTransfer } from '../../components/CsvTransfer';
 import { Link } from 'react-router-dom';
 import { useAnalyticsDateRange } from '../../hooks/useAnalyticsDateRange';
 import { useAnalyticsSummary } from '../../hooks/useAnalyticsSummary';
@@ -10,7 +13,7 @@ import { defaultPeriod, periodPhrase, RELOAD_DELAY_MS } from './analyticsPeriod'
 import { ANALYTICS_SECTIONS } from './analyticsSections';
 import { ChartCard, FitSize } from './ChartCard';
 import { ChartLegend, ChartTable, CompactBarList, LineChart } from './charts';
-import type { AnalyticsDateRange, AnalyticsSummary, DateRange } from '../../types';
+import type { AnalyticsDateRange, AnalyticsSummary, DateRange, InventoryByTag } from '../../types';
 
 const BY_BUCKET: Record<AnalyticsSummary['granularity'], string> = {
   day: 'By day',
@@ -32,7 +35,7 @@ function totalsByBucket(series: AnalyticsSummary['revenueSeries'], buckets: numb
   );
 }
 
-function AnalyticsHeader() {
+function AnalyticsHeader({ actions }: { actions?: ReactNode }) {
   return (
     <>
       <div className="analytics-header">
@@ -43,6 +46,7 @@ function AnalyticsHeader() {
             by sales channel, and where your expenses go by tag.
           </p>
         </div>
+        {actions}
       </div>
       <nav className="analytics-sections" aria-label="Deeper analytics">
         {ANALYTICS_SECTIONS.map(({ to, title, description, icon: SectionIcon }) => (
@@ -95,9 +99,28 @@ function AnalyticsDashboard({ dates }: { dates: AnalyticsDateRange }) {
   const refreshing = data !== undefined && (loading || requested !== period);
   const phrase = periodPhrase(requested);
 
+  async function loadAnalyticsCsv(): Promise<AnalyticsCsvRecord[]> {
+    const [summary, inventory] = await Promise.all([
+      getAnalyticsSummary(requested),
+      getInventoryByTag(),
+    ]);
+    // This page no longer filters by channel, so channelId is always blank; the column stays so
+    // exports keep the same layout.
+    return [{ from: requested.from, to: requested.to, channelId: '', summary, inventory }];
+  }
+
   return (
     <>
-      <AnalyticsHeader />
+      <AnalyticsHeader
+        actions={
+          <CsvTransfer
+            filename="analytics"
+            headers={ANALYTICS_CSV_HEADERS}
+            loadRows={loadAnalyticsCsv}
+            exportRow={analyticsCsvRow}
+          />
+        }
+      />
 
       <div className="analytics-layout">
         <div className="analytics-side">
@@ -162,6 +185,56 @@ function AnalyticsDashboard({ dates }: { dates: AnalyticsDateRange }) {
       </div>
     </>
   );
+}
+
+interface AnalyticsCsvRecord {
+  from: string;
+  to: string;
+  channelId: string;
+  summary: AnalyticsSummary;
+  inventory: InventoryByTag;
+}
+
+const ANALYTICS_CSV_HEADERS = [
+  'from',
+  'to',
+  'channelId',
+  'totalRevenueCents',
+  'totalExpensesCents',
+  'netProfitCents',
+  'range',
+  'granularity',
+  'buckets',
+  'bucketLabels',
+  'revenueSeries',
+  'expenseSeries',
+  'salesByTag',
+  'revenueByChannel',
+  'inventoryByTag',
+  'inventoryTotalQuantity',
+  'inventoryTotalItems',
+];
+
+function analyticsCsvRow({ from, to, channelId, summary, inventory }: AnalyticsCsvRecord) {
+  return [
+    from,
+    to,
+    channelId,
+    summary.totalRevenueCents,
+    summary.totalExpensesCents,
+    channelId ? null : summary.netProfitCents,
+    summary.range,
+    summary.granularity,
+    JSON.stringify(summary.buckets),
+    JSON.stringify(summary.bucketLabels),
+    JSON.stringify(summary.revenueSeries),
+    JSON.stringify(summary.expenseSeries),
+    JSON.stringify(summary.salesByTag),
+    JSON.stringify(summary.revenueByChannel),
+    JSON.stringify(inventory.byTag),
+    inventory.totalQuantity,
+    inventory.totalItems,
+  ];
 }
 
 interface AnalyticsContentProps {

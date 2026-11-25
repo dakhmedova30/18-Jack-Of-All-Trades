@@ -4,6 +4,7 @@ import type {
   AnalyticsSummary,
   DateRange,
   ExpenseTrends,
+  InventoryByTag,
   SalesTrends,
   StockHealth,
 } from '../types';
@@ -32,6 +33,11 @@ export function getAnalyticsSummary(
 /** The first and last day with a sale or expense, for the date filter. */
 export function getAnalyticsDateRange(): Promise<AnalyticsDateRange> {
   return apiRequest('/analytics/date-range');
+}
+
+/** Current stock by first tag, for the Analytics CSV export. */
+export function getInventoryByTag(): Promise<InventoryByTag> {
+  return apiRequest('/analytics/inventory');
 }
 
 /**

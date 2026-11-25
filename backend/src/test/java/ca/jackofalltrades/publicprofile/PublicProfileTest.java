@@ -1,7 +1,10 @@
 package ca.jackofalltrades.publicprofile;
 
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -50,7 +53,12 @@ class PublicProfileTest extends PostgresTestBase {
 
     /** A business with a public profile at {@code slug}. */
     private Cookie businessWithProfile(String slug) throws Exception {
-        Cookie cookie = register("Jinuo's Jewelry", uniqueEmail(), "correct-horse");
+        return businessWithProfile(slug, uniqueEmail());
+    }
+
+    /** A business with a public profile at {@code slug}, a phone and a street address, logging in as {@code email}. */
+    private Cookie businessWithProfile(String slug, String email) throws Exception {
+        Cookie cookie = register("Jinuo's Jewelry", email, "correct-horse");
         mockMvc.perform(patch("/api/auth/me").cookie(cookie)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -99,14 +107,20 @@ class PublicProfileTest extends PostgresTestBase {
     @Test
     void neverShowsPrivateBusinessOrItemDetails() throws Exception {
         String slug = uniqueSlug();
-        Cookie cookie = businessWithProfile(slug);
+        String loginEmail = uniqueEmail();
+        Cookie cookie = businessWithProfile(slug, loginEmail);
         createItem(cookie, "Silver Ring", 3, true);
 
         mockMvc.perform(get("/api/public/businesses/" + slug))
                 .andExpect(status().isOk())
+                // Checked in the raw body, so no field name can leak them.
+                .andExpect(content().string(not(containsString(loginEmail))))
+                .andExpect(content().string(not(containsString("416-555-0100"))))
+                .andExpect(content().string(not(containsString("1 Secret St"))))
+                // The contact fields are opt-in, so they start empty.
+                .andExpect(jsonPath("$.email").value(nullValue()))
+                .andExpect(jsonPath("$.phone").value(nullValue()))
                 .andExpect(jsonPath("$.id").doesNotExist())
-                .andExpect(jsonPath("$.email").doesNotExist())
-                .andExpect(jsonPath("$.phone").doesNotExist())
                 .andExpect(jsonPath("$.addressLine").doesNotExist())
                 .andExpect(jsonPath("$.lastLoginAt").doesNotExist())
                 .andExpect(jsonPath("$.items[0].quantity").doesNotExist())
@@ -301,5 +315,79 @@ class PublicProfileTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.error.message").value("That public link is already taken"));
         // Saving your own link again is not a conflict.
         setSlug(first, slug).andExpect(status().isOk());
+    }
+
+    // ---- Owner settings: contact details on the profile ----
+
+    private ResultActions updateMe(Cookie cookie, String json) throws Exception {
+        return mockMvc.perform(patch("/api/auth/me").cookie(cookie)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json));
+    }
+
+    @Test
+    void showsThePublicEmailAndThePhoneOnlyWhenTheOwnerChooses() throws Exception {
+        String slug = uniqueSlug();
+        Cookie cookie = businessWithProfile(slug);
+
+        updateMe(cookie, """
+                {"publicEmail": "  hello@jewelry.example  ", "showPhonePublicly": true}
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicEmail").value("hello@jewelry.example"))
+                .andExpect(jsonPath("$.showPhonePublicly").value(true));
+        mockMvc.perform(get("/api/public/businesses/" + slug))
+                .andExpect(jsonPath("$.email").value("hello@jewelry.example"))
+                .andExpect(jsonPath("$.phone").value("416-555-0100"));
+
+        // An empty email removes it, and turning the phone off hides it again but keeps it in settings.
+        updateMe(cookie, """
+                {"publicEmail": "", "showPhonePublicly": false}
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicEmail").value(nullValue()))
+                .andExpect(jsonPath("$.phone").value("416-555-0100"));
+        mockMvc.perform(get("/api/public/businesses/" + slug))
+                .andExpect(jsonPath("$.email").value(nullValue()))
+                .andExpect(jsonPath("$.phone").value(nullValue()));
+    }
+
+    @Test
+    void showingThePhoneWithoutOneShowsNothing() throws Exception {
+        String slug = uniqueSlug();
+        Cookie cookie = businessWithProfile(slug);
+
+        updateMe(cookie, """
+                {"phone": "", "showPhonePublicly": true}
+                """).andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/public/businesses/" + slug))
+                .andExpect(jsonPath("$.phone").value(nullValue()));
+    }
+
+    @Test
+    void savingOtherDetailsLeavesTheContactChoicesAlone() throws Exception {
+        String slug = uniqueSlug();
+        Cookie cookie = businessWithProfile(slug);
+        updateMe(cookie, """
+                {"publicEmail": "hello@jewelry.example", "showPhonePublicly": true}
+                """).andExpect(status().isOk());
+
+        updateMe(cookie, """
+                {"description": "Handmade rings and earrings"}
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicEmail").value("hello@jewelry.example"))
+                .andExpect(jsonPath("$.showPhonePublicly").value(true));
+    }
+
+    @Test
+    void rejectsAnInvalidPublicEmail() throws Exception {
+        updateMe(registerAndLogin(), """
+                {"publicEmail": "not-an-email"}
+                """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].field").value("publicEmail"))
+                .andExpect(jsonPath("$.error.details[0].message").value("Enter a valid email"));
     }
 }

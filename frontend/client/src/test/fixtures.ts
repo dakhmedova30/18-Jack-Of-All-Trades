@@ -30,6 +30,8 @@ export const testBusiness: Business = {
   etsy: null,
   logoUrl: null,
   publicSlug: null,
+  publicEmail: null,
+  showPhonePublicly: false,
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 

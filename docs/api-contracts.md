@@ -91,7 +91,7 @@ One account is one business. Login sets a `jack_session` cookie that the browser
   "addressLine": "12 Main St", "city": "Vancouver", "region": "BC", "postalCode": "V6B 1A1",
   "description": "Hand-poured candles.", "website": "https://alliescandles.ca",
   "instagram": null, "facebook": null, "tiktok": null, "etsy": null, "logoUrl": null, "publicSlug": null,
-  "createdAt": "2026-10-21T22:00:00.000Z" }
+  "publicEmail": null, "showPhonePublicly": false, "createdAt": "2026-10-21T22:00:00.000Z" }
 
 // UpdateBusinessInput (lowStockThreshold is a whole number from 0 up, default 5): every field optional; a missing field is left alone,
 // and "" clears any optional text field (businessType, country, owner name, contact, links).
@@ -101,6 +101,9 @@ One account is one business. Login sets a `jack_session` cookie that the browser
 // timeZone is an IANA id such as "America/Toronto". publicSlug turns on the public profile (§2.2):
 // 3-40 lowercase letters, digits and single hyphens (stored lowercased); "" turns it off;
 // one already used by another business is 409 "That public link is already taken".
+// publicEmail is a contact email shown on the public profile, separate from the login email
+// (a valid email up to 255 characters; "" removes it). showPhonePublicly (boolean, default false)
+// shows phone on the public profile. Both are off by default.
 { "name": "Allie's Candles", "businessType": "Candles", "country": "Canada",
   "timeZone": "America/Toronto" }
 
@@ -200,13 +203,15 @@ A page customers can read **without logging in**: the business's public details 
 | `GET` | `/api/public/businesses/{slug}/logo` | — | `200` the image (publicly cacheable) | `404` |
 
 - The slug is matched case-insensitively. An unknown slug and a turned-off profile give the **same** `404`, so nobody can tell whether a business exists.
-- `PublicProfile` is an allowlist: email, phone, street address, postal code, owner name and login times are never sent, nor are item quantities, notes or tags. `inStock` is `quantity > 0`.
+- `PublicProfile` is an allowlist: the login email, street address, postal code, owner name and login times are never sent, nor are item quantities, notes or tags. `inStock` is `quantity > 0`.
+- Contact details are opt-in: `email` is the business's `publicEmail` (never the login email), and `phone` is `null` unless `showPhonePublicly` is on. Both are `null` by default.
 - Items are only this business's `isPublic` items, sorted by name.
 
 ```json
 // PublicProfile
 { "slug": "alliescandles", "name": "Allie's Candles", "description": "Hand-poured candles.",
-  "city": "Vancouver", "region": "BC", "currency": "CAD", "website": "https://alliescandles.ca",
+  "city": "Vancouver", "region": "BC", "currency": "CAD", "email": "hello@alliescandles.ca",
+  "phone": null, "website": "https://alliescandles.ca",
   "instagram": null, "facebook": null, "tiktok": null, "etsy": null,
   "logoUrl": "/api/public/businesses/alliescandles/logo?v=1761750000000",
   "items": [{ "id": 7, "name": "Lavender Candle", "unitPriceCents": 1800, "inStock": true }] }
