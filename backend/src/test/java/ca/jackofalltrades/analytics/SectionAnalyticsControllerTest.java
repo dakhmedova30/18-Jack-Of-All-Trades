@@ -2,6 +2,7 @@ package ca.jackofalltrades.analytics;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -416,6 +417,34 @@ class SectionAnalyticsControllerTest extends PostgresTestBase {
                         .cookie(cookie))
                 .andExpect(jsonPath("$.granularity").value("month"))
                 .andExpect(jsonPath("$.byTag[*].label", contains("rent")));
+    }
+
+    @Test
+    void invalidChannelIdsAre400() throws Exception {
+        Cookie cookie = registerAndLogin();
+
+        mockMvc.perform(get("/api/analytics/sales-trends?channelId=2&channelId=0").cookie(cookie))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].field").value("channelId"))
+                .andExpect(jsonPath("$.error.details[0].message").value("Must be at least 1"));
+        mockMvc.perform(get("/api/analytics/sales-trends?channelId=online").cookie(cookie))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("Invalid value for 'channelId'"));
+    }
+
+    @Test
+    void theApiDocsListTheRepeatableChannelAndTagFilters() throws Exception {
+        String salesTrends = "$.paths['/api/analytics/sales-trends'].get.parameters[?(@.name == 'channelId')]";
+        String expenseTrends = "$.paths['/api/analytics/expense-trends'].get.parameters[?(@.name == 'tag')]";
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(salesTrends + ".in", contains("query")))
+                .andExpect(jsonPath(salesTrends + ".schema.type", contains("array")))
+                // tag is read straight from the request, so it's declared on the method by hand.
+                .andExpect(jsonPath(expenseTrends + ".in", contains("query")))
+                .andExpect(jsonPath(expenseTrends + ".schema.type", contains("array")))
+                .andExpect(jsonPath(expenseTrends + ".schema.items.type", contains("string")))
+                .andExpect(jsonPath("$.paths['/api/analytics/expense-tags'].get.tags", hasItem("Analytics")));
     }
 
     @Test

@@ -390,6 +390,29 @@ describe('SalesAnalyticsPage charts', () => {
       expect(within(filters).queryByRole('checkbox', { name: 'Online' })).not.toBeInTheDocument();
     });
 
+    it('closes the menu on a click outside it, or tabbing away, but not on a click inside it', async () => {
+      const user = userEvent.setup();
+      vi.mocked(analyticsApi.getSalesTrends).mockResolvedValue(SOME_SALES);
+      render(<SalesAnalyticsPage />, { wrapper: Providers });
+
+      // A click inside the menu but on no box (here its edge) leaves it open.
+      const { filters, button } = await openChannels();
+      const menu = within(filters).getByRole('group', { name: 'Channels' });
+      await user.click(menu);
+      expect(button).toHaveAttribute('aria-expanded', 'true');
+
+      await user.click(document.body);
+      expect(button).toHaveAttribute('aria-expanded', 'false');
+      expect(within(filters).queryByRole('group', { name: 'Channels' })).not.toBeInTheDocument();
+
+      // Focus leaving the menu (Shift+Tab from its button, back to the dates) closes it too.
+      await user.click(button);
+      expect(button).toHaveAttribute('aria-expanded', 'true');
+      await user.tab({ shift: true });
+      expect(button).not.toHaveFocus();
+      expect(button).toHaveAttribute('aria-expanded', 'false');
+    });
+
     it('names the channels when they had no sales in the period', async () => {
       const user = userEvent.setup();
       vi.mocked(analyticsApi.getSalesTrends).mockImplementation((_period, ids) =>

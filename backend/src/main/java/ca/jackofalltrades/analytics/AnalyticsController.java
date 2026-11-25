@@ -79,9 +79,10 @@ public class AnalyticsController {
     public SalesTrends salesTrends(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(name = "channelId", required = false)
-            List<@Min(value = 1, message = "Must be at least 1") Integer> channelIds) {
-        return sectionAnalytics.salesTrends(LocalDate.now(ZoneOffset.UTC), from, to, channelIds);
+            // Named as the query parameter, since a validation error names the field after it.
+            @RequestParam(required = false)
+            List<@Min(value = 1, message = "Must be at least 1") Integer> channelId) {
+        return sectionAnalytics.salesTrends(LocalDate.now(ZoneOffset.UTC), from, to, channelId);
     }
 
     /**

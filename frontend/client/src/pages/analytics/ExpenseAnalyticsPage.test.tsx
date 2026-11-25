@@ -162,6 +162,37 @@ describe('ExpenseAnalyticsPage charts', () => {
     expect((await findCard('Largest expense')).getByText('—')).toBeInTheDocument();
   });
 
+  it('says when last month had no expenses, or neither month has any', async () => {
+    vi.mocked(analyticsApi.getExpenseTrends).mockResolvedValue(TWO_MONTHS);
+    const empty = {
+      periodStart: '2026-11-01T00:00:00Z',
+      periodEnd: '2026-12-01T00:00:00Z',
+      restockCents: 0,
+      runningCents: 0,
+      totalCents: 0,
+      previousTotalCents: 0,
+      largestExpense: null,
+      topRestockItems: [],
+    };
+    vi.mocked(expenseApi.getExpenseMonthBreakdown).mockResolvedValue({
+      ...empty,
+      runningCents: 10000,
+      totalCents: 10000,
+    });
+    const { unmount } = render(<ExpenseAnalyticsPage />, { wrapper: Providers });
+    expect(await (await findCard('Spent')).findByText('None in October')).toBeInTheDocument();
+    unmount();
+
+    vi.mocked(expenseApi.getExpenseMonthBreakdown).mockResolvedValue(empty);
+    render(<ExpenseAnalyticsPage />, { wrapper: Providers });
+    const spent = await findCard('Spent');
+    expect(await spent.findByText('0.00 CAD')).toBeInTheDocument();
+    expect(spent.getByText('No expenses yet')).toBeInTheDocument();
+    expect(
+      (await findCard('Where the money goes')).getByText('No expenses yet this month.'),
+    ).toBeInTheDocument();
+  });
+
   it('charts expenses by tag, profit, cost types and tags', async () => {
     vi.mocked(analyticsApi.getExpenseTrends).mockResolvedValue(TWO_MONTHS);
     render(<ExpenseAnalyticsPage />, { wrapper: Providers });
