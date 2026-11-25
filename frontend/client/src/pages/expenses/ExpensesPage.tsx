@@ -5,6 +5,7 @@ import {
   deleteExpense,
   getExpense,
   listExpenseLines,
+  listExpenses,
   updateExpense,
 } from '../../api/expenses';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -274,7 +275,7 @@ export function ExpensesPage() {
       </div>
 
       <div className="expense-report-controls">
-        <div className="form-row">
+        <div className="filter-field">
           <label htmlFor="expenses-view">View</label>
           <select
             id="expenses-view"
@@ -286,7 +287,7 @@ export function ExpensesPage() {
             <option value="manufacturer">Manufacturer groups</option>
           </select>
         </div>
-        <div className="form-row">
+        <div className="filter-field">
           <label htmlFor="expense-filter-category">Category</label>
           <select
             id="expense-filter-category"
@@ -306,7 +307,7 @@ export function ExpensesPage() {
             ))}
           </select>
         </div>
-        <div className="form-row">
+        <div className="filter-field">
           <label htmlFor="expense-filter-subcategory">Sub-category</label>
           <select
             id="expense-filter-subcategory"
@@ -328,7 +329,7 @@ export function ExpensesPage() {
             ))}
           </select>
         </div>
-        <div className="form-row">
+        <div className="filter-field">
           <label htmlFor="expense-filter-manufacturer">Manufacturer</label>
           <select
             id="expense-filter-manufacturer"
@@ -354,7 +355,7 @@ export function ExpensesPage() {
             ))}
           </select>
         </div>
-        <div className="form-row">
+        <div className="filter-field">
           <label htmlFor="expense-filter-type">Type</label>
           <select
             id="expense-filter-type"
@@ -372,7 +373,7 @@ export function ExpensesPage() {
             ))}
           </select>
         </div>
-        <div className="form-row">
+        <div className="filter-field">
           <label htmlFor="expense-filter-from">Date from</label>
           <input
             id="expense-filter-from"
@@ -384,7 +385,7 @@ export function ExpensesPage() {
             }}
           />
         </div>
-        <div className="form-row">
+        <div className="filter-field">
           <label htmlFor="expense-filter-to">Date to</label>
           <input
             id="expense-filter-to"

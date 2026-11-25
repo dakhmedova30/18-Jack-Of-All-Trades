@@ -1756,25 +1756,30 @@ select {
 }
 
 .expense-report-controls {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
   gap: 0.75rem;
   margin-block: 1rem;
 }
 
-.expense-report-controls .form-row {
+.expense-report-controls .filter-field {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  min-width: 0;
-  margin: 0;
+  min-width: min(100%, 10rem);
 }
 
-.expense-report-controls .form-row select,
-.expense-report-controls .form-row input {
+.expense-report-controls .filter-field select,
+.expense-report-controls .filter-field input {
   width: 100%;
   min-width: 0;
+}
+
+.expense-report-controls .filter-field select:focus-visible,
+.expense-report-controls .filter-field input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .expense-report__subcategory {
@@ -3527,7 +3532,11 @@ textarea.settings-row__input {
   }
 
   .expense-report-controls {
-    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .expense-report-controls .filter-field {
+    flex-basis: 100%;
   }
 
   .sale-line__index {
