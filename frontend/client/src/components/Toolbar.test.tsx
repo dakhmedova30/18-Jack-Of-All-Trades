@@ -3,6 +3,19 @@ import { describe, expect, it } from 'vitest';
 import { Toolbar } from './Toolbar';
 
 describe('Toolbar', () => {
+  it('only shows bulk delete actions when rows are selected', () => {
+    const toolbar = { onAdd: () => {}, onDelete: () => {}, selectedCount: 0 };
+    const { rerender } = render(<Toolbar {...toolbar} />);
+
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+
+    rerender(
+      <Toolbar onAdd={toolbar.onAdd} onDelete={toolbar.onDelete} selectedCount={2} />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+  });
+
   it('toggles the filter panel and reports its expanded state', () => {
     render(
       <Toolbar

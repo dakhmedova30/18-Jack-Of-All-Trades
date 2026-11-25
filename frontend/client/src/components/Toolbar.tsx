@@ -2,9 +2,9 @@ import { useId, useState, type ReactNode } from 'react';
 import { MoreIcon, PlusIcon, TrashIcon } from './icons';
 
 interface ToolbarProps {
-  search: ReactNode;
+  search?: ReactNode;
   onAdd: () => void;
-  transfer: ReactNode;
+  transfer?: ReactNode;
   selectedCount: number;
   onDelete?: () => void;
   profileActions?: ReactNode;
@@ -41,7 +41,7 @@ export function Toolbar({
       )}
 
       <div className="toolbar__layout">
-        <div className="toolbar__search">{search}</div>
+        {search && <div className="toolbar__search">{search}</div>}
 
         <div className="toolbar__actions">
           {filters && (
@@ -61,19 +61,21 @@ export function Toolbar({
               )}
             </button>
           )}
-          <details className="toolbar__transfer">
-            <summary
-              className="button button--ghost"
-              aria-label="Import or export CSV"
-              title="Import or export CSV"
-            >
-              <span className="toolbar__transfer-label">Import / Export</span>
-              <span className="toolbar__transfer-compact" aria-label="More actions">
-                <MoreIcon />
-              </span>
-            </summary>
-            <div className="toolbar__transfer-menu">{transfer}</div>
-          </details>
+          {transfer && (
+            <details className="toolbar__transfer">
+              <summary
+                className="button button--ghost"
+                aria-label="Import or export CSV"
+                title="Import or export CSV"
+              >
+                <span className="toolbar__transfer-label">Import / Export</span>
+                <span className="toolbar__transfer-compact" aria-label="More actions">
+                  <MoreIcon />
+                </span>
+              </summary>
+              <div className="toolbar__transfer-menu">{transfer}</div>
+            </details>
+          )}
           <button
             type="button"
             className="button toolbar__add"

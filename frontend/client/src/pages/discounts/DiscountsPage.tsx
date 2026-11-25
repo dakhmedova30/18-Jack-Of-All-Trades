@@ -9,6 +9,7 @@ import {
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { PlusIcon, TrashIcon } from '../../components/icons';
 import { TagList } from '../../components/TagList';
+import { Toolbar } from '../../components/Toolbar';
 import { useLoad } from '../../hooks/useLoad';
 import type { Discount, DiscountInput } from '../../types';
 import { formatCents } from '../../utils/money';
@@ -86,21 +87,11 @@ export function DiscountsPage() {
         </p>
       </div>
 
-      <div className="toolbar">
-        <div className="toolbar__actions">
-          <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
-            Add <PlusIcon />
-          </button>
-          <button
-            type="button"
-            className="button button--secondary"
-            disabled={selected.size === 0}
-            onClick={() => setDeleteTarget({ kind: 'bulk', ids: [...selected] })}
-          >
-            Bulk Delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
-          </button>
-        </div>
-      </div>
+      <Toolbar
+        onAdd={() => setFormState({ mode: 'create' })}
+        selectedCount={selected.size}
+        onDelete={() => setDeleteTarget({ kind: 'bulk', ids: [...selected] })}
+      />
 
       {error && (
         <div className="banner banner--error" role="alert">
