@@ -8,7 +8,7 @@
 ​
 ## Try It Now
 
-**Live app: https://jack-of-all-trades-m86p.onrender.com** (no install needed)
+**Live app: https://jack-of-all-trades-app.onrender.com** (no install needed)
 
 Dev site, which updates on every merge to `main`: https://jack-of-all-trades-dev.onrender.com (its own database; see [Environments and releases](#environments-and-releases)).
 
@@ -353,7 +353,7 @@ Vite reads `frontend/client/.env` by itself when `npm run dev` or `npm run build
 | Environment | URL | Database | Deploys when |
 | --- | --- | --- | --- |
 | **dev** | https://jack-of-all-trades-dev.onrender.com | Neon branch `dev` | Every merge to `main`, after all CI checks pass (`deploy-dev` job) |
-| **prod** | https://jack-of-all-trades-m86p.onrender.com | Neon branch `production` | A GitHub release is published, after all CI checks pass on the tagged commit (`deploy-prod` job) |
+| **prod** | https://jack-of-all-trades-app.onrender.com | Neon branch `production` | A GitHub release is published, after all CI checks pass on the tagged commit (`deploy-prod` job) |
 
 Both are Render web services built from the same Dockerfile, set up as in the steps above, with
 the same environment variables except the database host and password. CI sends the commit SHA with each
