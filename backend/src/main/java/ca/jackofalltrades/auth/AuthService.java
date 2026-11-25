@@ -133,6 +133,12 @@ public class AuthService {
         if (request.publicSlug() != null) {
             business.setPublicSlug(emptyToNull(publicSlug(request.publicSlug(), id)));
         }
+        if (request.publicEmail() != null) {
+            business.setPublicEmail(emptyToNull(request.publicEmail()));
+        }
+        if (request.showPhonePublicly() != null) {
+            business.setShowPhonePublicly(request.showPhonePublicly());
+        }
         return business;
     }
 

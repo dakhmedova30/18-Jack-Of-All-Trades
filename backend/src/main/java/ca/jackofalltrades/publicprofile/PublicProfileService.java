@@ -39,6 +39,8 @@ public class PublicProfileService {
                 business.getCity(),
                 business.getRegion(),
                 business.getCurrency(),
+                business.getPublicEmail(),
+                business.isShowPhonePublicly() ? business.getPhone() : null,
                 business.getWebsite(),
                 business.getInstagram(),
                 business.getFacebook(),
