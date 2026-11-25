@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 
@@ -28,13 +29,21 @@ public record ItemInput(
         Integer unitPriceCents,
 
         @Size(max = 10, message = "At most 10 tags")
-        List<@NotBlank(message = "Tags cannot be empty") @Size(max = 30, message = "Tags must be at most 30 characters") String> tags,
+        List<@NotBlank(message = "Tags cannot be empty") @Size(max = 30, message = "Tags must be at most 30 characters")
+                @Pattern(regexp = NO_COMMAS, message = NO_COMMAS_MESSAGE) String> tags,
 
         @Size(max = 1000, message = "Note must be at most 1000 characters")
         String note,
 
         /** Optional; omitted means private. */
         Boolean isPublic) {
+
+    /**
+     * Item tags can't contain a comma: the item form separates tags with commas (so a comma tag
+     * would split in two on the next save), and {@code GET /api/items?tag=} splits on them too.
+     */
+    static final String NO_COMMAS = "[^,]*";
+    static final String NO_COMMAS_MESSAGE = "Tags cannot contain commas";
 
     public ItemInput {
         name = name == null ? null : name.strip();

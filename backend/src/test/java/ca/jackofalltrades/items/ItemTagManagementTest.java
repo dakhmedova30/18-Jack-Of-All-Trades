@@ -74,6 +74,10 @@ class ItemTagManagementTest extends PostgresTestBase {
         mockMvc.perform(put("/api/items/tags").param("name", "home").cookie(cookie)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"name\": \"   \"}"))
                 .andExpect(status().isBadRequest());
+        mockMvc.perform(put("/api/items/tags").param("name", "home").cookie(cookie)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\": \"red, blue\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].message").value("Tags cannot contain commas"));
         mockMvc.perform(put("/api/items/tags").param("name", "nothing").cookie(cookie)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"name\": \"x\"}"))
                 .andExpect(status().isNotFound());

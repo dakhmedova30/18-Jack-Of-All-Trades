@@ -117,6 +117,8 @@ function InventoryTags({
       }
       loadError={error}
       deleteWarning={(entry) => `Removes it from ${items(count(entry.id))}. The items stay.`}
+      // The item form separates tags with commas, so a tag can't contain one.
+      validateName={(name) => (name.includes(',') ? 'Tags cannot contain commas' : null)}
       onRename={async (id, name) => {
         await renameItemTag(String(id), name);
         await reload(); // renaming onto an existing tag merges two, so refetch the counts

@@ -225,6 +225,27 @@ class ItemWriteTest extends PostgresTestBase {
     }
 
     @Test
+    void tagsCannotContainCommas() throws Exception {
+        // The item form splits tags on commas, so a comma tag would split in two on its next save.
+        Cookie cookie = registerAndLogin();
+        int id = createdId(cookie, "Flower Print", 10, 1200);
+
+        create(cookie, """
+                {"name": "Tote", "quantity": 1, "unitPriceCents": 1, "tags": ["ok", "red, blue"]}
+                """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].field").value("tags.1"))
+                .andExpect(jsonPath("$.error.details[0].message").value("Tags cannot contain commas"));
+        update(cookie, id, """
+                {"tags": ["red,blue"]}
+                """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].field").value("tags.0"));
+        mockMvc.perform(get("/api/items/" + id).cookie(cookie))
+                .andExpect(jsonPath("$.tags").isEmpty());
+    }
+
+    @Test
     void updatingAnotherBusinesssItemIsNotFound() throws Exception {
         Cookie owner = registerAndLogin();
         int id = createdId(owner, "Secret Item", 1, 100);

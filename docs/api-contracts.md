@@ -222,7 +222,7 @@ A page customers can read **without logging in**: the business's public details 
 | `GET` | `/api/items/insights` | — | `200` `InventoryInsights` |
 | `GET` | `/api/items/low-stock?limit` | — | `200` `LowStock` |
 | `GET` | `/api/items/tags` | — | `200` `{ name, itemCount }[]`, the tags in use, most used first |
-| `PUT` | `/api/items/tags?name=Old` | `{ "name": "New" }` | `200` `{ name, itemCount }`; renames the tag on every item that has it (an item that already has `New` just loses `Old`). `400` invalid name; `404` no item has `Old` |
+| `PUT` | `/api/items/tags?name=Old` | `{ "name": "New" }` | `200` `{ name, itemCount }`; renames the tag on every item that has it (an item that already has `New` just loses `Old`). `400` invalid name (same rules as a tag, so no commas); `404` no item has `Old` |
 | `DELETE` | `/api/items/tags?name=Old` | — | `204`; removes the tag from every item that has it (the items stay). `404` no item has it |
 | `GET` | `/api/items/{id}` | — | `200` `Item` |
 | `POST` | `/api/items` | `ItemInput` | `201` `Item` |
@@ -265,7 +265,7 @@ A page customers can read **without logging in**: the business's public details 
 | `name` | Required on create; 1–120 characters, trimmed |
 | `quantity` | Required on create; whole number ≥ 0 |
 | `unitPriceCents` | Required on create; whole number from 0 to 999,999,999 cents ($0.00–$9,999,999.99) |
-| `tags` | Optional; ≤ 10 tags, each 1–30 characters; duplicates removed; default `[]` |
+| `tags` | Optional; ≤ 10 tags, each 1–30 characters with no commas (the item form separates tags with commas); duplicates removed; default `[]` |
 | `note` | Optional; ≤ 1000 characters; default `""` |
 
 Deleting an item doesn't change past sales or expenses: their lines keep the item's name, and `itemId` becomes `null`.
