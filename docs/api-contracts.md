@@ -531,7 +531,9 @@ Current stock grouped by first tag. It's a snapshot, so `range` doesn't apply. T
 
 ## 7. Health: `/api/health`
 
-No login required. `200 { "status": "ok", "database": "ok" }` when the database responds.
+No login required. `200 { "status": "ok", "database": "ok" }` when the database responds; `503 { "status": "error", "database": "unreachable" }` when it doesn't.
+
+`GET /api/health/live`: no login required. Always `200 { "status": "ok" }` while the app is running; it never queries the database. Render uses it as its health check, so its frequent checks don't keep the database awake.
 
 ## 8. Not implemented yet
 
