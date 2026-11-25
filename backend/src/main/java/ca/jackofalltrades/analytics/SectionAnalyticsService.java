@@ -1,0 +1,250 @@
+package ca.jackofalltrades.analytics;
+
+import ca.jackofalltrades.analytics.AnalyticsQueries.CostLine;
+import ca.jackofalltrades.analytics.AnalyticsQueries.SaleTotal;
+import ca.jackofalltrades.analytics.AnalyticsSummary.TagTotal;
+import ca.jackofalltrades.analytics.AnalyticsWindow.Bucket;
+import ca.jackofalltrades.auth.Business;
+import ca.jackofalltrades.auth.BusinessRepository;
+import ca.jackofalltrades.common.api.NotFoundException;
+import ca.jackofalltrades.common.security.CurrentBusiness;
+import ca.jackofalltrades.currency.CurrencyTotals;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.DayOfWeek;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
+import java.time.format.TextStyle;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * The charts on the deeper Analytics pages (Inventory, Sales and Expense Analytics). Sales and
+ * expenses keep the currency they were recorded in, so each currency's subtotal is converted to
+ * the account's currency before it's added, as on the main dashboard. Days and months are UTC.
+ */
+@Service
+public class SectionAnalyticsService {
+
+    /** The sales and expense trends cover this many calendar months, this one included. */
+    static final int TREND_MONTHS = 12;
+    /** Spending by tag shows this many tags, then "Other". */
+    static final int MAX_EXPENSE_TAGS = 6;
+    /** Stock value by tag shows this many tags, then "Other", as Inventory Overview does. */
+    static final int MAX_STOCK_TAGS = AnalyticsService.MAX_INVENTORY_TAGS;
+    /** "Running out soon" measures each item's selling pace over this many days, today included. */
+    static final int PACE_DAYS = 30;
+    static final int RUNNING_OUT_LIMIT = 8;
+
+    private final AnalyticsQueries queries;
+    private final CurrentBusiness currentBusiness;
+    private final BusinessRepository businesses;
+    private final CurrencyTotals currencyTotals;
+
+    public SectionAnalyticsService(
+            AnalyticsQueries queries,
+            CurrentBusiness currentBusiness,
+            BusinessRepository businesses,
+            CurrencyTotals currencyTotals) {
+        this.queries = queries;
+        this.currentBusiness = currentBusiness;
+        this.businesses = businesses;
+        this.currencyTotals = currencyTotals;
+    }
+
+    /** Revenue and sale count by month, by day of the week and by channel, over the last 12 months. */
+    @Transactional(readOnly = true)
+    public SalesTrends salesTrends(LocalDate today) {
+        int businessId = currentBusiness.id();
+        String currency = business(businessId).getCurrency();
+        AnalyticsWindow window = AnalyticsWindow.lastMonths(today, TREND_MONTHS);
+        Map<String, Integer> monthIndex = monthIndex(window);
+
+        int months = window.buckets().size();
+        long[] monthCounts = new long[months];
+        List<Map<String, Long>> monthRevenue = subtotals(months);
+        long[] weekdayCounts = new long[7];
+        List<Map<String, Long>> weekdayRevenue = subtotals(7);
+        for (SaleTotal sale : queries.saleTotals(businessId, window.start(), window.end())) {
+            LocalDate day = LocalDate.ofInstant(sale.at(), ZoneOffset.UTC);
+            Integer month = monthIndex.get(YearMonth.from(day).toString());
+            if (month == null) {
+                continue;
+            }
+            int weekday = day.getDayOfWeek().getValue() - 1;
+            monthCounts[month]++;
+            monthRevenue.get(month).merge(sale.currency(), sale.totalCents(), Long::sum);
+            weekdayCounts[weekday]++;
+            weekdayRevenue.get(weekday).merge(sale.currency(), sale.totalCents(), Long::sum);
+        }
+
+        List<SalesTrends.WeekdayTotal> byWeekday = new ArrayList<>();
+        for (DayOfWeek day : DayOfWeek.values()) {
+            int i = day.getValue() - 1;
+            byWeekday.add(new SalesTrends.WeekdayTotal(day.getDisplayName(TextStyle.SHORT, Locale.ENGLISH),
+                    weekdayCounts[i], convert(weekdayRevenue.get(i), currency)));
+        }
+
+        Map<String, Map<String, Long>> byChannel = new LinkedHashMap<>();
+        for (AnalyticsQueries.ChannelLine line
+                : queries.revenueByChannel(businessId, window.start(), window.end(), null)) {
+            byChannel.computeIfAbsent(line.channel(), unused -> new HashMap<>())
+                    .merge(line.currency(), line.totalCents(), Long::sum);
+        }
+
+        return new SalesTrends(
+                window.buckets().stream().map(Bucket::key).toList(),
+                window.buckets().stream().map(Bucket::label).toList(),
+                convertEach(monthRevenue, currency),
+                Arrays.stream(monthCounts).boxed().toList(),
+                byWeekday,
+                largestFirst(byChannel, currency));
+    }
+
+    /** Restock and running costs by month next to revenue, and spending by tag, over the last 12 months. */
+    @Transactional(readOnly = true)
+    public ExpenseTrends expenseTrends(LocalDate today) {
+        int businessId = currentBusiness.id();
+        String currency = business(businessId).getCurrency();
+        AnalyticsWindow window = AnalyticsWindow.lastMonths(today, TREND_MONTHS);
+        Map<String, Integer> monthIndex = monthIndex(window);
+        int months = window.buckets().size();
+
+        List<Map<String, Long>> revenue = subtotals(months);
+        for (SaleTotal sale : queries.saleTotals(businessId, window.start(), window.end())) {
+            Integer month = monthIndex.get(monthKey(sale.at()));
+            if (month != null) {
+                revenue.get(month).merge(sale.currency(), sale.totalCents(), Long::sum);
+            }
+        }
+
+        List<Map<String, Long>> restock = subtotals(months);
+        List<Map<String, Long>> running = subtotals(months);
+        Map<String, Map<String, Long>> byTag = new LinkedHashMap<>();
+        for (CostLine line : queries.costLines(businessId, window.start(), window.end())) {
+            Integer month = monthIndex.get(monthKey(line.at()));
+            if (month == null) {
+                continue;
+            }
+            (line.restock() ? restock : running).get(month).merge(line.currency(), line.totalCents(), Long::sum);
+            byTag.computeIfAbsent(line.tag(), unused -> new HashMap<>())
+                    .merge(line.currency(), line.totalCents(), Long::sum);
+        }
+
+        return new ExpenseTrends(
+                window.buckets().stream().map(Bucket::key).toList(),
+                window.buckets().stream().map(Bucket::label).toList(),
+                convertEach(revenue, currency),
+                convertEach(restock, currency),
+                convertEach(running, currency),
+                foldIntoOther(largestFirst(byTag, currency), MAX_EXPENSE_TAGS));
+    }
+
+    /** Stock levels now, stock value by tag, and the items that will run out first at the last 30 days' pace. */
+    @Transactional(readOnly = true)
+    public StockHealth stockHealth(LocalDate today) {
+        int businessId = currentBusiness.id();
+        int threshold = business(businessId).getLowStockThreshold();
+        AnalyticsQueries.StockCounts counts = queries.stockCounts(businessId, threshold);
+
+        List<StockHealth.TagValue> valueByTag = new ArrayList<>();
+        StockHealth.TagValue other = new StockHealth.TagValue(AnalyticsService.OTHER, 0, 0, 0);
+        List<AnalyticsQueries.TagValue> rows = queries.stockValueByTag(businessId);
+        for (int i = 0; i < rows.size(); i++) {
+            AnalyticsQueries.TagValue row = rows.get(i);
+            if (i < MAX_STOCK_TAGS) {
+                valueByTag.add(new StockHealth.TagValue(row.tag(), row.valueCents(), row.quantity(), row.itemCount()));
+            } else {
+                other = new StockHealth.TagValue(AnalyticsService.OTHER, other.valueCents() + row.valueCents(),
+                        other.quantity() + row.quantity(), other.itemCount() + row.itemCount());
+            }
+        }
+        if (rows.size() > MAX_STOCK_TAGS) {
+            valueByTag.add(other);
+        }
+
+        Instant since = startOf(today.minusDays(PACE_DAYS - 1));
+        Instant until = startOf(today.plusDays(1));
+        List<StockHealth.RunningOutItem> runningOut = queries
+                .runningOut(businessId, since, until, RUNNING_OUT_LIMIT).stream()
+                .map(item -> new StockHealth.RunningOutItem(item.id(), item.name(), item.quantity(),
+                        item.unitsSold(), daysLeft(item.quantity(), item.unitsSold())))
+                .toList();
+
+        return new StockHealth(threshold, counts.outOfStock(), counts.low(), counts.wellStocked(),
+                valueByTag, PACE_DAYS, runningOut);
+    }
+
+    /** How many days {@code quantity} lasts at {@code unitsSold} per {@link #PACE_DAYS}, to one decimal. */
+    static double daysLeft(int quantity, long unitsSold) {
+        return BigDecimal.valueOf((long) quantity * PACE_DAYS)
+                .divide(BigDecimal.valueOf(unitsSold), 1, RoundingMode.HALF_UP)
+                .doubleValue();
+    }
+
+    /** Totals by label, largest first and then by label; {@code foldIntoOther} relies on that order. */
+    private List<TagTotal> largestFirst(Map<String, Map<String, Long>> subtotalsByLabel, String currency) {
+        return subtotalsByLabel.entrySet().stream()
+                .map(entry -> new TagTotal(entry.getKey(), convert(entry.getValue(), currency)))
+                .sorted(Comparator.comparingLong(TagTotal::valueCents).reversed().thenComparing(TagTotal::label))
+                .toList();
+    }
+
+    /** The first {@code max} totals, then the rest added up as "Other" (only if there is a rest). */
+    static List<TagTotal> foldIntoOther(List<TagTotal> totals, int max) {
+        if (totals.size() <= max) {
+            return totals;
+        }
+        List<TagTotal> kept = new ArrayList<>(totals.subList(0, max));
+        long rest = totals.subList(max, totals.size()).stream().mapToLong(TagTotal::valueCents).sum();
+        kept.add(new TagTotal(AnalyticsService.OTHER, rest));
+        return kept;
+    }
+
+    private long convert(Map<String, Long> centsByCurrency, String currency) {
+        return currencyTotals.convertSubtotals(centsByCurrency, currency);
+    }
+
+    private List<Long> convertEach(List<Map<String, Long>> subtotals, String currency) {
+        return subtotals.stream().map(byCurrency -> convert(byCurrency, currency)).toList();
+    }
+
+    private static List<Map<String, Long>> subtotals(int count) {
+        List<Map<String, Long>> list = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            list.add(new HashMap<>());
+        }
+        return list;
+    }
+
+    private static Map<String, Integer> monthIndex(AnalyticsWindow window) {
+        Map<String, Integer> index = new HashMap<>();
+        for (int i = 0; i < window.buckets().size(); i++) {
+            index.put(window.buckets().get(i).key(), i);
+        }
+        return index;
+    }
+
+    /** "YYYY-MM", as a month bucket's key. */
+    private static String monthKey(Instant at) {
+        return YearMonth.from(LocalDate.ofInstant(at, ZoneOffset.UTC)).toString();
+    }
+
+    private static Instant startOf(LocalDate day) {
+        return day.atStartOfDay(ZoneOffset.UTC).toInstant();
+    }
+
+    private Business business(int businessId) {
+        return businesses.findById(businessId).orElseThrow(() -> new NotFoundException("Business", businessId));
+    }
+}
