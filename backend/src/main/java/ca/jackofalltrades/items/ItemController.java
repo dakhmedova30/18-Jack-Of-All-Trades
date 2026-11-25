@@ -2,6 +2,7 @@ package ca.jackofalltrades.items;
 
 import ca.jackofalltrades.common.api.Ids;
 import ca.jackofalltrades.common.api.Paginated;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
  * which GlobalExceptionHandler turns into 400 "Validation failed". With {@code @Validated},
  * a different mechanism would throw ConstraintViolationException and the client would get 500.
  */
+@Tag(name = "Inventory", description = "Items for sale: stock, prices, tags and public-profile visibility.")
 @RestController
 @RequestMapping("/api/items")
 public class ItemController {

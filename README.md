@@ -8,7 +8,9 @@
 ​
 ## Try It Now
 
-**Live app: https://jack-of-all-trades-m86p.onrender.com** (no install needed)
+**Live app: https://jack-of-all-trades-app.onrender.com** (no install needed)
+
+Dev site, which updates on every merge to `main`: https://jack-of-all-trades-dev.onrender.com (its own database; see [Environments and releases](#environments-and-releases)).
 
 Log in with the demo account, a sample floral and stationery shop with products, sales and expenses:
 
@@ -45,6 +47,24 @@ Log in as the demo account, then:
 6. **Settings:** change the account **currency** (preview first, then convert prices or only relabel them); rename channels and expense tags and set the low-stock cutoff (Preferences); choose which alerts appear in the bell (Notifications); and switch the theme or text size (Appearance).
 7. **Public profile:** in Settings > Profile, set a link name (e.g. `demo-shop`) and click **Turn on**, then tick **Show on my public profile** on products (or select several in Inventory and click **Show on profile**). Customers open `/p/demo-shop` with no account, and never see contact details or stock counts, only "In stock" or "Sold out".
 8. **Read aloud:** the bar at the bottom of every page reads it out, one highlighted passage at a time.
+
+### CSV Import and Export
+
+Use **Import CSV** and **Export CSV** above Inventory, Sales and Expenses to move business records in or out. Imports with an `id` update that record; rows with an empty `id`, or an `id` that no longer exists (for example after deleting it), create a new record with a new ID. IDs only refer to records in the current business. Import continues after row errors and reports which rows failed. Analytics has an export-only control for the selected date range and channel, along with the current inventory-by-tag snapshot.
+
+Review the confirmation before importing: changes cannot be undone. Inventory imports preserve current stock when updating an existing item; `quantity` sets starting stock only for newly created items. Within one import, repeated IDs and identical rows without IDs are skipped after the first successful row, and their row numbers are reported. Exported text that could be interpreted as a spreadsheet formula is prefixed with an apostrophe; importing removes that protective prefix. For a manually authored CSV, double an initial apostrophe before a formula-like value if the apostrophe itself is part of the text.
+
+The export contains the record fields, including IDs, timestamps, computed totals and currencies. Imports require these columns:
+
+| Section | Required columns |
+| --- | --- |
+| Inventory | `name`, `quantity`, `unitPriceCents`, `tags`, `note`, `isPublic` |
+| Sales | `soldAt`, `channelId`, `description`, `tags`, `items` |
+| Expenses | `incurredAt`, `description`, `tags`, `items` |
+
+`tags` and `items` are JSON arrays inside CSV cells. For example, inventory tags use `["paper","gift"]`; a sale's `items` uses objects with `itemId` and `quantity`; an expense's `items` uses objects with `itemId` (or `null` for a non-inventory cost), `description`, `quantity` and `unitCostCents`. Use integer cents for money fields such as `unitPriceCents` and `unitCostCents`. Sales must reference an existing channel and inventory item. The application recalculates totals and currency-converted values during import; exported computed fields and timestamps are informational and are not overwritten. If a sale line references a deleted inventory item, that row cannot be imported until corrected.
+
+The sample files in `docs/sample-data` contain example channel and item IDs, not IDs that work for every account. Before importing sample sales or expenses, replace each `channelId` and non-null `itemId` with IDs from your own Sales and Inventory exports. You can also find channel IDs at `/api/channels` while logged in. Import the sample inventory first if you need items, then export Inventory to find their assigned IDs. Rows with `itemId: null` are non-inventory expenses and need no item ID.
 
 ### Screenshots
 
@@ -86,11 +106,11 @@ Log in as the demo account, then:
 - **Input validation:** every request body is validated, with a message per field (e.g. a price must be between 0.00 and 9,999,999.99, and quantities reject `2.7` and `"5"`).
 - **SQL injection:** every query uses named parameters; sort columns come from a fixed list.
 - **Errors never expose internals:** clients get a short JSON message, e.g. `{"error":{"message":"Log in to continue"}}`; an unexpected error returns `"Internal server error"`, with details only in the server log.
-- **No secrets in the repo:** configuration comes from environment variables (templates in `backend/.env.example` and `frontend/client/.env.example`); the deploy hook is a GitHub secret. Public profiles return only an allowlist of fields.
+- **No secrets in the repo:** configuration comes from environment variables (templates in `backend/.env.example` and `frontend/client/.env.example`); the deploy hooks are GitHub secrets. Public profiles return only an allowlist of fields.
 
 ### Production Readiness
 
-- **CI/CD:** every pull request runs lint, type checks, the backend and frontend test suites, a build, and end-to-end browser tests against the built app, each job with a time limit; `main` deploys only after they pass ([Actions](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/actions)).
+- **CI/CD:** every pull request runs lint, type checks, the backend and frontend test suites, a build, and end-to-end browser tests against the built app, each job with a time limit. A merge to `main` deploys to the **dev** environment and a published release deploys to **prod**, each only after every check passes ([Environments and releases](#environments-and-releases), [Actions](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/actions)).
 - **Health and failures:** Render checks `/api/health/live`, which never queries the database so Neon can scale to zero while the app is idle; if the database is down, requests fail fast with "Database is unavailable, try again shortly" (503) instead of hanging; if exchange rates can't load, the app falls back to cached or bundled rates.
 - **Repeatable deploys:** one Docker image serves the API and the web app, and Flyway applies database migrations on startup ([Deploying to Render](#deploying-to-render)).
 
@@ -115,7 +135,7 @@ Log in as the demo account, then:
 | Frontend | React 19, TypeScript, Vite, React Router                                  |
 | Backend  | Java 25, Spring Boot 4, Spring Security, Spring Data JPA / `JdbcClient`, Flyway, BCrypt, Maven |
 | Database | PostgreSQL (Neon in production)                                           |
-| Hosting  | Render (one Docker web service)                                           |
+| Hosting  | Render (two Docker web services: dev and prod), Neon Postgres (one branch each) |
 | Tooling  | ESLint, Prettier (frontend); JUnit 5 + Testcontainers (backend tests)      |
 
 ### Setup
@@ -209,8 +229,8 @@ npm run e2e                       # against http://localhost:5173; set E2E_BASE_
 
 All three suites run in GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
 on every pull request into `main` and every push to `main`. The end-to-end job builds the app
-the way the Docker image does and runs after the other two pass; a merge only deploys if all
-three pass. See recent runs in the [Actions tab](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/actions).
+the way the Docker image does and runs after the other two pass. Nothing deploys unless all
+three pass: a merge to `main` deploys to dev, and a published release deploys to prod. See recent runs in the [Actions tab](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/actions).
 
 ### Project structure
 
@@ -237,6 +257,8 @@ Each feature follows the same layers: **controllers** handle HTTP only, **servic
 ### API
 
 See [`docs/api-contracts.md`](docs/api-contracts.md) for the authoritative, endpoint-by-endpoint spec. The summary below covers the same contract.
+
+**Interactive docs:** every running backend serves Swagger UI at `/swagger-ui.html` (locally, http://localhost:4000/swagger-ui.html) and the generated OpenAPI 3.1 spec at `/v3/api-docs`. Both are generated from the controllers by [springdoc](https://springdoc.org), so they always match the deployed code. Endpoints are grouped by feature, and a lock icon marks the ones that need a login. To try a locked endpoint, run `POST /api/auth/login` from the same page first: it sets the session cookie in your browser, and later calls send it automatically. Set `API_DOCS_ENABLED=false` to turn the docs off.
 
 All error responses share one shape: `{ "error": { "message": string, "details"?: [{ "field", "message" }] } }`. Money is always sent as integer cents.
 
@@ -323,6 +345,7 @@ Vite reads `frontend/client/.env` by itself when `npm run dev` or `npm run build
 | `SPRING_DATASOURCE_PASSWORD`   | No       | Default: `jack`                                                              |
 | `SPRING_PROFILES_ACTIVE`       | No       | Set to `demo` to seed the demo account on startup                           |
 | `PORT`                         | No       | Defaults to 4000 (Render sets it automatically)                             |
+| `API_DOCS_ENABLED`             | No       | `false` turns off Swagger UI and `/v3/api-docs`. Default: `true`             |
 
 **Client** (`frontend/client/.env`, read at build time):
 
@@ -338,13 +361,37 @@ Vite reads `frontend/client/.env` by itself when `npm run dev` or `npm run build
 4. Health Check Path: `/api/health/live` (exactly — a trailing/duplicated path here will make every deploy time out waiting on the health check). Don't use `/api/health`: it queries the database, and Render's checks every few seconds would keep a Neon database awake around the clock and use up its monthly compute hours.
 5. Environment variables: `SPRING_DATASOURCE_URL` (JDBC form, e.g. `jdbc:postgresql://<host>/<db>?sslmode=require`), `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, and `SPRING_PROFILES_ACTIVE=demo`.
 6. The free instance type's 0.1 CPU is too slow to boot the JVM within Render's health-check window — every free-tier deploy we tried either failed outright or took 15+ minutes. Use the $7/month instance (0.5 CPU), which boots in under a minute.
-7. Deploys are triggered from GitHub Actions, not by Render itself: "Public Git Repository"
-   services don't get webhooks from a repo they don't own. Instead, the `deploy` job in
-   `.github/workflows/ci.yml` calls the service's Render **Deploy Hook** once the checks and
-   tests pass on `main`. To set it up, copy the hook URL from Render (**Settings > Deploy Hook**)
-   into a GitHub Actions secret named `RENDER_DEPLOY_HOOK_URL`. Never put it in the workflow
-   file, because anyone with the URL can trigger a deploy. Manual redeploys still work via
-   **Manual Deploy > Deploy latest commit**.
+7. Set **Auto-Deploy** to **Off**. Deploys are triggered from GitHub Actions, not by Render
+   itself: "Public Git Repository" services don't get webhooks from a repo they don't own, and
+   CI should only deploy commits that passed its checks. Copy the service's **Deploy Hook**
+   (**Settings > Deploy Hook**) into a GitHub Actions secret: `RENDER_DEPLOY_HOOK_URL_DEV` for
+   the dev service, `RENDER_DEPLOY_HOOK_URL` for prod. Never put a hook in the workflow file,
+   because anyone with the URL can trigger a deploy. Manual redeploys still work via
+   **Manual Deploy** on the service.
+
+### Environments and releases
+
+| Environment | URL | Database | Deploys when |
+| --- | --- | --- | --- |
+| **dev** | https://jack-of-all-trades-dev.onrender.com | Neon branch `dev` | Every merge to `main`, after all CI checks pass (`deploy-dev` job) |
+| **prod** | https://jack-of-all-trades-app.onrender.com | Neon branch `production` | A GitHub release is published, after all CI checks pass on the tagged commit (`deploy-prod` job) |
+
+Both are Render web services built from the same Dockerfile, set up as in the steps above, with
+the same environment variables except the database host and password. CI sends the commit SHA with each
+deploy hook (`&ref=<sha>`), so Render builds exactly the commit that passed the checks. The dev
+database started as a copy of prod's data; Neon's **Reset from parent** on the `dev` branch
+refreshes it.
+
+**Releasing to prod:** try the change on the dev site first. Then on GitHub, open **Releases >
+Draft a new release**, create a new tag on `main` (e.g. `D4` or `v1.1`), and click **Publish
+release**. CI re-runs every check on that commit and then deploys it to prod. A pre-release
+doesn't deploy; promoting it to a full release does.
+
+**Rolling back prod:** on Render, open the prod service's **Events**, find the last good deploy and
+click **Rollback**. It reuses that deploy's build, so it's quick. **Manual Deploy >
+Deploy a specific commit** works too, but rebuilds. Publishing a release for an earlier commit
+only deploys commits from after release deploys were added (PR #39), since a release runs the
+workflow file from the tagged commit, and it waits for all of CI first.
 
  ## Deployment and Github Workflow
 
@@ -355,7 +402,7 @@ Vite reads `frontend/client/.env` by itself when `npm run dev` or `npm run build
  * Branching Strategy and Naming Convention: all new work is developed on separate feature branches that branch off from *main*, named for the user story or feature they add.
      * Ex: `us1-sales`, `us2-inventory`, `allie/java-expenses`
      * This keeps each branch's purpose clear from its name, and keeps related commits for one feature together until it's reviewed and merged.
- * Deployment: the backend is deployed as a Render web service (see [Deploying to Render](#deploying-to-render)). Every merge to *main* deploys automatically once CI's checks and tests pass, so nothing is deployed that hasn't been reviewed and tested.
+ * Deployment: the app runs as two Render web services, dev and prod (see [Environments and releases](#environments-and-releases)). Every merge to *main* deploys to dev once CI's checks and tests pass; publishing a GitHub release deploys that commit to prod. Nothing is deployed that hasn't been reviewed and tested.
   
 
  ## Coding Standards and Guidelines

@@ -6,9 +6,11 @@ import {
   bulkSetItemsPublic,
   createItem,
   deleteItem,
+  listItems,
   updateItem,
 } from '../../api/items';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { CsvTransfer } from '../../components/CsvTransfer';
 import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
 import { TagList } from '../../components/TagList';
@@ -19,6 +21,13 @@ import { usePreferences } from '../../hooks/usePreferences';
 import { useCurrency } from '../../hooks/useCurrency';
 import type { Item, ItemInput, ItemSortField, SortOrder } from '../../types';
 import { formatCents } from '../../utils/money';
+import { fetchAllPages } from '../../utils/csv';
+import {
+  itemCsvRow,
+  importItemFromCsv,
+  ITEM_CSV_HEADERS,
+  ITEM_IMPORT_HEADERS,
+} from '../../utils/businessCsv';
 import { ItemFormModal } from './ItemFormModal';
 import { TagFilter } from './TagFilter';
 
@@ -84,6 +93,10 @@ export function InventoryPage() {
     sort: sort.field,
     order: sort.order,
   });
+
+  async function importItem(record: Record<string, string>) {
+    return importItemFromCsv(record, updateItem, createItem);
+  }
 
   /** Clicking the current sort column flips its direction; a new column starts ascending. */
   function toggleSort(field: ItemSortField) {
@@ -208,6 +221,19 @@ export function InventoryPage() {
 
       <div className="toolbar">
         <div className="toolbar__actions">
+          <CsvTransfer
+            filename="inventory"
+            headers={ITEM_CSV_HEADERS}
+            loadRows={() =>
+              fetchAllPages((requestedPage, pageSize) =>
+                listItems({ page: requestedPage, pageSize }),
+              )
+            }
+            exportRow={itemCsvRow}
+            importHeaders={ITEM_IMPORT_HEADERS}
+            importRow={importItem}
+            onImported={reload}
+          />
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
             Add <PlusIcon />
           </button>

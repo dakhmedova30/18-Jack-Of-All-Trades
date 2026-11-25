@@ -68,3 +68,39 @@ export async function cellInColumn(page: Page, row: Locator, column: string): Pr
   if (index < 0) throw new Error(`No "${column}" column; found: ${names.join(', ')}`);
   return row.getByRole('cell').nth(index);
 }
+
+/** Adds an item from the Inventory page and waits for it to be listed. */
+export async function addItem(
+  page: Page,
+  { name, qty, unitPrice }: { name: string; qty: number; unitPrice: string },
+): Promise<void> {
+  await openFromSidebar(page, 'Inventory');
+  await addButton(page).click();
+  const form = page.getByRole('dialog', { name: 'Add new item' });
+  await form.getByLabel('Name').fill(name);
+  await form.getByLabel('Qty').fill(String(qty));
+  await form.getByLabel(/Unit price/).fill(unitPrice);
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(form).toBeHidden();
+  const row = page.getByRole('row').filter({ hasText: name });
+  await expect(await cellInColumn(page, row, 'Qty')).toHaveText(String(qty));
+}
+
+/** Records an in-person sale of an item, dated today, from the Sales page. */
+export async function addSale(
+  page: Page,
+  { item, qty }: { item: string; qty: number },
+): Promise<void> {
+  await openFromSidebar(page, 'Sales');
+  await addButton(page).click();
+  const form = page.getByRole('dialog', { name: 'Add sale' });
+  // The option's text also has the price and stock ("… — CA$5.00 (10 in stock)"), so pick it by name.
+  const itemSelect = form.getByLabel('Item');
+  const option = itemSelect.locator('option', { hasText: item });
+  await itemSelect.selectOption((await option.getAttribute('value'))!);
+  await form.getByLabel('Qty').fill(String(qty));
+  await form.getByLabel('Date').fill(today());
+  await form.getByLabel('Channel').selectOption('In person'); // a starter channel
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(form).toBeHidden();
+}

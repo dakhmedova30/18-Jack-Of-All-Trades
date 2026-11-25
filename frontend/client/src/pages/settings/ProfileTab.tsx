@@ -89,9 +89,17 @@ function PictureControl({
   );
 }
 
+/** The text details. showPhonePublicly is a checkbox, so it is kept separately. */
 type DetailKey = Exclude<
   keyof BusinessUpdate,
-  'name' | 'businessType' | 'country' | 'timeZone' | 'currency' | 'lowStockThreshold' | 'publicSlug'
+  | 'name'
+  | 'businessType'
+  | 'country'
+  | 'timeZone'
+  | 'currency'
+  | 'lowStockThreshold'
+  | 'publicSlug'
+  | 'showPhonePublicly'
 >;
 
 /** Saved details as form values: null becomes "". */
@@ -110,6 +118,7 @@ function detailsOf(business: Business): Record<DetailKey, string> {
     facebook: business.facebook ?? '',
     tiktok: business.tiktok ?? '',
     etsy: business.etsy ?? '',
+    publicEmail: business.publicEmail ?? '',
   };
 }
 
@@ -118,22 +127,24 @@ function DetailsForm({ business }: { business: Business }) {
   const { updateBusiness } = useAuth();
   const saved = detailsOf(business);
   const [values, setValues] = useState(saved);
+  const [showPhone, setShowPhone] = useState(business.showPhonePublicly);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
 
   // After a save the server may have tidied a value (e.g. added https://), so show what it kept.
   // Keyed on the details only, so uploading a picture mid-edit doesn't wipe unsaved typing.
-  const savedKey = JSON.stringify(saved);
+  const savedKey = JSON.stringify([saved, business.showPhonePublicly]);
   const [shownKey, setShownKey] = useState(savedKey);
   if (shownKey !== savedKey) {
     setShownKey(savedKey);
     setValues(saved);
+    setShowPhone(business.showPhonePublicly);
   }
 
-  const changed = (Object.keys(values) as DetailKey[]).some(
-    (key) => values[key].trim() !== saved[key],
-  );
+  const changed =
+    showPhone !== business.showPhonePublicly ||
+    (Object.keys(values) as DetailKey[]).some((key) => values[key].trim() !== saved[key]);
 
   function field(
     key: DetailKey,
@@ -165,7 +176,7 @@ function DetailsForm({ business }: { business: Business }) {
       const trimmed = Object.fromEntries(
         (Object.keys(values) as DetailKey[]).map((key) => [key, values[key].trim()]),
       );
-      await updateBusiness(trimmed);
+      await updateBusiness({ ...trimmed, showPhonePublicly: showPhone });
       setJustSaved(true);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -182,6 +193,25 @@ function DetailsForm({ business }: { business: Business }) {
 
       <h3 className="settings-section">Contact</h3>
       {field('phone', 'Phone', { type: 'tel', placeholder: '+1 604 555 0199' })}
+      <SettingsRow label="">
+        <label>
+          <input
+            type="checkbox"
+            checked={showPhone}
+            onChange={(event) => {
+              setShowPhone(event.target.checked);
+              setJustSaved(false);
+            }}
+          />{' '}
+          Show my phone on my public profile
+        </label>
+      </SettingsRow>
+      {field('publicEmail', 'Public email', { type: 'email', placeholder: 'hello@yourshop.com' })}
+      <SettingsRow label="">
+        <span className="muted">
+          Shown on your public profile so customers can reach you. Your login email is never shown.
+        </span>
+      </SettingsRow>
       {field('addressLine', 'Street address')}
       {field('city', 'City')}
       {field('region', 'Province / state')}
@@ -292,9 +322,10 @@ function PublicProfileForm({ business }: { business: Business }) {
     >
       <h3 className="settings-section">Public profile</h3>
       <p className="muted">
-        A page customers can visit without an account. It shows your logo, description, city and
-        links above, and the inventory items you mark &quot;Show on my public profile&quot;. Your
-        email, phone, street address and stock counts are never shown.
+        A page customers can visit without an account. It shows your logo, description, city, links
+        and public email above, your phone if you choose to show it, and the inventory items you
+        mark &quot;Show on my public profile&quot;. Your login email, street address and stock
+        counts are never shown.
       </p>
       <SettingsRow label="Status">
         {url ? (

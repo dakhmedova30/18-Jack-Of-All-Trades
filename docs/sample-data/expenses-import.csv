@@ -1,0 +1,3 @@
+incurredAt,description,tags,items
+2026-11-01T12:00:00Z,Studio rent,"[""Rent""]","[{""itemId"":null,""description"":""Studio rent"",""quantity"":1,""unitCostCents"":45000}]"
+2026-11-03T12:00:00Z,,"[""Supplies""]","[{""itemId"":1,""description"":"""",""quantity"":20,""unitCostCents"":200},{""itemId"":null,""description"":""Shipping"",""quantity"":1,""unitCostCents"":1500}]"

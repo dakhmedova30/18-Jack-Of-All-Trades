@@ -1,0 +1,3 @@
+soldAt,channelId,description,tags,items
+2026-11-01T15:00:00Z,1,Weekend market sale,"[""market""]","[{""itemId"":1,""quantity"":2}]"
+2026-11-02T18:30:00Z,1,,"[""online""]","[{""itemId"":1,""quantity"":1},{""itemId"":2,""quantity"":3}]"
