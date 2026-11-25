@@ -255,10 +255,22 @@ class SaleWriteTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.error.message").value("Validation failed"))
                 .andExpect(jsonPath("$.error.details[0].field").value("items.1.quantity"));
         record(cookie, input(online).replace(SOLD_AT, "2026-10-18T15:30:00"))
-                .andExpect(jsonPath("$.error.details[*].field", containsInAnyOrder("soldAt", "items")));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].field").value("soldAt"));
         record(cookie, input(online))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("A sale needs at least one item or a tip"));
+        record(cookie, """
+                {"soldAt": "%s", "channelId": %d, "tipCents": 500}
+                """.formatted(SOLD_AT, online))
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.details[0].field").value("items"))
-                .andExpect(jsonPath("$.error.details[0].message").value("A sale needs at least one item"));
+                .andExpect(jsonPath("$.error.details[0].message").value("Required"));
+        record(cookie, """
+                {"soldAt": "%s", "channelId": %d, "items": [], "tipCents": 500}
+                """.formatted(SOLD_AT, online))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.totalCents").value(500));
         record(cookie, """
                 {"soldAt": "%s", "items": [{"itemId": %d, "quantity": 1}], "tags": ["%s"]}
                 """.formatted(SOLD_AT, print, "x".repeat(31)))

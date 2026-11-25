@@ -280,7 +280,7 @@ class ItemWriteTest extends PostgresTestBase {
     }
 
     @Test
-    void pastSalesKeepADeletedItemsName() throws Exception {
+    void cannotDeleteAnItemUsedByASale() throws Exception {
         Cookie cookie = registerAndLogin();
         int business = businessId(cookie);
         int id = createdId(cookie, "Flower Print", 10, 1200);
@@ -296,11 +296,17 @@ class ItemWriteTest extends PostgresTestBase {
         int saleId = JsonPath.read(sale, "$.id");
 
         mockMvc.perform(delete("/api/items/" + id).cookie(cookie))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.message").value(
+                        "Used by sales or expenses, so it can't be deleted: Flower Print. Deactivate it instead."));
+
+        mockMvc.perform(get("/api/items/" + id).cookie(cookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.quantity").value(8));
 
         mockMvc.perform(get("/api/sales/" + saleId).cookie(cookie))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[0].itemId").isEmpty())
+                .andExpect(jsonPath("$.items[0].itemId").value(id))
                 .andExpect(jsonPath("$.items[0].itemName").value("Flower Print"))
                 .andExpect(jsonPath("$.items[0].quantity").value(2))
                 .andExpect(jsonPath("$.totalCents").value(2400));
