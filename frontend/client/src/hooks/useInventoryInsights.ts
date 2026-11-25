@@ -3,8 +3,11 @@ import { getErrorMessage } from '../api/http';
 import { getInventoryInsights } from '../api/items';
 import type { InventoryInsights } from '../types';
 
-/** Loads stock value and this month's best sellers. Call `reload()` to refetch. */
-export function useInventoryInsights() {
+/**
+ * Loads stock value and the best sellers, for this calendar month or, with `days`, the last that
+ * many days. Call `reload()` to refetch.
+ */
+export function useInventoryInsights(days?: number) {
   const [reloadToken, setReloadToken] = useState(0);
   const [result, setResult] = useState<{
     token: number;
@@ -14,7 +17,7 @@ export function useInventoryInsights() {
 
   useEffect(() => {
     let cancelled = false;
-    getInventoryInsights()
+    getInventoryInsights(days)
       .then((data) => {
         if (!cancelled) setResult({ token: reloadToken, data });
       })
@@ -24,7 +27,7 @@ export function useInventoryInsights() {
     return () => {
       cancelled = true;
     };
-  }, [reloadToken]);
+  }, [reloadToken, days]);
 
   const reload = useCallback(() => setReloadToken((token) => token + 1), []);
 

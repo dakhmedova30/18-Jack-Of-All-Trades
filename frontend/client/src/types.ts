@@ -134,16 +134,25 @@ export interface SalesMonthSummary {
   largestSale: { id: number; soldAt: string; totalCents: number } | null;
 }
 
+export interface InventorySeller {
+  id: number;
+  name: string;
+  unitsSold: number;
+  revenueCents: number;
+}
+
 export interface InventoryInsights {
   /** Quantity x unit (selling) price, summed over every item. */
   stockValueCents: number;
   totalUnits: number;
-  /** The calendar month the best sellers cover: [start, end). */
+  /** The period the sellers cover, [start, end): this calendar month, or the last N days. */
   periodStart: string;
   periodEnd: string;
-  /** Top 3 items by units sold this month, most first. */
-  bestSellers: { id: number; name: string; unitsSold: number; revenueCents: number }[];
-  /** In-stock items with no sales this calendar month. */
+  /** Top 3 items by units sold in the period, most first. */
+  bestSellers: InventorySeller[];
+  /** The item that sold the fewest units in the period (but at least one); null if nothing sold. */
+  worstSeller: InventorySeller | null;
+  /** In-stock items with no sales in the period. */
   notSelling: { id: number; name: string; quantity: number }[];
 }
 

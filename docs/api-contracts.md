@@ -224,7 +224,7 @@ A page customers can read **without logging in**: the business's public details 
 | Method | Path | Request body | Success |
 | --- | --- | --- | --- |
 | `GET` | `/api/items?page&pageSize&search&sort&order` | — | `200` `Paginated<Item>` |
-| `GET` | `/api/items/insights` | — | `200` `InventoryInsights` |
+| `GET` | `/api/items/insights` | query: `days` (optional, 1–365) | `200` `InventoryInsights` |
 | `GET` | `/api/items/low-stock?limit` | — | `200` `LowStock` |
 | `GET` | `/api/items/tags` | — | `200` `{ name, itemCount }[]`, the tags in use, most used first |
 | `PUT` | `/api/items/tags?name=Old` | `{ "name": "New" }` | `200` `{ name, itemCount }`; renames the tag on every item that has it (an item that already has `New` just loses `Old`). `400` invalid name; `404` no item has `Old` |
@@ -251,12 +251,15 @@ A page customers can read **without logging in**: the business's public details 
 // ItemInput (isPublic is optional, default false: shown on the public profile, §2.2)
 { "name": "Flower Print", "quantity": 10, "unitPriceCents": 1200, "tags": ["print"], "note": "", "isPublic": false }
 
-// InventoryInsights: stock value at selling price, this month's top 3 sellers, and every
-// in-stock item (quantity > 0) with no sales this month, by name
+// InventoryInsights: stock value at selling price, the period's top 3 sellers, the item that
+// sold the fewest units in it (null if nothing sold; ties go to less revenue, then the later
+// name), and every in-stock item (quantity > 0) with no sales in it, by name. The period is this
+// UTC month, or with ?days=N the last N days up to now; periodStart/periodEnd give it.
 {
   "stockValueCents": 482000, "totalUnits": 310,
   "periodStart": "2026-10-01T00:00:00.000Z", "periodEnd": "2026-11-01T00:00:00.000Z",
   "bestSellers": [{ "id": 7, "name": "Flower Print", "unitsSold": 14, "revenueCents": 16800 }],
+  "worstSeller": { "id": 9, "name": "Keychain", "unitsSold": 1, "revenueCents": 800 },
   "notSelling": [{ "id": 12, "name": "Linen Tote", "quantity": 6 }]
 }
 

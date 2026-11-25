@@ -88,11 +88,11 @@ public class ItemQueries {
     }
 
     /**
-     * The {@code limit} items with the most units sold in {@code [from, to)}, most first, from the
-     * demo's bestSellers. Only lines still linked to an item count: a deleted item has no place here.
+     * Every item with units sold in {@code [from, to)}, most units first (then most revenue, then
+     * name). Only lines still linked to an item count: a deleted item has no place here.
      */
-    public List<InventoryInsights.BestSeller> bestSellers(
-            int businessId, Instant from, Instant to, int limit, String targetCurrency) {
+    public List<InventoryInsights.BestSeller> sellers(
+            int businessId, Instant from, Instant to, String targetCurrency) {
         List<RawBestSeller> rows = jdbcClient.sql("""
                         SELECT i.id, i.name, s.currency, SUM(si.quantity::bigint) AS units_sold,
                                SUM(si.total_cents::bigint) AS revenue_cents
@@ -126,7 +126,6 @@ public class ItemQueries {
                 .sorted(Comparator.comparingLong(InventoryInsights.BestSeller::unitsSold).reversed()
                         .thenComparing(Comparator.comparingLong(InventoryInsights.BestSeller::revenueCents).reversed())
                         .thenComparing(InventoryInsights.BestSeller::name))
-                .limit(limit)
                 .toList();
     }
 

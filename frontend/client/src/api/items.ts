@@ -39,8 +39,9 @@ export function getLowStock(limit?: number): Promise<LowStock> {
 }
 
 /** Stock value, this month's top 3 sellers and in-stock items with no sales this month. */
-export function getInventoryInsights(): Promise<InventoryInsights> {
-  return apiRequest('/items/insights');
+/** @param days The last this many days up to now; leave out for this calendar month. */
+export function getInventoryInsights(days?: number): Promise<InventoryInsights> {
+  return apiRequest(`/items/insights${days !== undefined ? `?days=${days}` : ''}`);
 }
 
 export function createItem(input: ItemInput): Promise<Item> {

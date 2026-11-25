@@ -34,6 +34,7 @@ function mockInsights(notSelling: InventoryInsights['notSelling']) {
     periodStart: '2026-10-01',
     periodEnd: '2026-11-01',
     bestSellers: [],
+    worstSeller: null,
     notSelling,
   });
 }
