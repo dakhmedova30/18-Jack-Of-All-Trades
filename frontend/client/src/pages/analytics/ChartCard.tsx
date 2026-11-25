@@ -172,6 +172,12 @@ export function PeriodChartsSection({ dates, period, label, children }: PeriodCh
   return children(period.requested);
 }
 
+/** "a", "a or b", "a, b or c": the chosen channels or tags in a sentence. */
+export function orList(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? '';
+  return `${items.slice(0, -1).join(', ')} or ${items[items.length - 1]}`;
+}
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** "2026-08" -> "Aug 2026", for hover text and tables, where the year matters. */

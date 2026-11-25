@@ -404,6 +404,8 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
 {
   "periodStart": "2026-10-01T00:00:00.000Z", "periodEnd": "2026-11-01T00:00:00.000Z",
   "restockCents": 15000, "runningCents": 2500, "totalCents": 17500,
+  "previousTotalCents": 21000,
+  "largestExpense": { "id": 5, "incurredAt": "2026-10-10T12:00:00.000Z", "description": "Flower Print x 200, Shipping x 1", "totalCents": 17500 },
   "topRestockItems": [{ "id": 7, "name": "Flower Print", "units": 200, "spentCents": 15000 }]
 }
 ```
@@ -425,7 +427,7 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
 - `totalCents` (line and expense) is calculated by the server.
 - Editing or deleting an expense undoes its restocks first. If that stock has since been sold → `400 Can't undo the restock of "Flower Print": only 3 in stock, need to remove 10 (some may have already been sold)`, and nothing changes. Lines whose item was deleted are skipped.
 - `bulk-delete` skips ids that don't exist or aren't yours; `deleted` counts only the expenses actually deleted. If any one of them can't be undone, none are deleted.
-- `month-breakdown`: `restockCents` sums lines with an item, `runningCents` lines without one (a restock whose item was deleted counts as running). `topRestockItems` lists up to 5 items, most spent first, ties by name.
+- `month-breakdown`: `restockCents` sums lines with an item, `runningCents` lines without one (a restock whose item was deleted counts as running). `topRestockItems` lists up to 5 items, most spent first, ties by name. `previousTotalCents` is the whole of last month's spending (this month's is only so far). `largestExpense` is this month's costliest expense, each converted to the account's currency first (the later one, then the higher id, on a tie); `null` with no expenses.
 
 ### 5.1 Expense tags: `/api/expense-tags`
 
@@ -539,25 +541,29 @@ Current stock grouped by first tag. It's a snapshot, so `range` doesn't apply. T
 
 Each feeds one page's charts. Money is in the account's currency (sales and expenses keep the currency they were recorded in, so each subtotal is converted before it's added); days and months are UTC.
 
-**`GET /api/analytics/sales-trends`, optional `?from&to`** (Sales Analytics): the period `from` to `to` (ISO dates, both included), bucketed by day, week or month exactly as the summary's chosen periods (`granularity`, `buckets`, `bucketLabels` as there). With neither, the last 12 calendar months by month. The same `400`s as the summary: only one of `from`/`to`, a backwards period, or one of 100 years or more. `revenueCents` and `saleCounts` line up with `buckets`; `byWeekday` runs Monday to Sunday; `byChannel` lists every channel with revenue, largest first.
+**`GET /api/analytics/sales-trends`, optional `?from&to` and `?channelId` (repeatable)** (Sales Analytics): the period `from` to `to` (ISO dates, both included), bucketed by day, week or month exactly as the summary's chosen periods (`granularity`, `buckets`, `bucketLabels` as there). With neither, the last 12 calendar months by month. The same `400`s as the summary: only one of `from`/`to`, a backwards period, or one of 100 years or more. `channelId` counts only that channel's sales, in every field; repeat it (`?channelId=1&channelId=3`) for several channels' sales together. Another business's channel matches no sales. `revenueCents` and `saleCounts` line up with `buckets`; `channelSeries` is revenue over time by channel: the top 3 channels by revenue, then `"Other"` for the rest, each lined up with `buckets` (with `channelId`s, just those channels). `byWeekday` runs Monday to Sunday; `byChannel` lists every channel with revenue, largest first.
 
 ```json
 {
   "granularity": "month",
   "buckets": ["2026-09", "2026-10", "2026-11"], "bucketLabels": ["Sep", "Oct", "Nov"],
   "revenueCents": [120000, 95000, 30000], "saleCounts": [40, 31, 9],
+  "channelSeries": [{ "label": "Online", "values": [70000, 60000, 20000] }, { "label": "In person", "values": [50000, 35000, 10000] }],
   "byWeekday": [{ "day": "Mon", "saleCount": 8, "revenueCents": 24000 }],
   "byChannel": [{ "label": "Online", "valueCents": 150000 }]
 }
 ```
 
-**`GET /api/analytics/expense-trends`, optional `?from&to`** (Expense Analytics): the same period and buckets, `from`/`to` as above. Restocks are expense lines linked to an item, running costs the rest; revenue is there to compare against. `byTag` is spending by first tag, largest first, with tags past the top 6 combined as `"Other"`, listed last.
+**`GET /api/analytics/expense-tags`** (Expense Analytics' tag filter): every first tag on the business's expenses at any time, as a JSON array of names, by name ignoring case, with `"Untagged"` last if some expenses have no tag. Unlike `GET /api/expense-tags` (the expense form's list), it includes tags since removed from that list, which old expenses keep. `[]` with no expenses.
+
+**`GET /api/analytics/expense-trends`, optional `?from&to` and `?tag` (repeatable)** (Expense Analytics): the same period and buckets, `from`/`to` as above. `tag` counts only expenses whose first tag is that one (`"Untagged"` for those with none) in every expense field; repeat it (`?tag=rent&tag=stock`) for several tags' expenses together. Each value is one tag, even with a comma in it. Blank values are ignored, and tags no expense has give zeros. Restocks are expense lines linked to an item, running costs the rest; revenue is there for profit, and always covers every sale, since sales have no expense tags. `expenseSeries` is spending over time by first tag, like the summary's: the top 3 tags by spending, then `"Other"` for the rest, each lined up with `buckets`. `byTag` is spending by first tag over the whole period, largest first, with tags past the top 6 combined as `"Other"`, listed last.
 
 ```json
 {
   "granularity": "month",
   "buckets": ["2026-10", "2026-11"], "bucketLabels": ["Oct", "Nov"],
   "revenueCents": [95000, 30000], "restockCents": [20000, 7950], "runningCents": [25000, 13775],
+  "expenseSeries": [{ "label": "rent", "values": [25000, 0] }, { "label": "Other", "values": [20000, 21725] }],
   "byTag": [{ "label": "rent", "valueCents": 50000 }, { "label": "Other", "valueCents": 4500 }]
 }
 ```

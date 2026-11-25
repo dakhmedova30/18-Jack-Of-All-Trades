@@ -34,25 +34,53 @@ export function getAnalyticsDateRange(): Promise<AnalyticsDateRange> {
   return apiRequest('/analytics/date-range');
 }
 
-/** `?from=…&to=…` for a period, or nothing for the server's default (the last 12 months). */
-function periodQuery(period?: DateRange): string {
-  return period ? `?${new URLSearchParams({ from: period.from, to: period.to })}` : '';
+/**
+ * `?from=…&to=…` for a period (without one, the server's default: the last 12 months), plus each
+ * of `filters` that is set, a list as the name repeated (`channelId=1&channelId=3`); nothing for none.
+ */
+function trendsQuery(
+  period?: DateRange,
+  filters: Record<string, readonly (string | number)[] | undefined> = {},
+): string {
+  const params = new URLSearchParams();
+  if (period) {
+    params.set('from', period.from);
+    params.set('to', period.to);
+  }
+  for (const [name, values] of Object.entries(filters)) {
+    for (const value of values ?? []) params.append(name, String(value));
+  }
+  const search = params.toString();
+  return search ? `?${search}` : '';
 }
 
 /**
  * Sales Analytics' charts for a period of whole days, both included (by day, week or month, by
- * its length): revenue and sale count over time, by weekday and by channel.
+ * its length): revenue (in all and by channel) and sale count over time, by weekday and by channel.
+ *
+ * @param channelIds Only these channels' sales count, in every chart; all of them without.
  */
-export function getSalesTrends(period?: DateRange): Promise<SalesTrends> {
-  return apiRequest(`/analytics/sales-trends${periodQuery(period)}`);
+export function getSalesTrends(period?: DateRange, channelIds?: number[]): Promise<SalesTrends> {
+  return apiRequest(`/analytics/sales-trends${trendsQuery(period, { channelId: channelIds })}`);
 }
 
 /**
  * Expense Analytics' charts for a period of whole days, both included: restock and running costs
  * over time next to revenue, and spending by tag.
+ *
+ * @param tags Only expenses whose first tag ("Untagged" for none) is one of these count, all of
+ *   them without; revenue is unaffected.
  */
-export function getExpenseTrends(period?: DateRange): Promise<ExpenseTrends> {
-  return apiRequest(`/analytics/expense-trends${periodQuery(period)}`);
+export function getExpenseTrends(period?: DateRange, tags?: string[]): Promise<ExpenseTrends> {
+  return apiRequest(`/analytics/expense-trends${trendsQuery(period, { tag: tags })}`);
+}
+
+/**
+ * Every first tag on the business's expenses, by name with "Untagged" last: the choices of Expense
+ * Analytics' tag filter. Unlike listExpenseTags, it includes tags removed from the form's list.
+ */
+export function getExpenseTagsInUse(): Promise<string[]> {
+  return apiRequest('/analytics/expense-tags');
 }
 
 /** Inventory Analytics' charts: stock levels, stock value by tag and what will run out first. */

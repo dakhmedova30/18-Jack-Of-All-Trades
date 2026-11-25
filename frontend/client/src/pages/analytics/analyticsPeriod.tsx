@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import type { AnalyticsDateRange, DateRange } from '../../types';
 import { formatDate, startOfMonth } from '../../utils/date';
-import { AnalyticsFilters } from './AnalyticsFilters';
+import { AnalyticsFilters, type FilterChoice } from './AnalyticsFilters';
 
 /** How long the period must stay still (e.g. while dragging the slider) before it reloads. */
 export const RELOAD_DELAY_MS = 250;
@@ -55,17 +55,23 @@ export function useChartPeriod(dates: AnalyticsDateRange | undefined): ChartPeri
 interface ChartFiltersProps {
   dates: AnalyticsDateRange;
   period: ChartPeriod;
+  /** A checkbox menu too (Sales' channels, Expenses' tags); Reset then also unticks it. */
+  choice?: FilterChoice;
 }
 
-/** The main Analytics page's date filter, driving a deeper page's charts. */
-export function ChartFilters({ dates, period }: ChartFiltersProps) {
+/** The main Analytics page's date filter, plus any `choice`, driving a deeper page's charts. */
+export function ChartFilters({ dates, period, choice }: ChartFiltersProps) {
   return (
     <AnalyticsFilters
       dates={dates}
       value={period.value}
       onChange={period.setValue}
-      onReset={() => period.setValue(period.initial)}
-      isDefault={samePeriod(period.value, period.initial)}
+      choice={choice}
+      onReset={() => {
+        period.setValue(period.initial);
+        choice?.onChange([]);
+      }}
+      isDefault={samePeriod(period.value, period.initial) && !choice?.value.length}
     />
   );
 }

@@ -28,8 +28,8 @@ public class AnalyticsQueries {
     /** The first and last day (UTC) with a sale or expense; both null when there are none. */
     record RecordSpan(LocalDate first, LocalDate last) {}
 
-    /** One sale: its date, the currency it was recorded in, and the sum of its lines (0 if none). */
-    record SaleTotal(Instant at, String currency, long totalCents) {}
+    /** One sale: its date, its channel's name, the currency it was recorded in, and the sum of its lines (0 if none). */
+    record SaleTotal(Instant at, String channel, String currency, long totalCents) {}
 
     /**
      * One expense line: its parent's date and first tag ("Untagged" if none), its currency, and
@@ -58,7 +58,7 @@ public class AnalyticsQueries {
      * means every channel.
      */
     List<TaggedLine> revenueLines(int businessId, Instant since, Instant until, Integer channelId) {
-        SalesWhere where = new SalesWhere(businessId, since, until, channelId);
+        SalesWhere where = new SalesWhere(businessId, since, until, oneOrAll(channelId));
         return taggedLines("""
                 SELECT s.sold_at AS at, COALESCE(s.tags[1], 'Untagged') AS tag, s.currency, si.total_cents
                 FROM sales s JOIN sale_items si ON si.sale_id = s.id
@@ -88,7 +88,7 @@ public class AnalyticsQueries {
      * account's currency before adding them up and sorting.
      */
     List<ChannelLine> revenueByChannel(int businessId, Instant since, Instant until, Integer channelId) {
-        SalesWhere where = new SalesWhere(businessId, since, until, channelId);
+        SalesWhere where = new SalesWhere(businessId, since, until, oneOrAll(channelId));
         return jdbcClient.sql("""
                         SELECT c.name AS channel, s.currency, SUM(si.total_cents) AS total_cents
                         FROM sales s JOIN sale_items si ON si.sale_id = s.id JOIN channels c ON c.id = s.channel_id
@@ -115,41 +115,72 @@ public class AnalyticsQueries {
                 .list();
     }
 
-    /** Every sale of this business in {@code [since, until)}, one row per sale, from every channel. */
-    List<SaleTotal> saleTotals(int businessId, Instant since, Instant until) {
+    /**
+     * Every sale of this business in {@code [since, until)}, one row per sale, only in the
+     * channels {@code channelIds} unless it's null (every channel).
+     */
+    List<SaleTotal> saleTotals(int businessId, Instant since, Instant until, List<Integer> channelIds) {
+        SalesWhere where = new SalesWhere(businessId, since, until, channelIds);
         return jdbcClient.sql("""
-                        SELECT s.sold_at AS at, s.currency, COALESCE(SUM(si.total_cents), 0) AS total_cents
-                        FROM sales s LEFT JOIN sale_items si ON si.sale_id = s.id
-                        WHERE s.business_id = :businessId AND s.sold_at >= :since AND s.sold_at < :until
-                        GROUP BY s.id, s.sold_at, s.currency
+                        SELECT s.sold_at AS at, c.name AS channel, s.currency,
+                               COALESCE(SUM(si.total_cents), 0) AS total_cents
+                        FROM sales s JOIN channels c ON c.id = s.channel_id
+                        LEFT JOIN sale_items si ON si.sale_id = s.id
+                        """ + where.sql() + """
+                        GROUP BY s.id, s.sold_at, c.name, s.currency
                         """)
-                .param("businessId", businessId)
-                .param("since", utc(since))
-                .param("until", utc(until))
+                .params(where.params())
                 .query((rs, rowNum) -> new SaleTotal(
                         rs.getObject("at", OffsetDateTime.class).toInstant(),
+                        rs.getString("channel"),
                         rs.getString("currency"),
                         rs.getLong("total_cents")))
                 .list();
     }
 
-    /** Every expense line of this business incurred in {@code [since, until)}. */
-    List<CostLine> costLines(int businessId, Instant since, Instant until) {
+    /**
+     * Every expense line of this business incurred in {@code [since, until)}, only of expenses
+     * whose first tag ("Untagged" if none) is one of {@code tags} unless it's null (every expense).
+     */
+    List<CostLine> costLines(int businessId, Instant since, Instant until, List<String> tags) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("businessId", businessId);
+        params.put("since", utc(since));
+        params.put("until", utc(until));
+        if (tags != null) {
+            params.put("tags", tags);
+        }
         return jdbcClient.sql("""
                         SELECT e.incurred_at AS at, COALESCE(e.tags[1], 'Untagged') AS tag, e.currency,
                                ei.item_id IS NOT NULL AS restock, ei.total_cents
                         FROM expenses e JOIN expense_items ei ON ei.expense_id = e.id
                         WHERE e.business_id = :businessId AND e.incurred_at >= :since AND e.incurred_at < :until
-                        """)
-                .param("businessId", businessId)
-                .param("since", utc(since))
-                .param("until", utc(until))
+                        """ + (tags == null ? "" : "AND COALESCE(e.tags[1], 'Untagged') IN (:tags)\n"))
+                .params(params)
                 .query((rs, rowNum) -> new CostLine(
                         rs.getObject("at", OffsetDateTime.class).toInstant(),
                         rs.getString("tag"),
                         rs.getString("currency"),
                         rs.getBoolean("restock"),
                         rs.getLong("total_cents")))
+                .list();
+    }
+
+    /**
+     * Every first tag ("Untagged" for none) on this business's expenses, at any time: the choices
+     * of Expense Analytics' tag filter. By name, ignoring case, with "Untagged" last.
+     */
+    List<String> expenseFirstTags(int businessId) {
+        return jdbcClient.sql("""
+                        SELECT tag FROM (
+                            SELECT DISTINCT COALESCE(tags[1], 'Untagged') AS tag
+                            FROM expenses
+                            WHERE business_id = :businessId
+                        ) AS used
+                        ORDER BY tag = 'Untagged', lower(tag), tag
+                        """)
+                .param("businessId", businessId)
+                .query(String.class)
                 .list();
     }
 
@@ -233,15 +264,16 @@ public class AnalyticsQueries {
 
     /**
      * The filter shared by the revenue queries: one business's sales from {@code since}, before
-     * {@code until} unless it's null, and in one channel unless {@code channelId} is null.
-     * Every value is a bound parameter; only these fixed fragments are added to the SQL.
+     * {@code until} unless it's null, and in the channels {@code channelIds} unless it's null.
+     * Every value is a bound parameter (a list expands to one per id); only these fixed fragments
+     * are added to the SQL.
      */
-    private record SalesWhere(int businessId, Instant since, Instant until, Integer channelId) {
+    private record SalesWhere(int businessId, Instant since, Instant until, List<Integer> channelIds) {
 
         String sql() {
             return "WHERE s.business_id = :businessId AND s.sold_at >= :since\n"
                     + (until == null ? "" : "AND s.sold_at < :until\n")
-                    + (channelId == null ? "" : "AND s.channel_id = :channelId\n");
+                    + (channelIds == null ? "" : "AND s.channel_id IN (:channelIds)\n");
         }
 
         Map<String, Object> params() {
@@ -251,11 +283,16 @@ public class AnalyticsQueries {
             if (until != null) {
                 params.put("until", utc(until));
             }
-            if (channelId != null) {
-                params.put("channelId", channelId);
+            if (channelIds != null) {
+                params.put("channelIds", channelIds);
             }
             return params;
         }
+    }
+
+    /** The summary's one channel as SalesWhere's list; null (every channel) stays null. */
+    private static List<Integer> oneOrAll(Integer channelId) {
+        return channelId == null ? null : List.of(channelId);
     }
 
     private List<TaggedLine> taggedLines(String sql, Map<String, Object> params) {

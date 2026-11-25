@@ -1,11 +1,14 @@
 package ca.jackofalltrades.analytics;
 
 import ca.jackofalltrades.common.api.BadRequestException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.Arrays;
+import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -61,25 +64,45 @@ public class AnalyticsController {
     }
 
     /**
-     * Sales Analytics: revenue and sale count over time, by weekday and by channel, for the period
-     * {@code from} to {@code to} (ISO dates, both included), or the last 12 calendar months.
+     * Sales Analytics: revenue (in all and by channel) and sale count over time, by weekday and by
+     * channel, for the period {@code from} to {@code to} (ISO dates, both included), or the last 12
+     * calendar months. {@code channelId}, repeated for several, narrows everything to those
+     * channels' sales.
      */
     @GetMapping("/sales-trends")
     public SalesTrends salesTrends(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return sectionAnalytics.salesTrends(LocalDate.now(ZoneOffset.UTC), from, to);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(name = "channelId", required = false)
+            List<@Min(value = 1, message = "Must be at least 1") Integer> channelIds) {
+        return sectionAnalytics.salesTrends(LocalDate.now(ZoneOffset.UTC), from, to, channelIds);
     }
 
     /**
      * Expense Analytics: restock and running costs over time next to revenue, and spending by tag,
      * for the period {@code from} to {@code to} (ISO dates, both included), or the last 12 months.
+     * {@code tag}, repeated for several, narrows the expenses to those with one of those first
+     * tags ("Untagged" for none). Read from the request as sent: a {@code List<String>} parameter
+     * would split a single value on commas, and a tag can contain one.
      */
     @GetMapping("/expense-trends")
     public ExpenseTrends expenseTrends(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return sectionAnalytics.expenseTrends(LocalDate.now(ZoneOffset.UTC), from, to);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            HttpServletRequest request) {
+        String[] tags = request.getParameterValues("tag");
+        return sectionAnalytics.expenseTrends(
+                LocalDate.now(ZoneOffset.UTC), from, to, tags == null ? null : Arrays.asList(tags));
+    }
+
+    /**
+     * The tags Expense Analytics can narrow to: every first tag on the business's expenses ("Untagged"
+     * for those without one), by name, "Untagged" last. Unlike /api/expense-tags (the expense form's
+     * list), it includes tags since removed from that list, which old expenses keep.
+     */
+    @GetMapping("/expense-tags")
+    public List<String> expenseTags() {
+        return sectionAnalytics.expenseTags();
     }
 
     /** Inventory Analytics: stock levels, stock value by tag, and what will run out first. */

@@ -111,6 +111,15 @@ export interface ExpenseMonthBreakdown {
   /** Free-text lines: rent, fees, supplies and so on. */
   runningCents: number;
   totalCents: number;
+  /** All of last month's spending, to compare this month's so far with. */
+  previousTotalCents: number;
+  /** This month's costliest expense, in the account's currency; null with none. */
+  largestExpense: {
+    id: number;
+    incurredAt: string;
+    description: string;
+    totalCents: number;
+  } | null;
   /** Top items by restock spending this month, most first (up to 5). */
   topRestockItems: { id: number; name: string; units: number; spentCents: number }[];
 }
@@ -310,7 +319,10 @@ export interface AnalyticsSummary {
   expensesByTag: { label: string; valueCents: number }[];
 }
 
-/** Sales Analytics: the chosen period, or the last 12 calendar months (UTC). */
+/**
+ * Sales Analytics: the chosen period, or the last 12 calendar months (UTC), from every channel or
+ * the one asked for.
+ */
 export interface SalesTrends {
   /** How the period is split, by its length, as for the summary. */
   granularity: 'day' | 'week' | 'month';
@@ -319,6 +331,8 @@ export interface SalesTrends {
   /** "Jan", or "Oct 5" for a day or week. */
   bucketLabels: string[];
   revenueCents: number[];
+  /** Revenue over time by channel: the top 3 channels, then "Other" (last), lined up with `buckets`. */
+  channelSeries: AnalyticsTagSeries[];
   saleCounts: number[];
   /** Monday to Sunday. */
   byWeekday: { day: string; saleCount: number; revenueCents: number }[];
@@ -337,7 +351,9 @@ export interface ExpenseTrends {
   restockCents: number[];
   /** Expense lines without an item, e.g. rent. */
   runningCents: number[];
-  /** Spending by first tag, largest first; past the top 6, "Other" (last). */
+  /** Spending over time by first tag: the top 3 tags, then "Other" (last), lined up with `buckets`. */
+  expenseSeries: AnalyticsTagSeries[];
+  /** Spending by first tag over the whole period, largest first; past the top 6, "Other" (last). */
   byTag: { label: string; valueCents: number }[];
 }
 

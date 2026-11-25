@@ -9,10 +9,11 @@ import {
   ChartCard,
   FitWidth,
   indexOfMax,
+  orList,
   percentOf,
   sum,
 } from './ChartCard';
-import { ChartTable, ColumnChart, HorizontalBarChart, LineChart } from './charts';
+import { ChartLegend, ChartTable, ColumnChart, HorizontalBarChart, LineChart } from './charts';
 
 const DAY_NAMES: Record<string, string> = {
   Mon: 'Monday',
@@ -32,13 +33,16 @@ interface SalesChartsProps {
   data: SalesTrends;
   /** The period `data` covers, for the sentences under the charts. */
   period: DateRange;
+  /** The one channel `data` covers, or null for every channel. */
+  channelNames: string[] | null;
 }
 
 /**
- * Sales Analytics' charts: revenue, sale count and average sale over time (by day, week or month,
- * as the server split the period), busiest days and channels.
+ * Sales Analytics' charts: revenue (a line per channel), sale count and average sale over time (by
+ * day, week or month, as the server split the period), busiest days and, for every channel, the
+ * channels compared.
  */
-export function SalesCharts({ data, period }: SalesChartsProps) {
+export function SalesCharts({ data, period, channelNames }: SalesChartsProps) {
   const currency = useCurrency();
   const money = (cents: number) => formatCents(cents, currency);
   const compact = (cents: number) => formatCentsCompact(cents, currency);
@@ -53,7 +57,9 @@ export function SalesCharts({ data, period }: SalesChartsProps) {
     return (
       <ChartCard title="Sales trends" wide>
         <p className="empty-state">
-          No sales {phrase}. Choose a longer date range, or record a sale to see its trends here.
+          {channelNames
+            ? `No ${orList(channelNames)} sales ${phrase}. Choose a longer date range or other channels, or record a sale to see its trends here.`
+            : `No sales ${phrase}. Choose a longer date range, or record a sale to see its trends here.`}
         </p>
       </ChartCard>
     );
@@ -70,6 +76,10 @@ export function SalesCharts({ data, period }: SalesChartsProps) {
   const busiest = data.byWeekday[indexOfMax(dayRevenue)]!;
   const channelTotal = sum(data.byChannel.map((channel) => channel.valueCents));
   const topChannel = data.byChannel[0];
+  const lines = data.channelSeries.map((series) => series.label);
+  const onlyChannel = channelNames?.length === 1 ? channelNames[0]! : null;
+  // Fewer than one a month (say) rounds to "about 0", so that part is left out.
+  const perBucket = Math.round(totalSales / data.buckets.length);
 
   return (
     <>
@@ -77,33 +87,56 @@ export function SalesCharts({ data, period }: SalesChartsProps) {
         title={`Revenue by ${unit}`}
         wide
         insight={
-          several
-            ? `Your best ${unit} ${phrase} was ${named(best)}, with ${money(data.revenueCents[best]!)}.`
-            : `${money(totalRevenue)} in revenue ${phrase}.`
+          totalRevenue === 0
+            ? undefined
+            : several
+              ? `Your best ${unit} ${phrase} was ${named(best)}, with ${money(data.revenueCents[best]!)}.`
+              : `${money(totalRevenue)} in revenue ${phrase}.`
         }
       >
-        <FitWidth fallback={840}>
-          {(width) => (
-            <LineChart
-              categories={data.bucketLabels}
-              series={[{ label: 'Revenue', values: data.revenueCents }]}
-              ariaLabel={`Revenue by ${unit}`}
-              width={width}
-              height={240}
-              formatValue={compact}
-              formatTooltip={money}
+        {lines.length === 0 ? (
+          <p className="empty-state">No revenue {phrase}.</p>
+        ) : (
+          <>
+            <FitWidth fallback={840}>
+              {(width) => (
+                <LineChart
+                  categories={data.bucketLabels}
+                  series={data.channelSeries}
+                  ariaLabel={`Revenue by channel, by ${unit}`}
+                  width={width}
+                  height={240}
+                  formatValue={compact}
+                  formatTooltip={money}
+                />
+              )}
+            </FitWidth>
+            <div className="analytics-card__footer">
+              <span className="muted">
+                {channelNames === null
+                  ? 'One line per channel'
+                  : onlyChannel
+                    ? `${onlyChannel} only`
+                    : 'One line per chosen channel'}
+              </span>
+              <ChartLegend labels={lines} />
+            </div>
+            {/* With one line, a Total column would only repeat it. */}
+            <ChartTable
+              columns={[BUCKET_HEADING[unit], ...lines, ...(lines.length > 1 ? ['Total'] : [])]}
+              rows={dates.map((date, i) => [
+                date,
+                ...data.channelSeries.map((series) => money(series.values[i] ?? 0)),
+                ...(lines.length > 1 ? [money(data.revenueCents[i]!)] : []),
+              ])}
             />
-          )}
-        </FitWidth>
-        <ChartTable
-          columns={[BUCKET_HEADING[unit], 'Revenue']}
-          rows={dates.map((date, i) => [date, money(data.revenueCents[i]!)])}
-        />
+          </>
+        )}
       </ChartCard>
 
       <ChartCard
         title={`Sales by ${unit}`}
-        insight={`${salesCount(totalSales)} ${phrase}${several ? `, about ${Math.round(totalSales / data.buckets.length).toLocaleString()} a ${unit}` : ''}.`}
+        insight={`${salesCount(totalSales)} ${phrase}${several && perBucket > 0 ? `, about ${perBucket.toLocaleString()} a ${unit}` : ''}.`}
       >
         <FitWidth fallback={420}>
           {(width) => (
@@ -150,8 +183,10 @@ export function SalesCharts({ data, period }: SalesChartsProps) {
         />
       </ChartCard>
 
+      {/* One channel's busiest days fill the row its comparison with the others would share. */}
       <ChartCard
         title="Busiest days"
+        wide={onlyChannel !== null}
         insight={`${DAY_NAMES[busiest.day] ?? busiest.day}s bring in the most revenue: ${percentOf(busiest.revenueCents, sum(dayRevenue))}% of it.`}
       >
         <FitWidth fallback={420}>
@@ -179,44 +214,47 @@ export function SalesCharts({ data, period }: SalesChartsProps) {
         />
       </ChartCard>
 
-      <ChartCard
-        title="Revenue by channel"
-        insight={
-          topChannel && channelTotal > 0
-            ? `"${topChannel.label}" brings in ${percentOf(topChannel.valueCents, channelTotal)}% of your revenue.`
-            : undefined
-        }
-      >
-        {data.byChannel.length === 0 ? (
-          <p className="empty-state">No revenue {phrase}.</p>
-        ) : (
-          <>
-            <FitWidth fallback={420}>
-              {(width) => (
-                <HorizontalBarChart
-                  bars={data.byChannel.map((channel) => ({
-                    label: channel.label,
-                    value: channel.valueCents,
-                    detail: `${percentOf(channel.valueCents, channelTotal)}% of revenue`,
-                  }))}
-                  width={width}
-                  ariaLabel="Revenue by sales channel"
-                  formatValue={compact}
-                  formatTooltip={money}
-                />
-              )}
-            </FitWidth>
-            <ChartTable
-              columns={['Channel', 'Revenue', 'Share']}
-              rows={data.byChannel.map((channel) => [
-                channel.label,
-                money(channel.valueCents),
-                `${percentOf(channel.valueCents, channelTotal)}%`,
-              ])}
-            />
-          </>
-        )}
-      </ChartCard>
+      {/* One channel would be a single bar at 100%, so the comparison waits for "All channels". */}
+      {onlyChannel === null && (
+        <ChartCard
+          title="Revenue by channel"
+          insight={
+            topChannel && channelTotal > 0
+              ? `"${topChannel.label}" brings in ${percentOf(topChannel.valueCents, channelTotal)}% of ${channelNames ? "the chosen channels'" : 'your'} revenue.`
+              : undefined
+          }
+        >
+          {data.byChannel.length === 0 ? (
+            <p className="empty-state">No revenue {phrase}.</p>
+          ) : (
+            <>
+              <FitWidth fallback={420}>
+                {(width) => (
+                  <HorizontalBarChart
+                    bars={data.byChannel.map((channel) => ({
+                      label: channel.label,
+                      value: channel.valueCents,
+                      detail: `${percentOf(channel.valueCents, channelTotal)}% of revenue`,
+                    }))}
+                    width={width}
+                    ariaLabel="Revenue by sales channel"
+                    formatValue={compact}
+                    formatTooltip={money}
+                  />
+                )}
+              </FitWidth>
+              <ChartTable
+                columns={['Channel', 'Revenue', 'Share']}
+                rows={data.byChannel.map((channel) => [
+                  channel.label,
+                  money(channel.valueCents),
+                  `${percentOf(channel.valueCents, channelTotal)}%`,
+                ])}
+              />
+            </>
+          )}
+        </ChartCard>
+      )}
     </>
   );
 }

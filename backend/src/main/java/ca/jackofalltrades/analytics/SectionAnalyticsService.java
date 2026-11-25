@@ -2,6 +2,7 @@ package ca.jackofalltrades.analytics;
 
 import ca.jackofalltrades.analytics.AnalyticsQueries.CostLine;
 import ca.jackofalltrades.analytics.AnalyticsQueries.SaleTotal;
+import ca.jackofalltrades.analytics.AnalyticsSummary.TagSeries;
 import ca.jackofalltrades.analytics.AnalyticsSummary.TagTotal;
 import ca.jackofalltrades.analytics.AnalyticsWindow.Bucket;
 import ca.jackofalltrades.auth.Business;
@@ -25,6 +26,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +43,12 @@ public class SectionAnalyticsService {
     static final int DEFAULT_TREND_MONTHS = 12;
     /** Spending by tag shows this many tags, then "Other". */
     static final int MAX_EXPENSE_TAGS = 6;
+    /**
+     * Revenue over time has a line for this many channels, and spending over time for this many
+     * tags, then "Other": as the summary's series, since more lines crossing each other can't be
+     * told apart by color.
+     */
+    static final int MAX_TREND_SERIES = AnalyticsService.MAX_TAG_SERIES;
     /** Stock value by tag shows this many tags, then "Other", as Inventory Overview does. */
     static final int MAX_STOCK_TAGS = AnalyticsService.MAX_INVENTORY_TAGS;
     /** "Running out soon" measures each item's selling pace over this many days, today included. */
@@ -85,12 +94,15 @@ public class SectionAnalyticsService {
     }
 
     /**
-     * Revenue and sale count by day, week or month, by day of the week and by channel, over the
-     * period {@code from} to {@code to} (see {@link #window}).
+     * Revenue (in all and by channel) and sale count by day, week or month, by day of the week and
+     * by channel, over the period {@code from} to {@code to} (see {@link #window}).
+     *
+     * @param channelIds only these channels' sales count; null or empty for every channel
      */
     @Transactional(readOnly = true)
-    public SalesTrends salesTrends(LocalDate today, LocalDate from, LocalDate to) {
+    public SalesTrends salesTrends(LocalDate today, LocalDate from, LocalDate to, List<Integer> channelIds) {
         AnalyticsWindow window = window(today, from, to);
+        List<Integer> onlyChannels = chosen(channelIds == null ? null : channelIds.stream());
         int businessId = currentBusiness.id();
         String currency = business(businessId).getCurrency();
         Map<String, Integer> bucketIndex = bucketIndex(window);
@@ -100,7 +112,9 @@ public class SectionAnalyticsService {
         List<Map<String, Long>> bucketRevenue = subtotals(buckets);
         long[] weekdayCounts = new long[7];
         List<Map<String, Long>> weekdayRevenue = subtotals(7);
-        for (SaleTotal sale : queries.saleTotals(businessId, window.start(), window.end())) {
+        Map<String, Map<String, Long>> byChannel = new LinkedHashMap<>();
+        Map<String, List<Map<String, Long>>> byChannelAndBucket = new HashMap<>();
+        for (SaleTotal sale : queries.saleTotals(businessId, window.start(), window.end(), onlyChannels)) {
             Integer bucket = bucketIndex.get(AnalyticsService.bucketKey(sale.at(), window.granularity()));
             if (bucket == null) {
                 continue;
@@ -110,6 +124,13 @@ public class SectionAnalyticsService {
             bucketRevenue.get(bucket).merge(sale.currency(), sale.totalCents(), Long::sum);
             weekdayCounts[weekday]++;
             weekdayRevenue.get(weekday).merge(sale.currency(), sale.totalCents(), Long::sum);
+            // A sale with no lines yet counts as a sale, but gives its channel no revenue to list.
+            if (sale.totalCents() != 0) {
+                byChannel.computeIfAbsent(sale.channel(), unused -> new HashMap<>())
+                        .merge(sale.currency(), sale.totalCents(), Long::sum);
+                byChannelAndBucket.computeIfAbsent(sale.channel(), unused -> subtotals(buckets)).get(bucket)
+                        .merge(sale.currency(), sale.totalCents(), Long::sum);
+            }
         }
 
         List<SalesTrends.WeekdayTotal> byWeekday = new ArrayList<>();
@@ -119,37 +140,37 @@ public class SectionAnalyticsService {
                     weekdayCounts[i], convert(weekdayRevenue.get(i), currency)));
         }
 
-        Map<String, Map<String, Long>> byChannel = new LinkedHashMap<>();
-        for (AnalyticsQueries.ChannelLine line
-                : queries.revenueByChannel(businessId, window.start(), window.end(), null)) {
-            byChannel.computeIfAbsent(line.channel(), unused -> new HashMap<>())
-                    .merge(line.currency(), line.totalCents(), Long::sum);
-        }
-
+        List<TagTotal> channels = largestFirst(byChannel, currency);
         return new SalesTrends(
                 window.granularity(),
                 window.buckets().stream().map(Bucket::key).toList(),
                 window.buckets().stream().map(Bucket::label).toList(),
                 convertEach(bucketRevenue, currency),
+                topSeries(channels, byChannelAndBucket, buckets, currency),
                 Arrays.stream(bucketCounts).boxed().toList(),
                 byWeekday,
-                largestFirst(byChannel, currency));
+                channels);
     }
 
     /**
      * Restock and running costs by day, week or month next to revenue, and spending by tag, over
      * the period {@code from} to {@code to} (see {@link #window}).
+     *
+     * @param tags only expenses whose first tag ("Untagged" for none) is one of these count; null,
+     *     empty or only blanks for every expense. Revenue is never narrowed: sales have no expense tags.
      */
     @Transactional(readOnly = true)
-    public ExpenseTrends expenseTrends(LocalDate today, LocalDate from, LocalDate to) {
+    public ExpenseTrends expenseTrends(LocalDate today, LocalDate from, LocalDate to, List<String> tags) {
         AnalyticsWindow window = window(today, from, to);
+        List<String> onlyTags = chosen(tags == null ? null
+                : tags.stream().filter(tag -> tag != null && !tag.isBlank()).map(String::strip));
         int businessId = currentBusiness.id();
         String currency = business(businessId).getCurrency();
         Map<String, Integer> bucketIndex = bucketIndex(window);
         int buckets = window.buckets().size();
 
         List<Map<String, Long>> revenue = subtotals(buckets);
-        for (SaleTotal sale : queries.saleTotals(businessId, window.start(), window.end())) {
+        for (SaleTotal sale : queries.saleTotals(businessId, window.start(), window.end(), null)) {
             Integer bucket = bucketIndex.get(AnalyticsService.bucketKey(sale.at(), window.granularity()));
             if (bucket != null) {
                 revenue.get(bucket).merge(sale.currency(), sale.totalCents(), Long::sum);
@@ -159,7 +180,8 @@ public class SectionAnalyticsService {
         List<Map<String, Long>> restock = subtotals(buckets);
         List<Map<String, Long>> running = subtotals(buckets);
         Map<String, Map<String, Long>> byTag = new LinkedHashMap<>();
-        for (CostLine line : queries.costLines(businessId, window.start(), window.end())) {
+        Map<String, List<Map<String, Long>>> byTagAndBucket = new HashMap<>();
+        for (CostLine line : queries.costLines(businessId, window.start(), window.end(), onlyTags)) {
             Integer bucket = bucketIndex.get(AnalyticsService.bucketKey(line.at(), window.granularity()));
             if (bucket == null) {
                 continue;
@@ -167,8 +189,11 @@ public class SectionAnalyticsService {
             (line.restock() ? restock : running).get(bucket).merge(line.currency(), line.totalCents(), Long::sum);
             byTag.computeIfAbsent(line.tag(), unused -> new HashMap<>())
                     .merge(line.currency(), line.totalCents(), Long::sum);
+            byTagAndBucket.computeIfAbsent(line.tag(), unused -> subtotals(buckets)).get(bucket)
+                    .merge(line.currency(), line.totalCents(), Long::sum);
         }
 
+        List<TagTotal> ranked = largestFirst(byTag, currency);
         return new ExpenseTrends(
                 window.granularity(),
                 window.buckets().stream().map(Bucket::key).toList(),
@@ -176,7 +201,39 @@ public class SectionAnalyticsService {
                 convertEach(revenue, currency),
                 convertEach(restock, currency),
                 convertEach(running, currency),
-                foldIntoOther(largestFirst(byTag, currency), MAX_EXPENSE_TAGS));
+                topSeries(ranked, byTagAndBucket, buckets, currency),
+                foldIntoOther(ranked, MAX_EXPENSE_TAGS));
+    }
+
+    /**
+     * One series per top label (the {@link #MAX_TREND_SERIES} first in {@code ranked}, the largest
+     * totals), then the rest added up as "Other" if there's any rest, each value converted per bucket.
+     */
+    private List<TagSeries> topSeries(List<TagTotal> ranked, Map<String, List<Map<String, Long>>> byLabelAndBucket,
+            int buckets, String currency) {
+        List<TagSeries> series = new ArrayList<>();
+        List<Map<String, Long>> other = subtotals(buckets);
+        for (int i = 0; i < ranked.size(); i++) {
+            List<Map<String, Long>> values = byLabelAndBucket.get(ranked.get(i).label());
+            if (i < MAX_TREND_SERIES) {
+                series.add(new TagSeries(ranked.get(i).label(), convertEach(values, currency)));
+                continue;
+            }
+            for (int b = 0; b < buckets; b++) {
+                Map<String, Long> target = other.get(b);
+                values.get(b).forEach((code, cents) -> target.merge(code, cents, Long::sum));
+            }
+        }
+        if (ranked.size() > MAX_TREND_SERIES) {
+            series.add(new TagSeries(AnalyticsService.OTHER, convertEach(other, currency)));
+        }
+        return series;
+    }
+
+    /** Every first tag on this business's expenses, for Expense Analytics' tag filter (see AnalyticsQueries). */
+    @Transactional(readOnly = true)
+    public List<String> expenseTags() {
+        return queries.expenseFirstTags(currentBusiness.id());
     }
 
     /** Stock levels now, stock value by tag, and the items that will run out first at the last 30 days' pace. */
@@ -254,6 +311,18 @@ public class SectionAnalyticsService {
             list.add(new HashMap<>());
         }
         return list;
+    }
+
+    /**
+     * The channels or tags a filter chose, without nulls or repeats; null, meaning no narrowing,
+     * when none are left.
+     */
+    private static <T> List<T> chosen(Stream<T> values) {
+        if (values == null) {
+            return null;
+        }
+        List<T> chosen = values.filter(Objects::nonNull).distinct().toList();
+        return chosen.isEmpty() ? null : chosen;
     }
 
     /** Each bucket's key and its position, to file records by AnalyticsService.bucketKey. */

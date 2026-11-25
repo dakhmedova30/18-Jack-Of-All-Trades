@@ -65,6 +65,12 @@ class SectionAnalyticsControllerTest extends PostgresTestBase {
         addSaleLine(saleId, itemId, quantity, quantity * 100);
     }
 
+    private int channelId(int businessId, String name) {
+        return jdbcClient.sql("SELECT id FROM channels WHERE business_id = :b AND name = :name")
+                .param("b", businessId).param("name", name)
+                .query(Integer.class).single();
+    }
+
     private int insertExpense(int businessId, LocalDate day, String... tags) {
         return jdbcClient.sql("""
                         INSERT INTO expenses (business_id, incurred_at, tags) VALUES (:b, :at, :tags) RETURNING id
@@ -97,6 +103,7 @@ class SectionAnalyticsControllerTest extends PostgresTestBase {
         mockMvc.perform(get("/api/analytics/sales-trends")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/analytics/expense-trends")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/analytics/stock-health")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/analytics/expense-tags")).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -114,11 +121,13 @@ class SectionAnalyticsControllerTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.revenueCents", hasSize(12)))
                 .andExpect(jsonPath("$.saleCounts[11]").value(0))
                 .andExpect(jsonPath("$.byWeekday[*].day", contains("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")))
+                .andExpect(jsonPath("$.channelSeries").isEmpty())
                 .andExpect(jsonPath("$.byChannel").isEmpty());
         mockMvc.perform(get("/api/analytics/expense-trends").cookie(cookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.buckets", hasSize(12)))
                 .andExpect(jsonPath("$.restockCents[11]").value(0))
+                .andExpect(jsonPath("$.expenseSeries").isEmpty())
                 .andExpect(jsonPath("$.byTag").isEmpty());
         mockMvc.perform(get("/api/analytics/stock-health").cookie(cookie))
                 .andExpect(status().isOk())
@@ -165,7 +174,70 @@ class SectionAnalyticsControllerTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.byWeekday[%d].saleCount", oldestDay).value(counts[oldestDay]))
                 .andExpect(jsonPath("$.byWeekday[%d].revenueCents", oldestDay).value(revenue[oldestDay]))
                 .andExpect(jsonPath("$.byChannel[*].label", contains("Online", "In person")))
-                .andExpect(jsonPath("$.byChannel[*].valueCents", contains(2500, 2200)));
+                .andExpect(jsonPath("$.byChannel[*].valueCents", contains(2500, 2200)))
+                .andExpect(jsonPath("$.channelSeries[*].label", contains("Online", "In person")))
+                .andExpect(jsonPath("$.channelSeries[0].values", hasSize(12)))
+                .andExpect(jsonPath("$.channelSeries[0].values[11]").value(2500))
+                .andExpect(jsonPath("$.channelSeries[0].values[0]").value(0))
+                .andExpect(jsonPath("$.channelSeries[1].values[11]").value(1500))
+                .andExpect(jsonPath("$.channelSeries[1].values[0]").value(700));
+    }
+
+    @Test
+    void salesTrendsHaveALinePerTopChannelAndNarrowToOneChannel() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        YearMonth thisMonth = YearMonth.now(ZoneOffset.UTC);
+        LocalDate first = thisMonth.atDay(1);
+        LocalDate earlier = thisMonth.minusMonths(3).atDay(1);
+        insertSale(business, first, "In person", 4000);
+        insertSale(business, earlier, "Online", 3000);
+        insertSale(business, first, "Commission", 2000);
+        insertSale(business, earlier, "Misc", 1000);
+        newSale(business, first, "Misc");   // no lines yet: a sale, but no revenue
+        int online = channelId(business, "Online");
+        int earlierDay = earlier.getDayOfWeek().getValue() - 1;
+
+        // A line for the top 3 channels by revenue, then the rest added up.
+        mockMvc.perform(get("/api/analytics/sales-trends").cookie(cookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.saleCounts[11]").value(3))
+                .andExpect(jsonPath("$.channelSeries[*].label", contains("In person", "Online", "Commission", "Other")))
+                .andExpect(jsonPath("$.channelSeries[0].values[11]").value(4000))
+                .andExpect(jsonPath("$.channelSeries[1].values[8]").value(3000))
+                .andExpect(jsonPath("$.channelSeries[2].values[11]").value(2000))
+                .andExpect(jsonPath("$.channelSeries[3].values[8]").value(1000))
+                .andExpect(jsonPath("$.channelSeries[3].values[11]").value(0))
+                .andExpect(jsonPath("$.byChannel[*].label", contains("In person", "Online", "Commission", "Misc")));
+
+        // One channel: only its sales count, in every chart.
+        mockMvc.perform(get("/api/analytics/sales-trends?channelId=" + online).cookie(cookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.revenueCents[8]").value(3000))
+                .andExpect(jsonPath("$.revenueCents[11]").value(0))
+                .andExpect(jsonPath("$.saleCounts[8]").value(1))
+                .andExpect(jsonPath("$.saleCounts[11]").value(0))
+                .andExpect(jsonPath("$.byWeekday[%d].saleCount", earlierDay).value(1))
+                .andExpect(jsonPath("$.byWeekday[%d].revenueCents", earlierDay).value(3000))
+                .andExpect(jsonPath("$.channelSeries[*].label", contains("Online")))
+                .andExpect(jsonPath("$.byChannel[*].label", contains("Online")))
+                .andExpect(jsonPath("$.byChannel[*].valueCents", contains(3000)));
+        // Several channels: theirs together, a line each.
+        int misc = channelId(business, "Misc");
+        mockMvc.perform(get("/api/analytics/sales-trends?channelId=" + online + "&channelId=" + misc).cookie(cookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.revenueCents[8]").value(3000 + 1000))
+                .andExpect(jsonPath("$.saleCounts[8]").value(2))
+                .andExpect(jsonPath("$.saleCounts[11]").value(1))
+                .andExpect(jsonPath("$.channelSeries[*].label", contains("Online", "Misc")))
+                .andExpect(jsonPath("$.byChannel[*].label", contains("Online", "Misc")));
+        // With a period as well.
+        mockMvc.perform(get("/api/analytics/sales-trends?from=" + first + "&to=" + first + "&channelId=" + online)
+                        .cookie(cookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.saleCounts", contains(0)))
+                .andExpect(jsonPath("$.channelSeries").isEmpty())
+                .andExpect(jsonPath("$.byChannel").isEmpty());
     }
 
     @Test
@@ -196,7 +268,83 @@ class SectionAnalyticsControllerTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.runningCents[9]").value(39_000))
                 .andExpect(jsonPath("$.byTag[*].label", contains("a", "b", "c", "d", "e", "f", "Other")))
                 .andExpect(jsonPath("$.byTag[0].valueCents").value(9000))
-                .andExpect(jsonPath("$.byTag[6].valueCents").value(5500));
+                .andExpect(jsonPath("$.byTag[6].valueCents").value(5500))
+                // Over time, a line for the top 3 tags, then the other five added up.
+                .andExpect(jsonPath("$.expenseSeries[*].label", contains("a", "b", "c", "Other")))
+                .andExpect(jsonPath("$.expenseSeries[0].values", hasSize(12)))
+                .andExpect(jsonPath("$.expenseSeries[0].values[9]").value(9000))
+                .andExpect(jsonPath("$.expenseSeries[0].values[11]").value(0))
+                .andExpect(jsonPath("$.expenseSeries[3].values[9]").value(6000 + 5000 + 4000))
+                .andExpect(jsonPath("$.expenseSeries[3].values[11]").value(3500 + 2000));
+    }
+
+    @Test
+    void expenseTrendsNarrowToOneFirstTag() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        YearMonth thisMonth = YearMonth.now(ZoneOffset.UTC);
+        LocalDate first = thisMonth.atDay(1);
+        int item = insertItem(business, "Mug", 3, 1200);
+
+        int stock = insertExpense(business, first, "stock");
+        addExpenseLine(stock, item, 3000);
+        addExpenseLine(stock, null, 500);
+        addExpenseLine(insertExpense(business, first, "rent", "stock"), null, 2000);   // first tag: rent
+        addExpenseLine(insertExpense(business, first), null, 700);                     // no tag
+        insertSale(business, first, "In person", 4000);
+
+        mockMvc.perform(get("/api/analytics/expense-trends?tag=stock").cookie(cookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.restockCents[11]").value(3000))
+                .andExpect(jsonPath("$.runningCents[11]").value(500))
+                .andExpect(jsonPath("$.expenseSeries[*].label", contains("stock")))
+                .andExpect(jsonPath("$.expenseSeries[0].values[11]").value(3500))
+                .andExpect(jsonPath("$.byTag[*].label", contains("stock")))
+                // Sales have no expense tags, so revenue stays whole.
+                .andExpect(jsonPath("$.revenueCents[11]").value(4000));
+        mockMvc.perform(get("/api/analytics/expense-trends?tag=Untagged").cookie(cookie))
+                .andExpect(jsonPath("$.restockCents[11]").value(0))
+                .andExpect(jsonPath("$.runningCents[11]").value(700))
+                .andExpect(jsonPath("$.byTag[*].label", contains("Untagged")));
+        mockMvc.perform(get("/api/analytics/expense-trends?tag=nothing").cookie(cookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.runningCents[11]").value(0))
+                .andExpect(jsonPath("$.expenseSeries").isEmpty())
+                .andExpect(jsonPath("$.byTag").isEmpty());
+        // A blank tag is no tag.
+        mockMvc.perform(get("/api/analytics/expense-trends?tag=").cookie(cookie))
+                .andExpect(jsonPath("$.runningCents[11]").value(500 + 2000 + 700));
+        // Several tags: theirs together, a line each.
+        mockMvc.perform(get("/api/analytics/expense-trends?tag=stock&tag=Untagged").cookie(cookie))
+                .andExpect(jsonPath("$.restockCents[11]").value(3000))
+                .andExpect(jsonPath("$.runningCents[11]").value(500 + 700))
+                .andExpect(jsonPath("$.expenseSeries[*].label", contains("stock", "Untagged")))
+                .andExpect(jsonPath("$.byTag[*].label", contains("stock", "Untagged")));
+        // A tag with a comma is one tag, not two.
+        addExpenseLine(insertExpense(business, first, "fees, misc"), null, 900);
+        mockMvc.perform(get("/api/analytics/expense-trends").param("tag", "fees, misc").cookie(cookie))
+                .andExpect(jsonPath("$.runningCents[11]").value(900))
+                .andExpect(jsonPath("$.byTag[*].label", contains("fees, misc")));
+    }
+
+    @Test
+    void expenseTagsListEveryFirstTagInUseByName() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        LocalDate longAgo = LocalDate.now(ZoneOffset.UTC).minusYears(3);
+        mockMvc.perform(get("/api/analytics/expense-tags").cookie(cookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+
+        insertExpense(business, longAgo, "stock", "rent");   // "rent" is only a second tag here
+        insertExpense(business, longAgo, "stock");
+        insertExpense(business, longAgo);
+        insertExpense(business, longAgo, "Marketing");
+        // Another business's tags stay its own.
+        insertExpense(businessId(registerAndLogin()), longAgo, "secret");
+
+        mockMvc.perform(get("/api/analytics/expense-tags").cookie(cookie))
+                .andExpect(jsonPath("$", contains("Marketing", "stock", "Untagged")));
     }
 
     @Test

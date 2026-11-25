@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as analyticsApi from '../../api/analytics';
 import * as authApi from '../../api/auth';
+import * as channelApi from '../../api/channels';
 import * as itemApi from '../../api/items';
 import * as saleApi from '../../api/sales';
 import { PageProviders } from '../../test/providers';
@@ -12,6 +13,7 @@ import type { SalesTrends } from '../../types';
 import { SalesAnalyticsPage } from './SalesAnalyticsPage';
 
 vi.mock('../../api/auth', () => ({ getCurrentBusiness: vi.fn() }));
+vi.mock('../../api/channels', () => ({ listChannels: vi.fn() }));
 vi.mock('../../api/items', () => ({ getInventoryInsights: vi.fn() }));
 vi.mock('../../api/sales', () => ({ getSalesMonthSummary: vi.fn() }));
 vi.mock('../../api/analytics', () => ({
@@ -57,6 +59,7 @@ const NO_SALES: SalesTrends = {
   buckets: BUCKETS,
   bucketLabels: LABELS,
   revenueCents: months({}),
+  channelSeries: [],
   saleCounts: months({}),
   byWeekday: WEEKDAYS.map((day) => ({ day, saleCount: 0, revenueCents: 0 })),
   byChannel: [],
@@ -66,6 +69,10 @@ const NO_SALES: SalesTrends = {
 const SOME_SALES: SalesTrends = {
   ...NO_SALES,
   revenueCents: months({ 8: 120000, 11: 30000 }),
+  channelSeries: [
+    { label: 'Online', values: months({ 8: 90000 }) },
+    { label: 'In person', values: months({ 8: 30000, 11: 30000 }) },
+  ],
   saleCounts: months({ 8: 4, 11: 2 }),
   byWeekday: WEEKDAYS.map((day) =>
     day === 'Sat'
@@ -80,6 +87,20 @@ const SOME_SALES: SalesTrends = {
   ],
 };
 
+/** SOME_SALES narrowed to the Online channel: three sales in August. */
+const ONLINE_SALES: SalesTrends = {
+  ...NO_SALES,
+  revenueCents: months({ 8: 90000 }),
+  channelSeries: [{ label: 'Online', values: months({ 8: 90000 }) }],
+  saleCounts: months({ 8: 3 }),
+  byWeekday: WEEKDAYS.map((day) =>
+    day === 'Sat'
+      ? { day, saleCount: 3, revenueCents: 90000 }
+      : { day, saleCount: 0, revenueCents: 0 },
+  ),
+  byChannel: [{ label: 'Online', valueCents: 90000 }],
+};
+
 async function findCard(title: string) {
   const heading = await screen.findByRole('heading', { name: title });
   return within(heading.closest('section')!);
@@ -89,6 +110,11 @@ describe('SalesAnalyticsPage charts', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(authApi.getCurrentBusiness).mockResolvedValue(undefined);
+    vi.mocked(channelApi.listChannels).mockResolvedValue([
+      { id: 1, name: 'Online' },
+      { id: 2, name: 'In person' },
+      { id: 3, name: 'Market' },
+    ]);
     vi.mocked(saleApi.getSalesMonthSummary).mockResolvedValue({
       periodStart: '2026-11-01T00:00:00Z',
       periodEnd: '2026-12-01T00:00:00Z',
@@ -117,11 +143,25 @@ describe('SalesAnalyticsPage charts', () => {
     vi.mocked(analyticsApi.getSalesTrends).mockResolvedValue(SOME_SALES);
     render(<SalesAnalyticsPage />, { wrapper: Providers });
 
+    // A revenue line per channel, with their total in the table.
     const revenue = await findCard('Revenue by month');
     expect(
       revenue.getByText(/^Your best month from .* was Aug 2026, with 1,200\.00 CAD\.$/),
     ).toBeInTheDocument();
-    expect(revenue.getByRole('img', { name: 'Revenue by month' })).toBeInTheDocument();
+    expect(revenue.getByRole('img', { name: 'Revenue by channel, by month' })).toBeInTheDocument();
+    expect(revenue.getByText('One line per channel')).toBeInTheDocument();
+    expect(
+      revenue
+        .getAllByRole('listitem')
+        .filter((item) => item.closest('.viz-legend'))
+        .map((item) => item.textContent),
+    ).toEqual(['Online', 'In person']);
+    expect(
+      revenue.getByRole('row', {
+        name: 'Aug 2026 900.00 CAD 300.00 CAD 1,200.00 CAD',
+        hidden: true,
+      }),
+    ).toBeInTheDocument();
 
     const count = await findCard('Sales by month');
     expect(count.getByText(/^6 sales from .*, about 1 a month\.$/)).toBeInTheDocument();
@@ -156,6 +196,7 @@ describe('SalesAnalyticsPage charts', () => {
       buckets: ['2026-10-05', '2026-10-12'],
       bucketLabels: ['Oct 5', 'Oct 12'],
       revenueCents: [10000, 30000],
+      channelSeries: [{ label: 'Online', values: [10000, 30000] }],
       saleCounts: [1, 3],
     });
     render(<SalesAnalyticsPage />, { wrapper: Providers });
@@ -191,11 +232,11 @@ describe('SalesAnalyticsPage charts', () => {
       vi.mocked(analyticsApi.getSalesTrends).mockResolvedValue(SOME_SALES);
       render(<SalesAnalyticsPage />, { wrapper: Providers });
 
-      // The same filter as the main Analytics page, at the top of this one.
+      // The same filter as the main Analytics page, beside this month's cards.
       const filters = await screen.findByRole('complementary', { name: 'Filters' });
       expect(within(filters).getByRole('button', { name: 'Reset' })).toBeDisabled();
       await waitFor(() =>
-        expect(analyticsApi.getSalesTrends).toHaveBeenLastCalledWith(DEFAULT_PERIOD),
+        expect(analyticsApi.getSalesTrends).toHaveBeenLastCalledWith(DEFAULT_PERIOD, undefined),
       );
 
       // A complete, valid start date applies on its own; the charts reload once it settles. (The
@@ -204,10 +245,10 @@ describe('SalesAnalyticsPage charts', () => {
         target: { value: '2026-10-01' },
       });
       await waitFor(() =>
-        expect(analyticsApi.getSalesTrends).toHaveBeenLastCalledWith({
-          from: '2026-10-01',
-          to: '2026-11-20',
-        }),
+        expect(analyticsApi.getSalesTrends).toHaveBeenLastCalledWith(
+          { from: '2026-10-01', to: '2026-11-20' },
+          undefined,
+        ),
       );
       expect(within(filters).getByRole('button', { name: 'Reset' })).toBeEnabled();
     });
@@ -222,15 +263,15 @@ describe('SalesAnalyticsPage charts', () => {
         target: { value: '2026-06-30' },
       });
       await waitFor(() =>
-        expect(analyticsApi.getSalesTrends).toHaveBeenLastCalledWith({
-          from: '2025-12-01',
-          to: '2026-06-30',
-        }),
+        expect(analyticsApi.getSalesTrends).toHaveBeenLastCalledWith(
+          { from: '2025-12-01', to: '2026-06-30' },
+          undefined,
+        ),
       );
 
       await user.click(within(filters).getByRole('button', { name: 'Reset' }));
       await waitFor(() =>
-        expect(analyticsApi.getSalesTrends).toHaveBeenLastCalledWith(DEFAULT_PERIOD),
+        expect(analyticsApi.getSalesTrends).toHaveBeenLastCalledWith(DEFAULT_PERIOD, undefined),
       );
     });
 
@@ -244,6 +285,125 @@ describe('SalesAnalyticsPage charts', () => {
       expect(alert).toHaveTextContent("Couldn't load sales trends: Server down");
       await user.click(within(alert).getByRole('button', { name: 'Retry' }));
       expect(await screen.findByRole('heading', { name: 'Revenue by month' })).toBeInTheDocument();
+    });
+  });
+
+  describe('channel filter', () => {
+    async function openChannels() {
+      const filters = await screen.findByRole('complementary', { name: 'Filters' });
+      const button = within(filters).getByRole('button', { name: 'Channels All channels' });
+      await waitFor(() => expect(button).toBeEnabled());
+      await userEvent.click(button);
+      return { filters, button };
+    }
+
+    it('narrows every chart to the ticked channels, and Reset unticks them', async () => {
+      const user = userEvent.setup();
+      vi.mocked(analyticsApi.getSalesTrends).mockImplementation((_period, ids) =>
+        Promise.resolve(ids?.join() === '1' ? ONLINE_SALES : SOME_SALES),
+      );
+      render(<SalesAnalyticsPage />, { wrapper: Providers });
+      expect(
+        await screen.findByRole('heading', { name: 'Revenue by channel' }),
+      ).toBeInTheDocument();
+
+      const { filters, button } = await openChannels();
+      expect(button).toHaveAttribute('aria-expanded', 'true');
+      await user.click(within(filters).getByRole('checkbox', { name: 'Online' }));
+      await waitFor(() =>
+        expect(analyticsApi.getSalesTrends).toHaveBeenLastCalledWith(DEFAULT_PERIOD, [1]),
+      );
+      expect(button).toHaveAccessibleName('Channels Online');
+      // With only some ticked, the tick-all box is half-ticked.
+      expect(
+        within(filters).getByRole('checkbox', { name: 'All channels' }),
+      ).toBePartiallyChecked();
+      let revenue = await findCard('Revenue by month');
+      expect(await revenue.findByText('Online only')).toBeInTheDocument();
+      expect(
+        revenue.getByRole('row', { name: 'Aug 2026 900.00 CAD', hidden: true }),
+      ).toBeInTheDocument();
+      // Comparing channels makes no sense with one.
+      expect(screen.queryByRole('heading', { name: 'Revenue by channel' })).not.toBeInTheDocument();
+
+      // Two channels: a line each, and compared with each other.
+      await user.click(within(filters).getByRole('checkbox', { name: 'In person' }));
+      await waitFor(() =>
+        expect(analyticsApi.getSalesTrends).toHaveBeenLastCalledWith(DEFAULT_PERIOD, [1, 2]),
+      );
+      expect(button).toHaveAccessibleName('Channels Online, In person');
+      revenue = await findCard('Revenue by month');
+      expect(await revenue.findByText('One line per chosen channel')).toBeInTheDocument();
+      expect(
+        (await findCard('Revenue by channel')).getByText(
+          `"Online" brings in 60% of the chosen channels' revenue.`,
+        ),
+      ).toBeInTheDocument();
+
+      await user.click(within(filters).getByRole('button', { name: 'Reset' }));
+      expect(button).toHaveAccessibleName('Channels All channels');
+      await waitFor(() =>
+        expect(analyticsApi.getSalesTrends).toHaveBeenLastCalledWith(DEFAULT_PERIOD, undefined),
+      );
+      expect(await screen.findByText('One line per channel')).toBeInTheDocument();
+    });
+
+    it('shows every channel with all of them ticked, as with none', async () => {
+      const user = userEvent.setup();
+      vi.mocked(analyticsApi.getSalesTrends).mockResolvedValue(SOME_SALES);
+      render(<SalesAnalyticsPage />, { wrapper: Providers });
+
+      const { filters, button } = await openChannels();
+      const all = within(filters).getByRole('checkbox', { name: 'All channels' });
+      await user.click(all);
+      for (const name of ['Online', 'In person', 'Market']) {
+        expect(within(filters).getByRole('checkbox', { name })).toBeChecked();
+      }
+      expect(all).toBeChecked();
+      expect(button).toHaveAccessibleName('Channels All channels');
+
+      // Unticking one narrows to the other two.
+      await user.click(within(filters).getByRole('checkbox', { name: 'Market' }));
+      await waitFor(() =>
+        expect(analyticsApi.getSalesTrends).toHaveBeenLastCalledWith(DEFAULT_PERIOD, [1, 2]),
+      );
+      // Ticking it again is every channel: no narrowing at all.
+      await user.click(within(filters).getByRole('checkbox', { name: 'Market' }));
+      await waitFor(() =>
+        expect(analyticsApi.getSalesTrends).toHaveBeenLastCalledWith(DEFAULT_PERIOD, undefined),
+      );
+      for (const call of vi.mocked(analyticsApi.getSalesTrends).mock.calls) {
+        expect(call[1]?.length).not.toBe(3);
+      }
+    });
+
+    it('closes the menu on Escape, back on its button', async () => {
+      const user = userEvent.setup();
+      vi.mocked(analyticsApi.getSalesTrends).mockResolvedValue(SOME_SALES);
+      render(<SalesAnalyticsPage />, { wrapper: Providers });
+
+      const { filters, button } = await openChannels();
+      await user.click(within(filters).getByRole('checkbox', { name: 'Online' }));
+      await user.keyboard('{Escape}');
+      expect(button).toHaveAttribute('aria-expanded', 'false');
+      expect(button).toHaveFocus();
+      expect(within(filters).queryByRole('checkbox', { name: 'Online' })).not.toBeInTheDocument();
+    });
+
+    it('names the channels when they had no sales in the period', async () => {
+      const user = userEvent.setup();
+      vi.mocked(analyticsApi.getSalesTrends).mockImplementation((_period, ids) =>
+        Promise.resolve(ids ? NO_SALES : SOME_SALES),
+      );
+      render(<SalesAnalyticsPage />, { wrapper: Providers });
+
+      const { filters } = await openChannels();
+      await user.click(within(filters).getByRole('checkbox', { name: 'In person' }));
+      await user.click(within(filters).getByRole('checkbox', { name: 'Market' }));
+      const card = await findCard('Sales trends');
+      expect(
+        await card.findByText(/^No In person or Market sales from .*other channels/),
+      ).toBeInTheDocument();
     });
   });
 });
