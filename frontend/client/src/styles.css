@@ -1022,24 +1022,6 @@ select {
   flex-shrink: 0;
 }
 
-.csv-transfer--toast > .muted,
-.csv-transfer--toast > .form-error {
-  position: fixed;
-  z-index: 100;
-  right: 1rem;
-  bottom: 1rem;
-  width: min(28rem, calc(100vw - 2rem));
-  padding: 0.75rem 1rem;
-  border: var(--border-default) var(--color-border);
-  border-radius: var(--radius);
-  background: var(--color-surface);
-  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 14%);
-}
-
-.csv-transfer--toast > .form-error {
-  border-color: var(--color-danger);
-}
-
 .csv-transfer > .muted,
 .csv-transfer .form-error {
   width: 100%;

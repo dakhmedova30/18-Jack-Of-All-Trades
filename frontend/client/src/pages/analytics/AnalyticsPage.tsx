@@ -142,7 +142,6 @@ function AnalyticsDashboard({ dates }: { dates: AnalyticsDateRange }) {
             headers={ANALYTICS_CSV_HEADERS}
             loadRows={loadAnalyticsCsv}
             exportRow={analyticsCsvRow}
-            statusPlacement="inline"
           />
         }
       />
