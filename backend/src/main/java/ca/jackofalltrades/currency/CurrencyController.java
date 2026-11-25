@@ -1,12 +1,14 @@
 package ca.jackofalltrades.currency;
 
 import ca.jackofalltrades.auth.BusinessResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Tag(name = "Currency", description = "Preview and apply a change of the account currency, converting stored amounts.")
 @RestController
 @RequestMapping("/api/auth/me/currency")
 public class CurrencyController {

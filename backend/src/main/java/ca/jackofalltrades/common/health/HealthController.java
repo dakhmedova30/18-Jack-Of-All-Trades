@@ -1,5 +1,7 @@
 package ca.jackofalltrades.common.health;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -8,6 +10,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Health checks (contract §7). No login required. */
+@Tag(name = "Health", description = "Whether the app and its database are up. No login needed.")
+@SecurityRequirements // public: no login needed
 @RestController
 public class HealthController {
 

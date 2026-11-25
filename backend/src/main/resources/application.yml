@@ -34,6 +34,14 @@ spring:
       # Delete expired sessions daily at 04:00 UTC instead of every minute (the default), which
       # would keep Neon's compute awake. Expired sessions are rejected on use either way.
       cleanup-cron: "0 0 4 * * *"
+springdoc:                                # API docs (OpenApiConfig); set API_DOCS_ENABLED=false to turn both off
+  paths-to-match: /api/**
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:true}
+  swagger-ui:
+    enabled: ${API_DOCS_ENABLED:true}
+    tags-sorter: alpha
+    operations-sorter: method
 exchange:                                 # currency conversion (ExchangeRateProperties)
   rate:
     api:
