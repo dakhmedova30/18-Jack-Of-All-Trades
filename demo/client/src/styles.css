@@ -786,17 +786,40 @@ select {
 
 .toolbar__actions {
   display: flex;
+  align-items: flex-start;
   gap: 0.5rem;
 }
 
 .csv-transfer {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 14.5rem;
+  flex: 0 0 14.5rem;
+}
+
+.csv-transfer--export-only {
+  width: 7rem;
+  flex-basis: 7rem;
+}
+
+.csv-transfer__buttons {
+  display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
+.csv-transfer__buttons .button {
+  width: 7rem;
+  flex: 0 0 7rem;
+}
+
+.csv-transfer > .muted,
 .csv-transfer .form-error {
+  width: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
   white-space: pre-line;
 }
 

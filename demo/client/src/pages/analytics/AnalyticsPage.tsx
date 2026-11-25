@@ -224,7 +224,7 @@ function analyticsCsvRow({ from, to, channelId, summary, inventory }: AnalyticsC
     channelId,
     summary.totalRevenueCents,
     summary.totalExpensesCents,
-    summary.netProfitCents,
+    channelId ? null : summary.netProfitCents,
     summary.range,
     summary.granularity,
     JSON.stringify(summary.buckets),

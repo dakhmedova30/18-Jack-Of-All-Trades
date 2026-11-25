@@ -98,6 +98,27 @@ describe('InventoryPage', () => {
     );
   });
 
+  it('does not send an old CSV stock quantity when importing an existing item', async () => {
+    const user = userEvent.setup();
+    vi.mocked(itemApi.updateItem).mockResolvedValue(testItem);
+    render(<InventoryPage />, { wrapper: PageProviders });
+    await screen.findByText('Tea');
+    const csv = 'id,name,quantity,unitPriceCents,tags,note,isPublic\n1,Tea,15,450,[],old,false';
+    const file = new File([csv], 'inventory.csv', { type: 'text/csv' });
+    Object.defineProperty(file, 'text', { value: async () => csv });
+    await user.upload(screen.getByLabelText('Import inventory CSV'), file);
+    const dialog = await screen.findByRole('dialog', { name: 'Confirm CSV Import' });
+    await user.click(within(dialog).getByRole('button', { name: 'Import CSV' }));
+    await waitFor(() => expect(itemApi.updateItem).toHaveBeenCalledTimes(1));
+    expect(itemApi.updateItem).toHaveBeenCalledWith(1, {
+      name: 'Tea',
+      unitPriceCents: 450,
+      tags: [],
+      note: 'old',
+      isPublic: false,
+    });
+  });
+
   it('shows the selected items on the public profile, and says when the profile is off', async () => {
     const user = userEvent.setup();
     vi.mocked(itemApi.bulkSetItemsPublic).mockResolvedValue({ updated: 1 });

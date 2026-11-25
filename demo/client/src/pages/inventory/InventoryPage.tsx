@@ -33,10 +33,8 @@ import type {
 import { formatCents } from '../../utils/money';
 import { fetchAllPages } from '../../utils/csv';
 import {
-  csvId,
   itemCsvRow,
-  itemInputFromCsv,
-  upsertFromCsv,
+  importItemFromCsv,
   ITEM_CSV_HEADERS,
   ITEM_IMPORT_HEADERS,
 } from '../../utils/businessCsv';
@@ -121,13 +119,7 @@ export function InventoryPage() {
   }
 
   async function importItem(record: Record<string, string>) {
-    const id = csvId(record);
-    const input = itemInputFromCsv(record);
-    return upsertFromCsv(
-      id,
-      (existingId) => updateItem(existingId, input),
-      () => createItem(input),
-    );
+    return importItemFromCsv(record, updateItem, createItem);
   }
 
   /** Clicking the current sort column flips its direction; a new column starts ascending. */

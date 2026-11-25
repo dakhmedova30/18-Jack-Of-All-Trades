@@ -155,6 +155,21 @@ export function itemInputFromCsv(record: CsvRecord): ItemInput {
   };
 }
 
+export async function importItemFromCsv(
+  record: CsvRecord,
+  update: (id: number, input: Partial<ItemInput>) => Promise<unknown>,
+  create: (input: ItemInput) => Promise<unknown>,
+): Promise<'created' | 'updated'> {
+  const id = csvId(record);
+  const input = itemInputFromCsv(record);
+  const { quantity: _quantity, ...changes } = input;
+  return upsertFromCsv(
+    id,
+    (existingId) => update(existingId, changes),
+    () => create(input),
+  );
+}
+
 export function saleInputFromCsv(record: CsvRecord): SaleInput {
   return {
     soldAt: requiredText(record, 'soldAt'),

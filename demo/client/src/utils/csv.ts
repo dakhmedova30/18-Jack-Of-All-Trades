@@ -2,6 +2,11 @@ import type { Paginated } from '../types';
 
 export type CsvRecord = Record<string, string>;
 export type CsvImportResult = 'created' | 'updated';
+export interface ParsedCsv {
+  headers: string[];
+  records: CsvRecord[];
+  rowNumbers: number[];
+}
 
 export async function fetchAllPages<T>(
   loadPage: (page: number, pageSize: number) => Promise<Paginated<T>>,
@@ -54,12 +59,25 @@ export function csvJsonArray<T>(
   return value;
 }
 
-export function parseCsv(text: string): { headers: string[]; records: CsvRecord[] } {
+export function parseCsv(text: string): ParsedCsv {
   const rows: string[][] = [];
+  const rowNumbers: number[] = [];
   let row: string[] = [];
   let cell = '';
   let quoted = false;
   let afterQuote = false;
+  let line = 1;
+  let rowStart = 1;
+
+  function finishRow() {
+    row.push(cell);
+    if (row.some((value) => value.length > 0)) {
+      rows.push(row);
+      rowNumbers.push(rowStart);
+    }
+    row = [];
+    cell = '';
+  }
 
   for (let index = 0; index < text.length; index += 1) {
     const character = text[index];
@@ -72,18 +90,18 @@ export function parseCsv(text: string): { headers: string[]; records: CsvRecord[
         afterQuote = true;
       } else {
         cell += character;
+        if (character === '\n' || (character === '\r' && text[index + 1] !== '\n')) line += 1;
       }
     } else if (afterQuote && character === ',') {
       row.push(cell);
       cell = '';
       afterQuote = false;
     } else if (afterQuote && (character === '\n' || character === '\r')) {
-      row.push(cell);
-      if (row.some((value) => value.length > 0)) rows.push(row);
-      row = [];
-      cell = '';
+      finishRow();
       afterQuote = false;
       if (character === '\r' && text[index + 1] === '\n') index += 1;
+      line += 1;
+      rowStart = line;
     } else if (afterQuote) {
       throw new Error('The CSV has unexpected content after a quoted field.');
     } else if (character === '"') {
@@ -93,19 +111,17 @@ export function parseCsv(text: string): { headers: string[]; records: CsvRecord[
       row.push(cell);
       cell = '';
     } else if (character === '\n' || character === '\r') {
-      row.push(cell);
-      if (row.some((value) => value.length > 0)) rows.push(row);
-      row = [];
-      cell = '';
+      finishRow();
       if (character === '\r' && text[index + 1] === '\n') index += 1;
+      line += 1;
+      rowStart = line;
     } else {
       cell += character;
     }
   }
 
   if (quoted) throw new Error('The CSV contains an unclosed quoted field.');
-  row.push(cell);
-  if (row.some((value) => value.length > 0)) rows.push(row);
+  finishRow();
   if (rows.length === 0) throw new Error('The CSV file is empty.');
 
   const headers = rows[0].map((header, index) =>
@@ -118,12 +134,14 @@ export function parseCsv(text: string): { headers: string[]; records: CsvRecord[
   const records = rows.slice(1).map((values, index) => {
     if (values.length !== headers.length) {
       throw new Error(
-        `CSV row ${index + 2} has ${values.length} values; expected ${headers.length}.`,
+        `CSV row ${rowNumbers[index + 1]} has ${values.length} values; expected ${headers.length}.`,
       );
     }
-    return Object.fromEntries(headers.map((header, column) => [header, values[column]]));
+    return Object.fromEntries(
+      headers.map((header, column) => [header, values[column].replace(/^'(?='*[=+\-@\t\r])/, '')]),
+    );
   });
-  return { headers, records };
+  return { headers, records, rowNumbers: rowNumbers.slice(1) };
 }
 
 export function encodeCsv(
@@ -131,7 +149,8 @@ export function encodeCsv(
   rows: Array<Array<string | number | boolean | null>>,
 ): string {
   const escape = (value: string | number | boolean | null) => {
-    const text = value === null ? '' : String(value);
+    let text = value === null ? '' : String(value);
+    if (typeof value === 'string' && /^'*[=+\-@\t\r]/.test(value)) text = `'${text}`;
     return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
   };
   return [headers, ...rows].map((values) => values.map(escape).join(',')).join('\r\n');
@@ -145,5 +164,5 @@ export function downloadCsv(filename: string, content: string): void {
   link.href = url;
   link.download = filename;
   link.click();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }

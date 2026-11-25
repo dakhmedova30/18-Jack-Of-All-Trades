@@ -50,6 +50,8 @@ Log in as the demo account, then:
 
 Use **Import CSV** and **Export CSV** above Inventory, Sales and Expenses to move business records in or out. Imports with an `id` update that record; rows with an empty `id`, or an `id` that no longer exists (for example after deleting it), create a new record with a new ID. IDs only refer to records in the current business. Import continues after row errors and reports which rows failed. Analytics has an export-only control for the selected date range and channel, along with the current inventory-by-tag snapshot.
 
+Review the confirmation before importing: changes cannot be undone. Inventory imports preserve current stock when updating an existing item; `quantity` sets starting stock only for newly created items. Within one import, repeated IDs and identical rows without IDs are skipped after the first successful row, and their row numbers are reported. Exported text that could be interpreted as a spreadsheet formula is prefixed with an apostrophe; importing removes that protective prefix. For a manually authored CSV, double an initial apostrophe before a formula-like value if the apostrophe itself is part of the text.
+
 The export contains the record fields, including IDs, timestamps, computed totals and currencies. Imports require these columns:
 
 | Section | Required columns |
@@ -59,6 +61,8 @@ The export contains the record fields, including IDs, timestamps, computed total
 | Expenses | `incurredAt`, `description`, `tags`, `items` |
 
 `tags` and `items` are JSON arrays inside CSV cells. For example, inventory tags use `["paper","gift"]`; a sale's `items` uses objects with `itemId` and `quantity`; an expense's `items` uses objects with `itemId` (or `null` for a non-inventory cost), `description`, `quantity` and `unitCostCents`. Use integer cents for money fields such as `unitPriceCents` and `unitCostCents`. Sales must reference an existing channel and inventory item. The application recalculates totals and currency-converted values during import; exported computed fields and timestamps are informational and are not overwritten. If a sale line references a deleted inventory item, that row cannot be imported until corrected.
+
+The sample files in `demo/sample-data` contain example channel and item IDs, not IDs that work for every account. Before importing sample sales or expenses, replace each `channelId` and non-null `itemId` with IDs from your own Sales and Inventory exports. You can also find channel IDs at `/api/channels` while logged in. Import the sample inventory first if you need items, then export Inventory to find their assigned IDs. Rows with `itemId: null` are non-inventory expenses and need no item ID.
 
 ### Screenshots
 
