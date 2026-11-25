@@ -26,7 +26,7 @@ public record ItemUpdate(
 
         @Size(max = 10, message = "At most 10 tags")
         List<@NotBlank(message = "Tags cannot be empty") @Size(max = 30, message = "Tags must be at most 30 characters")
-                @Pattern(regexp = ItemInput.NO_COMMAS, message = ItemInput.NO_COMMAS_MESSAGE) String> tags,
+                @Pattern(regexp = ItemInput.TAG_CHARACTERS, message = ItemInput.TAG_CHARACTERS_MESSAGE) String> tags,
 
         @Size(max = 1000, message = "Note must be at most 1000 characters")
         String note,

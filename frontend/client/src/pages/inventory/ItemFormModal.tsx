@@ -9,6 +9,7 @@ import {
   MAX_AMOUNT_DISPLAY,
   parseDollarsToCents,
 } from '../../utils/money';
+import { hasOnlyItemTagCharacters, ITEM_TAG_CHARACTERS_MESSAGE } from '../../utils/itemTags';
 
 interface ItemFormModalProps {
   /** Pass an item to edit it ("Modify item"); omit to create one ("Add new item"). */
@@ -70,6 +71,7 @@ function validate(
   }
   if (tags.length > 10) errors.tags = 'At most 10 tags';
   if (tags.some((tag) => tag.length > 30)) errors.tags = 'Each tag must be 30 characters or less';
+  if (!tags.every(hasOnlyItemTagCharacters)) errors.tags = ITEM_TAG_CHARACTERS_MESSAGE;
 
   if (Object.keys(errors).length > 0) return { errors };
   return {

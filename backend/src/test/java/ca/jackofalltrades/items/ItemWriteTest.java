@@ -225,19 +225,27 @@ class ItemWriteTest extends PostgresTestBase {
     }
 
     @Test
-    void tagsCannotContainCommas() throws Exception {
-        // The item form splits tags on commas, so a comma tag would split in two on its next save.
+    void tagsUseOnlyTheAllowedCharacters() throws Exception {
         Cookie cookie = registerAndLogin();
-        int id = createdId(cookie, "Flower Print", 10, 1200);
-
         create(cookie, """
-                {"name": "Tote", "quantity": 1, "unitPriceCents": 1, "tags": ["ok", "red, blue"]}
+                {"name": "Tote", "quantity": 1, "unitPriceCents": 1,
+                 "tags": ["Mother’s Day", "cat's", "3.5in", "18+", "50% off (set)!", "B&W", "hand-made",
+                          "3/4 sleeve", "#1: café", "陶器_2"]}
+                """)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tags.length()").value(10));
+
+        // A comma is never allowed: the item form splits tags on commas, so it would split in two.
+        int id = createdId(cookie, "Flower Print", 10, 1200);
+        create(cookie, """
+                {"name": "Cup", "quantity": 1, "unitPriceCents": 1, "tags": ["ok", "red, blue"]}
                 """)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.details[0].field").value("tags.1"))
-                .andExpect(jsonPath("$.error.details[0].message").value("Tags cannot contain commas"));
+                .andExpect(jsonPath("$.error.details[0].message")
+                        .value("Tags can only use letters, numbers, spaces and & - _ / # : ' . + % ( ) !"));
         update(cookie, id, """
-                {"tags": ["red,blue"]}
+                {"tags": ["a;b"]}
                 """)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.details[0].field").value("tags.0"));

@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 public record ItemTagRequest(
         @NotBlank(message = "Name is required")
         @Size(max = 30, message = "Name must be at most 30 characters")
-        @Pattern(regexp = ItemInput.NO_COMMAS, message = ItemInput.NO_COMMAS_MESSAGE)
+        @Pattern(regexp = ItemInput.TAG_CHARACTERS, message = ItemInput.TAG_CHARACTERS_MESSAGE)
         String name) {
 
     public ItemTagRequest {
