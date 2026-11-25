@@ -8,6 +8,7 @@ import * as authApi from '../../api/auth';
 import * as channelApi from '../../api/channels';
 import { PageProviders } from '../../test/providers';
 import type { AnalyticsDateRange, AnalyticsSummary } from '../../types';
+import * as csv from '../../utils/csv';
 import { AnalyticsPage } from './AnalyticsPage';
 
 vi.mock('../../api/analytics', () => ({
@@ -111,6 +112,7 @@ describe('AnalyticsPage', () => {
     fireEvent.change(await screen.findByLabelText('Start date', { selector: 'input' }), {
       target: { value: '2026-10-01' },
     });
+
     await waitFor(() =>
       expect(analyticsApi.getAnalyticsSummary).toHaveBeenLastCalledWith(
         { from: '2026-10-01', to: '2026-10-29' },
@@ -130,6 +132,30 @@ describe('AnalyticsPage', () => {
     expect(
       await screen.findByText("Not shown for one channel: expenses aren't tied to a channel."),
     ).toBeInTheDocument();
+  });
+
+  it('exports profit for all channels but leaves it blank for a selected channel', async () => {
+    const user = userEvent.setup();
+    const download = vi.spyOn(csv, 'downloadCsv').mockImplementation(() => {});
+    vi.mocked(analyticsApi.getAnalyticsSummary).mockResolvedValue({
+      ...summary,
+      netProfitCents: -123,
+    });
+    render(<AnalyticsPage />, { wrapper: Providers });
+    await screen.findByRole('option', { name: 'Online' });
+
+    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+    expect(csv.parseCsv(download.mock.calls[0][1]).records[0].netProfitCents).toBe('-123');
+
+    await user.selectOptions(screen.getByLabelText('Channel'), 'Online');
+    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
+    expect(csv.parseCsv(download.mock.calls[1][1]).records[0]).toMatchObject({
+      channelId: '2',
+      netProfitCents: '',
+    });
+    download.mockRestore();
   });
 
   it('falls back to the 12 months up to today when there are no records yet', async () => {
