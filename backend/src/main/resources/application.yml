@@ -10,6 +10,10 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:jack}
     hikari:
       connection-timeout: 10000           # milliseconds, as the demo; fail fast (503) when the database is down
+      # Close connections after a minute unused, so an idle app holds none open and Neon's
+      # compute can scale to zero. The first request after a quiet spell reconnects (about 1 s).
+      minimum-idle: 0
+      idle-timeout: 60000                 # milliseconds
   jpa:
     open-in-view: false
     hibernate:
@@ -27,6 +31,9 @@ spring:
     timeout: 30d
     jdbc:
       initialize-schema: never            # the Flyway migration creates the tables
+      # Delete expired sessions daily at 04:00 UTC instead of every minute (the default), which
+      # would keep Neon's compute awake. Expired sessions are rejected on use either way.
+      cleanup-cron: "0 0 4 * * *"
 exchange:                                 # currency conversion (ExchangeRateProperties)
   rate:
     api:

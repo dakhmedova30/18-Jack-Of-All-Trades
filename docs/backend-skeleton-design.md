@@ -161,7 +161,7 @@ Contract §2 defines the endpoints. In Spring:
 - **Behind Render's proxy:** `server.forward-headers-strategy: framework`, so Spring sees HTTPS and marks the cookie `Secure`.
 - **CSRF protection is disabled,** as in the demo: `SameSite=Lax` already keeps other sites from sending requests with the cookie, and the contract has no CSRF header.
 - **Passwords:** hashed with Spring Security's `BCryptPasswordEncoder`. (The demo uses scrypt, but no hashes are carried over because the Java backend starts with a fresh database.) Register accepts 8–200 characters; BCrypt only reads the first 72 bytes, which is acceptable.
-- **Protected routes:** everything under `/api` except `/api/health` and `/api/auth/**`.
+- **Protected routes:** everything under `/api` except `/api/health`, `/api/health/live` and `/api/auth/**`.
 - **Who is asking:** `CurrentBusiness` returns the logged-in business's id. Services always take the id from there, never from the request.
 - **Owner filtering can't be forgotten:** repositories for owned tables only offer methods that take a `businessId` (`findByIdAndBusinessId`, …); there is no unscoped `findById`. That includes every summary query (insights, low-stock, month summaries, analytics).
 - **Another business's id → `404`** (or `400 "Item 7 does not exist"` for an `itemId` inside a sale or expense), exactly as for a nonexistent id.
@@ -329,10 +329,10 @@ The demo's `analytics.test.ts` and `items.test.ts` cover these edge cases (empty
 
   ```bash
   cd backend && docker compose up -d && ./mvnw spring-boot:run    # Windows: mvnw.cmd; http://localhost:4000
-  cd demo/client && npm install && npm run dev                   # http://localhost:5173
+  cd frontend/client && npm install && npm run dev                   # http://localhost:5173
   ```
 
-- **Health:** `GET /api/health` runs `SELECT 1`. Render uses it as the health check.
+- **Health:** `GET /api/health` runs `SELECT 1`. `GET /api/health/live` doesn't touch the database; Render uses it as the health check so Neon can scale to zero when the app is idle.
 - **Demo data:** with the `demo` profile, `DemoDataSeeder` makes sure the demo business exists (`demo@jackofalltrades.test` / `ChangeMe123!`, as in the contract). If it has no items, `DemoSampleData` adds 8 sample items, about six weeks of tagged sales and some restocks and costs, with dates relative to today and a few always in the current month, so every dashboard shows data. A demo account that already has items (like the live one) is left alone. Writes go through the services, so stock rules apply. The seeder never runs in tests; `DemoSampleDataTest` calls `DemoSampleData` directly.
 - **Tests:** `./mvnw test` (Docker must be running).
   - `PostgresTestBase` starts one Testcontainers Postgres per run, so the migrations are tested too, and provides a helper that registers a business and runs requests logged in as it.

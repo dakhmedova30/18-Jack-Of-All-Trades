@@ -10,6 +10,8 @@
 
 **Live app: https://jack-of-all-trades-m86p.onrender.com** (no install needed)
 
+Dev site, which updates on every merge to `main`: https://jack-of-all-trades-dev.onrender.com (its own database; see [Environments and releases](#environments-and-releases)).
+
 Log in with the demo account, a sample floral and stationery shop with products, sales and expenses:
 
 ```
@@ -86,12 +88,12 @@ Log in as the demo account, then:
 - **Input validation:** every request body is validated, with a message per field (e.g. a price must be between 0.00 and 9,999,999.99, and quantities reject `2.7` and `"5"`).
 - **SQL injection:** every query uses named parameters; sort columns come from a fixed list.
 - **Errors never expose internals:** clients get a short JSON message, e.g. `{"error":{"message":"Log in to continue"}}`; an unexpected error returns `"Internal server error"`, with details only in the server log.
-- **No secrets in the repo:** configuration comes from environment variables (templates in `backend/.env.example` and `demo/client/.env.example`); the deploy hook is a GitHub secret. Public profiles return only an allowlist of fields.
+- **No secrets in the repo:** configuration comes from environment variables (templates in `backend/.env.example` and `frontend/client/.env.example`); the deploy hooks are GitHub secrets. Public profiles return only an allowlist of fields.
 
 ### Production Readiness
 
-- **CI/CD:** every pull request runs lint, type checks, both test suites and a build, each job with a time limit; `main` deploys only after they pass ([Actions](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/actions)).
-- **Health and failures:** Render checks `/api/health`; if the database is down, requests fail fast with "Database is unavailable, try again shortly" (503) instead of hanging; if exchange rates can't load, the app falls back to cached or bundled rates.
+- **CI/CD:** every pull request runs lint, type checks, the backend and frontend test suites, a build, and end-to-end browser tests against the built app, each job with a time limit. A merge to `main` deploys to the **dev** environment and a published release deploys to **prod**, each only after every check passes ([Environments and releases](#environments-and-releases), [Actions](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/actions)).
+- **Health and failures:** Render checks `/api/health/live`, which never queries the database so Neon can scale to zero while the app is idle; if the database is down, requests fail fast with "Database is unavailable, try again shortly" (503) instead of hanging; if exchange rates can't load, the app falls back to cached or bundled rates.
 - **Repeatable deploys:** one Docker image serves the API and the web app, and Flyway applies database migrations on startup ([Deploying to Render](#deploying-to-render)).
 
 ## Development Requirements
@@ -105,7 +107,7 @@ Log in as the demo account, then:
    ```bash
    export JAVA_HOME="$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home"
    ```
- * [Node.js](https://nodejs.org/) 22.13 or newer (24 LTS works too; `nvm use` reads `.nvmrc`) and npm 10+, to build/run `demo/client`
+ * [Node.js](https://nodejs.org/) 22.13 or newer (24 LTS works too; `nvm use` reads `.nvmrc`) and npm 10+, to build/run `frontend/client`
  * A PostgreSQL database, either hosted (Neon, AWS RDS, Supabase, ...) or local (`docker compose up -d` in `backend/`)
 
 ### Tech stack
@@ -115,7 +117,7 @@ Log in as the demo account, then:
 | Frontend | React 19, TypeScript, Vite, React Router                                  |
 | Backend  | Java 25, Spring Boot 4, Spring Security, Spring Data JPA / `JdbcClient`, Flyway, BCrypt, Maven |
 | Database | PostgreSQL (Neon in production)                                           |
-| Hosting  | Render (one Docker web service)                                           |
+| Hosting  | Render (two Docker web services: dev and prod), Neon Postgres (one branch each) |
 | Tooling  | ESLint, Prettier (frontend); JUnit 5 + Testcontainers (backend tests)      |
 
 ### Setup
@@ -130,7 +132,7 @@ cd backend && docker compose up -d && cd ..
 # 2. Backend — seeds the demo account with sample data, picks up the local Postgres above by default
 cd backend && SPRING_PROFILES_ACTIVE=demo ./mvnw spring-boot:run
 # in a second terminal:
-cd demo && npm install && npm run dev -w client   # web app on http://localhost:5173
+cd frontend && npm install && npm run dev -w client   # web app on http://localhost:5173
 ```
 
 No Docker? Point the backend at any hosted Postgres instead by setting `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD` (copy `backend/.env.example`; see [Configuration](#configuration)) before `./mvnw spring-boot:run`. Flyway creates the schema automatically on first connect either way.
@@ -146,13 +148,14 @@ Open http://localhost:5173. In development the Vite dev server forwards `/api/*`
 
 ### Scripts
 
-Frontend (run from `demo/`, not the repo root — there is no root `package.json`):
+Frontend (run from `frontend/`, not the repo root — there is no root `package.json`):
 
 | Command             | What it does                      |
 | ------------------- | ---------------------------------- |
 | `npm run dev`       | Runs the web app with hot reload   |
 | `npm test`          | Runs the frontend tests (Vitest)   |
-| `npm run typecheck` | Type-checks the client             |
+| `npm run typecheck` | Type-checks the client and e2e tests |
+| `npm run e2e`       | Runs the end-to-end tests (Playwright) against a running app |
 | `npm run lint`      | Runs ESLint                        |
 | `npm run format`    | Formats everything with Prettier   |
 | `npm run build`     | Builds `client/dist`               |
@@ -168,7 +171,7 @@ Backend (run from `backend/`):
 
 ### Running tests
 
-The backend has a JUnit 5 test suite (237 tests) covering the API endpoints, input
+The backend has a JUnit 5 test suite (240 tests) covering the API endpoints, input
 validation, auth and sessions, and the sales, expense, analytics and notification
 calculations. Tests run against a real PostgreSQL that Testcontainers starts in Docker, so
 there's no database to set up.
@@ -190,18 +193,31 @@ helpers. It runs in a simulated browser (jsdom) with the API mocked, so it needs
 Docker nor the backend:
 
 ```bash
-cd demo
+cd frontend
 npm test
 ```
 
-Both suites run in GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
-on every pull request into `main` and every push to `main`, and a merge only deploys if they
-pass. See recent runs in the [Actions tab](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/actions).
+The end-to-end tests (`frontend/e2e`, Playwright) drive Chromium through the real app: register,
+log out and back in, pages that need a login, adding an item and selling some (stock goes down,
+and the sale shows on Home and in Analytics), and adding an expense. Each test registers its own
+new business, so tests never share data and can run against any database. To run them locally,
+start the backend and the web app as in [Setup](#setup), then:
+
+```bash
+cd frontend
+npx playwright install chromium   # once, downloads the browser
+npm run e2e                       # against http://localhost:5173; set E2E_BASE_URL for another URL
+```
+
+All three suites run in GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
+on every pull request into `main` and every push to `main`. The end-to-end job builds the app
+the way the Docker image does and runs after the other two pass. Nothing deploys unless all
+three pass: a merge to `main` deploys to dev, and a published release deploys to prod. See recent runs in the [Actions tab](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/actions).
 
 ### Project structure
 
 ```
-demo/
+frontend/
   client/                    React app
     src/api/                 fetch wrappers, one file per resource
     src/components/          shared UI: layout, modal, pagination, icons
@@ -226,7 +242,7 @@ See [`docs/api-contracts.md`](docs/api-contracts.md) for the authoritative, endp
 
 All error responses share one shape: `{ "error": { "message": string, "details"?: [{ "field", "message" }] } }`. Money is always sent as integer cents.
 
-Every route except `/api/health`, `/api/auth/*` and the read-only `/api/public/*` requires a logged-in session
+Every route except `/api/health`, `/api/health/live`, `/api/auth/*` and the read-only `/api/public/*` requires a logged-in session
 (a cookie set by register/login) and returns 401 without one. Items, sales,
 expenses, channels, expense tags and analytics are all scoped to the logged-in
 business: one business can never see or modify another's data, even by
@@ -235,6 +251,7 @@ guessing an id in the URL.
 | Method | Endpoint                 | Description                                |
 | ------ | ------------------------ | ------------------------------------------ |
 | GET    | `/api/health`            | Health check (also checks the database)    |
+| GET    | `/api/health/live`       | Render's check; never queries the database |
 | POST   | `/api/auth/register`     | Create a business account, logs you in     |
 | POST   | `/api/auth/login`        | Log in (`{ email, password }`)             |
 | POST   | `/api/auth/logout`       | Log out                                    |
@@ -284,11 +301,11 @@ scoped to it, so changing it moves the whole page together.
 
 Every variable is optional. Without any of them, `backend/src/main/resources/application.yml` defaults to the local Docker Postgres from `docker compose up -d`, so the [Setup](#setup) steps work as-is.
 
-Templates with every variable and a comment for each are committed as `backend/.env.example` and `demo/client/.env.example`. To use them, copy each to `.env` next to it, then uncomment and fill in only the variables you need (an unedited copy changes nothing). Both `.env` files are gitignored; **never commit real credentials**, and never put them in the `.env.example` files.
+Templates with every variable and a comment for each are committed as `backend/.env.example` and `frontend/client/.env.example`. To use them, copy each to `.env` next to it, then uncomment and fill in only the variables you need (an unedited copy changes nothing). Both `.env` files are gitignored; **never commit real credentials**, and never put them in the `.env.example` files.
 
 ```bash
 cp backend/.env.example backend/.env
-cp demo/client/.env.example demo/client/.env
+cp frontend/client/.env.example frontend/client/.env
 ```
 
 Spring Boot doesn't read `.env` on its own, so load it into your shell before starting the backend (or paste the values into your IDE's run configuration):
@@ -297,7 +314,7 @@ Spring Boot doesn't read `.env` on its own, so load it into your shell before st
 cd backend && set -a && source .env && set +a && ./mvnw spring-boot:run
 ```
 
-Vite reads `demo/client/.env` by itself when `npm run dev` or `npm run build` starts.
+Vite reads `frontend/client/.env` by itself when `npm run dev` or `npm run build` starts.
 
 **Backend** (`backend/.env`; on Render, the service's **Environment** tab):
 
@@ -309,7 +326,7 @@ Vite reads `demo/client/.env` by itself when `npm run dev` or `npm run build` st
 | `SPRING_PROFILES_ACTIVE`       | No       | Set to `demo` to seed the demo account on startup                           |
 | `PORT`                         | No       | Defaults to 4000 (Render sets it automatically)                             |
 
-**Client** (`demo/client/.env`, read at build time):
+**Client** (`frontend/client/.env`, read at build time):
 
 | Variable              | Required | Description                                                                              |
 | --------------------- | -------- | ---------------------------------------------------------------------------------------- |
@@ -319,17 +336,41 @@ Vite reads `demo/client/.env` by itself when `npm run dev` or `npm run build` st
 
 1. Create a Neon (or other hosted Postgres) database and copy its connection string.
 2. In Render: since this repo isn't owned by the account deploying it, use **New > Web Service > Public Git Repository** (rather than **New > Blueprint**) and paste this repo's URL. (If you fork the repo into your own GitHub account, **New > Blueprint** on your fork reads `backend/render.yaml` and fills in steps 3–6 for you. You're still asked for the three `SPRING_DATASOURCE_*` values.)
-3. Language: **Docker**. Dockerfile Path: `backend/Dockerfile`. Docker Build Context Directory: leave as `.` (the repo root — the Dockerfile needs both `backend/` and `demo/client/`).
-4. Health Check Path: `/api/health` (exactly — a trailing/duplicated path here will make every deploy time out waiting on the health check).
+3. Language: **Docker**. Dockerfile Path: `backend/Dockerfile`. Docker Build Context Directory: leave as `.` (the repo root — the Dockerfile needs both `backend/` and `frontend/client/`).
+4. Health Check Path: `/api/health/live` (exactly — a trailing/duplicated path here will make every deploy time out waiting on the health check). Don't use `/api/health`: it queries the database, and Render's checks every few seconds would keep a Neon database awake around the clock and use up its monthly compute hours.
 5. Environment variables: `SPRING_DATASOURCE_URL` (JDBC form, e.g. `jdbc:postgresql://<host>/<db>?sslmode=require`), `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, and `SPRING_PROFILES_ACTIVE=demo`.
 6. The free instance type's 0.1 CPU is too slow to boot the JVM within Render's health-check window — every free-tier deploy we tried either failed outright or took 15+ minutes. Use the $7/month instance (0.5 CPU), which boots in under a minute.
-7. Deploys are triggered from GitHub Actions, not by Render itself: "Public Git Repository"
-   services don't get webhooks from a repo they don't own. Instead, the `deploy` job in
-   `.github/workflows/ci.yml` calls the service's Render **Deploy Hook** once the checks and
-   tests pass on `main`. To set it up, copy the hook URL from Render (**Settings > Deploy Hook**)
-   into a GitHub Actions secret named `RENDER_DEPLOY_HOOK_URL`. Never put it in the workflow
-   file, because anyone with the URL can trigger a deploy. Manual redeploys still work via
-   **Manual Deploy > Deploy latest commit**.
+7. Set **Auto-Deploy** to **Off**. Deploys are triggered from GitHub Actions, not by Render
+   itself: "Public Git Repository" services don't get webhooks from a repo they don't own, and
+   CI should only deploy commits that passed its checks. Copy the service's **Deploy Hook**
+   (**Settings > Deploy Hook**) into a GitHub Actions secret: `RENDER_DEPLOY_HOOK_URL_DEV` for
+   the dev service, `RENDER_DEPLOY_HOOK_URL` for prod. Never put a hook in the workflow file,
+   because anyone with the URL can trigger a deploy. Manual redeploys still work via
+   **Manual Deploy** on the service.
+
+### Environments and releases
+
+| Environment | URL | Database | Deploys when |
+| --- | --- | --- | --- |
+| **dev** | https://jack-of-all-trades-dev.onrender.com | Neon branch `dev` | Every merge to `main`, after all CI checks pass (`deploy-dev` job) |
+| **prod** | https://jack-of-all-trades-m86p.onrender.com | Neon branch `production` | A GitHub release is published, after all CI checks pass on the tagged commit (`deploy-prod` job) |
+
+Both are Render web services built from the same Dockerfile, set up as in the steps above, with
+the same environment variables except the database host and password. CI sends the commit SHA with each
+deploy hook (`&ref=<sha>`), so Render builds exactly the commit that passed the checks. The dev
+database started as a copy of prod's data; Neon's **Reset from parent** on the `dev` branch
+refreshes it.
+
+**Releasing to prod:** try the change on the dev site first. Then on GitHub, open **Releases >
+Draft a new release**, create a new tag on `main` (e.g. `D4` or `v1.1`), and click **Publish
+release**. CI re-runs every check on that commit and then deploys it to prod. A pre-release
+doesn't deploy; promoting it to a full release does.
+
+**Rolling back prod:** on Render, open the prod service's **Events**, find the last good deploy and
+click **Rollback**. It reuses that deploy's build, so it's quick. **Manual Deploy >
+Deploy a specific commit** works too, but rebuilds. Publishing a release for an earlier commit
+only deploys commits from after release deploys were added (PR #39), since a release runs the
+workflow file from the tagged commit, and it waits for all of CI first.
 
  ## Deployment and Github Workflow
 
@@ -340,7 +381,7 @@ Vite reads `demo/client/.env` by itself when `npm run dev` or `npm run build` st
  * Branching Strategy and Naming Convention: all new work is developed on separate feature branches that branch off from *main*, named for the user story or feature they add.
      * Ex: `us1-sales`, `us2-inventory`, `allie/java-expenses`
      * This keeps each branch's purpose clear from its name, and keeps related commits for one feature together until it's reviewed and merged.
- * Deployment: the backend is deployed as a Render web service (see [Deploying to Render](#deploying-to-render)). Every merge to *main* deploys automatically once CI's checks and tests pass, so nothing is deployed that hasn't been reviewed and tested.
+ * Deployment: the app runs as two Render web services, dev and prod (see [Environments and releases](#environments-and-releases)). Every merge to *main* deploys to dev once CI's checks and tests pass; publishing a GitHub release deploys that commit to prod. Nothing is deployed that hasn't been reviewed and tested.
   
 
  ## Coding Standards and Guidelines

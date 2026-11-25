@@ -7,11 +7,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** {@code GET /api/health} (contract §7). No login required; Render uses it as its health check. */
+/** Health checks (contract §7). No login required. */
 @RestController
 public class HealthController {
 
     record HealthResponse(String status, String database) {}
+
+    record LiveResponse(String status) {}
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -19,6 +21,7 @@ public class HealthController {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    /** {@code GET /api/health}: the app and its database. For people checking on the app. */
     @GetMapping("/api/health")
     public ResponseEntity<HealthResponse> health() {
         try {
@@ -28,5 +31,15 @@ public class HealthController {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(new HealthResponse("error", "unreachable"));
         }
+    }
+
+    /**
+     * {@code GET /api/health/live}: the app is running; never touches the database. Render uses it
+     * as its health check, which runs every few seconds: a query here would keep Neon's compute
+     * awake around the clock instead of letting it scale to zero when nobody is using the app.
+     */
+    @GetMapping("/api/health/live")
+    public LiveResponse live() {
+        return new LiveResponse("ok");
     }
 }
