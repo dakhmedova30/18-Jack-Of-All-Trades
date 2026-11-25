@@ -19,6 +19,7 @@ vi.mock('../../api/items', () => ({
   createItem: vi.fn(),
   deleteItem: vi.fn(),
   listItems: vi.fn(),
+  listItemTags: vi.fn(),
   updateItem: vi.fn(),
 }));
 
@@ -42,6 +43,7 @@ describe('InventoryPage', () => {
       total: 1,
       totalPages: 1,
     });
+    vi.mocked(itemApi.listItemTags).mockResolvedValue([]);
   });
 
   it('loads and displays items, and opens and cancels the add form', async () => {
@@ -66,7 +68,7 @@ describe('InventoryPage', () => {
     await user.click(screen.getByRole('button', { name: 'Add' }));
     await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Coffee');
     await user.type(screen.getByRole('textbox', { name: 'Qty' }), '5');
-    await user.type(screen.getByRole('textbox', { name: /^Unit price \(CAD\)/ }), '3.25');
+    await user.type(screen.getByRole('textbox', { name: /^Price \(CAD\)/ }), '3.25');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(await screen.findByText('Could not save item')).toBeInTheDocument();
@@ -75,9 +77,15 @@ describe('InventoryPage', () => {
         name: 'Coffee',
         quantity: 5,
         unitPriceCents: 325,
+        currency: 'CAD',
+        width: null,
+        height: null,
+        sizeUnit: null,
+        amountSold: 0,
         tags: [],
         note: '',
         isPublic: false,
+        isActive: true,
       }),
     );
   });
@@ -127,7 +135,7 @@ describe('InventoryPage', () => {
     await user.click(screen.getByRole('button', { name: 'Add' }));
     await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Coffee');
     await user.type(screen.getByRole('textbox', { name: 'Qty' }), '5');
-    await user.type(screen.getByRole('textbox', { name: /^Unit price \(CAD\)/ }), '3.25');
+    await user.type(screen.getByRole('textbox', { name: /^Price \(CAD\)/ }), '3.25');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(itemApi.createItem).toHaveBeenCalledWith(

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { NotificationsProvider } from '../hooks/useNotifications';
 import { PreferencesProvider } from '../hooks/usePreferences';
+import { SpeechReader } from './SpeechReader';
 import { ClosedSidebar } from './ClosedSidebar';
 import { Sidebar } from './Sidebar';
 
@@ -12,6 +13,7 @@ export function AppLayout() {
     <PreferencesProvider>
       <NotificationsProvider>
         <div className={`app${sidebarOpen ? '' : ' app--sidebar-hidden'}`}>
+          <SpeechReader />
           <div className={`sidebar-rail${sidebarOpen ? '' : ' sidebar-rail--closed'}`}>
             <div
               className={`sidebar-view sidebar-view--open${sidebarOpen ? '' : ' sidebar-view--inactive'}`}

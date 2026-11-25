@@ -2,7 +2,6 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
-import { SpeechReader } from './components/SpeechReader';
 import { AppearanceProvider } from './hooks/useAppearance';
 import { AuthProvider } from './hooks/useAuth';
 import './styles.css';
@@ -15,7 +14,6 @@ createRoot(rootElement).render(
     <AppearanceProvider>
       <BrowserRouter>
         <AuthProvider>
-          <SpeechReader />
           <App />
         </AuthProvider>
       </BrowserRouter>
