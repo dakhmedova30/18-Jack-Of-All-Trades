@@ -267,13 +267,17 @@ export function ExpensesPage() {
     }
   }
 
-  return (
-    <section className="page">
-      <div>
-        <h1>Expenses</h1>
-        <p className="muted">A recap of expenses made over the chosen date range.</p>
-      </div>
+  const activeFilterCount = [
+    category !== undefined,
+    subcategory !== undefined,
+    manufacturer !== undefined,
+    type !== undefined,
+    Boolean(from),
+    Boolean(to),
+  ].filter(Boolean).length;
 
+  const filters = (
+    <>
       <div className="expense-report-controls">
         <div className="filter-field">
           <label htmlFor="expenses-view">View</label>
@@ -398,11 +402,15 @@ export function ExpensesPage() {
           />
         </div>
       </div>
-      {invalidDateRange && (
-        <p className="form-error" role="alert">
-          The start date must be on or before the end date.
-        </p>
-      )}
+    </>
+  );
+
+  return (
+    <section className="page">
+      <div>
+        <h1>Expenses</h1>
+        <p className="muted">A recap of expenses made over the chosen date range.</p>
+      </div>
 
       <Toolbar
         selectedCount={selectedIds.size}
@@ -423,6 +431,8 @@ export function ExpensesPage() {
             />
           </div>
         }
+        filters={filters}
+        activeFilterCount={activeFilterCount}
         transfer={
           <CsvTransfer
             filename="expenses"
@@ -439,6 +449,12 @@ export function ExpensesPage() {
           />
         }
       />
+
+      {invalidDateRange && (
+        <p className="form-error" role="alert">
+          The start date must be on or before the end date.
+        </p>
+      )}
 
       {error && (
         <div className="banner banner--error" role="alert">
