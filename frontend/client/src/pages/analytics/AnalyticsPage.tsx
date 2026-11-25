@@ -52,7 +52,7 @@ function AnalyticsHeader({ actions }: { actions?: ReactNode }) {
   return (
     <>
       <div className="analytics-header">
-        <div>
+        <div className="analytics-header__description">
           <h1>Analytics</h1>
           <p className="muted">
             Revenue, expenses and sales group by each record's first tag (top 3, the rest folded
@@ -60,7 +60,7 @@ function AnalyticsHeader({ actions }: { actions?: ReactNode }) {
             Inventory Overview, which always shows current stock.
           </p>
         </div>
-        {actions}
+        {actions && <div className="analytics-header__actions">{actions}</div>}
       </div>
       <nav className="analytics-sections" aria-label="Deeper analytics">
         {ANALYTICS_SECTIONS.map(({ to, title, description, icon: SectionIcon }) => (
@@ -142,6 +142,7 @@ function AnalyticsDashboard({ dates }: { dates: AnalyticsDateRange }) {
             headers={ANALYTICS_CSV_HEADERS}
             loadRows={loadAnalyticsCsv}
             exportRow={analyticsCsvRow}
+            statusPlacement="inline"
           />
         }
       />

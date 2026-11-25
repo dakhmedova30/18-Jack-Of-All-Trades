@@ -1015,6 +1015,29 @@ select {
 .csv-transfer__buttons .button {
   width: 100%;
   justify-content: flex-start;
+  height: 2.5rem;
+  padding-right: 1rem;
+  padding-left: 1rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.csv-transfer--toast > .muted,
+.csv-transfer--toast > .form-error {
+  position: fixed;
+  z-index: 100;
+  right: 1rem;
+  bottom: 1rem;
+  width: min(28rem, calc(100vw - 2rem));
+  padding: 0.75rem 1rem;
+  border: var(--border-default) var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 14%);
+}
+
+.csv-transfer--toast > .form-error {
+  border-color: var(--color-danger);
 }
 
 .csv-transfer > .muted,
@@ -2242,7 +2265,22 @@ select {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1.5rem;
+  gap: 1rem;
+}
+
+.analytics-header__description {
+  flex: 1;
+  min-width: 0;
+  max-width: 65ch;
+}
+
+.analytics-header__actions {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.analytics-header__actions .csv-transfer {
+  flex-shrink: 0;
 }
 
 /* Links to the deeper Analytics pages, under the header. */
@@ -3390,6 +3428,10 @@ textarea.settings-row__input {
     align-items: stretch;
   }
 
+  .analytics-header__actions {
+    align-self: flex-start;
+  }
+
   .analytics-row,
   .analytics-stats,
   .analytics-donuts,
@@ -3410,6 +3452,17 @@ textarea.settings-row__input {
   .analytics-donut .viz {
     width: 160px;
     height: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .analytics-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .analytics-header__actions {
+    align-self: flex-start;
   }
 }
 

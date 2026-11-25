@@ -36,6 +36,7 @@ interface CsvTransferProps<T> {
   importHeaders?: string[];
   importRow?: (record: Record<string, string>) => Promise<CsvImportResult>;
   onImported?: () => void;
+  statusPlacement?: 'inline' | 'toast';
 }
 
 export function CsvTransfer<T>({
@@ -46,6 +47,7 @@ export function CsvTransfer<T>({
   importHeaders,
   importRow,
   onImported,
+  statusPlacement = 'inline',
 }: CsvTransferProps<T>) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -133,7 +135,7 @@ export function CsvTransfer<T>({
 
   return (
     <div
-      className={`csv-transfer${importRow && importHeaders ? '' : ' csv-transfer--export-only'}`}
+      className={`csv-transfer${importRow && importHeaders ? '' : ' csv-transfer--export-only'}${statusPlacement === 'toast' ? ' csv-transfer--toast' : ''}`}
     >
       <div className="csv-transfer__buttons">
         <button

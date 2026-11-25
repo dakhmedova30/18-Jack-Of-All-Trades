@@ -146,6 +146,8 @@ describe('AnalyticsPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Export CSV' }));
     await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+    const exportNotice = await screen.findByText('Exported 1 record(s).');
+    expect(exportNotice.parentElement).toHaveClass('csv-transfer--toast');
     expect(csv.parseCsv(download.mock.calls[0][1]).records[0].netProfitCents).toBe('-123');
 
     await user.selectOptions(screen.getByLabelText('Channel'), 'Online');
