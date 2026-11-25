@@ -30,9 +30,9 @@ D3 turns the dashboards into answers: filter Sales by channel and dates, explore
 | TA feedback at the D2 demo | What we changed | Where to see it |
 | --- | --- | --- |
 | Make fonts and colours consistent | One heading font, one readable body font (Atkinson Hyperlegible) and shared colours ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9), [#14](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/14), [#22](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/22)) | Every page |
-| Make widgets consistent; show which items are low or not selling | One shared summary card, plus **Low stock** and **Not selling** panels ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9), [#22](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/22)) | Inventory |
-| Put stock value and low stock, and this month and best sellers, at the top | Moved above the tables ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9)) | Inventory, Sales |
-| Change the cards' font | Card figures use the heading font ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9), [#14](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/14)) | Inventory, Sales |
+| Make widgets consistent; show which items are low or not selling | One shared summary card, plus **Low stock** and **Not selling** panels ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9), [#22](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/22)) | Analytics > Inventory |
+| Put stock value and low stock, and this month and best sellers, at the top | Moved above the tables ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9)); since then they have their own pages under Analytics, so Inventory and Sales open straight to their tables ([#36](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/36)) | Analytics > Inventory, Analytics > Sales |
+| Change the cards' font | Card figures use the heading font ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9), [#14](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/14)) | Home, Analytics |
 | Add tests | 237 backend and 56 frontend tests, run on every pull request ([#10](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/10), [#18](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/18)) | [Running tests](#running-tests) |
 
 ## Core Workflows (What to Try)
@@ -41,11 +41,11 @@ Log in as the demo account, then:
 
 1. **Home:** use **Show** (top right) to switch between the last 7 days, this month, this year and the last 12 months; the tiles and card previews follow. A new account shows "No sales yet this month" instead of bare zeros.
 2. **Sales:** click **Add** to record a sale: pick a date, a channel and one or more items. Totals come from each item's price, and stock goes down automatically. Use the **Channel** and date filters above the table to find, for example, last December's Online sales.
-3. **Inventory:** add or edit products. The cards at the top show the stock value, **Low stock**, and **Not selling** (in stock, but no sales this month).
+3. **Inventory:** add or edit products, with tags and a note, and search by name or tag.
 4. **Expenses:** click **Add** to record a cost. Each line either restocks a product (its stock goes up) or is a free-text cost such as rent.
-5. **Analytics:** pick any period with the date fields or the slider, and narrow revenue to one channel. **Revenue by Channel** shows where the money comes from; Net Profit shows "—" while a channel is selected, since expenses have no channel.
-6. **Settings:** change the account **currency** (preview first, then convert prices or only relabel them); rename channels and expense tags and set the low-stock cutoff (Preferences); choose which alerts appear in the bell (Notifications); and switch the theme or text size (Appearance).
-7. **Public profile:** in Settings > Profile, set a link name (e.g. `demo-shop`) and click **Turn on**, then tick **Show on my public profile** on products (or select several in Inventory and click **Show on profile**). Customers open `/p/demo-shop` with no account, and never see contact details or stock counts, only "In stock" or "Sold out".
+5. **Analytics:** pick any period with the date fields or the slider, and narrow revenue to one channel. **Revenue by Channel** shows where the money comes from; Net Profit shows "—" while a channel is selected, since expenses have no channel. Open **Inventory**, **Sales** or **Expenses** under Analytics in the sidebar for each area's cards: stock value, **Low stock** and **Not selling** (in stock, but no sales this month); this month at a glance and best sellers; and where the money goes and the biggest restock spending.
+6. **Settings:** change the account **currency** (preview first, then convert prices or only relabel them); rename channels and expense tags and set the low-stock cutoff (Preferences); choose which alerts appear in the bell (Notifications), which updates as soon as you save, e.g. a sale that brings an item down to low stock; and switch the theme or text size (Appearance).
+7. **Public profile:** in Settings > Profile, set a link name (e.g. `demo-shop`) and click **Turn on**, then tick **Show on my public profile** on products (or select several in Inventory and click **Show on profile**). Customers open `/p/demo-shop` with no account. Under **Contact** you can also add a **Public email** and choose to show your phone; customers never see your login email, street address or stock counts, only "In stock" or "Sold out".
 8. **Read aloud:** the bar at the bottom of every page reads it out, one highlighted passage at a time.
 
 ### CSV Import and Export
@@ -176,6 +176,7 @@ Frontend (run from `frontend/`, not the repo root — there is no root `package.
 | `npm run e2e`       | Runs the end-to-end tests (Playwright) against a running app |
 | `npm run lint`      | Runs ESLint                        |
 | `npm run format`    | Formats everything with Prettier   |
+| `npm run format:check` | Checks formatting without changing files (what CI runs) |
 | `npm run build`     | Builds `client/dist`               |
 
 Backend (run from `backend/`):
@@ -189,7 +190,7 @@ Backend (run from `backend/`):
 
 ### Running tests
 
-The backend has a JUnit 5 test suite (240 tests) covering the API endpoints, input
+The backend has a JUnit 5 test suite (over 240 tests) covering the API endpoints, input
 validation, auth and sessions, and the sales, expense, analytics and notification
 calculations. Tests run against a real PostgreSQL that Testcontainers starts in Docker, so
 there's no database to set up.
@@ -217,7 +218,8 @@ npm test
 
 The end-to-end tests (`frontend/e2e`, Playwright) drive Chromium through the real app: register,
 log out and back in, pages that need a login, adding an item and selling some (stock goes down,
-and the sale shows on Home and in Analytics), and adding an expense. Each test registers its own
+and the sale shows on Home and in Analytics), adding an expense, and a sale that brings an item
+to low stock showing in the bell without a reload. Each test registers its own
 new business, so tests never share data and can run against any database. To run them locally,
 start the backend and the web app as in [Setup](#setup), then:
 
@@ -256,7 +258,7 @@ Each feature follows the same layers: **controllers** handle HTTP only, **servic
 
 ### API
 
-See [`docs/api-contracts.md`](docs/api-contracts.md) for the authoritative, endpoint-by-endpoint spec. The summary below covers the same contract.
+See [`docs/api-contracts.md`](docs/api-contracts.md) for the authoritative, endpoint-by-endpoint spec, or the interactive docs below for every endpoint. The table below lists the main ones.
 
 **Interactive docs:** every running backend serves Swagger UI at `/swagger-ui.html` (locally, http://localhost:4000/swagger-ui.html) and the generated OpenAPI 3.1 spec at `/v3/api-docs`. Both are generated from the controllers by [springdoc](https://springdoc.org), so they always match the deployed code. Endpoints are grouped by feature, and a lock icon marks the ones that need a login. To try a locked endpoint, run `POST /api/auth/login` from the same page first: it sets the session cookie in your browser, and later calls send it automatically. Set `API_DOCS_ENABLED=false` to turn the docs off.
 
@@ -346,6 +348,7 @@ Vite reads `frontend/client/.env` by itself when `npm run dev` or `npm run build
 | `SPRING_PROFILES_ACTIVE`       | No       | Set to `demo` to seed the demo account on startup                           |
 | `PORT`                         | No       | Defaults to 4000 (Render sets it automatically)                             |
 | `API_DOCS_ENABLED`             | No       | `false` turns off Swagger UI and `/v3/api-docs`. Default: `true`             |
+| `EXCHANGE_RATES_SOURCE`        | No       | `live` (default) fetches exchange rates, falling back to cached or bundled ones; `fallback` uses only the bundled rates (as CI does). The other `EXCHANGE_*` settings are in [`backend/README.md`](backend/README.md) |
 
 **Client** (`frontend/client/.env`, read at build time):
 
