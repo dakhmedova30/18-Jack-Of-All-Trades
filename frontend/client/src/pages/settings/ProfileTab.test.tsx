@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as authApi from '../../api/auth';
+import { ApiError } from '../../api/http';
 import { testBusiness } from '../../test/fixtures';
 import { PageProviders } from '../../test/providers';
 import { ProfileTab } from './ProfileTab';
@@ -73,5 +74,30 @@ describe('ProfileTab contact details', () => {
     await user.click(showPhone);
 
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+  });
+
+  it("shows the server's message under the field it rejected", async () => {
+    const user = userEvent.setup();
+    vi.mocked(authApi.updateBusiness).mockRejectedValue(
+      new ApiError(400, 'Validation failed', [
+        { field: 'publicEmail', message: 'Enter a valid email' },
+      ]),
+    );
+    render(<ProfileTab />, { wrapper: Providers });
+
+    const email = await screen.findByLabelText('Public email');
+    await user.type(email, 'hello@');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(await screen.findByText('Enter a valid email')).toBeInTheDocument();
+    expect(email).toHaveAttribute('aria-invalid', 'true');
+    expect(email).toHaveAccessibleDescription('Enter a valid email');
+    expect(screen.getByText('Check the fields marked above.')).toBeInTheDocument();
+    expect(screen.queryByText('Validation failed')).not.toBeInTheDocument();
+
+    // Fixing the field clears its message.
+    await user.type(email, 'rings.example');
+    expect(screen.queryByText('Enter a valid email')).not.toBeInTheDocument();
+    expect(email).not.toHaveAttribute('aria-invalid');
   });
 });
