@@ -2,6 +2,7 @@ package ca.jackofalltrades.expenses;
 
 import ca.jackofalltrades.common.api.Ids;
 import ca.jackofalltrades.common.api.Paginated;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Expenses endpoints (contract §5). No {@code @Validated}, for the reason given on ItemController. */
+@Tag(name = "Expenses", description = "Business expenses and their monthly breakdown.")
 @RestController
 @RequestMapping("/api/expenses")
 public class ExpenseController {
