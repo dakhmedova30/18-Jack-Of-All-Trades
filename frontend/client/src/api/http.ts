@@ -22,6 +22,20 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
   blob?: Blob;
 }
 
+const dataChangedListeners = new Set<() => void>();
+
+/**
+ * Calls `listener` after every successful request other than a GET, i.e. after anything that may
+ * have changed data, so views derived from it (like the notification bell) can refresh right away.
+ * Returns a function that unsubscribes.
+ */
+export function onDataChanged(listener: () => void): () => void {
+  dataChangedListeners.add(listener);
+  return () => {
+    dataChangedListeners.delete(listener);
+  };
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { json, blob, headers, ...rest } = options;
 
@@ -36,10 +50,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     throw new ApiError(0, UNREACHABLE_MESSAGE);
   }
 
-  if (response.status === 204) return undefined as T;
-
-  const body: unknown = await response.json().catch(() => null);
+  const body: unknown =
+    response.status === 204 ? undefined : await response.json().catch(() => null);
   if (!response.ok) throw toApiError(response.status, body);
+  if ((rest.method ?? 'GET').toUpperCase() !== 'GET') {
+    dataChangedListeners.forEach((listener) => listener());
+  }
   return body as T;
 }
 

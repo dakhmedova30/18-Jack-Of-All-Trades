@@ -51,6 +51,9 @@ export interface BusinessUpdate {
   etsy?: string;
   /** An empty string turns the public profile off. */
   publicSlug?: string;
+  /** An empty string removes the public contact email. */
+  publicEmail?: string;
+  showPhonePublicly?: boolean;
 }
 
 export interface CurrencyChangeRequest {

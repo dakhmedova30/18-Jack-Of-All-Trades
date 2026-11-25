@@ -76,6 +76,13 @@ public class Business {
     /** The public profile's link name (/p/<slug>); null means the profile is off. */
     private String publicSlug;
 
+    /** A contact email for customers on the public profile, separate from the login email; null shows none. */
+    private String publicEmail;
+
+    /** Whether the public profile shows {@link #phone}. */
+    @Column(nullable = false)
+    private boolean showPhonePublicly;
+
     /** When the logo was last set; null means there is none. */
     private Instant logoUpdatedAt;
 
@@ -259,6 +266,22 @@ public class Business {
 
     public void setPublicSlug(String publicSlug) {
         this.publicSlug = publicSlug;
+    }
+
+    public String getPublicEmail() {
+        return publicEmail;
+    }
+
+    public void setPublicEmail(String publicEmail) {
+        this.publicEmail = publicEmail;
+    }
+
+    public boolean isShowPhonePublicly() {
+        return showPhonePublicly;
+    }
+
+    public void setShowPhonePublicly(boolean showPhonePublicly) {
+        this.showPhonePublicly = showPhonePublicly;
     }
 
     public Instant getLogoUpdatedAt() {

@@ -1,5 +1,6 @@
 package ca.jackofalltrades.notifications;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /** The alerts that apply right now, and the settings that decide which ones there are. */
+@Tag(name = "Notifications", description = "Low-stock alerts and the settings that trigger them.")
 @RestController
 @RequestMapping("/api/notifications")
 public class NotificationController {

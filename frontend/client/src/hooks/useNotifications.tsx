@@ -7,11 +7,13 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { onDataChanged } from '../api/http';
 import { listNotifications } from '../api/notifications';
 import type { AppNotification } from '../types';
 import { useAuth } from './useAuth';
 
-const POLL_MS = 2 * 60 * 1000;
+/** Catches changes made elsewhere (another tab or device); this tab's own saves refetch at once. */
+export const POLL_MS = 30 * 1000;
 
 /** Identifies an alert and its situation: a changed fingerprint is a new alert, not a dismissed one. */
 export function notificationKey(alert: AppNotification): string {
@@ -39,42 +41,60 @@ interface NotificationsContextValue {
   dismissAll: () => void;
   /** Brings dismissed alerts back (they hide again if dismissed again). */
   showDismissed: () => void;
-  /** Refetches now, e.g. after the settings change. */
-  reload: () => void;
 }
 
 const NotificationsContext = createContext<NotificationsContextValue | undefined>(undefined);
 
 /**
- * Fetches the alerts when the app opens and every couple of minutes, and remembers which ones
- * the user dismissed in this browser. Dismissing is per browser; the alerts themselves come from
- * the server.
+ * Fetches the alerts when the app opens, right after any save (a sale can put an item below the
+ * low-stock threshold), and every 30 seconds while the tab is visible. A hidden tab doesn't poll,
+ * so a forgotten tab doesn't keep querying the database; it catches up when shown again.
+ * Remembers which alerts the user dismissed in this browser; the alerts themselves come from the
+ * server.
  */
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { business } = useAuth();
   const businessId = business?.id;
   const [all, setAll] = useState<AppNotification[]>([]);
   const [dismissed, setDismissed] = useState(() => loadDismissed(businessId));
-  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
-    let cancelled = false;
+    // Only the newest request may update the alerts, so a slow older response can't overwrite a
+    // newer one. Bumping it on unmount drops any response still in flight.
+    let latest = 0;
     const fetchAlerts = () => {
+      const request = ++latest;
       listNotifications()
         .then((alerts) => {
-          if (!cancelled) setAll(alerts);
+          if (request === latest) setAll(alerts);
         })
         .catch(() => {
           // The bell is a convenience: if this fails, keep what we had and try again later.
         });
     };
-    fetchAlerts();
-    const timer = setInterval(fetchAlerts, POLL_MS);
-    return () => {
-      cancelled = true;
+
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const stopPolling = () => {
       clearInterval(timer);
+      timer = undefined;
     };
-  }, [reloadToken]);
+    const startPolling = () => {
+      stopPolling();
+      fetchAlerts();
+      timer = setInterval(fetchAlerts, POLL_MS);
+    };
+    const onVisibilityChange = () => (document.hidden ? stopPolling() : startPolling());
+
+    if (!document.hidden) startPolling();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    const unsubscribe = onDataChanged(fetchAlerts);
+    return () => {
+      latest++;
+      stopPolling();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      unsubscribe();
+    };
+  }, []);
 
   const saveDismissed = useCallback(
     (next: Set<string>) => {
@@ -101,7 +121,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       dismiss: (alert) => saveDismissed(prune(new Set([...dismissed, notificationKey(alert)]))),
       dismissAll: () => saveDismissed(keys(all)),
       showDismissed: () => saveDismissed(new Set()),
-      reload: () => setReloadToken((token) => token + 1),
     };
   }, [all, dismissed, saveDismissed]);
 
