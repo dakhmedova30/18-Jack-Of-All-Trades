@@ -70,3 +70,33 @@ describe('PublicProfilePage contact details', () => {
     expect(screen.getByRole('link', { name: 'Website' })).toBeInTheDocument();
   });
 });
+
+describe('PublicProfilePage products', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("shows an item's photo, and its first letter when it has none", async () => {
+    vi.mocked(publicProfileApi.getPublicProfile).mockResolvedValue({
+      ...profile,
+      items: [
+        {
+          id: 1,
+          name: 'Bowl',
+          unitPriceCents: 2500,
+          inStock: true,
+          photoUrl: '/api/public/businesses/rings/items/1/photo?v=1',
+        },
+        { id: 2, name: 'Cup', unitPriceCents: 1200, inStock: false, photoUrl: null },
+      ],
+    });
+    renderProfile();
+
+    expect(await screen.findByRole('img', { name: 'Photo of Bowl' })).toHaveAttribute(
+      'src',
+      '/api/public/businesses/rings/items/1/photo?v=1',
+    );
+    expect(screen.queryByRole('img', { name: 'Photo of Cup' })).not.toBeInTheDocument();
+    expect(screen.getByText('C')).toBeInTheDocument();
+  });
+});

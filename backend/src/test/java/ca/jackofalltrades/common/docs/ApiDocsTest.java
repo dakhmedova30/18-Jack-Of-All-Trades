@@ -24,7 +24,8 @@ class ApiDocsTest extends PostgresTestBase {
             "POST /api/auth/login",
             "POST /api/auth/logout",
             "GET /api/public/businesses/{slug}",
-            "GET /api/public/businesses/{slug}/logo");
+            "GET /api/public/businesses/{slug}/logo",
+            "GET /api/public/businesses/{slug}/items/{itemId}/photo");
 
     @Test
     void specIsReadableWithoutLoggingInAndOnlyCoversTheApi() throws Exception {

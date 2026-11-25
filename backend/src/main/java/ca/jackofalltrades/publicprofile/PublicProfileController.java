@@ -1,5 +1,6 @@
 package ca.jackofalltrades.publicprofile;
 
+import ca.jackofalltrades.common.api.Ids;
 import ca.jackofalltrades.common.api.NotFoundException;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -41,5 +42,17 @@ public class PublicProfileController {
                         .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePublic())
                         .body(found.data()))
                 .orElseThrow(() -> new NotFoundException("Logo", slug));
+    }
+
+    /** A public item's photo. A private item's photo is a 404, the same as one that doesn't exist. */
+    @GetMapping("/items/{itemId}/photo")
+    public ResponseEntity<byte[]> itemPhoto(@PathVariable String slug, @PathVariable String itemId) {
+        int id = Ids.parse(itemId, "item id");
+        return publicProfileService.itemPhoto(slug.toLowerCase(Locale.ROOT), id)
+                .map(found -> ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(found.contentType()))
+                        .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePublic())
+                        .body(found.data()))
+                .orElseThrow(() -> new NotFoundException("Photo for item", id));
     }
 }

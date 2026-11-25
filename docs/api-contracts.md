@@ -201,11 +201,12 @@ A page customers can read **without logging in**: the business's public details 
 | --- | --- | --- | --- | --- |
 | `GET` | `/api/public/businesses/{slug}` | — | `200` `PublicProfile` | `404` `Public profile {slug} not found` |
 | `GET` | `/api/public/businesses/{slug}/logo` | — | `200` the image (publicly cacheable) | `404` |
+| `GET` | `/api/public/businesses/{slug}/items/{itemId}/photo` | — | `200` the item's photo (publicly cacheable) | `404` if the item isn't public, has no photo, or isn't this business's |
 
 - The slug is matched case-insensitively. An unknown slug and a turned-off profile give the **same** `404`, so nobody can tell whether a business exists.
 - `PublicProfile` is an allowlist: the login email, street address, postal code, owner name and login times are never sent, nor are item quantities, notes or tags. `inStock` is `quantity > 0`.
 - Contact details are opt-in: `email` is the business's `publicEmail` (never the login email), and `phone` is `null` unless `showPhonePublicly` is on. Both are `null` by default.
-- Items are only this business's `isPublic` items, sorted by name.
+- Items are only this business's `isPublic` items, sorted by name. An item's `photoUrl` is `null` when it has no photo (§3.1).
 
 ```json
 // PublicProfile
@@ -214,7 +215,8 @@ A page customers can read **without logging in**: the business's public details 
   "phone": null, "website": "https://alliescandles.ca",
   "instagram": null, "facebook": null, "tiktok": null, "etsy": null,
   "logoUrl": "/api/public/businesses/alliescandles/logo?v=1761750000000",
-  "items": [{ "id": 7, "name": "Lavender Candle", "unitPriceCents": 1800, "inStock": true }] }
+  "items": [{ "id": 7, "name": "Lavender Candle", "unitPriceCents": 1800, "inStock": true,
+               "photoUrl": "/api/public/businesses/alliescandles/items/7/photo?v=1761750000000" }] }
 ```
 
 ## 3. Inventory: `/api/items` (US2)
@@ -279,6 +281,19 @@ A page customers can read **without logging in**: the business's public details 
 | `note` | Optional; ≤ 1000 characters; default `""` |
 
 Deleting an item doesn't change past sales or expenses: their lines keep the item's name, and `itemId` becomes `null`.
+
+### 3.1 Item photos: `/api/items/{id}/photo`
+
+One photo per item, with the same upload rules as the profile picture (§2). Items on the public profile show theirs there (§2.2).
+
+| Method | Path | Request body | Success | Errors |
+| --- | --- | --- | --- | --- |
+| `GET` | `/api/items/{id}/photo` | — | `200` the image (use as an `<img src>`) | `401`, `404` no item or no photo |
+| `PUT` | `/api/items/{id}/photo` | the raw image bytes; `Content-Type` is `image/jpeg`, `image/png` or `image/webp`; at most 512 KB | `200` `{ "photoUrl": "/api/items/7/photo?v=1761750000000" }`; replaces any earlier photo | `400`, `401`, `404` |
+| `DELETE` | `/api/items/{id}/photo` | — | `200` `{ "photoUrl": null }`, also when there was no photo | `401`, `404` no item |
+
+- `?v=` changes whenever the photo does, so the image can be cached and a new one still shows right away.
+- Deleting the item deletes its photo.
 
 ## 4. Sales: `/api/sales` (US1)
 

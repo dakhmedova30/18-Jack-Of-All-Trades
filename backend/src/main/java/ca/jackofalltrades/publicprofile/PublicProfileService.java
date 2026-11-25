@@ -5,6 +5,7 @@ import ca.jackofalltrades.auth.AvatarRepository;
 import ca.jackofalltrades.auth.Business;
 import ca.jackofalltrades.auth.BusinessRepository;
 import ca.jackofalltrades.common.api.NotFoundException;
+import ca.jackofalltrades.items.ItemPhotoRepository;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,11 +21,14 @@ public class PublicProfileService {
     private final BusinessRepository businesses;
     private final PublicProfileQueries queries;
     private final AuthService authService;
+    private final ItemPhotoRepository itemPhotos;
 
-    public PublicProfileService(BusinessRepository businesses, PublicProfileQueries queries, AuthService authService) {
+    public PublicProfileService(BusinessRepository businesses, PublicProfileQueries queries, AuthService authService,
+            ItemPhotoRepository itemPhotos) {
         this.businesses = businesses;
         this.queries = queries;
         this.authService = authService;
+        this.itemPhotos = itemPhotos;
     }
 
     @Transactional(readOnly = true)
@@ -47,12 +51,18 @@ public class PublicProfileService {
                 business.getTiktok(),
                 business.getEtsy(),
                 logoUrl,
-                queries.publicItems(business.getId()));
+                queries.publicItems(business.getId(), business.getPublicSlug()));
     }
 
     @Transactional(readOnly = true)
     public Optional<AvatarRepository.Avatar> logo(String slug) {
         return authService.findLogo(business(slug).getId());
+    }
+
+    /** The photo of a public item; empty if the item is private, has no photo, or isn't this business's. */
+    @Transactional(readOnly = true)
+    public Optional<ItemPhotoRepository.Photo> itemPhoto(String slug, int itemId) {
+        return itemPhotos.findPublic(itemId, business(slug).getId());
     }
 
     private Business business(String slug) {

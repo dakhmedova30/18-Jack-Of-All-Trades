@@ -184,6 +184,48 @@ class PublicProfileTest extends PostgresTestBase {
     }
 
     @Test
+    void servesPhotosOfPublicItemsOnly() throws Exception {
+        String slug = uniqueSlug();
+        Cookie cookie = businessWithProfile(slug);
+        int shown = createItem(cookie, "Bowl", 2, true);
+        int hidden = createItem(cookie, "Prototype", 1, false);
+        int noPhoto = createItem(cookie, "Cup", 4, true);
+        byte[] photo = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 7, 8};
+        for (int id : new int[] {shown, hidden}) {
+            mockMvc.perform(put("/api/items/" + id + "/photo").cookie(cookie)
+                            .contentType(MediaType.IMAGE_JPEG).content(photo))
+                    .andExpect(status().isOk());
+        }
+
+        String shownPath = "/api/public/businesses/" + slug + "/items/" + shown + "/photo";
+        mockMvc.perform(get("/api/public/businesses/" + slug))
+                .andExpect(jsonPath("$.items[*].name", contains("Bowl", "Cup")))
+                .andExpect(jsonPath("$.items[0].photoUrl").value(startsWith(shownPath + "?v=")))
+                .andExpect(jsonPath("$.items[1].photoUrl").value(nullValue()));
+        mockMvc.perform(get(shownPath))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.IMAGE_JPEG))
+                .andExpect(content().bytes(photo))
+                .andExpect(header().string("Cache-Control", containsString("public")));
+
+        // A private item's photo is a 404, as is a missing one.
+        mockMvc.perform(get("/api/public/businesses/" + slug + "/items/" + hidden + "/photo"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/public/businesses/" + slug + "/items/" + noPhoto + "/photo"))
+                .andExpect(status().isNotFound());
+
+        // Another business's slug can't reach this item's photo.
+        String otherSlug = uniqueSlug();
+        businessWithProfile(otherSlug);
+        mockMvc.perform(get("/api/public/businesses/" + otherSlug + "/items/" + shown + "/photo"))
+                .andExpect(status().isNotFound());
+
+        // Turning the profile off hides the photos too.
+        setSlug(cookie, "").andExpect(status().isOk());
+        mockMvc.perform(get(shownPath)).andExpect(status().isNotFound());
+    }
+
+    @Test
     void otherApiRoutesStillNeedALogin() throws Exception {
         mockMvc.perform(get("/api/items")).andExpect(status().isUnauthorized());
     }

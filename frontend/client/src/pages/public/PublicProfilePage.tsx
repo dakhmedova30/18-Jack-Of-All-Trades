@@ -141,9 +141,18 @@ function ProfileView({ profile }: { profile: PublicProfile }) {
           <ul className="public-profile__grid">
             {profile.items.map((item) => (
               <li key={item.id} className="public-item card">
-                <span className="public-item__tile" aria-hidden="true">
-                  {item.name.charAt(0).toUpperCase()}
-                </span>
+                {item.photoUrl ? (
+                  <img
+                    className="public-item__tile public-item__photo"
+                    src={item.photoUrl}
+                    alt={`Photo of ${item.name}`}
+                    loading="lazy"
+                  />
+                ) : (
+                  <span className="public-item__tile" aria-hidden="true">
+                    {item.name.charAt(0).toUpperCase()}
+                  </span>
+                )}
                 <span className="public-item__name">{item.name}</span>
                 <span>{formatCentsIn(item.unitPriceCents, profile.currency)}</span>
                 <span className={item.inStock ? 'public-item__stock' : 'public-item__stock--out'}>

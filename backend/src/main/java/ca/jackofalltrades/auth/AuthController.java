@@ -1,5 +1,6 @@
 package ca.jackofalltrades.auth;
 
+import ca.jackofalltrades.common.api.Images;
 import ca.jackofalltrades.common.api.NotFoundException;
 import ca.jackofalltrades.common.api.UnauthorizedException;
 import ca.jackofalltrades.common.security.BusinessPrincipal;
@@ -11,7 +12,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import java.io.IOException;
-import java.io.InputStream;
 import java.time.Duration;
 import java.util.List;
 import org.springframework.http.CacheControl;
@@ -116,7 +116,7 @@ public class AuthController {
     public BusinessResponse setAvatar(
             HttpServletRequest request, @RequestHeader(value = "Content-Type", required = false) String contentType)
             throws IOException {
-        return BusinessResponse.from(authService.setAvatar(currentBusiness.id(), contentType, readImage(request)));
+        return BusinessResponse.from(authService.setAvatar(currentBusiness.id(), contentType, Images.read(request)));
     }
 
     @DeleteMapping("/me/avatar")
@@ -136,14 +136,7 @@ public class AuthController {
     public BusinessResponse setLogo(
             HttpServletRequest request, @RequestHeader(value = "Content-Type", required = false) String contentType)
             throws IOException {
-        return BusinessResponse.from(authService.setLogo(currentBusiness.id(), contentType, readImage(request)));
-    }
-
-    /** Reads one byte past the size limit at most, so an oversized upload is rejected without buffering all of it. */
-    private static byte[] readImage(HttpServletRequest request) throws IOException {
-        try (InputStream in = request.getInputStream()) {
-            return in.readNBytes(AuthService.MAX_IMAGE_BYTES + 1);
-        }
+        return BusinessResponse.from(authService.setLogo(currentBusiness.id(), contentType, Images.read(request)));
     }
 
     @DeleteMapping("/me/logo")
