@@ -1,6 +1,7 @@
 package ca.jackofalltrades.analytics;
 
 import ca.jackofalltrades.common.api.BadRequestException;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import java.time.Instant;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Analytics endpoints (contract §6). No {@code @Validated}, for the reason given on ItemController. */
+@Tag(name = "Analytics", description = "Revenue, expenses and inventory summaries over a date range.")
 @RestController
 @RequestMapping("/api/analytics")
 public class AnalyticsController {

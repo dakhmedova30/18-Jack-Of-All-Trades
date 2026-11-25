@@ -20,6 +20,8 @@ docker compose up -d          # Postgres 17 on localhost:5433 (db/user/password:
 
 Check that it's up: `curl http://localhost:4000/api/health` should return `{"status":"ok","database":"ok"}`.
 
+Browse and try the API at http://localhost:4000/swagger-ui.html (the OpenAPI spec is at `/v3/api-docs`). It's generated from the controllers, configured in `common/docs/OpenApiConfig.java`. Endpoints need a login by default; a public one is marked with an empty `@SecurityRequirements` and listed in `ApiDocsTest`.
+
 To run the React client against this backend, start it in a second terminal:
 
 ```bash
@@ -59,6 +61,7 @@ Docker must be running. Testcontainers starts one throwaway Postgres for the who
 | `EXCHANGE_SUPPORTED_CURRENCIES`            | `CAD,USD,EUR,GBP,AUD`                    | Configured conversion currency allowlist                                                    |
 | `EXCHANGE_RATES_SNAPSHOT_LOCATION`         | `classpath:exchange-rates-fallback.json` | Snapshot resource location; supported currencies are checked at startup                     |
 | `PORT`                                     | `4000`                                   | Set by Render                                                                               |
+| `API_DOCS_ENABLED`                         | `true`                                   | `false` turns off Swagger UI and `/v3/api-docs`                                             |
 
 **Never commit real credentials.** The defaults only work with the Docker database.
 

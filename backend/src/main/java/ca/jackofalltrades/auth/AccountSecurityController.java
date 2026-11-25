@@ -1,6 +1,7 @@
 package ca.jackofalltrades.auth;
 
 import ca.jackofalltrades.common.security.CurrentBusiness;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** The Security settings tab: change password, devices logged in, recent logins. */
+@Tag(name = "Account security", description = "Password, active sessions and recent logins.")
 @RestController
 @RequestMapping("/api/auth")
 public class AccountSecurityController {
