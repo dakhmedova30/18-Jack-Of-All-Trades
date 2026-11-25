@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -11,7 +11,10 @@ import { ExpenseAnalyticsPage } from './ExpenseAnalyticsPage';
 
 vi.mock('../../api/auth', () => ({ getCurrentBusiness: vi.fn() }));
 vi.mock('../../api/expenses', () => ({ getExpenseMonthBreakdown: vi.fn() }));
-vi.mock('../../api/analytics', () => ({ getExpenseTrends: vi.fn() }));
+vi.mock('../../api/analytics', () => ({
+  getAnalyticsDateRange: vi.fn(),
+  getExpenseTrends: vi.fn(),
+}));
 
 function Providers({ children }: { children: ReactNode }) {
   return (
@@ -41,6 +44,7 @@ function months(values: Record<number, number>): number[] {
 }
 
 const NOTHING: ExpenseTrends = {
+  granularity: 'month',
   buckets: BUCKETS,
   bucketLabels: BUCKETS.map((key) => key.slice(5)),
   revenueCents: months({}),
@@ -78,6 +82,11 @@ describe('ExpenseAnalyticsPage charts', () => {
       totalCents: 0,
       topRestockItems: [],
     });
+    vi.mocked(analyticsApi.getAnalyticsDateRange).mockResolvedValue({
+      firstDate: '2025-08-01',
+      lastDate: '2026-11-20',
+      today: '2026-11-25',
+    });
   });
 
   it('charts revenue against expenses, profit, cost types and tags', async () => {
@@ -85,9 +94,7 @@ describe('ExpenseAnalyticsPage charts', () => {
     render(<ExpenseAnalyticsPage />, { wrapper: Providers });
 
     const overview = await findCard('Revenue and expenses');
-    expect(
-      overview.getByText('Expenses came to 83% of revenue over the last 12 months.'),
-    ).toBeInTheDocument();
+    expect(overview.getByText(/^Expenses came to 83% of revenue from .*\.$/)).toBeInTheDocument();
     expect(
       overview.getByRole('row', { name: 'Oct 2026 500.00 CAD 300.00 CAD', hidden: true }),
     ).toBeInTheDocument();
@@ -124,7 +131,7 @@ describe('ExpenseAnalyticsPage charts', () => {
 
     const overview = await findCard('Revenue and expenses');
     expect(
-      overview.getByText('No revenue in the last 12 months to set against 500.00 CAD of expenses.'),
+      overview.getByText(/^No revenue from .* to set against 500\.00 CAD of expenses\.$/),
     ).toBeInTheDocument();
     const profit = await findCard('Profit by month');
     expect(
@@ -137,7 +144,46 @@ describe('ExpenseAnalyticsPage charts', () => {
     render(<ExpenseAnalyticsPage />, { wrapper: Providers });
 
     const card = await findCard('Costs and profit');
-    expect(card.getByText(/No sales or expenses in the last 12 months/)).toBeInTheDocument();
+    expect(card.getByText(/^No sales or expenses from /)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Profit by month' })).not.toBeInTheDocument();
+  });
+
+  it('loads the default period, then the dates typed into the filter, split by day', async () => {
+    vi.mocked(analyticsApi.getExpenseTrends).mockResolvedValue(TWO_MONTHS);
+    render(<ExpenseAnalyticsPage />, { wrapper: Providers });
+
+    const filters = await screen.findByRole('complementary', { name: 'Filters' });
+    await waitFor(() =>
+      expect(analyticsApi.getExpenseTrends).toHaveBeenLastCalledWith({
+        from: '2025-12-01',
+        to: '2026-11-20',
+      }),
+    );
+
+    vi.mocked(analyticsApi.getExpenseTrends).mockResolvedValue({
+      ...TWO_MONTHS,
+      granularity: 'day',
+      buckets: ['2026-11-19', '2026-11-20'],
+      bucketLabels: ['Nov 19', 'Nov 20'],
+      revenueCents: [50000, 10000],
+      restockCents: [20000, 15000],
+      runningCents: [10000, 5000],
+    });
+    fireEvent.change(within(filters).getByLabelText('Start date', { selector: 'input' }), {
+      target: { value: '2026-11-19' },
+    });
+    await waitFor(() =>
+      expect(analyticsApi.getExpenseTrends).toHaveBeenLastCalledWith({
+        from: '2026-11-19',
+        to: '2026-11-20',
+      }),
+    );
+    const profit = await findCard('Profit by day');
+    expect(
+      profit.getByText('A profit in 1 day and a loss in 1 day: 100.00 CAD made overall.'),
+    ).toBeInTheDocument();
+    expect(
+      profit.getByRole('row', { name: 'Nov 20, 2026 -100.00 CAD', hidden: true }),
+    ).toBeInTheDocument();
   });
 });

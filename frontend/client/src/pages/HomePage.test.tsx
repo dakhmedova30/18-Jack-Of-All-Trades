@@ -30,6 +30,7 @@ function summaryFor(range: AnalyticsRange, revenueCents = 0, expensesCents = 0):
     expenseSeries: expensesCents ? [{ label: 'market', values: [expensesCents, 0] }] : [],
     salesByTag: [],
     revenueByChannel: [],
+    expensesByTag: [],
   };
 }
 

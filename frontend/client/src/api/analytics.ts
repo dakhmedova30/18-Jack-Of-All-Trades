@@ -3,7 +3,9 @@ import type {
   AnalyticsRange,
   AnalyticsSummary,
   DateRange,
-  InventoryByTag,
+  ExpenseTrends,
+  SalesTrends,
+  StockHealth,
 } from '../types';
 import { apiRequest } from './http';
 
@@ -32,7 +34,28 @@ export function getAnalyticsDateRange(): Promise<AnalyticsDateRange> {
   return apiRequest('/analytics/date-range');
 }
 
-/** Current stock by first tag, for the Inventory Overview chart. */
-export function getInventoryByTag(): Promise<InventoryByTag> {
-  return apiRequest('/analytics/inventory');
+/** `?from=…&to=…` for a period, or nothing for the server's default (the last 12 months). */
+function periodQuery(period?: DateRange): string {
+  return period ? `?${new URLSearchParams({ from: period.from, to: period.to })}` : '';
+}
+
+/**
+ * Sales Analytics' charts for a period of whole days, both included (by day, week or month, by
+ * its length): revenue and sale count over time, by weekday and by channel.
+ */
+export function getSalesTrends(period?: DateRange): Promise<SalesTrends> {
+  return apiRequest(`/analytics/sales-trends${periodQuery(period)}`);
+}
+
+/**
+ * Expense Analytics' charts for a period of whole days, both included: restock and running costs
+ * over time next to revenue, and spending by tag.
+ */
+export function getExpenseTrends(period?: DateRange): Promise<ExpenseTrends> {
+  return apiRequest(`/analytics/expense-trends${periodQuery(period)}`);
+}
+
+/** Inventory Analytics' charts: stock levels, stock value by tag and what will run out first. */
+export function getStockHealth(): Promise<StockHealth> {
+  return apiRequest('/analytics/stock-health');
 }

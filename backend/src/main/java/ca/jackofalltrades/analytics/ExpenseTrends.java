@@ -4,13 +4,15 @@ import ca.jackofalltrades.analytics.AnalyticsSummary.TagTotal;
 import java.util.List;
 
 /**
- * The {@code GET /api/analytics/expense-trends} JSON, for Expense Analytics: the last 12 calendar
- * months (UTC), this one included. The lists line up with {@code buckets} ("YYYY-MM"). Restocks
- * are expense lines linked to an item and running costs the rest, as in the month breakdown;
- * revenue is there to compare against. {@code byTag} is spending by first tag, largest first,
- * with tags past the top 6 folded into "Other", listed last. Money is in the account's currency.
+ * The {@code GET /api/analytics/expense-trends} JSON, for Expense Analytics: the chosen period, or
+ * the last 12 calendar months (UTC). {@code granularity} and {@code buckets} are as in
+ * SalesTrends, and the lists line up with {@code buckets}. Restocks are expense lines linked to an
+ * item and running costs the rest, as in the month breakdown; revenue is there to compare against.
+ * {@code byTag} is spending by first tag, largest first, with tags past the top 6 folded into
+ * "Other", listed last. Money is in the account's currency.
  */
 public record ExpenseTrends(
+        String granularity,
         List<String> buckets,
         List<String> bucketLabels,
         List<Long> revenueCents,

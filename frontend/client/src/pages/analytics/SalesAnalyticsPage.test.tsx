@@ -1,4 +1,5 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,7 +14,10 @@ import { SalesAnalyticsPage } from './SalesAnalyticsPage';
 vi.mock('../../api/auth', () => ({ getCurrentBusiness: vi.fn() }));
 vi.mock('../../api/items', () => ({ getInventoryInsights: vi.fn() }));
 vi.mock('../../api/sales', () => ({ getSalesMonthSummary: vi.fn() }));
-vi.mock('../../api/analytics', () => ({ getSalesTrends: vi.fn() }));
+vi.mock('../../api/analytics', () => ({
+  getAnalyticsDateRange: vi.fn(),
+  getSalesTrends: vi.fn(),
+}));
 
 function Providers({ children }: { children: ReactNode }) {
   return (
@@ -40,12 +44,16 @@ const BUCKETS = [
 const LABELS = ['Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov'];
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+/** Records from Aug 1, 2025 to Nov 20, 2026, so the default period is Dec 1, 2025 to Nov 20, 2026. */
+const DEFAULT_PERIOD = { from: '2025-12-01', to: '2026-11-20' };
+
 /** Twelve months of zeros, with `values` at the given month indexes. */
 function months(values: Record<number, number>): number[] {
   return BUCKETS.map((_, i) => values[i] ?? 0);
 }
 
 const NO_SALES: SalesTrends = {
+  granularity: 'month',
   buckets: BUCKETS,
   bucketLabels: LABELS,
   revenueCents: months({}),
@@ -54,7 +62,7 @@ const NO_SALES: SalesTrends = {
   byChannel: [],
 };
 
-/** Four sales in August, two so far in November; most revenue on Saturdays and online. */
+/** Four sales in August, two in November; most revenue on Saturdays and online. */
 const SOME_SALES: SalesTrends = {
   ...NO_SALES,
   revenueCents: months({ 8: 120000, 11: 30000 }),
@@ -96,6 +104,12 @@ describe('SalesAnalyticsPage charts', () => {
       periodEnd: '2026-12-01T00:00:00Z',
       bestSellers: [],
       notSelling: [],
+      notSellingValueCents: 0,
+    });
+    vi.mocked(analyticsApi.getAnalyticsDateRange).mockResolvedValue({
+      firstDate: '2025-08-01',
+      lastDate: '2026-11-20',
+      today: '2026-11-25',
     });
   });
 
@@ -105,20 +119,18 @@ describe('SalesAnalyticsPage charts', () => {
 
     const revenue = await findCard('Revenue by month');
     expect(
-      revenue.getByText(
-        'Your best month was Aug 2026, with 1,200.00 CAD. Nov 2026 so far: 300.00 CAD.',
-      ),
+      revenue.getByText(/^Your best month from .* was Aug 2026, with 1,200\.00 CAD\.$/),
     ).toBeInTheDocument();
     expect(revenue.getByRole('img', { name: 'Revenue by month' })).toBeInTheDocument();
 
     const count = await findCard('Sales by month');
-    expect(count.getByText('6 sales in the last 12 months, about 1 a month.')).toBeInTheDocument();
+    expect(count.getByText(/^6 sales from .*, about 1 a month\.$/)).toBeInTheDocument();
     expect(count.getByRole('row', { name: 'Aug 2026 4', hidden: true })).toBeInTheDocument();
 
     const average = await findCard('Average sale by month');
     expect(
       average.getByText(
-        'A sale averages 250.00 CAD over the last 12 months; the highest month was Aug 2026, at 300.00 CAD.',
+        /^A sale averages 250\.00 CAD from .*; the highest month was Aug 2026, at 300\.00 CAD\.$/,
       ),
     ).toBeInTheDocument();
     // A month without sales has no average, rather than an average of zero.
@@ -137,16 +149,31 @@ describe('SalesAnalyticsPage charts', () => {
     ).toBeInTheDocument();
   });
 
-  it('says the current month is the best yet when it is', async () => {
+  it('names weeks when the server splits a shorter period by week', async () => {
     vi.mocked(analyticsApi.getSalesTrends).mockResolvedValue({
       ...SOME_SALES,
-      revenueCents: months({ 8: 10000, 11: 30000 }),
+      granularity: 'week',
+      buckets: ['2026-10-05', '2026-10-12'],
+      bucketLabels: ['Oct 5', 'Oct 12'],
+      revenueCents: [10000, 30000],
+      saleCounts: [1, 3],
     });
     render(<SalesAnalyticsPage />, { wrapper: Providers });
 
-    const revenue = await findCard('Revenue by month');
+    const revenue = await findCard('Revenue by week');
     expect(
-      revenue.getByText('Nov 2026 is your best month yet, with 300.00 CAD so far.'),
+      revenue.getByText(
+        /^Your best week from .* was the week of Oct 12, 2026, with 300\.00 CAD\.$/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      revenue.getByRole('columnheader', { name: 'Week of', hidden: true }),
+    ).toBeInTheDocument();
+    expect(
+      revenue.getByRole('row', { name: 'Oct 5, 2026 100.00 CAD', hidden: true }),
+    ).toBeInTheDocument();
+    expect(
+      (await findCard('Sales by week')).getByText(/^4 sales from .*, about 2 a week\.$/),
     ).toBeInTheDocument();
   });
 
@@ -155,7 +182,68 @@ describe('SalesAnalyticsPage charts', () => {
     render(<SalesAnalyticsPage />, { wrapper: Providers });
 
     const card = await findCard('Sales trends');
-    expect(card.getByText(/No sales in the last 12 months/)).toBeInTheDocument();
+    expect(card.getByText(/^No sales from /)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Busiest days' })).not.toBeInTheDocument();
+  });
+
+  describe('date filter', () => {
+    it('opens on the main page default period, and reloads for typed dates', async () => {
+      vi.mocked(analyticsApi.getSalesTrends).mockResolvedValue(SOME_SALES);
+      render(<SalesAnalyticsPage />, { wrapper: Providers });
+
+      // The same filter as the main Analytics page, at the top of this one.
+      const filters = await screen.findByRole('complementary', { name: 'Filters' });
+      expect(within(filters).getByRole('button', { name: 'Reset' })).toBeDisabled();
+      await waitFor(() =>
+        expect(analyticsApi.getSalesTrends).toHaveBeenLastCalledWith(DEFAULT_PERIOD),
+      );
+
+      // A complete, valid start date applies on its own; the charts reload once it settles. (The
+      // slider's handle is also labelled "Start date", hence the selector.)
+      fireEvent.change(within(filters).getByLabelText('Start date', { selector: 'input' }), {
+        target: { value: '2026-10-01' },
+      });
+      await waitFor(() =>
+        expect(analyticsApi.getSalesTrends).toHaveBeenLastCalledWith({
+          from: '2026-10-01',
+          to: '2026-11-20',
+        }),
+      );
+      expect(within(filters).getByRole('button', { name: 'Reset' })).toBeEnabled();
+    });
+
+    it('goes back to the default period on Reset', async () => {
+      const user = userEvent.setup();
+      vi.mocked(analyticsApi.getSalesTrends).mockResolvedValue(SOME_SALES);
+      render(<SalesAnalyticsPage />, { wrapper: Providers });
+
+      const filters = await screen.findByRole('complementary', { name: 'Filters' });
+      fireEvent.change(within(filters).getByLabelText('End date', { selector: 'input' }), {
+        target: { value: '2026-06-30' },
+      });
+      await waitFor(() =>
+        expect(analyticsApi.getSalesTrends).toHaveBeenLastCalledWith({
+          from: '2025-12-01',
+          to: '2026-06-30',
+        }),
+      );
+
+      await user.click(within(filters).getByRole('button', { name: 'Reset' }));
+      await waitFor(() =>
+        expect(analyticsApi.getSalesTrends).toHaveBeenLastCalledWith(DEFAULT_PERIOD),
+      );
+    });
+
+    it('shows a load error with Retry when the record dates fail', async () => {
+      const user = userEvent.setup();
+      vi.mocked(analyticsApi.getAnalyticsDateRange).mockRejectedValueOnce(new Error('Server down'));
+      vi.mocked(analyticsApi.getSalesTrends).mockResolvedValue(SOME_SALES);
+      render(<SalesAnalyticsPage />, { wrapper: Providers });
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent("Couldn't load sales trends: Server down");
+      await user.click(within(alert).getByRole('button', { name: 'Retry' }));
+      expect(await screen.findByRole('heading', { name: 'Revenue by month' })).toBeInTheDocument();
+    });
   });
 });

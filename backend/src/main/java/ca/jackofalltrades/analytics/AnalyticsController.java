@@ -18,9 +18,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AnalyticsController {
 
     private final AnalyticsService analyticsService;
+    private final SectionAnalyticsService sectionAnalytics;
 
-    public AnalyticsController(AnalyticsService analyticsService) {
+    public AnalyticsController(AnalyticsService analyticsService, SectionAnalyticsService sectionAnalytics) {
         this.analyticsService = analyticsService;
+        this.sectionAnalytics = sectionAnalytics;
     }
 
     /**
@@ -56,5 +58,33 @@ public class AnalyticsController {
     @GetMapping("/inventory")
     public InventoryByTag inventory() {
         return analyticsService.inventory();
+    }
+
+    /**
+     * Sales Analytics: revenue and sale count over time, by weekday and by channel, for the period
+     * {@code from} to {@code to} (ISO dates, both included), or the last 12 calendar months.
+     */
+    @GetMapping("/sales-trends")
+    public SalesTrends salesTrends(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return sectionAnalytics.salesTrends(LocalDate.now(ZoneOffset.UTC), from, to);
+    }
+
+    /**
+     * Expense Analytics: restock and running costs over time next to revenue, and spending by tag,
+     * for the period {@code from} to {@code to} (ISO dates, both included), or the last 12 months.
+     */
+    @GetMapping("/expense-trends")
+    public ExpenseTrends expenseTrends(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return sectionAnalytics.expenseTrends(LocalDate.now(ZoneOffset.UTC), from, to);
+    }
+
+    /** Inventory Analytics: stock levels, stock value by tag, and what will run out first. */
+    @GetMapping("/stock-health")
+    public StockHealth stockHealth() {
+        return sectionAnalytics.stockHealth(LocalDate.now(ZoneOffset.UTC));
     }
 }

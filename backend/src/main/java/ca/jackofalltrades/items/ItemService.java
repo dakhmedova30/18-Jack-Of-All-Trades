@@ -88,9 +88,10 @@ public class ItemService {
                 .map(Business::getCurrency)
                 .orElseThrow(() -> new NotFoundException("Business", businessId));
         long[] totals = queries.stockTotals(businessId);
+        ItemQueries.NotSelling notSelling = queries.notSelling(businessId, start, end);
         return new InventoryInsights(totals[0], totals[1], start, end,
                 queries.bestSellers(businessId, start, end, BEST_SELLERS_LIMIT, currency),
-                queries.notSelling(businessId, start, end));
+                notSelling.items(), notSelling.valueCents());
     }
 
     @Transactional(readOnly = true)

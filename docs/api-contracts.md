@@ -246,13 +246,15 @@ A page customers can read **without logging in**: the business's public details 
 // ItemInput (isPublic is optional, default false: shown on the public profile, §2.2)
 { "name": "Flower Print", "quantity": 10, "unitPriceCents": 1200, "tags": ["print"], "note": "", "isPublic": false }
 
-// InventoryInsights: stock value at selling price, this month's top 3 sellers, and every
-// in-stock item (quantity > 0) with no sales this month, by name
+// InventoryInsights: stock value at selling price, this month's top 3 sellers, every
+// in-stock item (quantity > 0) with no sales this month, by name, and what those are worth
+// at selling price (notSellingValueCents, part of stockValueCents)
 {
   "stockValueCents": 482000, "totalUnits": 310,
   "periodStart": "2026-10-01T00:00:00.000Z", "periodEnd": "2026-11-01T00:00:00.000Z",
   "bestSellers": [{ "id": 7, "name": "Flower Print", "unitsSold": 14, "revenueCents": 16800 }],
-  "notSelling": [{ "id": 12, "name": "Linen Tote", "quantity": 6 }]
+  "notSelling": [{ "id": 12, "name": "Linen Tote", "quantity": 6 }],
+  "notSellingValueCents": 21000
 }
 
 // LowStock
@@ -474,7 +476,7 @@ Errors (`400`): only one of `from`/`to` given, `from` after `to`, a period of 10
 
 Revenue and expenses are grouped by each record's **first tag** (records without tags count as `"Untagged"`): the top 3 tags by value, with the rest combined as `"Other"`. Days and months are UTC.
 
-**A channel** (the Analytics page's channel filter, with either of the above): `channelId` counts only that channel's sales, in `totalRevenueCents`, `revenueSeries`, `salesByTag` and `revenueByChannel`. Expenses aren't recorded per channel, so `totalExpensesCents` and `expenseSeries` still cover every expense, and `netProfitCents` is then that channel's revenue minus all expenses (the page doesn't show it). Another business's channel matches no sales. `400` validation error for a `channelId` below 1.
+**A channel** (optional, with either of the above; the Analytics page no longer offers it): `channelId` counts only that channel's sales, in `totalRevenueCents`, `revenueSeries`, `salesByTag` and `revenueByChannel`. Expenses aren't recorded per channel, so `totalExpensesCents`, `expenseSeries` and `expensesByTag` still cover every expense, and `netProfitCents` is then that channel's revenue minus all expenses. Another business's channel matches no sales. `400` validation error for a `channelId` below 1.
 
 ```json
 {
@@ -499,6 +501,9 @@ Revenue and expenses are grouped by each record's **first tag** (records without
   "revenueByChannel": [
     { "label": "Online", "valueCents": 30000 },
     { "label": "In person", "valueCents": 10500 }
+  ],
+  "expensesByTag": [
+    { "label": "supplies", "valueCents": 12500 }
   ]
 }
 ```
@@ -508,6 +513,7 @@ Revenue and expenses are grouped by each record's **first tag** (records without
 - The totals cover the selected range or period, not all time. For a fixed range they also include records dated after it (as the demo); for a chosen period they don't. `netProfitCents` = `totalRevenueCents − totalExpensesCents`.
 - A series appears only if it has at least one record in the range.
 - `revenueByChannel` has one entry per channel (by name) with revenue in the range or period, largest first, then by name. Channels aren't folded into `"Other"`, since a business has only a few.
+- `expensesByTag` does the same for expenses, by each expense's first tag (`"Untagged"` if none): every tag, largest first, then by name, not folded into `"Other"` like `expenseSeries`.
 
 ### `GET /api/analytics/date-range`
 
@@ -529,6 +535,44 @@ Current stock grouped by first tag. It's a snapshot, so `range` doesn't apply. T
 }
 ```
 
+### The deeper Analytics pages
+
+Each feeds one page's charts. Money is in the account's currency (sales and expenses keep the currency they were recorded in, so each subtotal is converted before it's added); days and months are UTC.
+
+**`GET /api/analytics/sales-trends`, optional `?from&to`** (Sales Analytics): the period `from` to `to` (ISO dates, both included), bucketed by day, week or month exactly as the summary's chosen periods (`granularity`, `buckets`, `bucketLabels` as there). With neither, the last 12 calendar months by month. The same `400`s as the summary: only one of `from`/`to`, a backwards period, or one of 100 years or more. `revenueCents` and `saleCounts` line up with `buckets`; `byWeekday` runs Monday to Sunday; `byChannel` lists every channel with revenue, largest first.
+
+```json
+{
+  "granularity": "month",
+  "buckets": ["2026-09", "2026-10", "2026-11"], "bucketLabels": ["Sep", "Oct", "Nov"],
+  "revenueCents": [120000, 95000, 30000], "saleCounts": [40, 31, 9],
+  "byWeekday": [{ "day": "Mon", "saleCount": 8, "revenueCents": 24000 }],
+  "byChannel": [{ "label": "Online", "valueCents": 150000 }]
+}
+```
+
+**`GET /api/analytics/expense-trends`, optional `?from&to`** (Expense Analytics): the same period and buckets, `from`/`to` as above. Restocks are expense lines linked to an item, running costs the rest; revenue is there to compare against. `byTag` is spending by first tag, largest first, with tags past the top 6 combined as `"Other"`, listed last.
+
+```json
+{
+  "granularity": "month",
+  "buckets": ["2026-10", "2026-11"], "bucketLabels": ["Oct", "Nov"],
+  "revenueCents": [95000, 30000], "restockCents": [20000, 7950], "runningCents": [25000, 13775],
+  "byTag": [{ "label": "rent", "valueCents": 50000 }, { "label": "Other", "valueCents": 4500 }]
+}
+```
+
+**`GET /api/analytics/stock-health`** (Inventory Analytics): a snapshot. Item counts out of stock, low (1 to the low-stock threshold) and well stocked; stock value at selling price by first tag (top 7, then `"Other"`); and the 8 items that will run out first at their pace over the last `paceDays` days (today included), with `daysLeft` to one decimal (0 when out of stock).
+
+```json
+{
+  "lowStockThreshold": 5, "outOfStockCount": 1, "lowStockCount": 2, "wellStockedCount": 19,
+  "valueByTag": [{ "label": "print", "valueCents": 40000, "quantity": 50, "itemCount": 2 }],
+  "paceDays": 30,
+  "runningOut": [{ "id": 4, "name": "Mug", "quantity": 0, "unitsSold": 6, "daysLeft": 0.0 }]
+}
+```
+
 ## 7. Health: `/api/health`
 
 No login required. `200 { "status": "ok", "database": "ok" }` when the database responds; `503 { "status": "error", "database": "unreachable" }` when it doesn't.
@@ -541,7 +585,7 @@ What the D2 user stories ask for that no branch implements:
 
 | Story | Missing | Suggested addition |
 | --- | --- | --- |
-| **US3:** "charts showcasing the **number of sales** over time, and number of sales **per item**" | `summary` charts revenue **dollars** by **tag**; there's no sales count over time and no per-item breakdown. `bestSellers` only covers the current month's top 3. | Add sale counts to the time series, and a per-item breakdown for the selected range |
+| **US3:** "charts showcasing the **number of sales** over time, and number of sales **per item**" | Sale counts over time are in `sales-trends` (Sales Analytics). There's still no per-item breakdown: `bestSellers` only covers the current month's top 3. | A per-item breakdown for the chosen period |
 | — | Days and months use UTC, so evening sales in Toronto count toward the next day | Optional: bucket by `America/Toronto` |
 
 ## 9. Merge note

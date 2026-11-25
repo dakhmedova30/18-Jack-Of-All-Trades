@@ -6,6 +6,7 @@ import ca.jackofalltrades.analytics.AnalyticsSummary.TagTotal;
 import ca.jackofalltrades.analytics.AnalyticsWindow.Bucket;
 import ca.jackofalltrades.auth.Business;
 import ca.jackofalltrades.auth.BusinessRepository;
+import ca.jackofalltrades.common.api.BadRequestException;
 import ca.jackofalltrades.common.api.NotFoundException;
 import ca.jackofalltrades.common.security.CurrentBusiness;
 import ca.jackofalltrades.currency.CurrencyTotals;
@@ -14,7 +15,6 @@ import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
@@ -36,8 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class SectionAnalyticsService {
 
-    /** The sales and expense trends cover this many calendar months, this one included. */
-    static final int TREND_MONTHS = 12;
+    /** With no period chosen, the trends cover this many calendar months, this one included. */
+    static final int DEFAULT_TREND_MONTHS = 12;
     /** Spending by tag shows this many tags, then "Other". */
     static final int MAX_EXPENSE_TAGS = 6;
     /** Stock value by tag shows this many tags, then "Other", as Inventory Overview does. */
@@ -62,28 +62,52 @@ public class SectionAnalyticsService {
         this.currencyTotals = currencyTotals;
     }
 
-    /** Revenue and sale count by month, by day of the week and by channel, over the last 12 months. */
+    /**
+     * The period {@code from} to {@code to} (both included), bucketed by day, week or month as the
+     * summary's chosen periods are; with neither, the last 12 calendar months by month. 400 if only
+     * one is given, or the period is backwards or too long, as for the summary.
+     */
+    static AnalyticsWindow window(LocalDate today, LocalDate from, LocalDate to) {
+        if (from == null && to == null) {
+            return AnalyticsWindow.lastMonths(today, DEFAULT_TREND_MONTHS);
+        }
+        if (from == null || to == null) {
+            throw new BadRequestException("Give both 'from' and 'to', or neither");
+        }
+        if (from.isAfter(to)) {
+            throw new BadRequestException("'from' must be on or before 'to'");
+        }
+        if (!to.isBefore(from.plusYears(AnalyticsService.MAX_PERIOD_YEARS))) {
+            throw new BadRequestException(
+                    "The period must be shorter than " + AnalyticsService.MAX_PERIOD_YEARS + " years");
+        }
+        return AnalyticsWindow.between(from, to);
+    }
+
+    /**
+     * Revenue and sale count by day, week or month, by day of the week and by channel, over the
+     * period {@code from} to {@code to} (see {@link #window}).
+     */
     @Transactional(readOnly = true)
-    public SalesTrends salesTrends(LocalDate today) {
+    public SalesTrends salesTrends(LocalDate today, LocalDate from, LocalDate to) {
+        AnalyticsWindow window = window(today, from, to);
         int businessId = currentBusiness.id();
         String currency = business(businessId).getCurrency();
-        AnalyticsWindow window = AnalyticsWindow.lastMonths(today, TREND_MONTHS);
-        Map<String, Integer> monthIndex = monthIndex(window);
+        Map<String, Integer> bucketIndex = bucketIndex(window);
+        int buckets = window.buckets().size();
 
-        int months = window.buckets().size();
-        long[] monthCounts = new long[months];
-        List<Map<String, Long>> monthRevenue = subtotals(months);
+        long[] bucketCounts = new long[buckets];
+        List<Map<String, Long>> bucketRevenue = subtotals(buckets);
         long[] weekdayCounts = new long[7];
         List<Map<String, Long>> weekdayRevenue = subtotals(7);
         for (SaleTotal sale : queries.saleTotals(businessId, window.start(), window.end())) {
-            LocalDate day = LocalDate.ofInstant(sale.at(), ZoneOffset.UTC);
-            Integer month = monthIndex.get(YearMonth.from(day).toString());
-            if (month == null) {
+            Integer bucket = bucketIndex.get(AnalyticsService.bucketKey(sale.at(), window.granularity()));
+            if (bucket == null) {
                 continue;
             }
-            int weekday = day.getDayOfWeek().getValue() - 1;
-            monthCounts[month]++;
-            monthRevenue.get(month).merge(sale.currency(), sale.totalCents(), Long::sum);
+            int weekday = LocalDate.ofInstant(sale.at(), ZoneOffset.UTC).getDayOfWeek().getValue() - 1;
+            bucketCounts[bucket]++;
+            bucketRevenue.get(bucket).merge(sale.currency(), sale.totalCents(), Long::sum);
             weekdayCounts[weekday]++;
             weekdayRevenue.get(weekday).merge(sale.currency(), sale.totalCents(), Long::sum);
         }
@@ -103,45 +127,50 @@ public class SectionAnalyticsService {
         }
 
         return new SalesTrends(
+                window.granularity(),
                 window.buckets().stream().map(Bucket::key).toList(),
                 window.buckets().stream().map(Bucket::label).toList(),
-                convertEach(monthRevenue, currency),
-                Arrays.stream(monthCounts).boxed().toList(),
+                convertEach(bucketRevenue, currency),
+                Arrays.stream(bucketCounts).boxed().toList(),
                 byWeekday,
                 largestFirst(byChannel, currency));
     }
 
-    /** Restock and running costs by month next to revenue, and spending by tag, over the last 12 months. */
+    /**
+     * Restock and running costs by day, week or month next to revenue, and spending by tag, over
+     * the period {@code from} to {@code to} (see {@link #window}).
+     */
     @Transactional(readOnly = true)
-    public ExpenseTrends expenseTrends(LocalDate today) {
+    public ExpenseTrends expenseTrends(LocalDate today, LocalDate from, LocalDate to) {
+        AnalyticsWindow window = window(today, from, to);
         int businessId = currentBusiness.id();
         String currency = business(businessId).getCurrency();
-        AnalyticsWindow window = AnalyticsWindow.lastMonths(today, TREND_MONTHS);
-        Map<String, Integer> monthIndex = monthIndex(window);
-        int months = window.buckets().size();
+        Map<String, Integer> bucketIndex = bucketIndex(window);
+        int buckets = window.buckets().size();
 
-        List<Map<String, Long>> revenue = subtotals(months);
+        List<Map<String, Long>> revenue = subtotals(buckets);
         for (SaleTotal sale : queries.saleTotals(businessId, window.start(), window.end())) {
-            Integer month = monthIndex.get(monthKey(sale.at()));
-            if (month != null) {
-                revenue.get(month).merge(sale.currency(), sale.totalCents(), Long::sum);
+            Integer bucket = bucketIndex.get(AnalyticsService.bucketKey(sale.at(), window.granularity()));
+            if (bucket != null) {
+                revenue.get(bucket).merge(sale.currency(), sale.totalCents(), Long::sum);
             }
         }
 
-        List<Map<String, Long>> restock = subtotals(months);
-        List<Map<String, Long>> running = subtotals(months);
+        List<Map<String, Long>> restock = subtotals(buckets);
+        List<Map<String, Long>> running = subtotals(buckets);
         Map<String, Map<String, Long>> byTag = new LinkedHashMap<>();
         for (CostLine line : queries.costLines(businessId, window.start(), window.end())) {
-            Integer month = monthIndex.get(monthKey(line.at()));
-            if (month == null) {
+            Integer bucket = bucketIndex.get(AnalyticsService.bucketKey(line.at(), window.granularity()));
+            if (bucket == null) {
                 continue;
             }
-            (line.restock() ? restock : running).get(month).merge(line.currency(), line.totalCents(), Long::sum);
+            (line.restock() ? restock : running).get(bucket).merge(line.currency(), line.totalCents(), Long::sum);
             byTag.computeIfAbsent(line.tag(), unused -> new HashMap<>())
                     .merge(line.currency(), line.totalCents(), Long::sum);
         }
 
         return new ExpenseTrends(
+                window.granularity(),
                 window.buckets().stream().map(Bucket::key).toList(),
                 window.buckets().stream().map(Bucket::label).toList(),
                 convertEach(revenue, currency),
@@ -227,17 +256,13 @@ public class SectionAnalyticsService {
         return list;
     }
 
-    private static Map<String, Integer> monthIndex(AnalyticsWindow window) {
+    /** Each bucket's key and its position, to file records by AnalyticsService.bucketKey. */
+    private static Map<String, Integer> bucketIndex(AnalyticsWindow window) {
         Map<String, Integer> index = new HashMap<>();
         for (int i = 0; i < window.buckets().size(); i++) {
             index.put(window.buckets().get(i).key(), i);
         }
         return index;
-    }
-
-    /** "YYYY-MM", as a month bucket's key. */
-    private static String monthKey(Instant at) {
-        return YearMonth.from(LocalDate.ofInstant(at, ZoneOffset.UTC)).toString();
     }
 
     private static Instant startOf(LocalDate day) {

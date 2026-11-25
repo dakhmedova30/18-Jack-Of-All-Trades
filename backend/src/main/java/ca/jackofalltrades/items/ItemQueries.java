@@ -131,9 +131,9 @@ public class ItemQueries {
     }
 
     /** In-stock items with no sale lines in {@code [from, to)}, by name. */
-    public List<InventoryInsights.NotSellingItem> notSelling(int businessId, Instant from, Instant to) {
-        return jdbcClient.sql("""
-                        SELECT i.id, i.name, i.quantity
+    public NotSelling notSelling(int businessId, Instant from, Instant to) {
+        List<NotSellingRow> rows = jdbcClient.sql("""
+                        SELECT i.id, i.name, i.quantity, i.quantity::bigint * i.unit_price_cents AS value_cents
                         FROM items i
                         WHERE i.business_id = :businessId AND i.quantity > 0
                           AND NOT EXISTS (
@@ -148,10 +148,20 @@ public class ItemQueries {
                 .param("businessId", businessId)
                 .param("from", OffsetDateTime.ofInstant(from, ZoneOffset.UTC))
                 .param("to", OffsetDateTime.ofInstant(to, ZoneOffset.UTC))
-                .query((rs, rowNum) -> new InventoryInsights.NotSellingItem(
-                        rs.getInt("id"), rs.getString("name"), rs.getInt("quantity")))
+                .query((rs, rowNum) -> new NotSellingRow(new InventoryInsights.NotSellingItem(
+                        rs.getInt("id"), rs.getString("name"), rs.getInt("quantity")), rs.getLong("value_cents")))
                 .list();
+        return new NotSelling(rows.stream().map(NotSellingRow::item).toList(),
+                rows.stream().mapToLong(NotSellingRow::valueCents).sum());
     }
+
+    /**
+     * The in-stock items with no sales in a period, and what they're worth at selling price. Items
+     * are kept in the account's currency, so their prices add up as they are, as in stockTotals.
+     */
+    public record NotSelling(List<InventoryInsights.NotSellingItem> items, long valueCents) {}
+
+    private record NotSellingRow(InventoryInsights.NotSellingItem item, long valueCents) {}
 
     /** How many items have at most {@code threshold} left, plus the {@code limit} lowest, lowest first. */
     public LowStock lowStock(int businessId, int threshold, int limit) {

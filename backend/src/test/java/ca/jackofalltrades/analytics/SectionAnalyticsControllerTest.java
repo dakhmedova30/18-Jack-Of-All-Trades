@@ -106,6 +106,7 @@ class SectionAnalyticsControllerTest extends PostgresTestBase {
 
         mockMvc.perform(get("/api/analytics/sales-trends").cookie(cookie))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.granularity").value("month"))
                 .andExpect(jsonPath("$.buckets", hasSize(12)))
                 .andExpect(jsonPath("$.buckets[0]").value(thisMonth.minusMonths(11).toString()))
                 .andExpect(jsonPath("$.buckets[11]").value(thisMonth.toString()))
@@ -225,6 +226,63 @@ class SectionAnalyticsControllerTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.runningOut[*].name", contains("Mug", "Soap", "Towel")))
                 .andExpect(jsonPath("$.runningOut[*].unitsSold", contains(6, 60, 2)))
                 .andExpect(jsonPath("$.runningOut[*].daysLeft", contains(0.0, 20.0, 150.0)));
+    }
+
+    @Test
+    void trendsCoverTheChosenPeriodByDayWeekOrMonth() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        insertSale(business, today, "In person", 1000);
+        insertSale(business, today.minusDays(10), "In person", 700);
+        insertSale(business, today.minusDays(100), "Online", 500);   // only in the longer periods
+        addExpenseLine(insertExpense(business, today.minusDays(10), "rent"), null, 300);
+        String last30Days = "?from=" + today.minusDays(29) + "&to=" + today;
+
+        // Up to a month: one bucket per day, as for the summary.
+        mockMvc.perform(get("/api/analytics/sales-trends" + last30Days).cookie(cookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.granularity").value("day"))
+                .andExpect(jsonPath("$.buckets", hasSize(30)))
+                .andExpect(jsonPath("$.buckets[29]").value(today.toString()))
+                .andExpect(jsonPath("$.revenueCents[29]").value(1000))
+                .andExpect(jsonPath("$.revenueCents[19]").value(700))
+                .andExpect(jsonPath("$.byChannel[*].valueCents", contains(1700)));
+        mockMvc.perform(get("/api/analytics/expense-trends" + last30Days).cookie(cookie))
+                .andExpect(jsonPath("$.granularity").value("day"))
+                .andExpect(jsonPath("$.runningCents[19]").value(300));
+        // Up to about six months: by week, and the sale 100 days back now counts.
+        mockMvc.perform(get("/api/analytics/sales-trends?from=" + today.minusDays(119) + "&to=" + today)
+                        .cookie(cookie))
+                .andExpect(jsonPath("$.granularity").value("week"))
+                .andExpect(jsonPath("$.byChannel[*].label", contains("In person", "Online")))
+                .andExpect(jsonPath("$.byChannel[*].valueCents", contains(1700, 500)));
+        // A single past day: only what happened on it.
+        LocalDate past = today.minusDays(100);
+        mockMvc.perform(get("/api/analytics/sales-trends?from=" + past + "&to=" + past).cookie(cookie))
+                .andExpect(jsonPath("$.buckets", contains(past.toString())))
+                .andExpect(jsonPath("$.revenueCents", contains(500)))
+                .andExpect(jsonPath("$.saleCounts", contains(1)));
+        // Longer: by month.
+        mockMvc.perform(get("/api/analytics/expense-trends?from=" + today.minusDays(400) + "&to=" + today)
+                        .cookie(cookie))
+                .andExpect(jsonPath("$.granularity").value("month"))
+                .andExpect(jsonPath("$.byTag[*].label", contains("rent")));
+    }
+
+    @Test
+    void aPeriodNeedsBothEndsTheRightWayRound() throws Exception {
+        Cookie cookie = registerAndLogin();
+        for (String path : new String[] {"/api/analytics/sales-trends", "/api/analytics/expense-trends"}) {
+            mockMvc.perform(get(path + "?from=2026-10-01").cookie(cookie))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error.message").value("Give both 'from' and 'to', or neither"));
+            mockMvc.perform(get(path + "?from=2026-10-02&to=2026-10-01").cookie(cookie))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error.message").value("'from' must be on or before 'to'"));
+            mockMvc.perform(get(path + "?from=1900-01-01&to=2026-10-01").cookie(cookie))
+                    .andExpect(status().isBadRequest());
+        }
     }
 
     @Test

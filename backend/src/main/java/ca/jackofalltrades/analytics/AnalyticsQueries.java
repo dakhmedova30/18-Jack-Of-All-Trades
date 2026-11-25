@@ -28,6 +28,24 @@ public class AnalyticsQueries {
     /** The first and last day (UTC) with a sale or expense; both null when there are none. */
     record RecordSpan(LocalDate first, LocalDate last) {}
 
+    /** One sale: its date, the currency it was recorded in, and the sum of its lines (0 if none). */
+    record SaleTotal(Instant at, String currency, long totalCents) {}
+
+    /**
+     * One expense line: its parent's date and first tag ("Untagged" if none), its currency, and
+     * whether it restocks an item (it's linked to one) or is a running cost (it isn't).
+     */
+    record CostLine(Instant at, String tag, String currency, boolean restock, long totalCents) {}
+
+    /** One first tag's current stock, valued at selling price. */
+    record TagValue(String tag, long valueCents, long quantity, long itemCount) {}
+
+    /** How many items are out of stock, low (1 to the threshold), and above the threshold. */
+    record StockCounts(long outOfStock, long low, long wellStocked) {}
+
+    /** An item that sold in a period: its stock now and the units sold in the period. */
+    record SellingItem(int id, String name, int quantity, long unitsSold) {}
+
     private final JdbcClient jdbcClient;
 
     public AnalyticsQueries(JdbcClient jdbcClient) {
@@ -94,6 +112,106 @@ public class AnalyticsQueries {
                         """)
                 .param("businessId", businessId)
                 .query((rs, rowNum) -> new TagStock(rs.getString("tag"), rs.getLong("quantity"), rs.getLong("item_count")))
+                .list();
+    }
+
+    /** Every sale of this business in {@code [since, until)}, one row per sale, from every channel. */
+    List<SaleTotal> saleTotals(int businessId, Instant since, Instant until) {
+        return jdbcClient.sql("""
+                        SELECT s.sold_at AS at, s.currency, COALESCE(SUM(si.total_cents), 0) AS total_cents
+                        FROM sales s LEFT JOIN sale_items si ON si.sale_id = s.id
+                        WHERE s.business_id = :businessId AND s.sold_at >= :since AND s.sold_at < :until
+                        GROUP BY s.id, s.sold_at, s.currency
+                        """)
+                .param("businessId", businessId)
+                .param("since", utc(since))
+                .param("until", utc(until))
+                .query((rs, rowNum) -> new SaleTotal(
+                        rs.getObject("at", OffsetDateTime.class).toInstant(),
+                        rs.getString("currency"),
+                        rs.getLong("total_cents")))
+                .list();
+    }
+
+    /** Every expense line of this business incurred in {@code [since, until)}. */
+    List<CostLine> costLines(int businessId, Instant since, Instant until) {
+        return jdbcClient.sql("""
+                        SELECT e.incurred_at AS at, COALESCE(e.tags[1], 'Untagged') AS tag, e.currency,
+                               ei.item_id IS NOT NULL AS restock, ei.total_cents
+                        FROM expenses e JOIN expense_items ei ON ei.expense_id = e.id
+                        WHERE e.business_id = :businessId AND e.incurred_at >= :since AND e.incurred_at < :until
+                        """)
+                .param("businessId", businessId)
+                .param("since", utc(since))
+                .param("until", utc(until))
+                .query((rs, rowNum) -> new CostLine(
+                        rs.getObject("at", OffsetDateTime.class).toInstant(),
+                        rs.getString("tag"),
+                        rs.getString("currency"),
+                        rs.getBoolean("restock"),
+                        rs.getLong("total_cents")))
+                .list();
+    }
+
+    /**
+     * Current stock value at selling price by each item's first tag, largest first. Items are kept
+     * in the account's currency, so their prices add up as they are (as for the stock value card).
+     */
+    List<TagValue> stockValueByTag(int businessId) {
+        return jdbcClient.sql("""
+                        SELECT COALESCE(tags[1], 'Untagged') AS tag,
+                               SUM(quantity::bigint * unit_price_cents) AS value_cents,
+                               SUM(quantity::bigint) AS quantity, COUNT(*) AS item_count
+                        FROM items
+                        WHERE business_id = :businessId
+                        GROUP BY 1
+                        ORDER BY value_cents DESC, tag ASC
+                        """)
+                .param("businessId", businessId)
+                .query((rs, rowNum) -> new TagValue(rs.getString("tag"), rs.getLong("value_cents"),
+                        rs.getLong("quantity"), rs.getLong("item_count")))
+                .list();
+    }
+
+    /** Items by stock level against the low-stock {@code threshold}; out and low add up to Low stock's count. */
+    StockCounts stockCounts(int businessId, int threshold) {
+        return jdbcClient.sql("""
+                        SELECT COUNT(*) FILTER (WHERE quantity = 0) AS out_of_stock,
+                               COUNT(*) FILTER (WHERE quantity > 0 AND quantity <= :threshold) AS low,
+                               COUNT(*) FILTER (WHERE quantity > :threshold) AS well_stocked
+                        FROM items
+                        WHERE business_id = :businessId
+                        """)
+                .param("businessId", businessId)
+                .param("threshold", threshold)
+                .query((rs, rowNum) -> new StockCounts(
+                        rs.getLong("out_of_stock"), rs.getLong("low"), rs.getLong("well_stocked")))
+                .single();
+    }
+
+    /**
+     * The {@code limit} items that sold in {@code [since, until)} and will run out soonest at that
+     * pace: stock now divided by units sold, smallest first (out of stock first). Only lines still
+     * linked to an item count.
+     */
+    List<SellingItem> runningOut(int businessId, Instant since, Instant until, int limit) {
+        return jdbcClient.sql("""
+                        SELECT i.id, i.name, i.quantity, SUM(si.quantity::bigint) AS units_sold
+                        FROM items i
+                        JOIN sale_items si ON si.item_id = i.id
+                        JOIN sales s ON s.id = si.sale_id
+                        WHERE i.business_id = :businessId AND s.business_id = :businessId
+                          AND s.sold_at >= :since AND s.sold_at < :until
+                        GROUP BY i.id, i.name, i.quantity
+                        ORDER BY i.quantity::numeric / SUM(si.quantity) ASC, i.name ASC, i.id ASC
+                        LIMIT :limit
+                        """)
+                .param("businessId", businessId)
+                .param("since", utc(since))
+                .param("until", utc(until))
+                .param("limit", limit)
+                .query((rs, rowNum) -> new SellingItem(rs.getInt("id"), rs.getString("name"),
+                        rs.getInt("quantity"), rs.getLong("units_sold")))
                 .list();
     }
 
