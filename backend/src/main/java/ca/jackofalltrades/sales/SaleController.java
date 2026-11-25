@@ -2,6 +2,7 @@ package ca.jackofalltrades.sales;
 
 import ca.jackofalltrades.common.api.Ids;
 import ca.jackofalltrades.common.api.Paginated;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Sales endpoints (contract §4). No {@code @Validated}, for the reason given on ItemController. */
+@Tag(name = "Sales", description = "Recorded sales. Recording one takes the sold quantities out of stock.")
 @RestController
 @RequestMapping("/api/sales")
 public class SaleController {

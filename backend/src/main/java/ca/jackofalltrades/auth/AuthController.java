@@ -4,6 +4,8 @@ import ca.jackofalltrades.common.api.NotFoundException;
 import ca.jackofalltrades.common.api.UnauthorizedException;
 import ca.jackofalltrades.common.security.BusinessPrincipal;
 import ca.jackofalltrades.common.security.CurrentBusiness;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -31,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Register, login, logout and "who am I" (contract §2). */
+@Tag(name = "Account", description = "Register, log in and out, and the business's own profile, logo and avatar.")
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -51,6 +54,7 @@ public class AuthController {
         this.securityContextRepository = securityContextRepository;
     }
 
+    @SecurityRequirements // public: no login needed
     @PostMapping("/register")
     public ResponseEntity<BusinessResponse> register(
             @Valid @RequestBody RegisterRequest body, HttpServletRequest request, HttpServletResponse response) {
@@ -59,6 +63,7 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(BusinessResponse.from(business));
     }
 
+    @SecurityRequirements // public: no login needed
     @PostMapping("/login")
     public BusinessResponse login(
             @Valid @RequestBody LoginRequest body, HttpServletRequest request, HttpServletResponse response) {
@@ -80,6 +85,7 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
+    @SecurityRequirements // public: no login needed
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest request) {
         HttpSession session = request.getSession(false);

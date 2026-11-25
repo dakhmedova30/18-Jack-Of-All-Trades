@@ -8,7 +8,7 @@
 ​
 ## Try It Now
 
-**Live app: https://jack-of-all-trades-m86p.onrender.com** (no install needed)
+**Live app: https://jack-of-all-trades-app.onrender.com** (no install needed)
 
 Dev site, which updates on every merge to `main`: https://jack-of-all-trades-dev.onrender.com (its own database; see [Environments and releases](#environments-and-releases)).
 
@@ -258,6 +258,8 @@ Each feature follows the same layers: **controllers** handle HTTP only, **servic
 
 See [`docs/api-contracts.md`](docs/api-contracts.md) for the authoritative, endpoint-by-endpoint spec. The summary below covers the same contract.
 
+**Interactive docs:** every running backend serves Swagger UI at `/swagger-ui.html` (locally, http://localhost:4000/swagger-ui.html) and the generated OpenAPI 3.1 spec at `/v3/api-docs`. Both are generated from the controllers by [springdoc](https://springdoc.org), so they always match the deployed code. Endpoints are grouped by feature, and a lock icon marks the ones that need a login. To try a locked endpoint, run `POST /api/auth/login` from the same page first: it sets the session cookie in your browser, and later calls send it automatically. Set `API_DOCS_ENABLED=false` to turn the docs off.
+
 All error responses share one shape: `{ "error": { "message": string, "details"?: [{ "field", "message" }] } }`. Money is always sent as integer cents.
 
 Every route except `/api/health`, `/api/health/live`, `/api/auth/*` and the read-only `/api/public/*` requires a logged-in session
@@ -343,6 +345,7 @@ Vite reads `frontend/client/.env` by itself when `npm run dev` or `npm run build
 | `SPRING_DATASOURCE_PASSWORD`   | No       | Default: `jack`                                                              |
 | `SPRING_PROFILES_ACTIVE`       | No       | Set to `demo` to seed the demo account on startup                           |
 | `PORT`                         | No       | Defaults to 4000 (Render sets it automatically)                             |
+| `API_DOCS_ENABLED`             | No       | `false` turns off Swagger UI and `/v3/api-docs`. Default: `true`             |
 
 **Client** (`frontend/client/.env`, read at build time):
 
@@ -371,7 +374,7 @@ Vite reads `frontend/client/.env` by itself when `npm run dev` or `npm run build
 | Environment | URL | Database | Deploys when |
 | --- | --- | --- | --- |
 | **dev** | https://jack-of-all-trades-dev.onrender.com | Neon branch `dev` | Every merge to `main`, after all CI checks pass (`deploy-dev` job) |
-| **prod** | https://jack-of-all-trades-m86p.onrender.com | Neon branch `production` | A GitHub release is published, after all CI checks pass on the tagged commit (`deploy-prod` job) |
+| **prod** | https://jack-of-all-trades-app.onrender.com | Neon branch `production` | A GitHub release is published, after all CI checks pass on the tagged commit (`deploy-prod` job) |
 
 Both are Render web services built from the same Dockerfile, set up as in the steps above, with
 the same environment variables except the database host and password. CI sends the commit SHA with each

@@ -1,6 +1,8 @@
 package ca.jackofalltrades.publicprofile;
 
 import ca.jackofalltrades.common.api.NotFoundException;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Duration;
 import java.util.Locale;
 import org.springframework.http.CacheControl;
@@ -12,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Public profile endpoints (contract §2.2). Under /api/public/**, which SecurityConfig lets anyone read. */
+@Tag(name = "Public profile", description = "A business's public page and listed items. No login needed.")
+@SecurityRequirements // public: no login needed
 @RestController
 @RequestMapping("/api/public/businesses/{slug}")
 public class PublicProfileController {

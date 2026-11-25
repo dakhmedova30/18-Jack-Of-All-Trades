@@ -1,5 +1,6 @@
 package ca.jackofalltrades.auth;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
@@ -71,7 +72,15 @@ public record UpdateBusinessRequest(
 
         /** The public profile's link name; an empty string turns the profile off. */
         @Size(max = 40, message = "Public link must be at most 40 characters")
-        String publicSlug) {
+        String publicSlug,
+
+        /** A contact email shown on the public profile, separate from the login email; empty removes it. */
+        @Email(message = "Enter a valid email")
+        @Size(max = 255, message = "Email must be at most 255 characters")
+        String publicEmail,
+
+        /** Whether the public profile shows the phone number. */
+        Boolean showPhonePublicly) {
 
     public UpdateBusinessRequest {
         name = strip(name);
@@ -93,6 +102,7 @@ public record UpdateBusinessRequest(
         tiktok = strip(tiktok);
         etsy = strip(etsy);
         publicSlug = publicSlug == null ? null : publicSlug.strip().toLowerCase(Locale.ROOT);
+        publicEmail = strip(publicEmail);
     }
 
     private static String strip(String value) {
