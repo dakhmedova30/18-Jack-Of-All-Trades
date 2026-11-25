@@ -11,9 +11,10 @@ import {
 } from '../../api/items';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CsvTransfer } from '../../components/CsvTransfer';
-import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
+import { PlusIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
 import { TagList } from '../../components/TagList';
+import { Toolbar } from '../../components/Toolbar';
 import { useAuth } from '../../hooks/useAuth';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useItems } from '../../hooks/useItems';
@@ -216,8 +217,56 @@ export function InventoryPage() {
         <p className="muted">A view of your current inventory.</p>
       </div>
 
-      <div className="toolbar">
-        <div className="toolbar__actions">
+      <Toolbar
+        selectedCount={selected.size}
+        onAdd={() => setFormState({ mode: 'create' })}
+        onDelete={() => setDeleteTarget({ kind: 'bulk', ids: [...selected.keys()] })}
+        profileActions={
+          selected.size > 0 ? (
+            <>
+              <button
+                type="button"
+                className="button button--ghost"
+                disabled={toShow.length === 0 || visibilityBusy}
+                onClick={() => void setSelectedPublic(true)}
+                aria-label={`Show on profile${toShow.length > 0 ? ` (${toShow.length})` : ''}`}
+              >
+                <span className="toolbar__profile-label">
+                  Show on profile{toShow.length > 0 && ` (${toShow.length})`}
+                </span>
+                <span className="toolbar__profile-compact">Show</span>
+              </button>
+              <button
+                type="button"
+                className="button button--ghost"
+                disabled={toHide.length === 0 || visibilityBusy}
+                onClick={() => void setSelectedPublic(false)}
+                aria-label={`Hide from profile${toHide.length > 0 ? ` (${toHide.length})` : ''}`}
+              >
+                <span className="toolbar__profile-label">
+                  Hide from profile{toHide.length > 0 && ` (${toHide.length})`}
+                </span>
+                <span className="toolbar__profile-compact">Hide</span>
+              </button>
+            </>
+          ) : undefined
+        }
+        search={
+          <div className="search">
+            <input
+              id="inventory-search"
+              type="search"
+              placeholder="Search"
+              value={searchInput}
+              onChange={(event) => {
+                setSearchInput(event.target.value);
+                setPage(1);
+              }}
+              aria-label="Search items by name or tag"
+            />
+          </div>
+        }
+        transfer={
           <CsvTransfer
             filename="inventory"
             headers={ITEM_CSV_HEADERS}
@@ -231,53 +280,8 @@ export function InventoryPage() {
             importRow={importItem}
             onImported={reload}
           />
-          <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
-            Add <PlusIcon />
-          </button>
-          <button
-            type="button"
-            className="button button--secondary"
-            disabled={selected.size === 0}
-            onClick={() => setDeleteTarget({ kind: 'bulk', ids: [...selected.keys()] })}
-          >
-            Bulk delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
-          </button>
-          {/* Each is enabled only when some selected item would change; the count is how many. */}
-          <button
-            type="button"
-            className="button button--secondary"
-            disabled={toShow.length === 0 || visibilityBusy}
-            onClick={() => void setSelectedPublic(true)}
-          >
-            Show on profile{toShow.length > 0 && ` (${toShow.length})`}
-          </button>
-          <button
-            type="button"
-            className="button button--secondary"
-            disabled={toHide.length === 0 || visibilityBusy}
-            onClick={() => void setSelectedPublic(false)}
-          >
-            Hide from profile{toHide.length > 0 && ` (${toHide.length})`}
-          </button>
-        </div>
-        <div className="search-field">
-          <label htmlFor="inventory-search">Search</label>
-          <div className="search">
-            <input
-              id="inventory-search"
-              type="search"
-              placeholder="Search"
-              value={searchInput}
-              onChange={(event) => {
-                setSearchInput(event.target.value);
-                setPage(1);
-              }}
-              aria-label="Search items by name or tag"
-            />
-            <SearchIcon />
-          </div>
-        </div>
-      </div>
+        }
+      />
 
       {visibilityResult && 'error' in visibilityResult && (
         <p className="form-error" role="alert">

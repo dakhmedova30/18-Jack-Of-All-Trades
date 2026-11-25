@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { bulkDeleteSales, createSale, deleteSale, listSales, updateSale } from '../../api/sales';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CsvTransfer } from '../../components/CsvTransfer';
-import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
+import { PlusIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
+import { Toolbar } from '../../components/Toolbar';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useSales } from '../../hooks/useSales';
 import { useCurrency } from '../../hooks/useCurrency';
@@ -152,8 +153,28 @@ export function SalesPage() {
         <p className="muted">A recap of sales made over the chosen date range.</p>
       </div>
 
-      <div className="toolbar">
-        <div className="toolbar__actions">
+      <Toolbar
+        selectedCount={selectedIds.size}
+        onAdd={() => setFormState({ mode: 'create' })}
+        onDelete={() => setDeleteTarget({ kind: 'bulk', ids: [...selectedIds] })}
+        search={
+          <div className="search">
+            <input
+              id="sales-search"
+              type="search"
+              placeholder="Search"
+              value={searchInput}
+              onChange={(event) => {
+                setSearchInput(event.target.value);
+                setPage(1);
+              }}
+              aria-label="Search sales by description, channel or item"
+            />
+          </div>
+        }
+        filters={<SalesFilters value={filters} onChange={changeFilters} />}
+        activeFilterCount={[filters.channelId, filters.from, filters.to].filter(Boolean).length}
+        transfer={
           <CsvTransfer
             filename="sales"
             headers={SALE_CSV_HEADERS}
@@ -167,39 +188,8 @@ export function SalesPage() {
             importRow={importSale}
             onImported={reload}
           />
-          <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
-            Add <PlusIcon />
-          </button>
-          <button
-            type="button"
-            className="button button--secondary"
-            disabled={selectedIds.size === 0}
-            onClick={() => setDeleteTarget({ kind: 'bulk', ids: [...selectedIds] })}
-          >
-            Bulk delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
-          </button>
-        </div>
-        <div className="toolbar__filters">
-          <SalesFilters value={filters} onChange={changeFilters} />
-          <div className="search-field">
-            <label htmlFor="sales-search">Search</label>
-            <div className="search">
-              <input
-                id="sales-search"
-                type="search"
-                placeholder="Search"
-                value={searchInput}
-                onChange={(event) => {
-                  setSearchInput(event.target.value);
-                  setPage(1);
-                }}
-                aria-label="Search sales by description, channel or item"
-              />
-              <SearchIcon />
-            </div>
-          </div>
-        </div>
-      </div>
+        }
+      />
 
       {error && (
         <div className="banner banner--error" role="alert">

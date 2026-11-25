@@ -138,7 +138,7 @@ export function CsvTransfer<T>({
       <div className="csv-transfer__buttons">
         <button
           type="button"
-          className="button button--secondary"
+          className="button button--ghost"
           disabled={busy}
           onClick={() => void exportRecords()}
         >
@@ -148,7 +148,7 @@ export function CsvTransfer<T>({
           <>
             <button
               type="button"
-              className="button button--secondary"
+              className="button button--ghost"
               disabled={busy}
               onClick={() => fileInput.current?.click()}
             >

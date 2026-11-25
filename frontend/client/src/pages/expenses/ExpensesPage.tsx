@@ -8,9 +8,10 @@ import {
 } from '../../api/expenses';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CsvTransfer } from '../../components/CsvTransfer';
-import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
+import { PlusIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
 import { TagList } from '../../components/TagList';
+import { Toolbar } from '../../components/Toolbar';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useExpenses } from '../../hooks/useExpenses';
 import { useCurrency } from '../../hooks/useCurrency';
@@ -150,8 +151,26 @@ export function ExpensesPage() {
         <p className="muted">A recap of expenses made over the chosen date range.</p>
       </div>
 
-      <div className="toolbar">
-        <div className="toolbar__actions">
+      <Toolbar
+        selectedCount={selectedIds.size}
+        onAdd={() => setFormState({ mode: 'create' })}
+        onDelete={() => setDeleteTarget({ kind: 'bulk', ids: [...selectedIds] })}
+        search={
+          <div className="search">
+            <input
+              id="expenses-search"
+              type="search"
+              placeholder="Search"
+              value={searchInput}
+              onChange={(event) => {
+                setSearchInput(event.target.value);
+                setPage(1);
+              }}
+              aria-label="Search expenses by tag or item"
+            />
+          </div>
+        }
+        transfer={
           <CsvTransfer
             filename="expenses"
             headers={EXPENSE_CSV_HEADERS}
@@ -165,36 +184,8 @@ export function ExpensesPage() {
             importRow={importExpense}
             onImported={reload}
           />
-          <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
-            Add <PlusIcon />
-          </button>
-          <button
-            type="button"
-            className="button button--secondary"
-            disabled={selectedIds.size === 0}
-            onClick={() => setDeleteTarget({ kind: 'bulk', ids: [...selectedIds] })}
-          >
-            Bulk delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
-          </button>
-        </div>
-        <div className="search-field">
-          <label htmlFor="expenses-search">Search</label>
-          <div className="search">
-            <input
-              id="expenses-search"
-              type="search"
-              placeholder="Search"
-              value={searchInput}
-              onChange={(event) => {
-                setSearchInput(event.target.value);
-                setPage(1);
-              }}
-              aria-label="Search expenses by tag or item"
-            />
-            <SearchIcon />
-          </div>
-        </div>
-      </div>
+        }
+      />
 
       {error && (
         <div className="banner banner--error" role="alert">

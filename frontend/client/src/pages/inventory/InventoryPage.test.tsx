@@ -172,8 +172,7 @@ describe('InventoryPage', () => {
     render(<InventoryPage />, { wrapper: RoutedPageProviders });
 
     await screen.findByText('Tea');
-    const show = screen.getByRole('button', { name: 'Show on profile' });
-    expect(show).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Show on profile' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('checkbox', { name: 'Select Tea' }));
     await user.click(screen.getByRole('button', { name: 'Show on profile (1)' }));
@@ -187,7 +186,7 @@ describe('InventoryPage', () => {
       '/settings/profile',
     );
     // The selection is cleared once the change is saved.
-    expect(screen.getByRole('button', { name: 'Show on profile' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Show on profile' })).not.toBeInTheDocument();
   });
 
   it('shows an error when changing visibility fails', async () => {
