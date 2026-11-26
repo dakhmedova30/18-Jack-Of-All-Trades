@@ -1,49 +1,22 @@
 import type { ReactNode } from 'react';
-import type { AnalyticsSummary, AnalyticsTagSeries } from '../types';
+import type { AnalyticsSummary, Expense, InventoryInsights, Sale } from '../types';
 import { useCurrency } from '../hooks/useCurrency';
-import { formatCents } from '../utils/money';
-import { SERIES_COLORS } from './analytics/charts';
-import type { HomeRangeOption } from './homeRange';
+import { usePreferences } from '../hooks/usePreferences';
+import { formatCents, formatCentsCompact } from '../utils/money';
+import { ChartLegend, LineChart } from './analytics/charts';
 
 /**
- * Small live previews for the home page dashboard cards. They show the shape
- * of the chosen period's data rather than repeating the KPI strip's totals.
- * Revenue is always blue and expenses always orange, here and in the Analytics
- * charts.
+ * The live previews inside the home page's four dashboard cards: the latest sales, the recent
+ * best and worst sellers, the latest expenses, and the revenue overview chart. What period each
+ * covers is shown at the card's top right, so the previews have no captions of their own.
  */
 
-const REVENUE_COLOR = SERIES_COLORS[0];
-const EXPENSE_COLOR = SERIES_COLORS[1];
-
-/** What a preview has to show: still loading, failed (the strip shows the error), or data. */
+/** What a preview has to show: still loading, failed, or data. */
 export type PreviewState<T> =
   { status: 'loading' } | { status: 'error' } | { status: 'ready'; data: T };
 
-/** Per-bucket totals across every tag series (e.g. one revenue figure per day). */
-function totalsPerBucket(series: AnalyticsTagSeries[], bucketCount: number): number[] {
-  const totals = new Array<number>(bucketCount).fill(0);
-  for (const s of series) s.values.forEach((value, i) => (totals[i]! += value));
-  return totals;
-}
-
-function PreviewFrame({ caption, children }: { caption: string; children: ReactNode }) {
-  return (
-    <>
-      <div className="home-card__preview">{children}</div>
-      <p className="home-card__caption">{caption}</p>
-    </>
-  );
-}
-
-/** Props for the previews that follow the Home page's period dropdown. */
-interface RangedPreviewProps {
-  summary: PreviewState<AnalyticsSummary>;
-  range: HomeRangeOption;
-}
-
-/** "Daily" or "Monthly", from the buckets the server chose for the range. */
-function bucketAdjective(summary: PreviewState<AnalyticsSummary>): string {
-  return summary.status === 'ready' && summary.data.granularity === 'month' ? 'Monthly' : 'Daily';
+function PreviewFrame({ children }: { children: ReactNode }) {
+  return <div className="home-card__preview">{children}</div>;
 }
 
 function PreviewMessage({ children }: { children: ReactNode }) {
@@ -57,175 +30,217 @@ function renderState<T>(state: PreviewState<T>, ready: (data: T) => ReactNode): 
   return ready(state.data);
 }
 
-interface SparklineSeries {
-  values: number[];
-  color: string;
+const NAMED_PER_ROW = 2;
+
+/** "Ceramic planter ×2, Soap +1 more": the first few names, the rest counted. */
+function describeLines(lines: { itemName: string; quantity: number }[]): string {
+  const named = lines
+    .slice(0, NAMED_PER_ROW)
+    .map((line) => (line.quantity > 1 ? `${line.itemName} ×${line.quantity}` : line.itemName))
+    .join(', ');
+  const remaining = lines.length - NAMED_PER_ROW;
+  return remaining > 0 ? `${named} +${remaining} more` : named;
 }
 
-const SPARK_WIDTH = 240;
-const SPARK_HEIGHT = 90;
-const SPARK_PAD = 8;
+interface ActivityRow {
+  id: number;
+  date: string;
+  label: string;
+  amount: string;
+}
 
-/**
- * Axis-free line chart for card-sized previews. All series share one y-scale
- * so they're comparable. A single point (e.g. on the 1st of the month) is drawn
- * as a dot, since there's no line to draw yet.
- */
-function Sparkline({ series }: { series: SparklineSeries[] }) {
-  const max = Math.max(1, ...series.flatMap((s) => s.values));
-  const toPoint = (value: number, index: number, count: number) => {
-    const x =
-      count === 1
-        ? SPARK_WIDTH / 2
-        : SPARK_PAD + (index / (count - 1)) * (SPARK_WIDTH - SPARK_PAD * 2);
-    const y = SPARK_HEIGHT - SPARK_PAD - (value / max) * (SPARK_HEIGHT - SPARK_PAD * 2);
-    return { x, y };
-  };
-
+/** Date, what it was, and the amount: one line each, for the Sales and Expenses cards. */
+function ActivityList({ rows, tone }: { rows: ActivityRow[]; tone: 'income' | 'cost' }) {
   return (
-    <svg
-      viewBox={`0 0 ${SPARK_WIDTH} ${SPARK_HEIGHT}`}
-      role="presentation"
-      aria-hidden="true"
-      className="home-card__svg"
-    >
-      <line
-        x1={SPARK_PAD}
-        y1={SPARK_HEIGHT - SPARK_PAD}
-        x2={SPARK_WIDTH - SPARK_PAD}
-        y2={SPARK_HEIGHT - SPARK_PAD}
-        className="viz-grid"
-      />
-      {series.map(({ values, color }, seriesIndex) => {
-        const points = values.map((value, i) => toPoint(value, i, values.length));
-        if (points.length === 1) {
-          return (
-            <circle key={seriesIndex} cx={points[0]!.x} cy={points[0]!.y} r="4" fill={color} />
-          );
-        }
-        return (
-          <polyline
-            key={seriesIndex}
-            points={points.map((p) => `${p.x},${p.y}`).join(' ')}
-            fill="none"
-            stroke={color}
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        );
-      })}
-    </svg>
+    <ul className="home-activity">
+      {rows.map((row) => (
+        <li key={row.id} className="home-activity__row">
+          <span className="home-activity__date">{row.date}</span>
+          <span className="home-activity__label">{row.label}</span>
+          <span className={`home-activity__amount home-activity__amount--${tone}`}>
+            {row.amount}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
-/** Sales: revenue per day (or per month, for the longer periods). */
-export function SalesPreview({ summary, range }: RangedPreviewProps) {
-  return (
-    <PreviewFrame caption={`${bucketAdjective(summary)} revenue, ${range.period}`}>
-      {renderState(summary, (data) =>
-        data.totalRevenueCents === 0 ? (
-          <PreviewMessage>No sales {range.noneYet}</PreviewMessage>
-        ) : (
-          <Sparkline
-            series={[
-              {
-                values: totalsPerBucket(data.revenueSeries, data.buckets.length),
-                color: REVENUE_COLOR,
-              },
-            ]}
-          />
-        ),
-      )}
-    </PreviewFrame>
-  );
-}
-
-/** Expenses: the top categories (first tag) in the period, as proportional bars. */
-export function ExpensesPreview({ summary, range }: RangedPreviewProps) {
+/** Sales: the latest few sales, newest first. */
+export function SalesPreview({ sales }: { sales: PreviewState<Sale[]> }) {
+  const { formatDate } = usePreferences();
   const currency = useCurrency();
   return (
-    <PreviewFrame caption={`Top expense categories, ${range.period}`}>
-      {renderState(summary, (data) => {
-        // The server already keeps the top 3 tags and folds the rest into "Other".
-        const categories = data.expenseSeries
-          .map((s) => ({ label: s.label, total: s.values.reduce((sum, v) => sum + v, 0) }))
-          .sort((a, b) => b.total - a.total)
-          .slice(0, 3);
-        if (categories.length === 0) {
-          return <PreviewMessage>No expenses {range.noneYet}</PreviewMessage>;
-        }
-        const max = categories[0]!.total;
-        return (
-          <ul className="home-bars">
-            {categories.map(({ label, total }) => (
-              <li key={label} className="home-bars__row">
-                <span className="home-bars__label">{label}</span>
-                <span className="home-bars__track">
-                  <span
-                    className="home-bars__fill"
-                    style={{ width: `${(total / max) * 100}%`, background: EXPENSE_COLOR }}
-                  />
-                </span>
-                <span className="home-bars__value">{formatCents(total, currency)}</span>
-              </li>
-            ))}
-          </ul>
-        );
-      })}
-    </PreviewFrame>
-  );
-}
-
-/** Analytics: revenue vs expenses over the period, on one scale. */
-export function AnalyticsPreview({ summary, range }: RangedPreviewProps) {
-  return (
-    <PreviewFrame caption={`Revenue vs expenses, ${range.period}`}>
-      {renderState(summary, (data) =>
-        data.totalRevenueCents === 0 && data.totalExpensesCents === 0 ? (
-          <PreviewMessage>Nothing recorded {range.noneYet}</PreviewMessage>
+    <PreviewFrame>
+      {renderState(sales, (list) =>
+        list.length === 0 ? (
+          <PreviewMessage>No sales recorded yet</PreviewMessage>
         ) : (
-          <>
-            <Sparkline
-              series={[
-                {
-                  values: totalsPerBucket(data.revenueSeries, data.buckets.length),
-                  color: REVENUE_COLOR,
-                },
-                {
-                  values: totalsPerBucket(data.expenseSeries, data.buckets.length),
-                  color: EXPENSE_COLOR,
-                },
-              ]}
-            />
-            <div className="home-legend">
-              <span>
-                <span className="home-legend__swatch" style={{ background: REVENUE_COLOR }} />
-                Revenue
-              </span>
-              <span>
-                <span className="home-legend__swatch" style={{ background: EXPENSE_COLOR }} />
-                Expenses
-              </span>
-            </div>
-          </>
+          <ActivityList
+            tone="income"
+            rows={list.map((sale) => ({
+              id: sale.id,
+              date: formatDate(sale.soldAt),
+              label: sale.description || describeLines(sale.items) || 'Sale',
+              amount: `+${formatCents(sale.totalCents, currency)}`,
+            }))}
+          />
         ),
       )}
     </PreviewFrame>
   );
 }
 
-/** Inventory: how many products are being tracked. */
-export function InventoryPreview({ itemCount }: { itemCount: PreviewState<number> }) {
+/** Expenses: the latest few expenses and what each cost, newest first. */
+export function ExpensesPreview({ expenses }: { expenses: PreviewState<Expense[]> }) {
+  const { formatDate } = usePreferences();
+  const currency = useCurrency();
   return (
-    <PreviewFrame caption="Products in inventory">
-      {renderState(itemCount, (count) =>
-        count === 0 ? (
-          <PreviewMessage>No products yet</PreviewMessage>
+    <PreviewFrame>
+      {renderState(expenses, (list) =>
+        list.length === 0 ? (
+          <PreviewMessage>No expenses recorded yet</PreviewMessage>
         ) : (
-          <p className="home-card__number">
-            {count} {count === 1 ? 'product' : 'products'}
-          </p>
+          <ActivityList
+            tone="cost"
+            rows={list.map((expense) => ({
+              id: expense.id,
+              date: formatDate(expense.incurredAt),
+              label: expense.description || describeLines(expense.items) || 'Expense',
+              amount: `−${formatCents(expense.totalCents, currency)}`,
+            }))}
+          />
+        ),
+      )}
+    </PreviewFrame>
+  );
+}
+
+interface SellerSummary {
+  name: string;
+  detail: string;
+}
+
+const unitsSold = (units: number) => `${units} sold`;
+
+/**
+ * The worst seller in the insights' period. An in-stock item that hasn't sold at all is worse than anything
+ * that sold, so the one with the most stock sitting unsold comes first; otherwise it's whatever
+ * sold the fewest units, unless that's also the best seller (only one item sold).
+ */
+export function worstSeller(insights: InventoryInsights): SellerSummary | null {
+  const unsold = [...insights.notSelling].sort(
+    (a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name),
+  )[0];
+  if (unsold) return { name: unsold.name, detail: `0 sold · ${unsold.quantity} in stock` };
+  const worst = insights.worstSeller;
+  if (!worst || worst.id === insights.bestSellers[0]?.id) return null;
+  return { name: worst.name, detail: unitsSold(worst.unitsSold) };
+}
+
+function SellerRow({
+  kind,
+  seller,
+  empty,
+}: {
+  kind: 'best' | 'worst';
+  seller: SellerSummary | null;
+  empty: string;
+}) {
+  return (
+    <div className={`home-seller home-seller--${kind}`}>
+      <span className="home-seller__kind">{kind === 'best' ? 'Best seller' : 'Worst seller'}</span>
+      {seller ? (
+        <>
+          <span className="home-seller__name">{seller.name}</span>
+          <span className="home-seller__detail">{seller.detail}</span>
+        </>
+      ) : (
+        <span className="home-seller__detail">{empty}</span>
+      )}
+    </div>
+  );
+}
+
+/** Inventory: the last `days` days' best seller (green) and worst seller (red), and the product count. */
+export function InventoryPreview({
+  days,
+  insights,
+  itemCount,
+}: {
+  days: number;
+  insights: PreviewState<InventoryInsights>;
+  itemCount: PreviewState<number>;
+}) {
+  const count = itemCount.status === 'ready' ? itemCount.data : undefined;
+  return (
+    <PreviewFrame>
+      {renderState(insights, (data) => {
+        if (count === 0) return <PreviewMessage>No products yet</PreviewMessage>;
+        const best = data.bestSellers[0];
+        return (
+          <div className="home-sellers">
+            <SellerRow
+              kind="best"
+              seller={best ? { name: best.name, detail: unitsSold(best.unitsSold) } : null}
+              empty={`No sales in the last ${days} days`}
+            />
+            <SellerRow kind="worst" seller={worstSeller(data)} empty="Nothing to flag" />
+            {count !== undefined && (
+              <p className="home-sellers__count">
+                {count} {count === 1 ? 'product' : 'products'} in inventory
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </PreviewFrame>
+  );
+}
+
+const X_AXIS_TITLES: Record<AnalyticsSummary['granularity'], string> = {
+  day: 'Day',
+  week: 'Week',
+  month: 'Month',
+};
+
+/**
+ * Analytics: the Revenue Overview chart for the last `days` days (whatever "Show" is set to), one
+ * line per category, with axis titles and the legend down the right-hand side.
+ */
+export function AnalyticsPreview({
+  summary,
+  days,
+}: {
+  summary: PreviewState<AnalyticsSummary>;
+  days: number;
+}) {
+  const currency = useCurrency();
+  return (
+    <PreviewFrame>
+      {renderState(summary, (data) =>
+        data.revenueSeries.length === 0 ? (
+          <PreviewMessage>No sales in the last {days} days</PreviewMessage>
+        ) : (
+          <div className="home-chart">
+            <span className="home-chart__y-title">Revenue ({currency})</span>
+            <div className="home-chart__plot">
+              <LineChart
+                categories={data.bucketLabels}
+                series={data.revenueSeries}
+                ariaLabel={`Revenue overview, last ${days} days`}
+                width={460}
+                height={240}
+                formatValue={(cents) => formatCentsCompact(cents, currency)}
+                formatTooltip={(cents) => formatCents(cents, currency)}
+              />
+              <span className="home-chart__x-title">{X_AXIS_TITLES[data.granularity]}</span>
+            </div>
+            <div className="home-chart__legend">
+              <span className="home-chart__legend-title">Category</span>
+              <ChartLegend labels={data.revenueSeries.map((s) => s.label)} />
+            </div>
+          </div>
         ),
       )}
     </PreviewFrame>

@@ -85,13 +85,18 @@ public class ExpenseService {
                 .orElseThrow(() -> new NotFoundException("Expense", id));
     }
 
-    /** "Where the money goes": the current UTC calendar month, as the demo and Analytics use. */
+    /**
+     * "Where the money goes": the current UTC calendar month, as the demo and Analytics use, with
+     * last month's total to compare.
+     */
     @Transactional(readOnly = true)
     public ExpenseMonthBreakdown monthBreakdown() {
         LocalDate firstOfMonth = LocalDate.now(ZoneOffset.UTC).withDayOfMonth(1);
+        Instant previous = firstOfMonth.minusMonths(1).atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant start = firstOfMonth.atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant end = firstOfMonth.plusMonths(1).atStartOfDay(ZoneOffset.UTC).toInstant();
-        return queries.periodBreakdown(currentBusiness.id(), start, end, TOP_RESTOCK_ITEMS, accountCurrency());
+        return queries.periodBreakdown(
+                currentBusiness.id(), previous, start, end, TOP_RESTOCK_ITEMS, accountCurrency());
     }
 
     @Transactional

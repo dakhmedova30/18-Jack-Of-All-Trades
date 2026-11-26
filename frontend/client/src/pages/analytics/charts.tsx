@@ -9,6 +9,12 @@
  */
 export const SERIES_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100'] as const;
 
+/** The red pole of the skill's diverging pair (blue <-> red), for losses next to slot-1 blue profits. */
+export const LOSS_COLOR = '#e34948';
+
+/** The skill's fixed status colors. They always come with a text label, never color alone. */
+export const STATUS_COLORS = { good: '#0ca30c', warning: '#fab219', critical: '#d03b3b' } as const;
+
 /** Neutral color for a folded "Other" bucket (see analytics.service#buildTagSeries
  *  on the server) — overflow categories get a neutral color, not another hue
  *  competing with the real ones, per the dataviz skill's guidance. */
@@ -53,6 +59,12 @@ function niceStep(max: number, ticks: number): number {
   return step * magnitude;
 }
 
+/** Label every nth category so the x-axis labels don't overlap in `innerW`. */
+function labelInterval(categories: string[], innerW: number): number {
+  const labelWidth = Math.max(...categories.map((c) => c.length), 1) * LABEL_CHAR_WIDTH + LABEL_GAP;
+  return Math.max(1, Math.ceil((labelWidth * (categories.length - 1)) / innerW));
+}
+
 export function LineChart({
   categories,
   series,
@@ -63,7 +75,12 @@ export function LineChart({
   formatTooltip,
 }: LineChartProps) {
   const left = formatValue ? Y_AXIS_LEFT : PADDING.left;
-  const innerW = width - left - PADDING.right;
+  // The last x-axis label is centred on the right edge, so leave room for half of it ("Nov 2026").
+  const right = Math.max(
+    PADDING.right,
+    ((categories.at(-1)?.length ?? 0) * LABEL_CHAR_WIDTH) / 2 + 6,
+  );
+  const innerW = width - left - right;
   const innerH = height - PADDING.top - PADDING.bottom;
   const dataMax = Math.max(...series.flatMap((s) => s.values), 1);
   // With a y-axis, the top gridline sits on a round number at or above the data max.
@@ -76,8 +93,7 @@ export function LineChart({
   const y = (v: number) => PADDING.top + innerH - (v / max) * innerH;
 
   // Long periods have more points than there's room to label: label every `labelEvery`th one.
-  const labelWidth = Math.max(...categories.map((c) => c.length), 1) * LABEL_CHAR_WIDTH + LABEL_GAP;
-  const labelEvery = Math.max(1, Math.ceil((labelWidth * (categories.length - 1)) / innerW));
+  const labelEvery = labelInterval(categories, innerW);
   // ...and smaller dots, so dense lines don't turn into a row of blobs.
   const dotRadius = categories.length > 40 ? 2 : categories.length > 20 ? 3 : 4;
 
@@ -85,13 +101,7 @@ export function LineChart({
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={ariaLabel} className="viz">
       {Array.from({ length: Y_TICKS + 1 }, (_, i) => i * step).map((tick) => (
         <g key={tick}>
-          <line
-            x1={left}
-            x2={width - PADDING.right}
-            y1={y(tick)}
-            y2={y(tick)}
-            className="viz-grid"
-          />
+          <line x1={left} x2={width - right} y1={y(tick)} y2={y(tick)} className="viz-grid" />
           {formatValue && (
             <text
               x={left - 8}
@@ -111,7 +121,7 @@ export function LineChart({
       <line
         x1={left}
         y1={PADDING.top + innerH}
-        x2={width - PADDING.right}
+        x2={width - right}
         y2={PADDING.top + innerH}
         className="viz-axis"
       />
@@ -209,9 +219,144 @@ export function StackedBarChart({
   );
 }
 
+interface ColumnChartProps {
+  categories: string[];
+  /** One series, or several stacked. Values may be negative (e.g. a loss): those go below zero. */
+  series: ChartSeries[];
+  width?: number;
+  height?: number;
+  ariaLabel: string;
+  /** Formats the y-axis labels, e.g. compact money ("$1.2K"). */
+  formatValue: (value: number) => string;
+  /** Hover text for a whole column. Defaults to its category and each series' value. */
+  describe?: (index: number) => string;
+  /** A fixed color per series, in place of the palette order. */
+  colors?: string[];
+  /** Colors one series' columns by value, e.g. profit blue and loss red. Wins over `colors`. */
+  colorForValue?: (value: number) => string;
+  /** Counts can't be fractions, so keep the y-axis on whole numbers. */
+  wholeNumbers?: boolean;
+}
+
+/**
+ * Vertical bars, one column per category; several series stack, with a 2px gap between segments.
+ * Every column has a hover target the full height of the plot, so short bars are easy to point at.
+ */
+export function ColumnChart({
+  categories,
+  series,
+  width = 420,
+  height = 220,
+  ariaLabel,
+  formatValue,
+  describe,
+  colors,
+  colorForValue,
+  wholeNumbers = false,
+}: ColumnChartProps) {
+  const left = Y_AXIS_LEFT;
+  const innerW = width - left - PADDING.right;
+  const innerH = height - PADDING.top - PADDING.bottom;
+  const column = (i: number) => series.map((s) => s.values[i] ?? 0);
+  const ups = categories.map((_, i) => column(i).reduce((sum, v) => sum + Math.max(v, 0), 0));
+  const downs = categories.map((_, i) => column(i).reduce((sum, v) => sum + Math.min(v, 0), 0));
+  const dataMax = Math.max(...ups, 0);
+  const dataMin = Math.min(...downs, 0);
+  let step = niceStep(Math.max(dataMax - dataMin, wholeNumbers ? Y_TICKS : 1), Y_TICKS);
+  if (wholeNumbers) step = Math.ceil(step);
+  // Round numbers at both ends; the bottom stays at zero unless something is negative.
+  const max = Math.max(Math.ceil(dataMax / step), dataMin < 0 ? 0 : 1) * step;
+  const min = Math.floor(dataMin / step) * step;
+  const ticks = Array.from(
+    { length: Math.round((max - min) / step) + 1 },
+    (_, i) => min + i * step,
+  );
+  const y = (v: number) => PADDING.top + ((max - v) / (max - min)) * innerH;
+
+  const band = innerW / categories.length;
+  const barWidth = Math.min(band * 0.6, 36);
+  const labelEvery = labelInterval(categories, innerW);
+  const fill = (value: number, si: number) =>
+    colorForValue?.(value) ?? colors?.[si] ?? colorForSeries(series[si]!.label, si);
+  const defaultDescription = (i: number) =>
+    `${categories[i]}: ${series.map((s) => `${s.label} ${formatValue(s.values[i] ?? 0)}`).join(', ')}`;
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={ariaLabel} className="viz">
+      {ticks.map((tick) => (
+        <g key={tick}>
+          <line
+            x1={left}
+            x2={width - PADDING.right}
+            y1={y(tick)}
+            y2={y(tick)}
+            className="viz-grid"
+          />
+          <text
+            x={left - 8}
+            y={y(tick)}
+            textAnchor="end"
+            dominantBaseline="middle"
+            className="viz-label"
+          >
+            {formatValue(tick)}
+          </text>
+        </g>
+      ))}
+      <line x1={left} y1={PADDING.top} x2={left} y2={PADDING.top + innerH} className="viz-axis" />
+      <line x1={left} y1={y(0)} x2={width - PADDING.right} y2={y(0)} className="viz-axis" />
+      {categories.map((category, ci) => {
+        const x = left + band * ci + (band - barWidth) / 2;
+        let up = 0;
+        let down = 0;
+        return (
+          <g key={ci}>
+            {column(ci).map((value, si) => {
+              if (value === 0) return null;
+              const from = value > 0 ? up : down;
+              const to = from + value;
+              if (value > 0) up = to;
+              else down = to;
+              const top = y(Math.max(from, to));
+              const segmentHeight = Math.abs(y(from) - y(to));
+              return (
+                <rect
+                  key={si}
+                  x={x}
+                  y={top + 1}
+                  width={barWidth}
+                  height={Math.max(segmentHeight - 2, 1)}
+                  fill={fill(value, si)}
+                  rx={2}
+                />
+              );
+            })}
+            {ci % labelEvery === 0 && (
+              <text x={x + barWidth / 2} y={height - 8} textAnchor="middle" className="viz-label">
+                {category}
+              </text>
+            )}
+            <rect
+              x={left + band * ci}
+              y={PADDING.top}
+              width={band}
+              height={innerH}
+              className="viz-hit"
+            >
+              <title>{(describe ?? defaultDescription)(ci)}</title>
+            </rect>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 export interface HorizontalBar {
   label: string;
   value: number;
+  /** Keeps bars apart when two labels are the same (e.g. two items with one name). */
+  id?: string | number;
   /** Extra hover text, e.g. "3 products". */
   detail?: string;
 }
@@ -274,7 +419,7 @@ export function HorizontalBarChart({
             : bar.label;
         const color = bar.label === OTHER_LABEL ? OTHER_COLOR : SERIES_COLORS[2];
         return (
-          <g key={bar.label}>
+          <g key={bar.id ?? bar.label}>
             <title>{`${bar.label}: ${formatTooltip(bar.value)}${unit ? ` ${unit}` : ''}${bar.detail ? ` (${bar.detail})` : ''}`}</title>
             <text
               x={barStart - 8}
@@ -360,109 +505,103 @@ export function CompactBarList({
   );
 }
 
-export interface DonutSegment {
-  label: string;
-  value: number;
-}
-
-interface DonutChartProps {
-  segments: DonutSegment[];
-  size?: number;
-  thickness?: number;
-  ariaLabel: string;
-}
-
-export function DonutChart({ segments, size = 160, thickness = 30, ariaLabel }: DonutChartProps) {
-  const total = segments.reduce((sum, s) => sum + s.value, 0) || 1;
-  const cx = size / 2;
-  const cy = size / 2;
-  const r = (size - thickness) / 2;
-  const circumference = 2 * Math.PI * r;
-
-  // Pure (no running-total mutation): the fraction before index i is just the
-  // sum of the values before it. Segment counts here are tiny (<=4), so the
-  // O(n^2) slice+reduce costs nothing.
-  const fractionBefore = (index: number) =>
-    segments.slice(0, index).reduce((sum, s) => sum + s.value, 0) / total;
-
-  const arcs = segments.map((segment, i) => {
-    const fraction = segment.value / total;
-    const dash = fraction * circumference;
-    return {
-      key: segment.label,
-      color: colorForSeries(segment.label, i),
-      dashArray: `${Math.max(dash - 2, 0)} ${circumference - dash + 2}`,
-      dashOffset: -(fractionBefore(i) * circumference),
-      title: `${segment.label}: ${Math.round(fraction * 100)}%`,
-    };
-  });
-
-  const labels = segments.map((segment, i) => {
-    const fraction = segment.value / total;
-    const midAngle = (fractionBefore(i) + fraction / 2) * 2 * Math.PI - Math.PI / 2;
-    return {
-      key: segment.label,
-      x: cx + Math.cos(midAngle) * r,
-      y: cy + Math.sin(midAngle) * r,
-      text: `${Math.round(fraction * 100)}%`,
-      index: i,
-    };
-  });
-
-  return (
-    <svg viewBox={`0 0 ${size} ${size}`} role="img" aria-label={ariaLabel} className="viz">
-      <g transform={`rotate(-90 ${cx} ${cy})`}>
-        {arcs.map((arc) => (
-          <circle
-            key={arc.key}
-            cx={cx}
-            cy={cy}
-            r={r}
-            fill="none"
-            stroke={arc.color}
-            strokeWidth={thickness}
-            strokeDasharray={arc.dashArray}
-            strokeDashoffset={arc.dashOffset}
-          >
-            <title>{arc.title}</title>
-          </circle>
-        ))}
-      </g>
-      {labels.map((label) => (
-        <text
-          key={label.key}
-          x={label.x}
-          y={label.y}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          className="viz-donut-label"
-          fill={
-            needsDarkText(colorForSeries(segments[label.index]!.label, label.index))
-              ? '#1f1f1f'
-              : '#ffffff'
-          }
-        >
-          {label.text}
-        </text>
-      ))}
-    </svg>
-  );
-}
-
-/** Yellow (slot 4) and the neutral "Other" gray both need dark text to stay readable. */
-function needsDarkText(hex: string): boolean {
-  return hex === SERIES_COLORS[3] || hex === OTHER_COLOR;
-}
-
-export function ChartLegend({ labels }: { labels: string[] }) {
+/** @param colors one per label, for charts given fixed colors; otherwise the palette order. */
+export function ChartLegend({ labels, colors }: { labels: string[]; colors?: string[] }) {
   return (
     <ul className="viz-legend">
       {labels.map((label, i) => (
         <li key={label}>
-          <span className="viz-legend__swatch" style={{ background: colorForSeries(label, i) }} />
+          <span
+            className="viz-legend__swatch"
+            style={{ background: colors?.[i] ?? colorForSeries(label, i) }}
+          />
           {label}
         </li>
       ))}
     </ul>
+  );
+}
+
+export interface LevelSegment {
+  label: string;
+  count: number;
+  color: string;
+}
+
+/**
+ * One thick bar split into parts of a whole (e.g. items out of stock, low and well stocked), with
+ * a legend that names each part and gives its count, so the color is never the only cue.
+ */
+export function SegmentedBar({
+  segments,
+  ariaLabel,
+}: {
+  segments: LevelSegment[];
+  ariaLabel: string;
+}) {
+  const total = segments.reduce((sum, s) => sum + s.count, 0) || 1;
+  return (
+    <div className="viz-segmented">
+      <div className="viz-segmented__bar" role="img" aria-label={ariaLabel}>
+        {segments
+          .filter((s) => s.count > 0)
+          .map((s) => (
+            <span
+              key={s.label}
+              className="viz-segmented__part"
+              style={{ flexGrow: s.count, background: s.color }}
+              title={`${s.label}: ${s.count} (${Math.round((s.count / total) * 100)}%)`}
+            />
+          ))}
+      </div>
+      <ul className="viz-legend viz-legend--row">
+        {segments.map((s) => (
+          <li key={s.label}>
+            <span className="viz-legend__swatch" style={{ background: s.color }} />
+            <strong className="viz-legend__count">{s.count.toLocaleString()}</strong> {s.label}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+interface ChartTableProps {
+  /** Column headings; the first column names each row. */
+  columns: string[];
+  rows: (string | number)[][];
+}
+
+/** A chart's numbers as a table, closed by default: readable without hovering or seeing color. */
+export function ChartTable({ columns, rows }: ChartTableProps) {
+  return (
+    <details className="viz-table">
+      <summary>Show as a table</summary>
+      <div className="viz-table__scroll">
+        <table>
+          <thead>
+            <tr>
+              {columns.map((column, i) => (
+                <th key={column} scope="col" className={i > 0 ? 'numeric' : undefined}>
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(([first, ...rest], i) => (
+              <tr key={i}>
+                <th scope="row">{first}</th>
+                {rest.map((cell, j) => (
+                  <td key={j} className="numeric">
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
   );
 }

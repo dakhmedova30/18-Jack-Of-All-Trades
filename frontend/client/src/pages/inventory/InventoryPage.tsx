@@ -19,7 +19,13 @@ import { useAuth } from '../../hooks/useAuth';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useItems } from '../../hooks/useItems';
 import { usePreferences } from '../../hooks/usePreferences';
-import type { Item, ItemInput, ItemSortField, SortOrder } from '../../types';
+import {
+  CURRENCY_CODES,
+  type Item,
+  type ItemInput,
+  type ItemSortField,
+  type SortOrder,
+} from '../../types';
 import { formatCents } from '../../utils/money';
 import { fetchAllPages } from '../../utils/csv';
 import {
@@ -29,6 +35,7 @@ import {
   ITEM_IMPORT_HEADERS,
 } from '../../utils/businessCsv';
 import { ItemFormModal } from './ItemFormModal';
+import { TagFilter } from './TagFilter';
 
 const SORTABLE_COLUMNS: { field: ItemSortField; label: string; numeric?: boolean }[] = [
   { field: 'id', label: 'ID' },
@@ -83,6 +90,7 @@ export function InventoryPage() {
   const { business } = useAuth();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
   const [sort, setSort] = useState<{ field: ItemSortField; order: SortOrder }>({
     field: 'id',
     order: 'asc',
@@ -92,12 +100,14 @@ export function InventoryPage() {
     page,
     pageSize: preferences.rowsPerPage,
     search,
+    tags: tagFilter,
     sort: sort.field,
     order: sort.order,
   });
 
   async function importItem(record: Record<string, string>) {
-    return importItemFromCsv(record, updateItem, createItem);
+    const currency = CURRENCY_CODES.find((code) => code === business?.currency) ?? 'CAD';
+    return importItemFromCsv(record, updateItem, createItem, currency);
   }
 
   /** Clicking the current sort column flips its direction; a new column starts ascending. */
@@ -223,6 +233,14 @@ export function InventoryPage() {
       </div>
 
       <Toolbar
+        filters={<TagFilter
+            value={tagFilter}
+            onChange={(tags) => {
+              setTagFilter(tags);
+              setPage(1);
+            }}
+          />}
+        activeFilterCount={tagFilter.length}
         selectedCount={selected.size}
         onAdd={() => setFormState({ mode: 'create' })}
         onDelete={() => setDeleteTarget({ kind: 'bulk', ids: [...selected.keys()] })}
@@ -428,7 +446,7 @@ export function InventoryPage() {
         </table>
 
         {!data && loading && <p className="empty-state">Loading…</p>}
-        {isEmpty && !search && (
+        {isEmpty && !search && tagFilter.length === 0 && (
           <div className="empty-state">
             <p>Add a new item into the table</p>
             <button
@@ -440,7 +458,12 @@ export function InventoryPage() {
             </button>
           </div>
         )}
-        {isEmpty && search && <p className="empty-state">No items match “{search}”.</p>}
+        {isEmpty && (search || tagFilter.length > 0) && (
+          <p className="empty-state">
+            {search ? `No items match “${search}”` : 'No items'}
+            {tagFilter.length > 0 && ` with ${tagFilter.length === 1 ? 'that tag' : 'those tags'}`}.
+          </p>
+        )}
       </div>
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}
