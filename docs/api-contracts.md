@@ -227,7 +227,7 @@ A page customers can read **without logging in**: the business's public details 
 | `GET` | `/api/items/insights` | — | `200` `InventoryInsights` |
 | `GET` | `/api/items/low-stock?limit` | — | `200` `LowStock` |
 | `GET` | `/api/items/tags` | — | `200` `{ name, itemCount }[]`, the tags in use, most used first |
-| `PUT` | `/api/items/tags?name=Old` | `{ "name": "New" }` | `200` `{ name, itemCount }`; renames the tag on every item that has it (an item that already has `New` just loses `Old`). `400` invalid name; `404` no item has `Old` |
+| `PUT` | `/api/items/tags?name=Old` | `{ "name": "New" }` | `200` `{ name, itemCount }`; renames the tag on every item that has it (an item that already has `New` just loses `Old`). `400` invalid name (same rules as an item tag); `404` no item has `Old` |
 | `DELETE` | `/api/items/tags?name=Old` | — | `204`; removes the tag from every item that has it (the items stay). `404` no item has it |
 | `GET` | `/api/items/{id}` | — | `200` `Item` |
 | `POST` | `/api/items` | `ItemInput` | `201` `Item` |
@@ -237,6 +237,7 @@ A page customers can read **without logging in**: the business's public details 
 | `POST` | `/api/items/bulk-visibility` | `{ "ids": [1, 2], "isPublic": true }` (1–100 ids) | `200` `{ "updated": 2 }`; shows the items on the public profile (§2.2), or hides them with `false`. Skips ids that don't exist or aren't yours; `updated` counts only your items |
 
 - **List:** `search` matches the name or tags, case-insensitive. `sort` is `id` (default), `name`, `quantity` or `unitPriceCents`; `order` is `asc` (default) or `desc`.
+- **Tag filter** (optional, combined with `search`): repeat `tag` to keep items that have any of those tags, e.g. `?tag=stickers&tag=prints`. Tags match exactly, as `GET /api/items/tags` names them; blank values are ignored. At most 50 `tag` values, each at most 30 characters.
 - **`low-stock`:** items with quantity **≤ 5**. `limit` is 1–100 (default 5) and only caps the list; `count` covers every low item.
 
 ```json
@@ -271,7 +272,7 @@ A page customers can read **without logging in**: the business's public details 
 | `name` | Required on create; 1–120 characters, trimmed |
 | `quantity` | Required on create; whole number ≥ 0 |
 | `unitPriceCents` | Required on create; whole number from 0 to 999,999,999 cents ($0.00–$9,999,999.99) |
-| `tags` | Optional; ≤ 10 tags, each 1–30 characters; duplicates removed; default `[]` |
+| `tags` | Optional; ≤ 10 tags, each 1–30 characters of letters and numbers (any language), spaces and `& - _ / # : ' ’ . + % ( ) !`, never a comma (the item form separates tags with commas); duplicates removed; default `[]` |
 | `note` | Optional; ≤ 1000 characters; default `""` |
 
 Deleting an item doesn't change past sales or expenses: their lines keep the item's name, and `itemId` becomes `null`.

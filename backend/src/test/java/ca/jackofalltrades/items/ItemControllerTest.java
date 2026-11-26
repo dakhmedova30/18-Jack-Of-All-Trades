@@ -84,6 +84,34 @@ class ItemControllerTest extends PostgresTestBase {
     }
 
     @Test
+    void tagFilterKeepsItemsWithAnyOfTheTags() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        insertItem(business, "Flower Print", 10, 1200, "print", "floral");
+        insertItem(business, "Cat Sticker", 5, 300, "sticker");
+        insertItem(business, "Cat Print", 4, 1500, "print", "cats");
+        insertItem(business, "Tote", 3, 2000);
+        Cookie someoneElse = registerAndLogin();
+        insertItem(businessId(someoneElse), "Their Print", 1, 100, "print");
+
+        mockMvc.perform(get("/api/items").param("tag", "print").cookie(cookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.data[*].name", contains("Flower Print", "Cat Print")));
+        mockMvc.perform(get("/api/items").param("tag", "print", "sticker").cookie(cookie))
+                .andExpect(jsonPath("$.data[*].name", contains("Flower Print", "Cat Sticker", "Cat Print")));
+        // Combines with search.
+        mockMvc.perform(get("/api/items").param("tag", "print").param("search", "cat").cookie(cookie))
+                .andExpect(jsonPath("$.data[*].name", contains("Cat Print")));
+        // Tags match exactly, as the tag list names them: not by case or as part of another tag.
+        mockMvc.perform(get("/api/items").param("tag", "Print", "prin").cookie(cookie))
+                .andExpect(jsonPath("$.total").value(0));
+        // A blank tag is ignored rather than matching nothing.
+        mockMvc.perform(get("/api/items").param("tag", " ").cookie(cookie))
+                .andExpect(jsonPath("$.total").value(4));
+    }
+
+    @Test
     void sortsByQuantityDescending() throws Exception {
         Cookie cookie = registerAndLogin();
         int business = businessId(cookie);
@@ -107,6 +135,9 @@ class ItemControllerTest extends PostgresTestBase {
         mockMvc.perform(get("/api/items?sort=price;DROP TABLE items").cookie(cookie))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.details[0].field").value("sort"));
+        mockMvc.perform(get("/api/items").param("tag", "x".repeat(31)).cookie(cookie))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].message").value("Must be at most 30 characters"));
     }
 
     @Test

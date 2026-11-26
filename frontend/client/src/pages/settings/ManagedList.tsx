@@ -21,6 +21,8 @@ interface ManagedListProps {
   onDelete: (id: EntryId) => Promise<void>;
   /** Shown in the delete confirmation, after the name. */
   deleteWarning: string | ((entry: Entry) => string);
+  /** Checks a new or renamed name before it's sent; returns the problem, or null if it's fine. */
+  validateName?: (name: string) => string | null;
 }
 
 /** A list of names you can add to, rename and delete, with inline errors from the server. */
@@ -32,6 +34,7 @@ export function ManagedList({
   onRename,
   onDelete,
   deleteWarning,
+  validateName,
 }: ManagedListProps) {
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<EntryId | null>(null);
@@ -57,6 +60,8 @@ export function ManagedList({
     event.preventDefault();
     const name = newName.trim();
     if (!name) return setError('Enter a name');
+    const problem = validateName?.(name);
+    if (problem) return setError(problem);
     if (!onAdd) return;
     void run(
       () => onAdd(name),
@@ -69,6 +74,8 @@ export function ManagedList({
     const name = editName.trim();
     if (!name) return setError('Enter a name');
     if (name === entry.name) return setEditingId(null);
+    const problem = validateName?.(name);
+    if (problem) return setError(problem);
     void run(
       () => onRename(entry.id, name),
       () => setEditingId(null),
