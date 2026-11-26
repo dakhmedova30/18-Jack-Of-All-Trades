@@ -9,9 +9,7 @@ describe('Toolbar', () => {
 
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
 
-    rerender(
-      <Toolbar onAdd={toolbar.onAdd} onDelete={toolbar.onDelete} selectedCount={2} />,
-    );
+    rerender(<Toolbar onAdd={toolbar.onAdd} onDelete={toolbar.onDelete} selectedCount={2} />);
 
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
   });
