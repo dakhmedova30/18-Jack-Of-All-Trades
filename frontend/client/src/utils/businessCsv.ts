@@ -177,7 +177,8 @@ export async function importItemFromCsv(
 ): Promise<'created' | 'updated'> {
   const id = csvId(record);
   const input = itemInputFromCsv(record, currency);
-  const { quantity: _quantity, ...changes } = input;
+  const { name, unitPriceCents, tags, note, isPublic } = input;
+  const changes = { name, unitPriceCents, tags, note, isPublic };
   return upsertFromCsv(
     id,
     (existingId) => update(existingId, changes),

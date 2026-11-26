@@ -11,7 +11,7 @@ import { ItemFormModal } from './ItemFormModal';
 // a range hint, so fields are found by their accessible name rather than the label's full text.
 const nameField = () => screen.getByRole('textbox', { name: 'Name' });
 const qtyField = () => screen.getByRole('textbox', { name: 'Qty' });
-const priceField = () => screen.getByRole('textbox', { name: /^Price \(CAD\)/ });
+const priceField = () => screen.getByRole('textbox', { name: /^Unit price \(CAD\)/ });
 
 // The form shows prices in the account's currency, read through the login provider.
 vi.mock('../../api/auth', () => ({
@@ -63,7 +63,10 @@ describe('ItemFormModal', () => {
     await user.type(nameField(), 'Tea');
     await user.type(qtyField(), '1');
     await user.type(priceField(), '2');
-    await user.type(screen.getByLabelText('Tags'), 'Drinks, hot;cold');
+    await screen.findByRole('option', { name: 'Drinks' });
+    await user.click(screen.getByRole('button', { name: /New tag/ }));
+    await user.type(screen.getByLabelText('Tags'), 'hot;cold');
+    await user.click(screen.getByRole('button', { name: 'Add' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(screen.getByText(/^Tags can only use letters, numbers, spaces/)).toBeInTheDocument();

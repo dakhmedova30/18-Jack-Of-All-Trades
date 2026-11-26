@@ -45,7 +45,7 @@ describe('ExpenseFormModal', () => {
 
     await screen.findByLabelText(/^Tag\b/);
     await user.type(screen.getByPlaceholderText('Rent, packaging tape, …'), 'Rent');
-    await user.type(screen.getByLabelText(/^Price per product\b/), '125.50');
+    await user.type(screen.getByLabelText(/^Unit cost\b/), '125.50');
     await user.type(screen.getByLabelText(/^Date\b/), '2026-10-20');
     await user.selectOptions(screen.getByLabelText(/^Currency\b/), 'USD');
     await user.selectOptions(screen.getByLabelText(/^Type\b/), 'fee');

@@ -33,8 +33,10 @@ function RoutedPageProviders({ children }: { children: ReactNode }) {
 }
 
 describe('InventoryPage', () => {
+  vi.mocked(itemApi.listItemTags).mockResolvedValue([]);
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(itemApi.listItemTags).mockResolvedValue([]);
     vi.mocked(authApi.getCurrentBusiness).mockResolvedValue(undefined);
     vi.mocked(itemApi.listItems).mockResolvedValue({
       data: [testItem],
@@ -43,7 +45,6 @@ describe('InventoryPage', () => {
       total: 1,
       totalPages: 1,
     });
-    vi.mocked(itemApi.listItemTags).mockResolvedValue([]);
   });
 
   it('loads and displays items, and opens and cancels the add form', async () => {
@@ -75,6 +76,7 @@ describe('InventoryPage', () => {
       total: 0,
       totalPages: 1,
     });
+    await user.click(screen.getByRole('button', { name: 'Filters' }));
     await user.click(screen.getByRole('button', { name: 'Tags All tags' }));
     await user.click(await screen.findByRole('checkbox', { name: /^stickers/ }));
     await user.click(screen.getByRole('checkbox', { name: /^prints/ }));
@@ -98,7 +100,7 @@ describe('InventoryPage', () => {
     await user.click(screen.getByRole('button', { name: 'Add' }));
     await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Coffee');
     await user.type(screen.getByRole('textbox', { name: 'Qty' }), '5');
-    await user.type(screen.getByRole('textbox', { name: /^Price \(CAD\)/ }), '3.25');
+    await user.type(screen.getByRole('textbox', { name: /^Unit price \(CAD\)/ }), '3.25');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(await screen.findByText('Could not save item')).toBeInTheDocument();
@@ -165,7 +167,7 @@ describe('InventoryPage', () => {
     await user.click(screen.getByRole('button', { name: 'Add' }));
     await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Coffee');
     await user.type(screen.getByRole('textbox', { name: 'Qty' }), '5');
-    await user.type(screen.getByRole('textbox', { name: /^Price \(CAD\)/ }), '3.25');
+    await user.type(screen.getByRole('textbox', { name: /^Unit price \(CAD\)/ }), '3.25');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(itemApi.createItem).toHaveBeenCalledWith(
@@ -210,7 +212,7 @@ describe('InventoryPage', () => {
     render(<InventoryPage />, { wrapper: RoutedPageProviders });
 
     await screen.findByText('Tea');
-    expect(screen.queryByRole('button', { name: 'Show on profile' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Show on profile/ })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('checkbox', { name: 'Select Tea' }));
     await user.click(screen.getByRole('button', { name: 'Show on profile (1)' }));
@@ -224,7 +226,7 @@ describe('InventoryPage', () => {
       '/settings/profile',
     );
     // The selection is cleared once the change is saved.
-    expect(screen.queryByRole('button', { name: 'Show on profile' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Show on profile/ })).not.toBeInTheDocument();
   });
 
   it('shows an error when changing visibility fails', async () => {
