@@ -192,7 +192,12 @@ export function DiscountFormModal({ discount, onCancel, onSubmit }: DiscountForm
         </>
       }
     >
-      <form id="discount-form" className="item-form discount-form" onSubmit={handleSubmit} noValidate>
+      <form
+        id="discount-form"
+        className="item-form discount-form"
+        onSubmit={handleSubmit}
+        noValidate
+      >
         <div className="form-row">
           <span className="form-row__label">ID</span>
           <span className="form-row__static">{discount?.id ?? 'Assigned on save'}</span>

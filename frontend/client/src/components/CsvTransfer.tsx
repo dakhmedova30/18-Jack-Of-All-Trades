@@ -132,7 +132,9 @@ export function CsvTransfer<T>({
   }
 
   return (
-    <div className={`csv-transfer${importRow && importHeaders ? '' : ' csv-transfer--export-only'}`}>
+    <div
+      className={`csv-transfer${importRow && importHeaders ? '' : ' csv-transfer--export-only'}`}
+    >
       <div className="csv-transfer__buttons">
         <button
           type="button"
