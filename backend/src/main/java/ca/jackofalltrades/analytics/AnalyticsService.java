@@ -126,7 +126,8 @@ public class AnalyticsService {
                         .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
                         .map(entry -> new TagTotal(entry.getKey(), entry.getValue()))
                         .toList(),
-                revenueByChannel(businessId, window, channelId, targetCurrency));
+                revenueByChannel(businessId, window, channelId, targetCurrency),
+                expensesByTag(expenses, targetCurrency));
     }
 
     /**
@@ -141,7 +142,25 @@ public class AnalyticsService {
             centsByChannel.computeIfAbsent(line.channel(), unused -> new LinkedHashMap<>())
                     .merge(line.currency(), line.totalCents(), Long::sum);
         }
-        return centsByChannel.entrySet().stream()
+        return largestFirst(centsByChannel, targetCurrency);
+    }
+
+    /**
+     * Spending per first tag ("Untagged" if none) in the account's currency, largest first (then
+     * by name). Every tag is listed: a business has only a handful, as with channels.
+     */
+    private List<TagTotal> expensesByTag(List<TaggedLine> expenses, String targetCurrency) {
+        Map<String, Map<String, Long>> centsByTag = new LinkedHashMap<>();
+        for (TaggedLine line : expenses) {
+            centsByTag.computeIfAbsent(line.tag(), unused -> new LinkedHashMap<>())
+                    .merge(line.currency(), line.totalCents(), Long::sum);
+        }
+        return largestFirst(centsByTag, targetCurrency);
+    }
+
+    /** Each label's currency subtotals converted and added up, largest first, then by label. */
+    private List<TagTotal> largestFirst(Map<String, Map<String, Long>> centsByLabel, String targetCurrency) {
+        return centsByLabel.entrySet().stream()
                 .map(entry -> new TagTotal(entry.getKey(),
                         currencyTotals.convertSubtotals(entry.getValue(), targetCurrency)))
                 .sorted(Comparator.comparingLong(TagTotal::valueCents).reversed()
@@ -271,7 +290,7 @@ public class AnalyticsService {
     }
 
     /** The key of the bucket {@code at} falls in: its month, its week's Monday, or its day. */
-    private static String bucketKey(Instant at, String granularity) {
+    static String bucketKey(Instant at, String granularity) {
         LocalDate day = LocalDate.ofInstant(at, ZoneOffset.UTC);
         return switch (granularity) {
             case "month" -> YearMonth.from(day).toString();

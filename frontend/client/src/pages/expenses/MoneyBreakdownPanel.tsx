@@ -2,6 +2,11 @@ import type { ExpenseMonthBreakdown } from '../../types';
 import { useCurrency } from '../../hooks/useCurrency';
 import { formatCents } from '../../utils/money';
 import { SummaryPanel } from '../../components/SummaryPanel';
+import { SERIES_COLORS } from '../analytics/charts';
+
+/** As the "Restocks and running costs" chart colours them. */
+const RESTOCK_COLOR = SERIES_COLORS[2];
+const RUNNING_COLOR = SERIES_COLORS[3];
 
 export interface MoneyBreakdownPanelProps {
   data?: ExpenseMonthBreakdown;
@@ -10,7 +15,7 @@ export interface MoneyBreakdownPanelProps {
   reload: () => void;
 }
 
-/** This month's spending split into restocks (inventory) vs running costs. */
+/** This month's spending split into restocks (inventory) vs running costs, as a bar and rows. */
 export function MoneyBreakdownPanel({ data, error, loading, reload }: MoneyBreakdownPanelProps) {
   const currency = useCurrency();
   const month = data
@@ -18,8 +23,13 @@ export function MoneyBreakdownPanel({ data, error, loading, reload }: MoneyBreak
     : '';
   const rows = data
     ? [
-        { key: 'restock', label: 'Restock (inventory)', cents: data.restockCents },
-        { key: 'running', label: 'Running costs', cents: data.runningCents },
+        {
+          key: 'restock',
+          label: 'Restock (inventory)',
+          cents: data.restockCents,
+          color: RESTOCK_COLOR,
+        },
+        { key: 'running', label: 'Running costs', cents: data.runningCents, color: RUNNING_COLOR },
       ]
     : [];
 
@@ -40,19 +50,34 @@ export function MoneyBreakdownPanel({ data, error, loading, reload }: MoneyBreak
       ) : data.totalCents === 0 ? (
         <p className="empty-state">No expenses yet this month.</p>
       ) : (
-        <ul className="summary-panel__list">
-          {rows.map(({ key, label, cents }) => {
-            const percent = Math.round((cents / data.totalCents) * 100);
-            return (
-              <li key={key} className="summary-panel__row">
-                <span className="summary-panel__name">{label}</span>
-                <span className="summary-panel__detail">
-                  {formatCents(cents, currency)} · {percent}%
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          {/* The rows give the same numbers in words, so the bar is decoration for screen readers. */}
+          <div className="money-split" aria-hidden="true">
+            {rows.map(({ key, cents, color }) => (
+              <span key={key} style={{ flexGrow: cents, background: color }} />
+            ))}
+          </div>
+          <ul className="summary-panel__list">
+            {rows.map(({ key, label, cents, color }) => {
+              const percent = Math.round((cents / data.totalCents) * 100);
+              return (
+                <li key={key} className="summary-panel__row">
+                  <span className="summary-panel__name">
+                    <span
+                      className="money-split__swatch"
+                      style={{ background: color }}
+                      aria-hidden="true"
+                    />
+                    {label}
+                  </span>
+                  <span className="summary-panel__detail">
+                    {formatCents(cents, currency)} · {percent}%
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
     </SummaryPanel>
   );

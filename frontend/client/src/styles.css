@@ -2002,6 +2002,39 @@ select {
   font-variant-numeric: tabular-nums;
 }
 
+/* One line under a value (e.g. a long expense description), cut off with "…"; the full text is
+   in its title. */
+.summary-panel__value-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* "Where the money goes" as one bar: restocks, then running costs, each as wide as its share. */
+.money-split {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  margin: 0.25rem 0.6rem 0.35rem;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.money-split > span {
+  flex-basis: 0;
+  min-width: 0;
+}
+
+.money-split__swatch {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-right: 0.45rem;
+  border-radius: 2px;
+  vertical-align: baseline;
+}
+
 .summary-panel__toggle {
   align-self: flex-start;
 }
@@ -2126,13 +2159,6 @@ select {
   gap: 1rem;
 }
 
-/* Each chart row is two equal columns; minmax(0, 1fr) lets SVGs shrink instead of overflowing. */
-.analytics-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-}
-
 .analytics-card {
   display: flex;
   flex-direction: column;
@@ -2140,24 +2166,6 @@ select {
   background: var(--color-surface);
   border-color: var(--color-border-chart);
   box-shadow: var(--shadow-card);
-}
-
-/*
- * All four chart cards share one height, sized so both rows fit on screen
- * under the header and stat cards (~280px of the viewport, measured at
- * desktop widths). Each chart then grows/shrinks to fill whatever its card has
- * left after the title, legend and insight line, which is what keeps the four
- * cards equal even though their extras differ. The min-height stops short
- * windows from crushing the charts; they scroll instead.
- */
-.analytics-row .analytics-card {
-  height: max(260px, calc((100vh - 280px) / 2));
-}
-
-.analytics-card > .viz,
-.analytics-donuts {
-  flex: 1 1 0;
-  min-height: 0;
 }
 
 .analytics-card__footer {
@@ -2175,45 +2183,6 @@ select {
   gap: 0.3rem 1rem;
 }
 
-/* Sales and Expenses donuts side by side, splitting the card's chart space. */
-.analytics-donuts {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: minmax(0, 1fr);
-  gap: 1rem;
-}
-
-.analytics-donut-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  min-height: 0;
-}
-
-.analytics-donut-panel__title {
-  margin: 0;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--color-muted);
-}
-
-.analytics-donut {
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-}
-
-.analytics-donut-panel .analytics-donut {
-  flex: 1 1 0;
-  min-height: 0;
-}
-
-.analytics-donut .viz {
-  width: auto;
-  height: 100%;
-  max-width: 65%;
-}
-
 .analytics-insight {
   margin: 0;
   padding-top: 0.5rem;
@@ -2223,12 +2192,13 @@ select {
   font-style: italic;
 }
 
-/* The filter side bar, then the dashboard on its right. */
+/* The filters and breakdowns, then the dashboard on their right. Both sides stretch to the taller
+   one, so the breakdown cards and the overview chart end on one line. */
 .analytics-layout {
   display: grid;
-  grid-template-columns: 15.5rem minmax(0, 1fr);
+  grid-template-columns: 28rem minmax(0, 1fr);
   gap: 1.25rem;
-  align-items: start;
+  align-items: stretch;
 }
 
 .analytics-main,
@@ -2237,6 +2207,10 @@ select {
   flex-direction: column;
   gap: 1rem;
   min-width: 0;
+}
+
+.analytics-main > .analytics-body {
+  flex: 1 1 auto;
 }
 
 /* Dims what the date filter moves while a new period loads, as the tables do. */
@@ -2250,13 +2224,19 @@ select {
   opacity: 0.55;
 }
 
-/* The filters with Revenue by Channel under them. Not sticky: together they can be taller than
-   the window, and a sticky column that tall would hide its bottom until the page ends. */
+/* The filters across the top, then Revenue by Channel and Expenses by Tag side by side, stretched
+   to the bottom of the row. Not sticky: together they can be taller than the window, and a sticky
+   column that tall would hide its bottom until the page ends. */
 .analytics-side {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto 1fr;
   gap: 1rem;
   min-width: 0;
+}
+
+.analytics-side > .analytics-filters {
+  grid-column: 1 / -1;
 }
 
 .analytics-filters {
@@ -2319,16 +2299,23 @@ select {
   font-weight: 400;
 }
 
+/* Start and End side by side, wrapping onto two lines when there isn't room. */
 .analytics-filters__fields {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 0.6rem;
 }
 
 .analytics-filters__field {
   display: flex;
+  flex: 1 1 10rem;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+/* Alone in a group (the Channel dropdown), a field's 10rem basis would be its height, not width. */
+.analytics-filters__group > .analytics-filters__field {
+  flex: none;
 }
 
 .analytics-filters__field label {
@@ -2362,9 +2349,200 @@ select {
   font-size: 0.8rem;
 }
 
-/* Revenue by Channel under the filters: padded like them so the two line up. */
+/* A checkbox menu (Sales' channels, Expenses' tags): a button like the date fields that opens a
+   list of checkboxes over whatever is below it. */
+.choice-menu {
+  position: relative;
+}
+
+.choice-menu__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.choice-menu__button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: var(--color-bg-solid);
+  border: var(--border-default) var(--color-border-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.choice-menu__button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.choice-menu__button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.choice-menu__summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.choice-menu__chevron {
+  flex-shrink: 0;
+  color: var(--color-muted);
+}
+
+.choice-menu__menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  max-height: 16rem;
+  margin: 0.25rem 0 0;
+  padding: 0.35rem;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: var(--border-default) var(--color-border-chart);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 18px hsl(var(--hue) 40% 10% / 0.18);
+}
+
+.analytics-filters__field .choice-menu__option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 400;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.analytics-filters__field .choice-menu__option:hover {
+  background: var(--color-hover);
+}
+
+/* The tick-all box, set off from the options under it. */
+.analytics-filters__field .choice-menu__option--all {
+  margin-bottom: 0.15rem;
+  padding-bottom: 0.45rem;
+  font-weight: 600;
+  border-bottom: var(--border-default) var(--color-border);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.analytics-filters__field .choice-menu__option input {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--color-primary);
+}
+
+/* Sales and Expense Analytics: the filters down the left, this month's cards beside them, both
+   ending on one line (whichever is shorter stretches to the other). */
+.analytics-subpage__top {
+  display: grid;
+  grid-template-columns: 24rem minmax(0, 1fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.analytics-subpage__filters {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.analytics-subpage__filters > .analytics-filters {
+  flex: 1 1 auto;
+}
+
+/* The charts on the deeper Analytics pages: two per row, or one across for a wide card. While a
+   new timeframe loads they stay, dimmed, as the tables do. */
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  transition: opacity 0.15s;
+}
+
+.chart-grid.is-loading {
+  opacity: 0.55;
+}
+
+.chart-card--wide {
+  grid-column: 1 / -1;
+}
+
+/* Each chart is drawn at its box's real width (see FitWidth), so its text is real size too. */
+.chart-fit {
+  flex: none;
+  min-width: 0;
+}
+
+.chart-fit .viz-label:not(.viz-label--bar),
+.chart-fill .viz-label:not(.viz-label--bar) {
+  font-size: 11px;
+}
+
+/* A chart that takes whatever height its card has left (see FitSize), so it can end level with
+   the cards beside it. The drawing sits on top of its box, so it never makes the box taller. */
+.chart-card--fill {
+  flex: 1 1 auto;
+}
+
+.chart-fill {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 260px;
+}
+
+.chart-fill > .viz {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Two cards in a row share a height; the insight sits at the bottom of both. */
+.chart-card .analytics-insight {
+  margin-top: auto;
+}
+
+.chart-card__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.chart-card__context {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+/* Revenue by Channel and Expenses by Tag under the filters: padded like them so they line up, and
+   with the insight at the bottom when the card is stretched. */
 .analytics-card--side {
   padding: 1rem;
+}
+
+.analytics-card--side .analytics-insight {
+  margin-top: auto;
 }
 
 /* ---------- Compact bar list (narrow bar chart) ---------- */
@@ -2417,19 +2595,19 @@ select {
   border-radius: 4px;
 }
 
-/* Too narrow for a side bar next to the charts: the filters go above them instead. */
+/* Too narrow for the filters and breakdowns beside the chart (or a deeper page's cards): they go
+   above it instead. */
 @media (max-width: 1100px) {
-  .analytics-layout {
+  .analytics-layout,
+  .analytics-subpage__top {
     grid-template-columns: minmax(0, 1fr);
   }
+}
 
-  .analytics-filters__fields {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-
-  .analytics-filters__field {
-    flex: 1 1 10rem;
+/* Too narrow for the two breakdowns side by side. */
+@media (max-width: 720px) {
+  .analytics-side {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -3045,11 +3223,6 @@ textarea.settings-row__input {
   font-size: 12px;
 }
 
-.viz-donut-label {
-  font-size: 11px;
-  font-weight: 700;
-}
-
 .viz-legend {
   display: flex;
   flex-direction: column;
@@ -3074,6 +3247,87 @@ textarea.settings-row__input {
   flex: none;
 }
 
+/* A legend in one wrapping row, e.g. under the stock-levels bar. */
+.viz-legend--row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.25rem;
+  font-size: 0.85rem;
+}
+
+.viz-legend__count {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A column chart's hover target: the whole column, washed on hover. */
+.viz-hit {
+  fill: transparent;
+}
+
+.viz-hit:hover {
+  fill: var(--color-hover);
+}
+
+/* Parts of a whole in one thick bar, 2px apart. */
+.viz-segmented {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.viz-segmented__bar {
+  display: flex;
+  gap: 2px;
+  height: 2rem;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.viz-segmented__part {
+  min-width: 4px;
+}
+
+/* A chart's numbers as a table, behind a disclosure under the chart. */
+.viz-table summary {
+  width: fit-content;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.viz-table__scroll {
+  margin-top: 0.5rem;
+  overflow-x: auto;
+}
+
+.viz-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.viz-table th,
+.viz-table td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: var(--border-default) var(--color-border);
+  text-align: left;
+}
+
+.viz-table thead th {
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.viz-table tbody th {
+  font-weight: 400;
+}
+
+.viz-table .numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ==========================================================================
    9. Responsive
    ========================================================================== */
@@ -3092,7 +3346,7 @@ textarea.settings-row__input {
     flex-basis: 100%; /* first one takes the whole row */
   }
 
-  .analytics-row {
+  .chart-grid {
     grid-template-columns: 1fr; /* one per row */
   }
 }
@@ -3218,26 +3472,9 @@ textarea.settings-row__input {
     align-items: stretch;
   }
 
-  .analytics-row,
   .analytics-stats,
-  .analytics-donuts,
   .analytics-sections {
     grid-template-columns: 1fr;
-  }
-
-  .analytics-row .analytics-card {
-    height: auto;
-  }
-
-  .analytics-card > .viz,
-  .analytics-donuts,
-  .analytics-donut-panel .analytics-donut {
-    flex: none;
-  }
-
-  .analytics-donut .viz {
-    width: 160px;
-    height: auto;
   }
 }
 
