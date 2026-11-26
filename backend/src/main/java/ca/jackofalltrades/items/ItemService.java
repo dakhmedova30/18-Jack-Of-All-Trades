@@ -100,7 +100,7 @@ public class ItemService {
         String currency = businesses.findById(businessId)
                 .map(Business::getCurrency)
                 .orElseThrow(() -> new NotFoundException("Business", businessId));
-        long[] totals = queries.stockTotals(businessId);
+        long[] totals = queries.stockTotals(businessId, currency);
         // Every item that sold in the period, most first: the top few are the best sellers, the
         // last is the worst.
         List<InventoryInsights.BestSeller> sellers = queries.sellers(businessId, start, end, currency);

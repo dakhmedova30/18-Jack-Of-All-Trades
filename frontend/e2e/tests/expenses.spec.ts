@@ -12,7 +12,7 @@ test('an expense shows up in Expenses and in Home and Analytics totals', async (
   const line = expenseForm.getByRole('group', { name: 'Expense item 1' });
   await line.getByLabel('Description').fill('Craft paper roll');
   await line.getByLabel('Qty').fill('2');
-  await line.getByLabel(/Price per product/).fill('4.50');
+  await line.getByLabel(/Unit cost/).fill('4.50');
   await expenseForm.getByLabel('Date').fill(today());
   await expenseForm.getByLabel('Tag').selectOption('supplies'); // a starter tag
   await expenseForm.getByRole('button', { name: 'Save' }).click();

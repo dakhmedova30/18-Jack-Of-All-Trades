@@ -156,9 +156,7 @@ export function itemInputFromCsv(record: CsvRecord): ItemInput {
 }
 
 export async function importItemFromCsv(
-  record: CsvRecord,
-  update: (id: number, input: Partial<ItemInput>) => Promise<unknown>,
-  create: (input: ItemInput) => Promise<unknown>,
+record: CsvRecord, update: (id: number, input: Partial<ItemInput>) => Promise<unknown>, create: (input: ItemInput) => Promise<unknown>, currency?: string,
 ): Promise<'created' | 'updated'> {
   const id = csvId(record);
   const input = itemInputFromCsv(record);

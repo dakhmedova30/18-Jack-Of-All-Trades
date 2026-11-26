@@ -393,7 +393,7 @@ export function ExpenseFormModal({ expense, onCancel, onSubmit }: ExpenseFormMod
                   <div className="sale-line__field sale-line__field--qty">
                     <label htmlFor={`${line.key}-cost`}>
                       <span>
-                        Price per product
+                        Unit cost
                         <span className="required-marker" aria-hidden="true">
                           {' '}
                           *

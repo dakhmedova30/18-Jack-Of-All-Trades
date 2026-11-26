@@ -306,6 +306,16 @@ export function InventoryPage() {
         }
       />
 
+      {/* <div className="inventory-filter">
+        <TagFilter
+          value={tagFilter}
+          onChange={(tags) => {
+            setTagFilter(tags);
+            setPage(1);
+          }}
+        />
+      </div> */}
+
       {visibilityResult && 'error' in visibilityResult && (
         <p className="form-error" role="alert">
           {visibilityResult.error}
