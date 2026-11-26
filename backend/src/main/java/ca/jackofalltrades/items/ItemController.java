@@ -51,13 +51,19 @@ public class ItemController {
             @Max(value = 100, message = "Must be at most 100") int pageSize,
             @RequestParam(required = false)
             @Size(max = 100, message = "Must be at most 100 characters") String search,
+            @RequestParam(name = "tag", required = false)
+            @Size(max = 50, message = "At most 50 tags")
+            List<@Size(max = 30, message = "Must be at most 30 characters") String> tags,
             @RequestParam(defaultValue = "id")
             @Pattern(regexp = "id|name|quantity|unitPriceCents",
                     message = "Must be one of id, name, quantity, unitPriceCents") String sort,
             @RequestParam(defaultValue = "asc")
             @Pattern(regexp = "asc|desc", message = "Must be one of asc, desc") String order) {
         String trimmed = search == null ? null : search.strip();
-        return itemService.list(trimmed == null || trimmed.isEmpty() ? null : trimmed, sort, order, page, pageSize);
+        List<String> tagFilter = tags == null ? List.of()
+                : tags.stream().map(String::strip).filter(tag -> !tag.isEmpty()).distinct().toList();
+        return itemService.list(trimmed == null || trimmed.isEmpty() ? null : trimmed, tagFilter, sort, order,
+                page, pageSize);
     }
 
     /** Literal paths, so Spring matches them before {@code /{id}}; they are never parsed as ids. */

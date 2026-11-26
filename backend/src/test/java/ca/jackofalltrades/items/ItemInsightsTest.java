@@ -76,7 +76,8 @@ class ItemInsightsTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.periodEnd").value(end.toString()))
                 .andExpect(jsonPath("$.bestSellers").isEmpty())
                 .andExpect(jsonPath("$.worstSeller").isEmpty())
-                .andExpect(jsonPath("$.notSelling").isEmpty());
+                .andExpect(jsonPath("$.notSelling").isEmpty())
+                .andExpect(jsonPath("$.notSellingValueCents").value(0));
     }
 
     @Test
@@ -184,7 +185,10 @@ class ItemInsightsTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.notSelling[*].name", contains("Mug", "Zine")))
                 .andExpect(jsonPath("$.notSelling[0].id").value(soldLastMonth))
                 .andExpect(jsonPath("$.notSelling[0].quantity").value(2))
-                .andExpect(jsonPath("$.notSelling[1].id").value(neverSold));
+                .andExpect(jsonPath("$.notSelling[1].id").value(neverSold))
+                // What those two are worth at selling price: Mug 2 x 12.00 + Zine 4 x 5.00.
+                .andExpect(jsonPath("$.notSellingValueCents").value(4400))
+                .andExpect(jsonPath("$.stockValueCents").value(4400 + 8 * 1000));
     }
 
     @Test

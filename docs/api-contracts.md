@@ -227,7 +227,7 @@ A page customers can read **without logging in**: the business's public details 
 | `GET` | `/api/items/insights` | query: `days` (optional, 1–365) | `200` `InventoryInsights` |
 | `GET` | `/api/items/low-stock?limit` | — | `200` `LowStock` |
 | `GET` | `/api/items/tags` | — | `200` `{ name, itemCount }[]`, the tags in use, most used first |
-| `PUT` | `/api/items/tags?name=Old` | `{ "name": "New" }` | `200` `{ name, itemCount }`; renames the tag on every item that has it (an item that already has `New` just loses `Old`). `400` invalid name; `404` no item has `Old` |
+| `PUT` | `/api/items/tags?name=Old` | `{ "name": "New" }` | `200` `{ name, itemCount }`; renames the tag on every item that has it (an item that already has `New` just loses `Old`). `400` invalid name (same rules as an item tag); `404` no item has `Old` |
 | `DELETE` | `/api/items/tags?name=Old` | — | `204`; removes the tag from every item that has it (the items stay). `404` no item has it |
 | `GET` | `/api/items/{id}` | — | `200` `Item` |
 | `POST` | `/api/items` | `ItemInput` | `201` `Item` |
@@ -237,6 +237,7 @@ A page customers can read **without logging in**: the business's public details 
 | `POST` | `/api/items/bulk-visibility` | `{ "ids": [1, 2], "isPublic": true }` (1–100 ids) | `200` `{ "updated": 2 }`; shows the items on the public profile (§2.2), or hides them with `false`. Skips ids that don't exist or aren't yours; `updated` counts only your items |
 
 - **List:** `search` matches the name or tags, case-insensitive. `sort` is `id` (default), `name`, `quantity` or `unitPriceCents`; `order` is `asc` (default) or `desc`.
+- **Tag filter** (optional, combined with `search`): repeat `tag` to keep items that have any of those tags, e.g. `?tag=stickers&tag=prints`. Tags match exactly, as `GET /api/items/tags` names them; blank values are ignored. At most 50 `tag` values, each at most 30 characters.
 - **`low-stock`:** items with quantity **≤ 5**. `limit` is 1–100 (default 5) and only caps the list; `count` covers every low item.
 
 ```json
@@ -253,14 +254,16 @@ A page customers can read **without logging in**: the business's public details 
 
 // InventoryInsights: stock value at selling price, the period's top 3 sellers, the item that
 // sold the fewest units in it (null if nothing sold; ties go to less revenue, then the later
-// name), and every in-stock item (quantity > 0) with no sales in it, by name. The period is this
+// name), every in-stock item (quantity > 0) with no sales in it, by name, and what those are
+// worth at selling price (notSellingValueCents, part of stockValueCents). The period is this
 // UTC month, or with ?days=N the last N days up to now; periodStart/periodEnd give it.
 {
   "stockValueCents": 482000, "totalUnits": 310,
   "periodStart": "2026-10-01T00:00:00.000Z", "periodEnd": "2026-11-01T00:00:00.000Z",
   "bestSellers": [{ "id": 7, "name": "Flower Print", "unitsSold": 14, "revenueCents": 16800 }],
   "worstSeller": { "id": 9, "name": "Keychain", "unitsSold": 1, "revenueCents": 800 },
-  "notSelling": [{ "id": 12, "name": "Linen Tote", "quantity": 6 }]
+  "notSelling": [{ "id": 12, "name": "Linen Tote", "quantity": 6 }],
+  "notSellingValueCents": 21000
 }
 
 // LowStock
@@ -272,7 +275,7 @@ A page customers can read **without logging in**: the business's public details 
 | `name` | Required on create; 1–120 characters, trimmed |
 | `quantity` | Required on create; whole number ≥ 0 |
 | `unitPriceCents` | Required on create; whole number from 0 to 999,999,999 cents ($0.00–$9,999,999.99) |
-| `tags` | Optional; ≤ 10 tags, each 1–30 characters; duplicates removed; default `[]` |
+| `tags` | Optional; ≤ 10 tags, each 1–30 characters of letters and numbers (any language), spaces and `& - _ / # : ' ’ . + % ( ) !`, never a comma (the item form separates tags with commas); duplicates removed; default `[]` |
 | `note` | Optional; ≤ 1000 characters; default `""` |
 
 Deleting an item doesn't change past sales or expenses: their lines keep the item's name, and `itemId` becomes `null`.
@@ -410,6 +413,8 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
 {
   "periodStart": "2026-10-01T00:00:00.000Z", "periodEnd": "2026-11-01T00:00:00.000Z",
   "restockCents": 15000, "runningCents": 2500, "totalCents": 17500,
+  "previousTotalCents": 21000,
+  "largestExpense": { "id": 5, "incurredAt": "2026-10-10T12:00:00.000Z", "description": "Flower Print x 200, Shipping x 1", "totalCents": 17500 },
   "topRestockItems": [{ "id": 7, "name": "Flower Print", "units": 200, "spentCents": 15000 }]
 }
 ```
@@ -431,7 +436,7 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
 - `totalCents` (line and expense) is calculated by the server.
 - Editing or deleting an expense undoes its restocks first. If that stock has since been sold → `400 Can't undo the restock of "Flower Print": only 3 in stock, need to remove 10 (some may have already been sold)`, and nothing changes. Lines whose item was deleted are skipped.
 - `bulk-delete` skips ids that don't exist or aren't yours; `deleted` counts only the expenses actually deleted. If any one of them can't be undone, none are deleted.
-- `month-breakdown`: `restockCents` sums lines with an item, `runningCents` lines without one (a restock whose item was deleted counts as running). `topRestockItems` lists up to 5 items, most spent first, ties by name.
+- `month-breakdown`: `restockCents` sums lines with an item, `runningCents` lines without one (a restock whose item was deleted counts as running). `topRestockItems` lists up to 5 items, most spent first, ties by name. `previousTotalCents` is the whole of last month's spending (this month's is only so far). `largestExpense` is this month's costliest expense, each converted to the account's currency first (the later one, then the higher id, on a tie); `null` with no expenses.
 
 ### 5.1 Expense tags: `/api/expense-tags`
 
@@ -482,7 +487,7 @@ Errors (`400`): only one of `from`/`to` given, `from` after `to`, a period of 10
 
 Revenue and expenses are grouped by each record's **first tag** (records without tags count as `"Untagged"`): the top 3 tags by value, with the rest combined as `"Other"`. Days and months are UTC.
 
-**A channel** (the Analytics page's channel filter, with either of the above): `channelId` counts only that channel's sales, in `totalRevenueCents`, `revenueSeries`, `salesByTag` and `revenueByChannel`. Expenses aren't recorded per channel, so `totalExpensesCents` and `expenseSeries` still cover every expense, and `netProfitCents` is then that channel's revenue minus all expenses (the page doesn't show it). Another business's channel matches no sales. `400` validation error for a `channelId` below 1.
+**A channel** (optional, with either of the above; the Analytics page no longer offers it): `channelId` counts only that channel's sales, in `totalRevenueCents`, `revenueSeries`, `salesByTag` and `revenueByChannel`. Expenses aren't recorded per channel, so `totalExpensesCents`, `expenseSeries` and `expensesByTag` still cover every expense, and `netProfitCents` is then that channel's revenue minus all expenses. Another business's channel matches no sales. `400` validation error for a `channelId` below 1.
 
 ```json
 {
@@ -507,6 +512,9 @@ Revenue and expenses are grouped by each record's **first tag** (records without
   "revenueByChannel": [
     { "label": "Online", "valueCents": 30000 },
     { "label": "In person", "valueCents": 10500 }
+  ],
+  "expensesByTag": [
+    { "label": "supplies", "valueCents": 12500 }
   ]
 }
 ```
@@ -516,6 +524,7 @@ Revenue and expenses are grouped by each record's **first tag** (records without
 - The totals cover the selected range or period, not all time. For a fixed range they also include records dated after it (as the demo); for a chosen period they don't. `netProfitCents` = `totalRevenueCents − totalExpensesCents`.
 - A series appears only if it has at least one record in the range.
 - `revenueByChannel` has one entry per channel (by name) with revenue in the range or period, largest first, then by name. Channels aren't folded into `"Other"`, since a business has only a few.
+- `expensesByTag` does the same for expenses, by each expense's first tag (`"Untagged"` if none): every tag, largest first, then by name, not folded into `"Other"` like `expenseSeries`.
 
 ### `GET /api/analytics/date-range`
 
@@ -537,6 +546,48 @@ Current stock grouped by first tag. It's a snapshot, so `range` doesn't apply. T
 }
 ```
 
+### The deeper Analytics pages
+
+Each feeds one page's charts. Money is in the account's currency (sales and expenses keep the currency they were recorded in, so each subtotal is converted before it's added); days and months are UTC.
+
+**`GET /api/analytics/sales-trends`, optional `?from&to` and `?channelId` (repeatable)** (Sales Analytics): the period `from` to `to` (ISO dates, both included), bucketed by day, week or month exactly as the summary's chosen periods (`granularity`, `buckets`, `bucketLabels` as there). With neither, the last 12 calendar months by month. The same `400`s as the summary: only one of `from`/`to`, a backwards period, or one of 100 years or more. `channelId` counts only that channel's sales, in every field; repeat it (`?channelId=1&channelId=3`) for several channels' sales together. Another business's channel matches no sales. `revenueCents` and `saleCounts` line up with `buckets`; `channelSeries` is revenue over time by channel: the top 3 channels by revenue, then `"Other"` for the rest, each lined up with `buckets` (with `channelId`s, just those channels). `byWeekday` runs Monday to Sunday; `byChannel` lists every channel with revenue, largest first.
+
+```json
+{
+  "granularity": "month",
+  "buckets": ["2026-09", "2026-10", "2026-11"], "bucketLabels": ["Sep", "Oct", "Nov"],
+  "revenueCents": [120000, 95000, 30000], "saleCounts": [40, 31, 9],
+  "channelSeries": [{ "label": "Online", "values": [70000, 60000, 20000] }, { "label": "In person", "values": [50000, 35000, 10000] }],
+  "byWeekday": [{ "day": "Mon", "saleCount": 8, "revenueCents": 24000 }],
+  "byChannel": [{ "label": "Online", "valueCents": 150000 }]
+}
+```
+
+**`GET /api/analytics/expense-tags`** (Expense Analytics' tag filter): every first tag on the business's expenses at any time, as a JSON array of names, by name ignoring case, with `"Untagged"` last if some expenses have no tag. Unlike `GET /api/expense-tags` (the expense form's list), it includes tags since removed from that list, which old expenses keep. `[]` with no expenses.
+
+**`GET /api/analytics/expense-trends`, optional `?from&to` and `?tag` (repeatable)** (Expense Analytics): the same period and buckets, `from`/`to` as above. `tag` counts only expenses whose first tag is that one (`"Untagged"` for those with none) in every expense field; repeat it (`?tag=rent&tag=stock`) for several tags' expenses together. Each value is one tag, even with a comma in it. Blank values are ignored, and tags no expense has give zeros. Restocks are expense lines linked to an item, running costs the rest; revenue is there for profit, and always covers every sale, since sales have no expense tags. `expenseSeries` is spending over time by first tag, like the summary's: the top 3 tags by spending, then `"Other"` for the rest, each lined up with `buckets`. `byTag` is spending by first tag over the whole period, largest first, with tags past the top 6 combined as `"Other"`, listed last.
+
+```json
+{
+  "granularity": "month",
+  "buckets": ["2026-10", "2026-11"], "bucketLabels": ["Oct", "Nov"],
+  "revenueCents": [95000, 30000], "restockCents": [20000, 7950], "runningCents": [25000, 13775],
+  "expenseSeries": [{ "label": "rent", "values": [25000, 0] }, { "label": "Other", "values": [20000, 21725] }],
+  "byTag": [{ "label": "rent", "valueCents": 50000 }, { "label": "Other", "valueCents": 4500 }]
+}
+```
+
+**`GET /api/analytics/stock-health`** (Inventory Analytics): a snapshot. Item counts out of stock, low (1 to the low-stock threshold) and well stocked; stock value at selling price by first tag (top 7, then `"Other"`); and the 8 items that will run out first at their pace over the last `paceDays` days (today included), with `daysLeft` to one decimal (0 when out of stock).
+
+```json
+{
+  "lowStockThreshold": 5, "outOfStockCount": 1, "lowStockCount": 2, "wellStockedCount": 19,
+  "valueByTag": [{ "label": "print", "valueCents": 40000, "quantity": 50, "itemCount": 2 }],
+  "paceDays": 30,
+  "runningOut": [{ "id": 4, "name": "Mug", "quantity": 0, "unitsSold": 6, "daysLeft": 0.0 }]
+}
+```
+
 ## 7. Health: `/api/health`
 
 No login required. `200 { "status": "ok", "database": "ok" }` when the database responds; `503 { "status": "error", "database": "unreachable" }` when it doesn't.
@@ -549,7 +600,7 @@ What the D2 user stories ask for that no branch implements:
 
 | Story | Missing | Suggested addition |
 | --- | --- | --- |
-| **US3:** "charts showcasing the **number of sales** over time, and number of sales **per item**" | `summary` charts revenue **dollars** by **tag**; there's no sales count over time and no per-item breakdown. `bestSellers` only covers the current month's top 3. | Add sale counts to the time series, and a per-item breakdown for the selected range |
+| **US3:** "charts showcasing the **number of sales** over time, and number of sales **per item**" | Sale counts over time are in `sales-trends` (Sales Analytics). There's still no per-item breakdown: `bestSellers` only covers the current month's top 3. | A per-item breakdown for the chosen period |
 | — | Days and months use UTC, so evening sales in Toronto count toward the next day | Optional: bucket by `America/Toronto` |
 
 ## 9. Merge note

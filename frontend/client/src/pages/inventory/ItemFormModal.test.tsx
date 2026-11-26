@@ -49,6 +49,21 @@ describe('ItemFormModal', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it('rejects a tag with a character outside the allowed set', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn<(_input: ItemInput) => Promise<void>>();
+    render(<ItemFormModal onCancel={vi.fn()} onSubmit={onSubmit} />, { wrapper: PageProviders });
+
+    await user.type(nameField(), 'Tea');
+    await user.type(qtyField(), '1');
+    await user.type(priceField(), '2');
+    await user.type(screen.getByLabelText('Tags'), 'Drinks, hot;cold');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(screen.getByText(/^Tags can only use letters, numbers, spaces/)).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it('submits trimmed item details, cents, and distinct tags', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn<(_input: ItemInput) => Promise<void>>().mockResolvedValue();

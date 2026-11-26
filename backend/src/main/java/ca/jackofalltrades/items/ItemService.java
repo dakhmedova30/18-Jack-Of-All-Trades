@@ -67,8 +67,9 @@ public class ItemService {
     }
 
     @Transactional(readOnly = true)
-    public Paginated<ItemResponse> list(String search, String sort, String order, int page, int pageSize) {
-        return queries.findPage(currentBusiness.id(), search, sort, order, page, pageSize);
+    public Paginated<ItemResponse> list(
+            String search, List<String> tags, String sort, String order, int page, int pageSize) {
+        return queries.findPage(currentBusiness.id(), search, tags, sort, order, page, pageSize);
     }
 
     @Transactional(readOnly = true)
@@ -102,10 +103,11 @@ public class ItemService {
         // Every item that sold in the period, most first: the top few are the best sellers, the
         // last is the worst.
         List<InventoryInsights.BestSeller> sellers = queries.sellers(businessId, start, end, currency);
+        ItemQueries.NotSelling notSelling = queries.notSelling(businessId, start, end);
         return new InventoryInsights(totals[0], totals[1], start, end,
                 sellers.stream().limit(BEST_SELLERS_LIMIT).toList(),
                 sellers.isEmpty() ? null : sellers.getLast(),
-                queries.notSelling(businessId, start, end));
+                notSelling.items(), notSelling.valueCents());
     }
 
     @Transactional(readOnly = true)
