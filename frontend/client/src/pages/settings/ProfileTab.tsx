@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { getErrorMessage } from '../../api/http';
+import { ApiError, getErrorMessage } from '../../api/http';
 import type { BusinessUpdate } from '../../api/auth';
 import { Avatar } from '../../components/Avatar';
 import { useAuth } from '../../hooks/useAuth';
@@ -130,6 +130,7 @@ function DetailsForm({ business }: { business: Business }) {
   const [showPhone, setShowPhone] = useState(business.showPhonePublicly);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<DetailKey, string>>>({});
   const [justSaved, setJustSaved] = useState(false);
 
   // After a save the server may have tidied a value (e.g. added https://), so show what it kept.
@@ -146,23 +147,46 @@ function DetailsForm({ business }: { business: Business }) {
     showPhone !== business.showPhonePublicly ||
     (Object.keys(values) as DetailKey[]).some((key) => values[key].trim() !== saved[key]);
 
+  function edit(key: DetailKey, value: string) {
+    setValues({ ...values, [key]: value });
+    setFieldErrors({ ...fieldErrors, [key]: undefined });
+    setJustSaved(false);
+  }
+
+  /** The input's error props and the message under it, if the server rejected this field. */
+  function errorFor(key: DetailKey) {
+    const message = fieldErrors[key];
+    const id = `profile-${key}-error`;
+    return {
+      inputProps: {
+        'aria-invalid': message ? true : undefined,
+        'aria-describedby': message ? id : undefined,
+      },
+      message: message && (
+        <span id={id} className="field-error">
+          {message}
+        </span>
+      ),
+    };
+  }
+
   function field(
     key: DetailKey,
     label: string,
     props: { type?: string; placeholder?: string } = {},
   ) {
+    const { inputProps, message } = errorFor(key);
     return (
       <SettingsRow label={label}>
         <input
           className="settings-row__input"
           aria-label={label}
           value={values[key]}
-          onChange={(event) => {
-            setValues({ ...values, [key]: event.target.value });
-            setJustSaved(false);
-          }}
+          onChange={(event) => edit(key, event.target.value)}
+          {...inputProps}
           {...props}
         />
+        {message}
       </SettingsRow>
     );
   }
@@ -171,6 +195,7 @@ function DetailsForm({ business }: { business: Business }) {
     event.preventDefault();
     setSaving(true);
     setError(null);
+    setFieldErrors({});
     setJustSaved(false);
     try {
       const trimmed = Object.fromEntries(
@@ -179,7 +204,17 @@ function DetailsForm({ business }: { business: Business }) {
       await updateBusiness({ ...trimmed, showPhonePublicly: showPhone });
       setJustSaved(true);
     } catch (err) {
-      setError(getErrorMessage(err));
+      // "Validation failed" alone doesn't say what to fix, so show each field's own message
+      // under it. A field this form doesn't show keeps its message in the summary instead.
+      const shown: Partial<Record<DetailKey, string>> = {};
+      const unshown: string[] = [];
+      for (const { field: name, message } of err instanceof ApiError ? err.fieldErrors : []) {
+        if (name in values) shown[name as DetailKey] = message;
+        else unshown.push(message);
+      }
+      setFieldErrors(shown);
+      if (Object.keys(shown).length === 0) setError(getErrorMessage(err));
+      else setError(['Check the fields marked above.', ...unshown].join(' '));
     } finally {
       setSaving(false);
     }
@@ -225,11 +260,10 @@ function DetailsForm({ business }: { business: Business }) {
           rows={3}
           maxLength={DESCRIPTION_MAX}
           value={values.description}
-          onChange={(event) => {
-            setValues({ ...values, description: event.target.value });
-            setJustSaved(false);
-          }}
+          onChange={(event) => edit('description', event.target.value)}
+          {...errorFor('description').inputProps}
         />
+        {errorFor('description').message}
       </SettingsRow>
       <SettingsRow label="">
         <span className="muted">
