@@ -19,7 +19,13 @@ import { useAuth } from '../../hooks/useAuth';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useItems } from '../../hooks/useItems';
 import { usePreferences } from '../../hooks/usePreferences';
-import type { Item, ItemInput, ItemSortField, SortOrder } from '../../types';
+import {
+  CURRENCY_CODES,
+  type Item,
+  type ItemInput,
+  type ItemSortField,
+  type SortOrder,
+} from '../../types';
 import { formatCents } from '../../utils/money';
 import { fetchAllPages } from '../../utils/csv';
 import {
@@ -100,7 +106,8 @@ export function InventoryPage() {
   });
 
   async function importItem(record: Record<string, string>) {
-    return importItemFromCsv(record, updateItem, createItem);
+    const currency = CURRENCY_CODES.find((code) => code === business?.currency) ?? 'CAD';
+    return importItemFromCsv(record, updateItem, createItem, currency);
   }
 
   /** Clicking the current sort column flips its direction; a new column starts ascending. */
@@ -226,6 +233,8 @@ export function InventoryPage() {
       </div>
 
       <Toolbar
+        filters={<TagFilter value={tagFilter} onChange={setTagFilter} />}
+        activeFilterCount={tagFilter.length}
         selectedCount={selected.size}
         onAdd={() => setFormState({ mode: 'create' })}
         onDelete={() => setDeleteTarget({ kind: 'bulk', ids: [...selected.keys()] })}

@@ -75,6 +75,7 @@ describe('InventoryPage', () => {
       total: 0,
       totalPages: 1,
     });
+    await user.click(screen.getByRole('button', { name: 'Filters' }));
     await user.click(screen.getByRole('button', { name: 'Tags All tags' }));
     await user.click(await screen.findByRole('checkbox', { name: /^stickers/ }));
     await user.click(screen.getByRole('checkbox', { name: /^prints/ }));

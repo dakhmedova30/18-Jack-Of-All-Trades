@@ -141,7 +141,7 @@ export function ExpensesPage() {
 
   async function importExpense(record: Record<string, string>) {
     const id = csvId(record);
-    const input = expenseInputFromCsv(record);
+    const input = expenseInputFromCsv(record, currency);
     return upsertFromCsv(
       id,
       (existingId) => updateExpense(existingId, input),

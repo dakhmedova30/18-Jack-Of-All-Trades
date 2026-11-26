@@ -1,4 +1,13 @@
-import type { Expense, ExpenseInput, Item, ItemInput, Sale, SaleInput } from '../types';
+import {
+  CURRENCY_CODES,
+  type CurrencyCode,
+  type Expense,
+  type ExpenseInput,
+  type Item,
+  type ItemInput,
+  type Sale,
+  type SaleInput,
+} from '../types';
 import { ApiError } from '../api/http';
 import { csvInteger, csvJsonArray, csvStringArray, type CsvRecord } from './csv';
 
@@ -144,14 +153,20 @@ export async function upsertFromCsv(
   return 'created';
 }
 
-export function itemInputFromCsv(record: CsvRecord): ItemInput {
+export function itemInputFromCsv(record: CsvRecord, defaultCurrency = 'CAD'): ItemInput {
   return {
     name: requiredText(record, 'name'),
     quantity: csvInteger(record, 'quantity'),
     unitPriceCents: csvInteger(record, 'unitPriceCents'),
+    currency: csvCurrency(record, defaultCurrency),
+    width: null,
+    height: null,
+    sizeUnit: null,
+    amountSold: 0,
     tags: csvStringArray(record, 'tags'),
     note: record.note ?? '',
     isPublic: csvBoolean(record, 'isPublic'),
+    isActive: true,
   };
 }
 
@@ -159,10 +174,20 @@ export async function importItemFromCsv(
   record: CsvRecord,
   update: (id: number, input: Partial<ItemInput>) => Promise<unknown>,
   create: (input: ItemInput) => Promise<unknown>,
+  defaultCurrency = 'CAD',
 ): Promise<'created' | 'updated'> {
   const id = csvId(record);
-  const input = itemInputFromCsv(record);
-  const { quantity: _quantity, ...changes } = input;
+  const input = itemInputFromCsv(record, defaultCurrency);
+  const {
+    quantity: _quantity,
+    currency: _currency,
+    width: _width,
+    height: _height,
+    sizeUnit: _sizeUnit,
+    amountSold: _amountSold,
+    isActive: _isActive,
+    ...changes
+  } = input;
   return upsertFromCsv(
     id,
     (existingId) => update(existingId, changes),
@@ -180,13 +205,24 @@ export function saleInputFromCsv(record: CsvRecord): SaleInput {
   };
 }
 
-export function expenseInputFromCsv(record: CsvRecord): ExpenseInput {
+export function expenseInputFromCsv(record: CsvRecord, defaultCurrency = 'CAD'): ExpenseInput {
   return {
     incurredAt: requiredText(record, 'incurredAt'),
+    currency: csvCurrency(record, defaultCurrency),
     description: record.description ?? '',
     tags: csvStringArray(record, 'tags'),
     items: csvJsonArray(record, 'items', isExpenseItem),
   };
+}
+
+function csvCurrency(record: CsvRecord, defaultCurrency: string): CurrencyCode {
+  const value = record.currency?.trim();
+  if (value) {
+    const currency = CURRENCY_CODES.find((code) => code === value);
+    if (!currency) throw new Error('currency must be a supported currency code.');
+    return currency;
+  }
+  return CURRENCY_CODES.find((code) => code === defaultCurrency) ?? 'CAD';
 }
 
 function requiredText(record: CsvRecord, column: string): string {

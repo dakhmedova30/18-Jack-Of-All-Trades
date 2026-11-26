@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
 import {
-  addItem,
-  addSale,
+  addButton,
   cellInColumn,
   openFromSidebar,
   registerNewBusiness,
   sidebarLink,
+  today,
 } from './helpers';
 
 /**
@@ -47,8 +47,8 @@ test('selling an item lowers its stock and shows up on Home and in Analytics', a
 
   // Stock went from 10 to 7.
   await openFromSidebar(page, 'Inventory');
-  const itemRow = page.getByRole('row').filter({ hasText: 'Pressed-flower bookmark' });
-  await expect(await cellInColumn(page, itemRow, 'Qty')).toHaveText('7');
+  const updatedItemRow = page.getByRole('row').filter({ hasText: 'Pressed-flower bookmark' });
+  await expect(await cellInColumn(page, updatedItemRow, 'Qty')).toHaveText('7');
 
   // This month's revenue on Home and in Analytics is the 15.00 sale.
   await sidebarLink(page, 'Home').click();

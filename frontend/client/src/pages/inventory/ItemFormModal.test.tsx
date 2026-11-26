@@ -63,7 +63,9 @@ describe('ItemFormModal', () => {
     await user.type(nameField(), 'Tea');
     await user.type(qtyField(), '1');
     await user.type(priceField(), '2');
+    await user.click(screen.getByRole('button', { name: /New tag/ }));
     await user.type(screen.getByLabelText('Tags'), 'Drinks, hot;cold');
+    await user.click(screen.getByRole('button', { name: 'Add' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(screen.getByText(/^Tags can only use letters, numbers, spaces/)).toBeInTheDocument();
