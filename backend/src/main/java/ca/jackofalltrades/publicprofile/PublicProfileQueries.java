@@ -1,6 +1,7 @@
 package ca.jackofalltrades.publicprofile;
 
 import ca.jackofalltrades.publicprofile.PublicProfileResponse.PublicItem;
+import java.time.OffsetDateTime;
 import java.util.List;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -15,20 +16,33 @@ public class PublicProfileQueries {
         this.jdbcClient = jdbcClient;
     }
 
-    /** Only items marked public, A to Z. Selects just the columns the public may see. */
-    public List<PublicItem> publicItems(int businessId) {
+    /**
+     * Only items marked public, A to Z. Selects just the columns the public may see. Photo URLs
+     * go through the profile's slug, and change (?v=) whenever the photo does.
+     */
+    public List<PublicItem> publicItems(int businessId, String slug) {
         return jdbcClient.sql("""
-                        SELECT id, name, unit_price_cents, quantity > 0 AS in_stock
-                        FROM items
-                        WHERE business_id = :businessId AND is_public
-                        ORDER BY name, id
+                        SELECT i.id, i.name, i.unit_price_cents, i.quantity > 0 AS in_stock,
+                               p.updated_at AS photo_updated_at
+                        FROM items i
+                        LEFT JOIN item_photos p ON p.item_id = i.id
+                        WHERE i.business_id = :businessId AND i.is_public
+                        ORDER BY i.name, i.id
                         """)
                 .param("businessId", businessId)
-                .query((rs, rowNum) -> new PublicItem(
-                        rs.getInt("id"),
-                        rs.getString("name"),
-                        rs.getInt("unit_price_cents"),
-                        rs.getBoolean("in_stock")))
+                .query((rs, rowNum) -> {
+                    int id = rs.getInt("id");
+                    OffsetDateTime photoUpdatedAt = rs.getObject("photo_updated_at", OffsetDateTime.class);
+                    String photoUrl = photoUpdatedAt == null ? null
+                            : "/api/public/businesses/" + slug + "/items/" + id + "/photo?v="
+                                    + photoUpdatedAt.toInstant().toEpochMilli();
+                    return new PublicItem(
+                            id,
+                            rs.getString("name"),
+                            rs.getInt("unit_price_cents"),
+                            rs.getBoolean("in_stock"),
+                            photoUrl);
+                })
                 .list();
     }
 }

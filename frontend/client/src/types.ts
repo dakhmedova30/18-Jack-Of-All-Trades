@@ -82,6 +82,8 @@ export interface PublicItem {
   name: string;
   unitPriceCents: number;
   inStock: boolean;
+  /** null when the item has no photo. */
+  photoUrl: string | null;
 }
 
 /** GET /api/public/businesses/:slug, readable without logging in. */

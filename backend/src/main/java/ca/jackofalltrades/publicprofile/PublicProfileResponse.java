@@ -26,6 +26,9 @@ public record PublicProfileResponse(
         String logoUrl,
         List<PublicItem> items) {
 
-    /** A public item. {@code inStock} instead of the quantity, so stock levels stay private. */
-    public record PublicItem(Integer id, String name, int unitPriceCents, boolean inStock) {}
+    /**
+     * A public item. {@code inStock} instead of the quantity, so stock levels stay private.
+     * {@code photoUrl} is null when the item has no photo.
+     */
+    public record PublicItem(Integer id, String name, int unitPriceCents, boolean inStock, String photoUrl) {}
 }

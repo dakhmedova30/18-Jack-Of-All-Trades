@@ -3,6 +3,7 @@ package ca.jackofalltrades.auth;
 import ca.jackofalltrades.channels.ChannelService;
 import ca.jackofalltrades.common.api.BadRequestException;
 import ca.jackofalltrades.common.api.ConflictException;
+import ca.jackofalltrades.common.api.Images;
 import ca.jackofalltrades.expensetags.ExpenseTagService;
 import ca.jackofalltrades.common.api.UnauthorizedException;
 import java.net.URI;
@@ -10,7 +11,6 @@ import java.net.URISyntaxException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Optional;
-import java.util.Set;
 import java.util.regex.Pattern;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,9 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AuthService {
 
-    /** Pictures and logos are resized in the browser, so a real one is far smaller than this. */
-    static final int MAX_IMAGE_BYTES = 512 * 1024;
-    private static final Set<String> IMAGE_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
     private static final Pattern PHONE = Pattern.compile("[0-9+()\\-.\\s]{3,30}");
     private static final Pattern PUBLIC_SLUG = Pattern.compile("[a-z0-9]+(-[a-z0-9]+)*");
 
@@ -173,16 +170,7 @@ public class AuthService {
     }
 
     private Business setImage(Integer id, AvatarRepository.Kind kind, String contentType, byte[] data) {
-        String type = contentType == null ? "" : contentType.split(";")[0].strip().toLowerCase();
-        if (!IMAGE_TYPES.contains(type)) {
-            throw new BadRequestException("Image must be a JPEG, PNG or WebP file");
-        }
-        if (data.length == 0) {
-            throw new BadRequestException("Image is empty");
-        }
-        if (data.length > MAX_IMAGE_BYTES) {
-            throw new BadRequestException("Image must be 512 KB or smaller");
-        }
+        String type = Images.check(contentType, data);
         Business business = businesses.findById(id)
                 .orElseThrow(() -> new UnauthorizedException("Not logged in"));
         avatars.save(kind, id, type, data);

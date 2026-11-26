@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ca.jackofalltrades.PostgresTestBase;
+import ca.jackofalltrades.common.api.Images;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -326,7 +327,7 @@ class AuthControllerTest extends PostgresTestBase {
         mockMvc.perform(put("/api/auth/me/avatar")
                         .cookie(cookie)
                         .contentType(MediaType.IMAGE_PNG)
-                        .content(new byte[AuthService.MAX_IMAGE_BYTES + 1]))
+                        .content(new byte[Images.MAX_BYTES + 1]))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("Image must be 512 KB or smaller"));
 
@@ -334,7 +335,7 @@ class AuthControllerTest extends PostgresTestBase {
         mockMvc.perform(put("/api/auth/me/avatar")
                         .cookie(cookie)
                         .contentType(MediaType.IMAGE_PNG)
-                        .content(new byte[AuthService.MAX_IMAGE_BYTES * 4]))
+                        .content(new byte[Images.MAX_BYTES * 4]))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("Image must be 512 KB or smaller"));
 
