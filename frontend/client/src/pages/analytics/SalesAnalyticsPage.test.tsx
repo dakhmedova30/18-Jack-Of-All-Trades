@@ -129,6 +129,7 @@ describe('SalesAnalyticsPage charts', () => {
       periodStart: '2026-11-01T00:00:00Z',
       periodEnd: '2026-12-01T00:00:00Z',
       bestSellers: [],
+      worstSeller: null,
       notSelling: [],
       notSellingValueCents: 0,
     });

@@ -5,8 +5,9 @@ import java.util.List;
 
 /**
  * The {@code InventoryInsights} JSON in contract §3: stock value at selling price, the top 3 items
- * by units sold this UTC month, {@code [periodStart, periodEnd)}, the in-stock items with no
- * sales in that month, and what those items are worth at selling price.
+ * by units sold this UTC month, {@code [periodStart, periodEnd)}, the item that sold the fewest
+ * units that month (null when nothing sold), the in-stock items with no sales in that month, and
+ * what those items are worth at selling price.
  */
 public record InventoryInsights(
         long stockValueCents,
@@ -14,6 +15,7 @@ public record InventoryInsights(
         Instant periodStart,
         Instant periodEnd,
         List<BestSeller> bestSellers,
+        BestSeller worstSeller,
         List<NotSellingItem> notSelling,
         long notSellingValueCents) {
 

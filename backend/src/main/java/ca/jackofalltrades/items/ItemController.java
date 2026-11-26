@@ -68,8 +68,12 @@ public class ItemController {
 
     /** Literal paths, so Spring matches them before {@code /{id}}; they are never parsed as ids. */
     @GetMapping("/insights")
-    public InventoryInsights insights() {
-        return itemService.insights();
+    public InventoryInsights insights(
+            // Leave out for this UTC month; give a number for the last that many days, up to now.
+            @RequestParam(required = false)
+            @Min(value = 1, message = "Must be at least 1")
+            @Max(value = 365, message = "Must be at most 365") Integer days) {
+        return itemService.insights(days);
     }
 
     @GetMapping("/low-stock")

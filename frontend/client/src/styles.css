@@ -1781,19 +1781,28 @@ select {
   margin-top: 1rem;
 }
 
+.home-header__title {
+  font-size: 2.4rem;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
 .home-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  /* Two big cards per row; one per row on narrow screens (see the 720px breakpoint). */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* Every row as tall as the tallest, so all four cards are the same size. */
+  grid-auto-rows: 1fr;
   gap: 1.5rem;
-  margin-top: 1rem;
+  margin-top: 1.5rem;
 }
 
 .home-card {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 0.9rem;
-  padding: 1.5rem 1.25rem;
+  min-width: 0;
+  padding: 1.5rem;
   border: var(--border-default) var(--color-border);
   border-radius: 12px;
   background: var(--color-surface);
@@ -1810,147 +1819,223 @@ select {
   transform: translateY(-2px);
 }
 
-.home-card__title {
-  font-size: 1.6rem;
-  margin: 0;
-}
-
-.home-card__preview {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.4rem;
-  width: 100%;
-  /* Same height on every card, whatever its preview holds, so the row lines up. */
-  height: 130px;
-  padding: 0.6rem 0.75rem;
-  border: var(--border-default) var(--color-border);
-  border-radius: 8px;
-  overflow: hidden;
-  background: var(--color-bg);
-}
-
-.home-card__svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  max-height: 100%;
-}
-
-.home-card__caption {
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 0.85rem;
-}
-
-.home-card__message {
-  margin: 0;
-  text-align: center;
-  color: var(--color-muted);
-  font-size: 0.9rem;
-}
-
-.home-card__number {
-  margin: 0;
-  text-align: center;
-  font-size: 1.6rem;
-  font-weight: 700;
-  font-family: var(--font-header);
-}
-
-.home-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 0.8rem;
-}
-
-.home-bars__row {
-  display: grid;
-  grid-template-columns: 5.5rem 1fr auto;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.home-bars__label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.home-bars__track {
-  height: 8px;
-  border-radius: 4px;
-  background: var(--color-surface-alt);
-  overflow: hidden;
-}
-
-.home-bars__fill {
-  display: block;
-  height: 100%;
-  border-radius: 4px;
-}
-
-.home-bars__value {
-  color: var(--color-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.home-legend {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  color: var(--color-muted);
-  font-size: 0.75rem;
-}
-
-.home-legend__swatch {
-  display: inline-block;
-  width: 10px;
-  height: 3px;
-  margin-right: 0.35rem;
-  border-radius: 2px;
-  vertical-align: middle;
-}
-
-.home-recent {
-  gap: 0.6rem;
-  margin-top: 1.5rem;
-}
-
-.home-recent__header {
+.home-card__header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
 }
 
-.home-recent__link {
-  color: var(--color-accent);
+.home-card__title {
+  font-size: 1.6rem;
+  margin: 0;
+}
+
+/* "Last 30 days", "Most recent": what period the card's preview covers. */
+.home-card__timeframe {
+  flex-shrink: 0;
+  padding: 0.2rem 0.65rem;
+  border: var(--border-default) var(--color-border);
+  border-radius: 999px;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.home-card__preview {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.5rem;
+  /* One height for every card's preview: room for 6 sales or expenses, or the chart. */
+  flex: 1;
+  height: 300px;
+  padding: 0.9rem 1rem;
+  border: var(--border-default) var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.home-card__message {
+  margin: 0;
+  text-align: center;
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+/* Latest sales and expenses: date, what it was, amount. */
+.home-activity {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-activity__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.75rem;
+  /* Six rows fit the card's preview height exactly. */
+  padding: 0.55rem 0;
+  border-bottom: var(--border-default) var(--color-border);
+}
+
+.home-activity__row:last-child {
+  border-bottom: none;
+}
+
+.home-activity__date {
+  white-space: nowrap;
+  color: var(--color-muted);
   font-size: 0.85rem;
 }
 
-.home-recent__date {
-  white-space: nowrap;
-  color: var(--color-muted);
-}
-
-.home-recent__items {
-  /* One line per sale on desktop; long item names get cut with an ellipsis. */
-  max-width: 0;
-  width: 100%;
+.home-activity__label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.home-recent__amount {
+.home-activity__amount {
   white-space: nowrap;
-  color: var(--color-positive);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-activity__amount--income {
+  color: var(--color-positive);
+}
+
+.home-activity__amount--cost {
+  color: var(--color-danger);
+}
+
+/* Inventory: best seller in green, worst in red. */
+.home-sellers {
+  display: grid;
+  /* The two boxes share the space; the product count sits underneath. */
+  grid-template-rows: 1fr 1fr auto;
+  gap: 0.75rem;
+  height: 100%;
+}
+
+.home-seller {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.8rem 1rem;
+  border-left: 4px solid;
+  border-radius: 8px;
+}
+
+.home-seller--best {
+  border-color: var(--color-positive);
+  background: color-mix(in srgb, var(--color-positive) 12%, transparent);
+}
+
+.home-seller--worst {
+  border-color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+}
+
+.home-seller__kind {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.home-seller--best .home-seller__kind {
+  color: var(--color-positive);
+}
+
+.home-seller--worst .home-seller__kind {
+  color: var(--color-danger);
+}
+
+.home-seller__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-header);
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.home-seller__detail {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.home-sellers__count {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+/* Analytics: the Revenue Overview chart, axis titles, and the legend on the right. */
+.home-chart {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.home-chart__plot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.home-chart__plot .viz {
+  width: 100%;
+  max-height: 245px;
+}
+
+/* Bigger axis numbers and dates than the full-size charts on the Analytics page. */
+.home-chart .viz-label {
+  font-size: 13px;
+}
+
+.home-chart__y-title,
+.home-chart__x-title {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.home-chart__y-title {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.home-chart__legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-width: 9rem;
+}
+
+.home-chart__legend .viz-legend {
+  font-size: 0.9rem;
+}
+
+.home-chart__legend-title {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 /* ---------- Summary panels & ranked lists (Inventory, Sales, Expenses) ---------- */
@@ -3457,6 +3542,16 @@ textarea.settings-row__input {
 
   .sale-line__field--total > span:last-child {
     text-align: left;
+  }
+
+  /* ---------- Home: one card per row ---------- */
+
+  .home-header__title {
+    font-size: 1.9rem;
+  }
+
+  .home-cards {
+    grid-template-columns: 1fr;
   }
 
   /* ---------- Summary panels ---------- */
