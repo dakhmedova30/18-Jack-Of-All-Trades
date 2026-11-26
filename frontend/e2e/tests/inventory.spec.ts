@@ -6,8 +6,13 @@ async function addTaggedItem(page: Page, name: string, tags: string): Promise<vo
   const form = page.getByRole('dialog', { name: 'Add new item' });
   await form.getByLabel('Name').fill(name);
   await form.getByLabel('Qty').fill('5');
-  await form.getByLabel(/Unit price/).fill('3.00');
-  await form.getByLabel('Tags').fill(tags);
+  await form.getByLabel(/price \(/i).fill('3.00');
+  for (const tag of tags.split(',').map((t) => t.trim())) {
+    await form.getByRole('button', { name: 'New tag' }).click();
+    await form.getByLabel('Tags', { exact: true }).fill(tag);
+    await form.getByRole('button', { name: 'Add', exact: true }).click();
+    await expect(form.getByRole('button', { name: `Remove tag ${tag}` })).toBeVisible();
+  }
   await form.getByRole('button', { name: 'Save' }).click();
   await expect(form).toBeHidden();
 }
@@ -20,6 +25,7 @@ test('the tag filter shows the items with any of the ticked tags', async ({ page
   await addTaggedItem(page, 'Canvas tote', 'bags');
 
   const rows = page.getByRole('row');
+  await page.getByRole('button', { name: 'Filters', exact: true }).click();
   const filter = page.getByRole('button', { name: /^Tags/ });
   await filter.click();
   await page.getByRole('checkbox', { name: 'stickers (1 item)' }).check();

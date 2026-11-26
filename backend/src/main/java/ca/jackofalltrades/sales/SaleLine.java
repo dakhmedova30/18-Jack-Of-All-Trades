@@ -40,6 +40,17 @@ public class SaleLine {
     @Column(nullable = false)
     private int totalCents;
 
+    @Column(nullable = false)
+    private String kind = "ITEM";
+
+    @Column(name = "is_free", nullable = false)
+    private boolean free;
+
+    @Column(name = "is_trade", nullable = false)
+    private boolean trade;
+
+    private Integer discountId;
+
     protected SaleLine() {
         // for JPA
     }
@@ -52,8 +63,40 @@ public class SaleLine {
         this.totalCents = totalCents;
     }
 
+    /** A sold item that may be free or a trade (both count as no revenue). */
+    SaleLine(Integer itemId, String itemName, int quantity, int unitPriceCents, int totalCents, boolean free,
+            boolean trade) {
+        this(itemId, itemName, quantity, unitPriceCents, totalCents);
+        this.free = free;
+        this.trade = trade;
+    }
+
+    /** A discount, charge or tip line: no item, quantity 1, and a signed amount. */
+    static SaleLine adjustment(String kind, String name, int amountCents, Integer discountId) {
+        SaleLine line = new SaleLine(null, name, 1, amountCents, amountCents);
+        line.kind = kind;
+        line.discountId = discountId;
+        return line;
+    }
+
     void setSale(Sale sale) {
         this.sale = sale;
+    }
+
+    public String getKind() {
+        return kind;
+    }
+
+    public boolean isFree() {
+        return free;
+    }
+
+    public boolean isTrade() {
+        return trade;
+    }
+
+    public Integer getDiscountId() {
+        return discountId;
     }
 
     public Integer getId() {

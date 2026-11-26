@@ -11,15 +11,21 @@ import {
 } from '../../api/items';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CsvTransfer } from '../../components/CsvTransfer';
-import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
+import { PlusIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
 import { TagList } from '../../components/TagList';
+import { Toolbar } from '../../components/Toolbar';
 import { useAuth } from '../../hooks/useAuth';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useItems } from '../../hooks/useItems';
 import { usePreferences } from '../../hooks/usePreferences';
-import { useCurrency } from '../../hooks/useCurrency';
-import type { Item, ItemInput, ItemSortField, SortOrder } from '../../types';
+import {
+  CURRENCY_CODES,
+  type Item,
+  type ItemInput,
+  type ItemSortField,
+  type SortOrder,
+} from '../../types';
 import { formatCents } from '../../utils/money';
 import { fetchAllPages } from '../../utils/csv';
 import {
@@ -35,8 +41,14 @@ const SORTABLE_COLUMNS: { field: ItemSortField; label: string; numeric?: boolean
   { field: 'id', label: 'ID' },
   { field: 'name', label: 'Name' },
   { field: 'quantity', label: 'Qty', numeric: true },
-  { field: 'unitPriceCents', label: 'Unit price', numeric: true },
+  { field: 'unitPriceCents', label: 'Price', numeric: true },
 ];
+
+function formatSize(item: Item): string {
+  return item.width != null && item.height != null && item.sizeUnit
+    ? `${item.width} × ${item.height} ${item.sizeUnit}`
+    : '—';
+}
 
 type FormState = { mode: 'create' } | { mode: 'edit'; item: Item } | null;
 type DeleteTarget = { kind: 'single'; item: Item } | { kind: 'bulk'; ids: number[] } | null;
@@ -76,7 +88,6 @@ function skippedMessage({ isPublic, change, skipped }: NonNullable<VisibilityTar
 export function InventoryPage() {
   const { preferences } = usePreferences();
   const { business } = useAuth();
-  const currency = useCurrency();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [tagFilter, setTagFilter] = useState<string[]>([]);
@@ -95,7 +106,8 @@ export function InventoryPage() {
   });
 
   async function importItem(record: Record<string, string>) {
-    return importItemFromCsv(record, updateItem, createItem);
+    const currency = CURRENCY_CODES.find((code) => code === business?.currency) ?? 'CAD';
+    return importItemFromCsv(record, updateItem, createItem, currency);
   }
 
   /** Clicking the current sort column flips its direction; a new column starts ascending. */
@@ -145,8 +157,9 @@ export function InventoryPage() {
   }
 
   async function handleSave(input: ItemInput) {
-    if (formState?.mode === 'edit') await updateItem(formState.item.id, input);
-    else await createItem(input);
+    if (formState?.mode === 'edit') {
+      await updateItem(formState.item.id, { ...input, clearSize: input.width === null });
+    } else await createItem(input);
     setFormState(null);
     reload();
   }
@@ -219,8 +232,66 @@ export function InventoryPage() {
         <p className="muted">A view of your current inventory.</p>
       </div>
 
-      <div className="toolbar">
-        <div className="toolbar__actions">
+      <Toolbar
+        filters={
+          <TagFilter
+            value={tagFilter}
+            onChange={(tags) => {
+              setTagFilter(tags);
+              setPage(1);
+            }}
+          />
+        }
+        activeFilterCount={tagFilter.length}
+        selectedCount={selected.size}
+        onAdd={() => setFormState({ mode: 'create' })}
+        onDelete={() => setDeleteTarget({ kind: 'bulk', ids: [...selected.keys()] })}
+        profileActions={
+          selected.size > 0 ? (
+            <>
+              <button
+                type="button"
+                className="button button--ghost"
+                disabled={toShow.length === 0 || visibilityBusy}
+                onClick={() => void setSelectedPublic(true)}
+                aria-label={`Show on profile${toShow.length > 0 ? ` (${toShow.length})` : ''}`}
+              >
+                <span className="toolbar__profile-label">
+                  Show on profile{toShow.length > 0 && ` (${toShow.length})`}
+                </span>
+                <span className="toolbar__profile-compact">Show</span>
+              </button>
+              <button
+                type="button"
+                className="button button--ghost"
+                disabled={toHide.length === 0 || visibilityBusy}
+                onClick={() => void setSelectedPublic(false)}
+                aria-label={`Hide from profile${toHide.length > 0 ? ` (${toHide.length})` : ''}`}
+              >
+                <span className="toolbar__profile-label">
+                  Hide from profile{toHide.length > 0 && ` (${toHide.length})`}
+                </span>
+                <span className="toolbar__profile-compact">Hide</span>
+              </button>
+            </>
+          ) : undefined
+        }
+        search={
+          <div className="search">
+            <input
+              id="inventory-search"
+              type="search"
+              placeholder="Search"
+              value={searchInput}
+              onChange={(event) => {
+                setSearchInput(event.target.value);
+                setPage(1);
+              }}
+              aria-label="Search items by name or tag"
+            />
+          </div>
+        }
+        transfer={
           <CsvTransfer
             filename="inventory"
             headers={ITEM_CSV_HEADERS}
@@ -234,62 +305,8 @@ export function InventoryPage() {
             importRow={importItem}
             onImported={reload}
           />
-          <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
-            Add <PlusIcon />
-          </button>
-          <button
-            type="button"
-            className="button button--secondary"
-            disabled={selected.size === 0}
-            onClick={() => setDeleteTarget({ kind: 'bulk', ids: [...selected.keys()] })}
-          >
-            Bulk delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
-          </button>
-          {/* Each is enabled only when some selected item would change; the count is how many. */}
-          <button
-            type="button"
-            className="button button--secondary"
-            disabled={toShow.length === 0 || visibilityBusy}
-            onClick={() => void setSelectedPublic(true)}
-          >
-            Show on profile{toShow.length > 0 && ` (${toShow.length})`}
-          </button>
-          <button
-            type="button"
-            className="button button--secondary"
-            disabled={toHide.length === 0 || visibilityBusy}
-            onClick={() => void setSelectedPublic(false)}
-          >
-            Hide from profile{toHide.length > 0 && ` (${toHide.length})`}
-          </button>
-        </div>
-        <div className="toolbar__filters">
-          <TagFilter
-            value={tagFilter}
-            onChange={(tags) => {
-              setTagFilter(tags);
-              setPage(1);
-            }}
-          />
-          <div className="search-field">
-            <label htmlFor="inventory-search">Search</label>
-            <div className="search">
-              <input
-                id="inventory-search"
-                type="search"
-                placeholder="Search"
-                value={searchInput}
-                onChange={(event) => {
-                  setSearchInput(event.target.value);
-                  setPage(1);
-                }}
-                aria-label="Search items by name or tag"
-              />
-              <SearchIcon />
-            </div>
-          </div>
-        </div>
-      </div>
+        }
+      />
 
       {visibilityResult && 'error' in visibilityResult && (
         <p className="form-error" role="alert">
@@ -353,6 +370,9 @@ export function InventoryPage() {
                   </th>
                 );
               })}
+              <th className="numeric">Amount sold</th>
+              <th className="numeric">Total</th>
+              <th>Size</th>
               <th>Tags</th>
               <th className="table__action">Delete</th>
             </tr>
@@ -361,7 +381,7 @@ export function InventoryPage() {
             {items.map((item) => (
               <tr
                 key={item.id}
-                className="table__row"
+                className={`table__row${!item.isActive || item.quantity === 0 ? ' is-inactive' : ''}`}
                 tabIndex={0}
                 aria-label={`Edit ${item.name}`}
                 onClick={() => setFormState({ mode: 'edit', item })}
@@ -385,9 +405,15 @@ export function InventoryPage() {
                 <td>
                   {item.name}
                   {item.isPublic && <span className="public-marker">Public</span>}
+                  {!item.isActive && <span className="public-marker">Inactive</span>}
                 </td>
                 <td className="numeric">{item.quantity}</td>
-                <td className="numeric">{formatCents(item.unitPriceCents, currency)}</td>
+                <td className="numeric">{formatCents(item.unitPriceCents, item.currency)}</td>
+                <td className="numeric">{item.amountSold}</td>
+                <td className="numeric">
+                  {formatCents(item.unitPriceCents * item.amountSold, item.currency)}
+                </td>
+                <td>{formatSize(item)}</td>
                 <td>
                   <TagList tags={item.tags} />
                 </td>
@@ -407,6 +433,18 @@ export function InventoryPage() {
               </tr>
             ))}
           </tbody>
+          {items.length > 0 && (
+            <tfoot>
+              <tr>
+                <td />
+                <td colSpan={2}>Totals (this page)</td>
+                <td className="numeric">{items.reduce((sum, item) => sum + item.quantity, 0)}</td>
+                <td />
+                <td className="numeric">{items.reduce((sum, item) => sum + item.amountSold, 0)}</td>
+                <td colSpan={4} />
+              </tr>
+            </tfoot>
+          )}
         </table>
 
         {!data && loading && <p className="empty-state">Loading…</p>}

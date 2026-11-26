@@ -3,6 +3,7 @@ package ca.jackofalltrades.items;
 import ca.jackofalltrades.auth.Business;
 import ca.jackofalltrades.auth.BusinessRepository;
 import ca.jackofalltrades.common.api.BadRequestException;
+import ca.jackofalltrades.common.api.ConflictException;
 import ca.jackofalltrades.common.api.NotFoundException;
 import ca.jackofalltrades.common.api.Paginated;
 import ca.jackofalltrades.common.security.CurrentBusiness;
@@ -99,7 +100,7 @@ public class ItemService {
         String currency = businesses.findById(businessId)
                 .map(Business::getCurrency)
                 .orElseThrow(() -> new NotFoundException("Business", businessId));
-        long[] totals = queries.stockTotals(businessId);
+        long[] totals = queries.stockTotals(businessId, currency);
         // Every item that sold in the period, most first: the top few are the best sellers, the
         // last is the worst.
         List<InventoryInsights.BestSeller> sellers = queries.sellers(businessId, start, end, currency);
@@ -124,8 +125,11 @@ public class ItemService {
         Business business = businesses.findLockedById(currentBusiness.id())
                 .orElseThrow(() -> new NotFoundException("Business", currentBusiness.id()));
         Item item = new Item(currentBusiness.id(), input.name(), input.quantity(), input.unitPriceCents(),
-                business.getCurrency(),
+                input.currency() != null ? input.currency() : business.getCurrency(),
                 input.tags(), input.note(), input.isPublic());
+        item.setSize(input.width(), input.height(), input.sizeUnit());
+        item.setAmountSold(input.amountSold());
+        item.setActive(input.isActive());
         return ItemResponse.from(items.saveAndFlush(item));
     }
 
@@ -146,8 +150,22 @@ public class ItemService {
         if (changes.quantity() != null) {
             item.setQuantity(changes.quantity());
         }
+        if (changes.currency() != null) {
+            item.setCurrency(changes.currency());
+        }
         if (changes.unitPriceCents() != null) {
             item.setUnitPriceCents(changes.unitPriceCents());
+        }
+        if (changes.width() != null) {
+            item.setSize(changes.width(), changes.height(), changes.sizeUnit());
+        } else if (Boolean.TRUE.equals(changes.clearSize())) {
+            item.setSize(null, null, null);
+        }
+        if (changes.amountSold() != null) {
+            item.setAmountSold(changes.amountSold());
+        }
+        if (changes.isActive() != null) {
+            item.setActive(changes.isActive());
         }
         if (changes.tags() != null) {
             item.setTags(changes.tags());
@@ -161,11 +179,12 @@ public class ItemService {
         return ItemResponse.from(items.saveAndFlush(item));
     }
 
-    /** Past sales keep the item's name; the database sets their lines' item_id to NULL. */
+    /** An item that sales or expenses use can't be deleted; it can be deactivated instead. */
     @Transactional
     public void delete(int id) {
         Item item = items.findLockedByIdAndBusinessId(id, currentBusiness.id())
                 .orElseThrow(() -> new NotFoundException("Item", id));
+        rejectIfInUse(List.of(item.getId()));
         items.delete(item);
     }
 
@@ -173,8 +192,17 @@ public class ItemService {
     @Transactional
     public int bulkDelete(List<Integer> ids) {
         List<Item> found = items.findLockedByIdInAndBusinessIdOrderByIdAsc(new LinkedHashSet<>(ids), currentBusiness.id());
+        rejectIfInUse(found.stream().map(Item::getId).toList());
         found.forEach(items::delete);
         return found.size();
+    }
+
+    private void rejectIfInUse(List<Integer> ids) {
+        List<String> inUse = queries.referencedNames(currentBusiness.id(), ids);
+        if (!inUse.isEmpty()) {
+            throw new ConflictException("Used by sales or expenses, so it can't be deleted: "
+                    + String.join(", ", inUse) + ". Deactivate it instead.");
+        }
     }
 
     /**

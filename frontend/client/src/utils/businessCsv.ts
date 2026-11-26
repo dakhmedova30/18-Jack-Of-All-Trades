@@ -1,4 +1,12 @@
-import type { Expense, ExpenseInput, Item, ItemInput, Sale, SaleInput } from '../types';
+import type {
+  CurrencyCode,
+  Expense,
+  ExpenseInput,
+  Item,
+  ItemInput,
+  Sale,
+  SaleInput,
+} from '../types';
 import { ApiError } from '../api/http';
 import { csvInteger, csvJsonArray, csvStringArray, type CsvRecord } from './csv';
 
@@ -144,14 +152,20 @@ export async function upsertFromCsv(
   return 'created';
 }
 
-export function itemInputFromCsv(record: CsvRecord): ItemInput {
+export function itemInputFromCsv(record: CsvRecord, currency: CurrencyCode = 'CAD'): ItemInput {
   return {
     name: requiredText(record, 'name'),
     quantity: csvInteger(record, 'quantity'),
     unitPriceCents: csvInteger(record, 'unitPriceCents'),
+    currency,
+    width: null,
+    height: null,
+    sizeUnit: null,
+    amountSold: 0,
     tags: csvStringArray(record, 'tags'),
     note: record.note ?? '',
     isPublic: csvBoolean(record, 'isPublic'),
+    isActive: true,
   };
 }
 
@@ -159,10 +173,12 @@ export async function importItemFromCsv(
   record: CsvRecord,
   update: (id: number, input: Partial<ItemInput>) => Promise<unknown>,
   create: (input: ItemInput) => Promise<unknown>,
+  currency: CurrencyCode = 'CAD',
 ): Promise<'created' | 'updated'> {
   const id = csvId(record);
-  const input = itemInputFromCsv(record);
-  const { quantity: _quantity, ...changes } = input;
+  const input = itemInputFromCsv(record, currency);
+  const { name, unitPriceCents, tags, note, isPublic } = input;
+  const changes = { name, unitPriceCents, tags, note, isPublic };
   return upsertFromCsv(
     id,
     (existingId) => update(existingId, changes),
@@ -180,12 +196,23 @@ export function saleInputFromCsv(record: CsvRecord): SaleInput {
   };
 }
 
-export function expenseInputFromCsv(record: CsvRecord): ExpenseInput {
+export function expenseInputFromCsv(
+  record: CsvRecord,
+  currency: CurrencyCode = 'CAD',
+): ExpenseInput {
+  const items = csvJsonArray(record, 'items', isExpenseItem).map((line) => ({
+    ...line,
+    category: line.category ?? '',
+    subcategory: line.subcategory ?? '',
+    manufacturer: line.manufacturer ?? '',
+    type: line.type ?? 'other',
+  }));
   return {
     incurredAt: requiredText(record, 'incurredAt'),
+    currency,
     description: record.description ?? '',
     tags: csvStringArray(record, 'tags'),
-    items: csvJsonArray(record, 'items', isExpenseItem),
+    items,
   };
 }
 

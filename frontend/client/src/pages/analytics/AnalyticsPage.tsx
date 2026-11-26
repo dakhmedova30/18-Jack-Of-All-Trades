@@ -39,14 +39,14 @@ function AnalyticsHeader({ actions }: { actions?: ReactNode }) {
   return (
     <>
       <div className="analytics-header">
-        <div>
+        <div className="analytics-header__description">
           <h1>Analytics</h1>
           <p className="muted">
             Revenue, expenses and profit over the period you choose, where your revenue comes from
             by sales channel, and where your expenses go by tag.
           </p>
         </div>
-        {actions}
+        {actions && <div className="analytics-header__actions">{actions}</div>}
       </div>
       <nav className="analytics-sections" aria-label="Deeper analytics">
         {ANALYTICS_SECTIONS.map(({ to, title, description, icon: SectionIcon }) => (

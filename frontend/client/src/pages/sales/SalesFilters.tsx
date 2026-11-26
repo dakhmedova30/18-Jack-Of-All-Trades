@@ -107,7 +107,7 @@ export function SalesFilters({ value, onChange }: SalesFiltersProps) {
           className="link-button sales-filters__clear"
           onClick={() => onChange(NO_SALE_FILTERS)}
         >
-          Clear filters
+          Reset
         </button>
       )}
       {rangeProblem && (

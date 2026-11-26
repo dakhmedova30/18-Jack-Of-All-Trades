@@ -34,9 +34,15 @@ describe('business CSV mappings', () => {
       name: 'Tea',
       quantity: 15,
       unitPriceCents: 450,
+      currency: 'CAD',
+      width: null,
+      height: null,
+      sizeUnit: null,
+      amountSold: 0,
       tags: ['Drinks'],
       note: '',
       isPublic: false,
+      isActive: true,
     });
     expect(() => itemInputFromCsv({ ...itemRow, tags: '[1]' })).toThrow('tags');
     expect(() => itemInputFromCsv({ ...itemRow, isPublic: 'yes' })).toThrow('isPublic');
@@ -67,7 +73,16 @@ describe('business CSV mappings', () => {
       items: '[{"itemId":null,"description":"Rent","quantity":1,"unitCostCents":500}]',
     };
     expect(expenseInputFromCsv(expense).items).toEqual([
-      { itemId: null, description: 'Rent', quantity: 1, unitCostCents: 500 },
+      {
+        itemId: null,
+        description: 'Rent',
+        quantity: 1,
+        unitCostCents: 500,
+        category: '',
+        subcategory: '',
+        manufacturer: '',
+        type: 'other',
+      },
     ]);
     expect(() => expenseInputFromCsv({ ...expense, items: '[{"itemId":null}]' })).toThrow('items');
   });
@@ -84,8 +99,22 @@ describe('business CSV mappings', () => {
       originalAmount: 5,
       originalCurrency: 'CAD',
       items: [
-        { id: 1, itemId: 2, itemName: 'Tea', quantity: 1, unitPriceCents: 500, totalCents: 500 },
+        {
+          id: 1,
+          itemId: 2,
+          itemName: 'Tea',
+          quantity: 1,
+          unitPriceCents: 500,
+          totalCents: 500,
+          kind: 'ITEM',
+          isFree: false,
+          isTrade: false,
+          discountId: null,
+        },
       ],
+      marketId: null,
+      commissionId: null,
+      miscId: null,
       createdAt: '',
       updatedAt: '',
     };
@@ -106,6 +135,10 @@ describe('business CSV mappings', () => {
           quantity: 1,
           unitCostCents: 500,
           totalCents: 500,
+          category: '',
+          subcategory: '',
+          manufacturer: '',
+          type: 'other',
         },
       ],
       createdAt: '',
@@ -118,7 +151,18 @@ describe('business CSV mappings', () => {
     ).toEqual([{ itemId: 2, quantity: 1 }]);
     expect(
       expenseInputFromCsv(parseCsv(encodeCsv(EXPENSE_CSV_HEADERS, [expenseRow])).records[0]).items,
-    ).toEqual([{ itemId: null, description: 'Rent', quantity: 1, unitCostCents: 500 }]);
+    ).toEqual([
+      {
+        itemId: null,
+        description: 'Rent',
+        quantity: 1,
+        unitCostCents: 500,
+        category: '',
+        subcategory: '',
+        manufacturer: '',
+        type: 'other',
+      },
+    ]);
   });
 });
 

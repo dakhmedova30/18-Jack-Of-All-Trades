@@ -2,7 +2,12 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { getCurrentBusiness } from '../api/auth';
+import { PageProviders } from '../test/providers';
 import { SpeechReader } from './SpeechReader';
+
+// The reader reads the show/hide preference; with no business, preferences are the defaults.
+vi.mock('../api/auth', () => ({ getCurrentBusiness: vi.fn() }));
 
 class MockUtterance {
   text: string;
@@ -30,6 +35,7 @@ describe('SpeechReader section navigation', () => {
   beforeEach(() => {
     spoken.length = 0;
     vi.clearAllMocks();
+    vi.mocked(getCurrentBusiness).mockResolvedValue(undefined);
     vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
     Object.defineProperty(window, 'speechSynthesis', {
       configurable: true,
@@ -41,13 +47,15 @@ describe('SpeechReader section navigation', () => {
   function renderReader() {
     render(
       <MemoryRouter>
-        <main>
-          <h1>First section</h1>
-          <p>Second section</p>
-          <h2>Third section</h2>
-          <p>Fourth section</p>
-        </main>
-        <SpeechReader />
+        <PageProviders>
+          <main>
+            <h1>First section</h1>
+            <p>Second section</p>
+            <h2>Third section</h2>
+            <p>Fourth section</p>
+          </main>
+          <SpeechReader />
+        </PageProviders>
       </MemoryRouter>,
     );
   }
