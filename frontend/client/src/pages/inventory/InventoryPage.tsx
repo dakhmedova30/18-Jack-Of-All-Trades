@@ -233,13 +233,15 @@ export function InventoryPage() {
       </div>
 
       <Toolbar
-        filters={<TagFilter
+        filters={
+          <TagFilter
             value={tagFilter}
             onChange={(tags) => {
               setTagFilter(tags);
               setPage(1);
             }}
-          />}
+          />
+        }
         activeFilterCount={tagFilter.length}
         selectedCount={selected.size}
         onAdd={() => setFormState({ mode: 'create' })}
