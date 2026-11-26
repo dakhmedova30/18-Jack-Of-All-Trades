@@ -943,6 +943,80 @@ select {
   padding: 0.4rem 0.75rem;
 }
 
+/* Inventory's tag filter: a pill like the filter selects, opening a checklist below it. */
+.tag-filter {
+  position: relative;
+}
+
+.tag-filter__button {
+  font: inherit;
+  font-weight: 400;
+  color: inherit;
+  background: var(--color-search);
+  border: var(--border-default) var(--color-border-strong);
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  min-width: 8rem;
+  max-width: 14rem;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tag-filter__panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  z-index: 20;
+  width: max-content;
+  min-width: 12rem;
+  max-width: min(18rem, calc(100vw - 2rem));
+  max-height: 18rem;
+  overflow-y: auto;
+  padding: 0.5rem;
+  font-weight: 400;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: var(--border-default) var(--color-border-chart);
+  border-radius: 10px;
+  box-shadow: var(--shadow-popover);
+}
+
+.tag-filter__panel p {
+  margin: 0.25rem 0.5rem;
+}
+
+.tag-filter__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tag-filter__list label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.tag-filter__list label:hover {
+  background: var(--color-hover);
+}
+
+/* The item count sits at the right edge. */
+.tag-filter__list label > span:last-child {
+  margin-left: auto;
+  padding-left: 1rem;
+}
+
+.tag-filter__panel .link-button {
+  margin: 0.25rem 0.5rem;
+}
+
 .sales-filters__clear {
   font-size: 0.85rem;
   padding-bottom: 0.5rem;

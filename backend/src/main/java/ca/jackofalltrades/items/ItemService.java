@@ -66,8 +66,9 @@ public class ItemService {
     }
 
     @Transactional(readOnly = true)
-    public Paginated<ItemResponse> list(String search, String sort, String order, int page, int pageSize) {
-        return queries.findPage(currentBusiness.id(), search, sort, order, page, pageSize);
+    public Paginated<ItemResponse> list(
+            String search, List<String> tags, String sort, String order, int page, int pageSize) {
+        return queries.findPage(currentBusiness.id(), search, tags, sort, order, page, pageSize);
     }
 
     @Transactional(readOnly = true)

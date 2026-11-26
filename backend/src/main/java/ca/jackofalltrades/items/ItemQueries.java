@@ -44,17 +44,22 @@ public class ItemQueries {
 
     /**
      * @param search already trimmed; null for no search
+     * @param tags   keeps items with any of these exact tags; empty for no tag filter
      * @param sort   a key of {@link #SORT_COLUMNS}
      * @param order  "asc" or "desc"
      */
     public Paginated<ItemResponse> findPage(
-            int businessId, String search, String sort, String order, int page, int pageSize) {
+            int businessId, String search, List<String> tags, String sort, String order, int page, int pageSize) {
         Map<String, Object> params = new HashMap<>();
         params.put("businessId", businessId);
         String where = "WHERE business_id = :businessId";
         if (search != null) {
             params.put("pattern", LikePatterns.contains(search));
             where += " AND (name ILIKE :pattern OR array_to_string(tags, ' ') ILIKE :pattern)";
+        }
+        if (!tags.isEmpty()) {
+            params.put("tags", tags);
+            where += " AND tags && ARRAY[:tags]::text[]";
         }
 
         long total = jdbcClient.sql("SELECT COUNT(*) FROM items " + where)
