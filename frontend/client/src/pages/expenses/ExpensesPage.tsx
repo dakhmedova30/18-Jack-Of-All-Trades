@@ -191,7 +191,7 @@ export function ExpensesPage() {
   }
 
   const isEmpty = data !== undefined && data.total === 0;
-  const reportOptions = lineReport ?? [];
+  const reportOptions = useMemo(() => lineReport ?? [], [lineReport]);
   const categories = useMemo(
     () => [...new Set(reportOptions.map((line) => line.category))].sort(),
     [reportOptions],

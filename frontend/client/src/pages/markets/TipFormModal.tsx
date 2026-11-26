@@ -72,7 +72,14 @@ export function TipFormModal({ market, channelId, sale, onCancel, onSubmit }: Ti
     >
       <form id="tip-form" className="item-form" onSubmit={handleSubmit} noValidate>
         <FormRow label="Date" htmlFor="tip-date" error={errors.date} required>
-          <input id="tip-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <input
+            id="tip-date"
+            type="date"
+            value={date}
+            aria-invalid={errors.date ? true : undefined}
+            aria-describedby={errors.date ? 'tip-date-error' : undefined}
+            onChange={(e) => setDate(e.target.value)}
+          />
         </FormRow>
         <FormRow
           label={`Amount (${market.currency})`}
@@ -85,6 +92,8 @@ export function TipFormModal({ market, channelId, sale, onCancel, onSubmit }: Ti
             inputMode="decimal"
             value={amount}
             placeholder="0.00"
+            aria-invalid={errors.amount ? true : undefined}
+            aria-describedby={errors.amount ? 'tip-amount-error' : undefined}
             onChange={(e) => setAmount(e.target.value)}
           />
         </FormRow>

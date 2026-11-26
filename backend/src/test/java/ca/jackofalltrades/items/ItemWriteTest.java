@@ -140,8 +140,25 @@ class ItemWriteTest extends PostgresTestBase {
                 """)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.details[0].field").value("tags"));
+        create(cookie, """
+                {"name": "Too many units", "quantity": 1000001, "unitPriceCents": 1}
+                """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].field").value("quantity"));
 
         assertThat(itemCount(business)).isZero();
+    }
+
+    @Test
+    void itemQuantityIsBoundedOnCreateAndUpdate() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int id = createdId(cookie, "Limited quantity", 1, 100);
+
+        update(cookie, id, "{\"quantity\":1000001}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].field").value("quantity"));
+        assertThat(jdbcClient.sql("SELECT quantity FROM items WHERE id = :id")
+                .param("id", id).query(Integer.class).single()).isEqualTo(1);
     }
 
     @Test

@@ -138,6 +138,8 @@ export function OnlineExpenseFormModal({
             id="online-expense-date"
             type="date"
             value={spentOn}
+            aria-invalid={errors.spentOn ? true : undefined}
+            aria-describedby={errors.spentOn ? 'online-expense-date-error' : undefined}
             onChange={(event) => touch(setSpentOn)(event.target.value)}
           />
         </FormRow>
@@ -187,6 +189,8 @@ export function OnlineExpenseFormModal({
             inputMode="decimal"
             value={amount}
             placeholder="0.00"
+            aria-invalid={errors.amount ? true : undefined}
+            aria-describedby={errors.amount ? 'online-expense-amount-error' : undefined}
             onChange={(event) => touch(setAmount)(event.target.value)}
           />
         </FormRow>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { usePreferences } from '../hooks/usePreferences';
+import { useOptionalPreferences } from '../hooks/usePreferences';
 
 type ReadingState = 'idle' | 'speaking' | 'paused';
 
@@ -130,8 +130,8 @@ function splitIntoChunks(text: string): string[] {
 
 export function SpeechReader() {
   const { pathname, search } = useLocation();
-  const { preferences } = usePreferences();
-  if (!preferences.showSpeechReader) return null;
+  const preferences = useOptionalPreferences();
+  if (preferences && !preferences.preferences.showSpeechReader) return null;
   return <SpeechReaderControls key={`${pathname}${search}`} />;
 }
 

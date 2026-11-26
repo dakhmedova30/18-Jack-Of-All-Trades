@@ -12,7 +12,7 @@ import jakarta.persistence.Table;
 
 /**
  * One line of a sale ({@code sale_items}). The item's name and price are copied at sale time;
- * {@code itemId} becomes null if the item is later deleted.
+ * the item ID remains linked while the item is referenced by a sale.
  */
 @Entity
 @Table(name = "sale_items")

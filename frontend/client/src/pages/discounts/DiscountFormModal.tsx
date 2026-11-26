@@ -204,6 +204,8 @@ export function DiscountFormModal({ discount, onCancel, onSubmit }: DiscountForm
             value={name}
             maxLength={80}
             placeholder="Buy 2 get 1 free"
+            aria-invalid={errors.name ? true : undefined}
+            aria-describedby={errors.name ? 'discount-name-error' : undefined}
             onChange={(event) => touch(setName)(event.target.value)}
           />
         </FormRow>
@@ -272,6 +274,8 @@ export function DiscountFormModal({ discount, onCancel, onSubmit }: DiscountForm
                 inputMode="numeric"
                 value={buyCount}
                 placeholder="2"
+                aria-invalid={errors.buyCount ? true : undefined}
+                aria-describedby={errors.buyCount ? 'discount-buy-error' : undefined}
                 onChange={(event) => touch(setBuyCount)(event.target.value)}
               />
             </FormRow>
@@ -281,6 +285,8 @@ export function DiscountFormModal({ discount, onCancel, onSubmit }: DiscountForm
                 inputMode="numeric"
                 value={getCount}
                 placeholder="1"
+                aria-invalid={errors.getCount ? true : undefined}
+                aria-describedby={errors.getCount ? 'discount-get-error' : undefined}
                 onChange={(event) => touch(setGetCount)(event.target.value)}
               />
             </FormRow>
@@ -308,6 +314,8 @@ export function DiscountFormModal({ discount, onCancel, onSubmit }: DiscountForm
                 inputMode="decimal"
                 value={value}
                 placeholder={valueType === 'PERCENT' ? '10' : '2.50'}
+                aria-invalid={errors.value ? true : undefined}
+                aria-describedby={errors.value ? 'discount-value-error' : undefined}
                 onChange={(event) => touch(setValue)(event.target.value)}
               />
             </FormRow>
@@ -325,6 +333,8 @@ export function DiscountFormModal({ discount, onCancel, onSubmit }: DiscountForm
                     inputMode="numeric"
                     placeholder="Count"
                     value={row.count}
+                    aria-invalid={errors.tiers ? true : undefined}
+                    aria-describedby={errors.tiers ? 'discount-tiers-error' : undefined}
                     onChange={(event) =>
                       touch(setTiers)(
                         tiers.map((entry, i) =>
@@ -339,6 +349,8 @@ export function DiscountFormModal({ discount, onCancel, onSubmit }: DiscountForm
                     inputMode="decimal"
                     placeholder={`Price (${currency})`}
                     value={row.price}
+                    aria-invalid={errors.tiers ? true : undefined}
+                    aria-describedby={errors.tiers ? 'discount-tiers-error' : undefined}
                     onChange={(event) =>
                       touch(setTiers)(
                         tiers.map((entry, i) =>
@@ -367,7 +379,7 @@ export function DiscountFormModal({ discount, onCancel, onSubmit }: DiscountForm
                 + Add price break
               </button>
               {errors.tiers && (
-                <span className="field-error" aria-live="polite">
+                <span id="discount-tiers-error" className="field-error" aria-live="polite">
                   {errors.tiers}
                 </span>
               )}

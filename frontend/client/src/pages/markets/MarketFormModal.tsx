@@ -226,6 +226,8 @@ export function MarketFormModal({ market, knownTags, onCancel, onSubmit }: Marke
             id="market-name"
             value={name}
             maxLength={120}
+            aria-invalid={errors.name ? true : undefined}
+            aria-describedby={errors.name ? 'market-name-error' : undefined}
             onChange={(event) => touch(setName)(event.target.value)}
           />
         </FormRow>
@@ -234,6 +236,8 @@ export function MarketFormModal({ market, knownTags, onCancel, onSubmit }: Marke
             id="market-start"
             type="date"
             value={startDate}
+            aria-invalid={errors.startDate ? true : undefined}
+            aria-describedby={errors.startDate ? 'market-start-error' : undefined}
             onChange={(event) => touch(setStartDate)(event.target.value)}
           />
         </FormRow>
@@ -242,6 +246,8 @@ export function MarketFormModal({ market, knownTags, onCancel, onSubmit }: Marke
             id="market-end"
             type="date"
             value={endDate}
+            aria-invalid={errors.endDate ? true : undefined}
+            aria-describedby={errors.endDate ? 'market-end-error' : undefined}
             onChange={(event) => touch(setEndDate)(event.target.value)}
           />
         </FormRow>
@@ -333,6 +339,8 @@ export function MarketFormModal({ market, knownTags, onCancel, onSubmit }: Marke
             inputMode="decimal"
             value={tableFee}
             placeholder="0.00"
+            aria-invalid={errors.tableFee ? true : undefined}
+            aria-describedby={errors.tableFee ? 'market-fee-error' : undefined}
             onChange={(event) => touch(setTableFee)(event.target.value)}
           />
         </FormRow>
@@ -342,6 +350,8 @@ export function MarketFormModal({ market, knownTags, onCancel, onSubmit }: Marke
             inputMode="decimal"
             value={extra}
             placeholder="0.00"
+            aria-invalid={errors.extra ? true : undefined}
+            aria-describedby={errors.extra ? 'market-extra-error' : undefined}
             onChange={(event) => touch(setExtra)(event.target.value)}
           />
         </FormRow>

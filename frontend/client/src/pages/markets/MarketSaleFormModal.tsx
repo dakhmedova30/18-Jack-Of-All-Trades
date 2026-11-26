@@ -364,6 +364,8 @@ export function MarketSaleFormModal({
             id="market-sale-date"
             type="date"
             value={date}
+            aria-invalid={dateError ? true : undefined}
+            aria-describedby={dateError ? 'market-sale-date-error' : undefined}
             onChange={(event) => {
               setDirty(true);
               setDate(event.target.value);
@@ -403,6 +405,10 @@ export function MarketSaleFormModal({
                 <select
                   id={`market-sale-item-${index}`}
                   value={line.itemId}
+                  aria-invalid={lineErrors[line.key] ? true : undefined}
+                  aria-describedby={
+                    lineErrors[line.key] ? `market-sale-item-${index}-error` : undefined
+                  }
                   onChange={(event) =>
                     updateLine(line.key, { itemId: event.target.value, itemName: '', price: '' })
                   }
@@ -421,6 +427,10 @@ export function MarketSaleFormModal({
                     value={line.itemName}
                     maxLength={200}
                     placeholder="One-time item name"
+                    aria-invalid={lineErrors[line.key] ? true : undefined}
+                    aria-describedby={
+                      lineErrors[line.key] ? `market-sale-item-${index}-error` : undefined
+                    }
                     onChange={(event) => updateLine(line.key, { itemName: event.target.value })}
                   />
                 )}
@@ -428,6 +438,10 @@ export function MarketSaleFormModal({
                   aria-label={`Item ${index + 1} quantity`}
                   inputMode="numeric"
                   value={line.quantity}
+                  aria-invalid={lineErrors[line.key] ? true : undefined}
+                  aria-describedby={
+                    lineErrors[line.key] ? `market-sale-item-${index}-error` : undefined
+                  }
                   onChange={(event) => updateLine(line.key, { quantity: event.target.value })}
                 />
               </div>
@@ -437,6 +451,10 @@ export function MarketSaleFormModal({
                   inputMode="decimal"
                   disabled={adjusted}
                   value={adjusted ? '' : line.price}
+                  aria-invalid={lineErrors[line.key] ? true : undefined}
+                  aria-describedby={
+                    lineErrors[line.key] ? `market-sale-item-${index}-error` : undefined
+                  }
                   placeholder={
                     line.itemId === 'custom' && !adjusted
                       ? `Price (${currency})`
@@ -537,6 +555,8 @@ export function MarketSaleFormModal({
             inputMode="decimal"
             value={tip}
             placeholder="0.00"
+            aria-invalid={tipError ? true : undefined}
+            aria-describedby={tipError ? 'market-sale-tip-error' : undefined}
             onChange={(event) => {
               setDirty(true);
               setTip(event.target.value);

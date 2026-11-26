@@ -42,6 +42,7 @@ public class SaleService {
 
     /** The demo's describeLines.ts limit, which is also the description field's limit. */
     static final int DESCRIPTION_MAX = 200;
+    static final long MAX_TOTAL_LINE_QUANTITY = 100_000;
 
     private final SaleRepository sales;
     private final SaleQueries queries;
@@ -168,6 +169,11 @@ public class SaleService {
      * same item sees the stock left by the earlier one. Any failure rolls back the transaction.
      */
     private void apply(Sale sale, SaleInput input, Channel channel, Map<Integer, Item> locked, String currency) {
+        long totalQuantity = input.items().stream().mapToLong(line -> line.quantity()).sum();
+        if (totalQuantity > MAX_TOTAL_LINE_QUANTITY) {
+            throw new BadRequestException("A sale can't include more than "
+                    + MAX_TOTAL_LINE_QUANTITY + " total units");
+        }
         List<SaleLine> lines = new ArrayList<>();
         String saleCurrency = input.currency() != null ? input.currency()
                 : sale.getCurrency() != null ? sale.getCurrency() : currency;
@@ -249,6 +255,8 @@ public class SaleService {
                 }
             }
         }
+        long eligibleSubtotal = eligiblePrices.stream().mapToLong(Integer::longValue).sum();
+        long appliedDiscountCents = 0;
         for (Integer discountId : input.discountIds()) {
             DiscountResponse discount = discounts.find(sale.getBusinessId(), discountId)
                     .orElseThrow(() -> new BadRequestException("Discount " + discountId + " does not exist"));
@@ -261,6 +269,11 @@ public class SaleService {
                 }
             }
             long amount = DiscountCalculator.amountOffCents(discounts.toRule(discount, saleCurrency), prices);
+            if (!discount.isCharge()) {
+                long remaining = eligibleSubtotal - appliedDiscountCents;
+                amount = Math.min(amount, Math.min(remaining, Integer.MAX_VALUE));
+                appliedDiscountCents += amount;
+            }
             if (amount <= 0) {
                 continue;
             }

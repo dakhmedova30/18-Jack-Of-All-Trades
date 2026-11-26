@@ -28,6 +28,11 @@ export function CommissionFormModal({
     commission?.deadline ?? new Date().toISOString().slice(0, 10),
   );
   const [tags, setTags] = useState<string[]>(commission?.tags ?? []);
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string;
+    receivedOn?: string;
+    deadline?: string;
+  }>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -44,16 +49,12 @@ export function CommissionFormModal({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!name.trim() || !receivedOn || !deadline) {
-      setError(
-        !name.trim()
-          ? 'Name is required'
-          : !receivedOn
-            ? 'Pick a date received'
-            : 'Pick a deadline',
-      );
-      return;
-    }
+    const errors: typeof fieldErrors = {};
+    if (!name.trim()) errors.name = 'Name is required';
+    if (!receivedOn) errors.receivedOn = 'Pick a date received';
+    if (!deadline) errors.deadline = 'Pick a deadline';
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -95,14 +96,17 @@ export function CommissionFormModal({
           <span className="form-row__label">ID</span>
           <span className="form-row__static">{commission?.id ?? 'Assigned on save'}</span>
         </div>
-        <FormRow label="Name" htmlFor="commission-name" required>
+        <FormRow label="Name" htmlFor="commission-name" error={fieldErrors.name} required>
           <input
             id="commission-name"
             value={name}
             maxLength={120}
+            aria-invalid={fieldErrors.name ? true : undefined}
+            aria-describedby={fieldErrors.name ? 'commission-name-error' : undefined}
             onChange={(event) => {
               setDirty(true);
               setName(event.target.value);
+              setFieldErrors((current) => ({ ...current, name: undefined }));
             }}
           />
         </FormRow>
@@ -129,25 +133,41 @@ export function CommissionFormModal({
             }}
           />
         </FormRow>
-        <FormRow label="Date received" htmlFor="commission-received" required>
+        <FormRow
+          label="Date received"
+          htmlFor="commission-received"
+          error={fieldErrors.receivedOn}
+          required
+        >
           <input
             id="commission-received"
             type="date"
             value={receivedOn}
+            aria-invalid={fieldErrors.receivedOn ? true : undefined}
+            aria-describedby={fieldErrors.receivedOn ? 'commission-received-error' : undefined}
             onChange={(event) => {
               setDirty(true);
               setReceivedOn(event.target.value);
+              setFieldErrors((current) => ({ ...current, receivedOn: undefined }));
             }}
           />
         </FormRow>
-        <FormRow label="Deadline" htmlFor="commission-deadline" required>
+        <FormRow
+          label="Deadline"
+          htmlFor="commission-deadline"
+          error={fieldErrors.deadline}
+          required
+        >
           <input
             id="commission-deadline"
             type="date"
             value={deadline}
+            aria-invalid={fieldErrors.deadline ? true : undefined}
+            aria-describedby={fieldErrors.deadline ? 'commission-deadline-error' : undefined}
             onChange={(event) => {
               setDirty(true);
               setDeadline(event.target.value);
+              setFieldErrors((current) => ({ ...current, deadline: undefined }));
             }}
           />
         </FormRow>

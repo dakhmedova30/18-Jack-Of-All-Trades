@@ -283,6 +283,59 @@ class SaleWriteTest extends PostgresTestBase {
     }
 
     @Test
+    void boundsSaleLineAndAggregateQuantitiesBeforeProcessingLines() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        int online = channelId(business, "Online");
+        int item = insertItem(business, "Bulk item", 5, 1);
+
+        record(cookie, """
+                {"soldAt":"%s","channelId":%d,"items":[{"itemId":%d,"quantity":1000001}]}
+                """.formatted(SOLD_AT, online, item))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].field").value("items.0.quantity"));
+        record(cookie, """
+                {"soldAt":"%s","channelId":%d,"items":[
+                  {"itemId":%d,"quantity":50001},{"itemId":%d,"quantity":50000}]}
+                """.formatted(SOLD_AT, online, item, item))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("A sale can't include more than 100000 total units"));
+        assertThat(stock(item)).isEqualTo(5);
+    }
+
+    @Test
+    void stackedDiscountsCannotReduceSaleBelowZero() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        int online = channelId(business, "Online");
+        int item = insertItem(business, "Print", 3, 10_000);
+        int firstDiscount = insertHundredPercentDiscount(business, "First 100%");
+        int secondDiscount = insertHundredPercentDiscount(business, "Second 100%");
+
+        record(cookie, """
+                {"soldAt":"%s","channelId":%d,"discountIds":[%d,%d],
+                 "items":[{"itemId":%d,"quantity":1}]}
+                """.formatted(SOLD_AT, online, firstDiscount, secondDiscount, item))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.totalCents").value(0))
+                .andExpect(jsonPath("$.items[1].totalCents").value(-10_000))
+                .andExpect(jsonPath("$.items", hasSize(2)));
+        assertThat(stock(item)).isEqualTo(2);
+    }
+
+    private int insertHundredPercentDiscount(int business, String name) {
+        return jdbcClient.sql("""
+                        INSERT INTO discounts (business_id, name, kind, is_charge, value_type, value, currency)
+                        VALUES (:business, :name, 'SOLID', false, 'PERCENT', 100, 'CAD')
+                        RETURNING id
+                        """)
+                .param("business", business)
+                .param("name", name)
+                .query(Integer.class)
+                .single();
+    }
+
+    @Test
     void descriptionIsTrimmedOrWrittenFromTheLines() throws Exception {
         Cookie cookie = registerAndLogin();
         int business = businessId(cookie);

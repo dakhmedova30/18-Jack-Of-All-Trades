@@ -22,6 +22,7 @@ public record ItemUpdate(
         String name,
 
         @Min(value = 0, message = "Quantity cannot be negative")
+        @Max(value = 1_000_000, message = "Quantity must be at most 1,000,000")
         Integer quantity,
 
         @Min(value = 0, message = "Price must be between 0.00 and 9,999,999.99")

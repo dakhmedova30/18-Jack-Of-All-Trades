@@ -76,6 +76,7 @@ public record SaleInput(
 
             @NotNull(message = "Required")
             @Positive(message = "Must be a positive number")
+            @Max(value = 1_000_000, message = "Quantity must be at most 1,000,000")
             Integer quantity,
 
             @Size(max = 200, message = "Item name must be at most 200 characters")

@@ -25,6 +25,7 @@ public record ItemInput(
 
         @NotNull(message = "Required")
         @Min(value = 0, message = "Quantity cannot be negative")
+        @Max(value = 1_000_000, message = "Quantity must be at most 1,000,000")
         Integer quantity,
 
         @NotNull(message = "Required")

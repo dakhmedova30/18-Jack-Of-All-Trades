@@ -23,6 +23,11 @@ export function MiscellaneousFormModal({
     record?.receivedOn ?? new Date().toISOString().slice(0, 10),
   );
   const [tags, setTags] = useState<string[]>(record?.tags ?? []);
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string;
+    receivedOn?: string;
+    tags?: string;
+  }>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -39,18 +44,12 @@ export function MiscellaneousFormModal({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!name.trim()) {
-      setError('Name is required');
-      return;
-    }
-    if (!receivedOn) {
-      setError('Pick a date');
-      return;
-    }
-    if (tags.length > 10) {
-      setError('At most 10 tags');
-      return;
-    }
+    const errors: typeof fieldErrors = {};
+    if (!name.trim()) errors.name = 'Name is required';
+    if (!receivedOn) errors.receivedOn = 'Pick a date';
+    if (tags.length > 10) errors.tags = 'At most 10 tags';
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -85,25 +84,31 @@ export function MiscellaneousFormModal({
           <span className="form-row__label">ID</span>
           <span className="form-row__static">{record?.id ?? 'Assigned on save'}</span>
         </div>
-        <FormRow label="Name" htmlFor="miscellaneous-name" required>
+        <FormRow label="Name" htmlFor="miscellaneous-name" error={fieldErrors.name} required>
           <input
             id="miscellaneous-name"
             value={name}
             maxLength={120}
+            aria-invalid={fieldErrors.name ? true : undefined}
+            aria-describedby={fieldErrors.name ? 'miscellaneous-name-error' : undefined}
             onChange={(event) => {
               setDirty(true);
               setName(event.target.value);
+              setFieldErrors((current) => ({ ...current, name: undefined }));
             }}
           />
         </FormRow>
-        <FormRow label="Date" htmlFor="miscellaneous-date" required>
+        <FormRow label="Date" htmlFor="miscellaneous-date" error={fieldErrors.receivedOn} required>
           <input
             id="miscellaneous-date"
             type="date"
             value={receivedOn}
+            aria-invalid={fieldErrors.receivedOn ? true : undefined}
+            aria-describedby={fieldErrors.receivedOn ? 'miscellaneous-date-error' : undefined}
             onChange={(event) => {
               setDirty(true);
               setReceivedOn(event.target.value);
+              setFieldErrors((current) => ({ ...current, receivedOn: undefined }));
             }}
           />
         </FormRow>
@@ -120,7 +125,7 @@ export function MiscellaneousFormModal({
             setTags((current) => (current.includes(tag) ? current : [...current, tag]));
           }}
           onAdd={async (tag) => tag}
-          error={null}
+          error={fieldErrors.tags ?? null}
           maxLength={30}
           placeholder="e.g. Offline"
         />
