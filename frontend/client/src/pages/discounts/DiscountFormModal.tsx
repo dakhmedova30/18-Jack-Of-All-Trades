@@ -192,7 +192,7 @@ export function DiscountFormModal({ discount, onCancel, onSubmit }: DiscountForm
         </>
       }
     >
-      <form id="discount-form" className="item-form" onSubmit={handleSubmit} noValidate>
+      <form id="discount-form" className="item-form discount-form" onSubmit={handleSubmit} noValidate>
         <div className="form-row">
           <span className="form-row__label">ID</span>
           <span className="form-row__static">{discount?.id ?? 'Assigned on save'}</span>
@@ -204,6 +204,7 @@ export function DiscountFormModal({ discount, onCancel, onSubmit }: DiscountForm
             value={name}
             maxLength={80}
             placeholder="Buy 2 get 1 free"
+            required
             onChange={(event) => touch(setName)(event.target.value)}
           />
         </FormRow>
@@ -272,6 +273,7 @@ export function DiscountFormModal({ discount, onCancel, onSubmit }: DiscountForm
                 inputMode="numeric"
                 value={buyCount}
                 placeholder="2"
+                required
                 onChange={(event) => touch(setBuyCount)(event.target.value)}
               />
             </FormRow>
@@ -281,6 +283,7 @@ export function DiscountFormModal({ discount, onCancel, onSubmit }: DiscountForm
                 inputMode="numeric"
                 value={getCount}
                 placeholder="1"
+                required
                 onChange={(event) => touch(setGetCount)(event.target.value)}
               />
             </FormRow>
@@ -308,6 +311,7 @@ export function DiscountFormModal({ discount, onCancel, onSubmit }: DiscountForm
                 inputMode="decimal"
                 value={value}
                 placeholder={valueType === 'PERCENT' ? '10' : '2.50'}
+                required
                 onChange={(event) => touch(setValue)(event.target.value)}
               />
             </FormRow>
@@ -316,37 +320,56 @@ export function DiscountFormModal({ discount, onCancel, onSubmit }: DiscountForm
 
         {kind === 'PER_AMOUNT' && (
           <div className="form-row">
-            <span className="form-row__label">Price breaks</span>
+            <label className="form-row__label" htmlFor="discount-break-1-count">
+              Price breaks
+              <span className="required-marker" aria-hidden="true">
+                {' '}
+                *
+              </span>
+            </label>
             <div className="form-row__control">
               {tiers.map((row, index) => (
                 <div key={index} className="item-form__size">
-                  <input
-                    aria-label={`Break ${index + 1} count`}
-                    inputMode="numeric"
-                    placeholder="Count"
-                    value={row.count}
-                    onChange={(event) =>
-                      touch(setTiers)(
-                        tiers.map((entry, i) =>
-                          i === index ? { ...entry, count: event.target.value } : entry,
-                        ),
-                      )
-                    }
-                  />
+                  <div className="discount-form__tier-control">
+                    <input
+                      id={`discount-break-${index + 1}-count`}
+                      aria-label={`Break ${index + 1} count`}
+                      inputMode="numeric"
+                      placeholder="Count"
+                      value={row.count}
+                      required
+                      onChange={(event) =>
+                        touch(setTiers)(
+                          tiers.map((entry, i) =>
+                            i === index ? { ...entry, count: event.target.value } : entry,
+                          ),
+                        )
+                      }
+                    />
+                    <span className="required-marker" aria-hidden="true">
+                      *
+                    </span>
+                  </div>
                   <span aria-hidden="true">for</span>
-                  <input
-                    aria-label={`Break ${index + 1} price (${currency})`}
-                    inputMode="decimal"
-                    placeholder={`Price (${currency})`}
-                    value={row.price}
-                    onChange={(event) =>
-                      touch(setTiers)(
-                        tiers.map((entry, i) =>
-                          i === index ? { ...entry, price: event.target.value } : entry,
-                        ),
-                      )
-                    }
-                  />
+                  <div className="discount-form__tier-control">
+                    <input
+                      aria-label={`Break ${index + 1} price (${currency})`}
+                      inputMode="decimal"
+                      placeholder={`Price (${currency})`}
+                      value={row.price}
+                      required
+                      onChange={(event) =>
+                        touch(setTiers)(
+                          tiers.map((entry, i) =>
+                            i === index ? { ...entry, price: event.target.value } : entry,
+                          ),
+                        )
+                      }
+                    />
+                    <span className="required-marker" aria-hidden="true">
+                      *
+                    </span>
+                  </div>
                   {tiers.length > 1 && (
                     <button
                       type="button"

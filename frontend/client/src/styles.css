@@ -1635,6 +1635,33 @@ select {
   color: var(--color-muted);
 }
 
+.discount-form .form-row__control > select {
+  min-width: 0;
+  padding: 0.3rem 0.4rem;
+  border: var(--border-default) var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+}
+
+.discount-form .form-row__control > .item-form__size {
+  width: 100%;
+}
+
+.discount-form__tier-control {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.discount-form__tier-control input {
+  min-width: 0;
+  flex: 1;
+}
+
 /* SelectWithAddRow: a dropdown, or the inline "New …" input that replaces it. */
 .select-add {
   display: flex;
