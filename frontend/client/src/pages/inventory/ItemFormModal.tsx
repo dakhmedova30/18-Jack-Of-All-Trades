@@ -286,7 +286,7 @@ export function ItemFormModal({ item, onCancel, onSubmit }: ItemFormModalProps) 
         </FormRow>
 
         <FormRow
-          label={`Price (${currency})`}
+          label={`Unit price (${currency})`}
           hint={`0.00–${MAX_AMOUNT_DISPLAY}`}
           htmlFor="item-unitPrice"
           error={errors.unitPrice}
