@@ -18,6 +18,7 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useExpenses } from '../../hooks/useExpenses';
 import { useCurrency } from '../../hooks/useCurrency';
 import {
+  CURRENCY_CODES,
   EXPENSE_LINE_TYPES,
   type Expense,
   type ExpenseInput,
@@ -141,7 +142,8 @@ export function ExpensesPage() {
 
   async function importExpense(record: Record<string, string>) {
     const id = csvId(record);
-    const input = expenseInputFromCsv(record);
+    const importCurrency = CURRENCY_CODES.find((code) => code === currency) ?? 'CAD';
+    const input = expenseInputFromCsv(record, importCurrency);
     return upsertFromCsv(
       id,
       (existingId) => updateExpense(existingId, input),
@@ -213,7 +215,7 @@ export function ExpensesPage() {
   }
 
   const isEmpty = data !== undefined && data.total === 0;
-  const reportOptions = lineReport ?? [];
+  const reportOptions = useMemo(() => lineReport ?? [], [lineReport]);
   const categories = useMemo(
     () => [...new Set(reportOptions.map((line) => line.category))].sort(),
     [reportOptions],
