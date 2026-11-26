@@ -110,11 +110,12 @@ public class ExpenseQueries {
     }
 
     /**
-     * Spending in {@code [from, to)}, from merge-ui-mods' spendingByKind and topRestockItems. A
-     * restock line whose item was later deleted loses its item link, so it counts as a running cost.
+     * Spending in {@code [from, to)}, from merge-ui-mods' spendingByKind and topRestockItems, with
+     * the whole of {@code [previousFrom, from)} to compare. A restock line whose item was later
+     * deleted loses its item link, so it counts as a running cost.
      */
     public ExpenseMonthBreakdown periodBreakdown(
-            int businessId, Instant from, Instant to, int topLimit, String targetCurrency) {
+            int businessId, Instant previousFrom, Instant from, Instant to, int topLimit, String targetCurrency) {
         Map<String, Object> params = Map.of(
                 "businessId", businessId,
                 "from", OffsetDateTime.ofInstant(from, ZoneOffset.UTC),
@@ -175,7 +176,52 @@ public class ExpenseQueries {
                         .thenComparing(ExpenseMonthBreakdown.TopRestockItem::name))
                 .limit(topLimit)
                 .toList();
-        return new ExpenseMonthBreakdown(from, to, restock, running, restock + running, top);
+        return new ExpenseMonthBreakdown(from, to, restock, running, restock + running,
+                periodTotal(businessId, previousFrom, from, targetCurrency),
+                largestExpense(params, targetCurrency), top);
+    }
+
+    /** Spending in {@code [from, to)}: each currency's subtotal converted, then added up. */
+    private long periodTotal(int businessId, Instant from, Instant to, String targetCurrency) {
+        Map<String, Long> byCurrency = jdbcClient.sql("""
+                        SELECT e.currency, SUM(ei.total_cents) AS total_cents
+                        FROM expenses e JOIN expense_items ei ON ei.expense_id = e.id
+                        WHERE e.business_id = :businessId AND e.incurred_at >= :from AND e.incurred_at < :to
+                        GROUP BY e.currency
+                        """)
+                .param("businessId", businessId)
+                .param("from", OffsetDateTime.ofInstant(from, ZoneOffset.UTC))
+                .param("to", OffsetDateTime.ofInstant(to, ZoneOffset.UTC))
+                .query((rs, rowNum) -> Map.entry(rs.getString("currency"), rs.getLong("total_cents")))
+                .list().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        return currencyTotals.convertSubtotals(byCurrency, targetCurrency);
+    }
+
+    /**
+     * The costliest expense in the period {@code params} gives, each converted to the account's
+     * currency first, as the largest sale is (the later one, then the higher id, on a tie); null
+     * with no expenses.
+     */
+    private ExpenseMonthBreakdown.LargestExpense largestExpense(Map<String, Object> params, String targetCurrency) {
+        return jdbcClient.sql("""
+                        SELECT e.id, e.incurred_at, e.description, e.currency,
+                               COALESCE(SUM(ei.total_cents), 0) AS total_cents
+                        FROM expenses e LEFT JOIN expense_items ei ON ei.expense_id = e.id
+                        WHERE e.business_id = :businessId AND e.incurred_at >= :from AND e.incurred_at < :to
+                        GROUP BY e.id, e.incurred_at, e.description, e.currency
+                        """)
+                .params(params)
+                .query((rs, rowNum) -> new ExpenseMonthBreakdown.LargestExpense(
+                        rs.getInt("id"),
+                        rs.getObject("incurred_at", OffsetDateTime.class).toInstant(),
+                        rs.getString("description"),
+                        currencyTotals.convertCents(rs.getLong("total_cents"), rs.getString("currency"), targetCurrency)))
+                .list().stream()
+                .max(Comparator.comparingLong(ExpenseMonthBreakdown.LargestExpense::totalCents)
+                        .thenComparing(ExpenseMonthBreakdown.LargestExpense::incurredAt)
+                        .thenComparing(ExpenseMonthBreakdown.LargestExpense::id))
+                .orElse(null);
     }
 
     /** All the page's lines in one query, grouped by expense, each expense's lines in id order. */

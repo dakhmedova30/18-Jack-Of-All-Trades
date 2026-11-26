@@ -1,36 +1,54 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DateRangeSlider } from '../../components/DateRangeSlider';
-import type { AnalyticsDateRange, Channel, DateRange } from '../../types';
+import type { AnalyticsDateRange, DateRange } from '../../types';
 import { daysBetween, formatDate, isDateKey } from '../../utils/date';
+
+/**
+ * A menu of checkboxes that narrows a page's charts to some of its options, such as sales channels
+ * or expense tags. Ticking none of them, or all of them, narrows nothing.
+ */
+export interface FilterChoice {
+  /** The group's heading, e.g. "Sales channel". */
+  heading: string;
+  /** The menu button's label, e.g. "Channels". */
+  label: string;
+  /** What the button says with none or all ticked, and the tick-all option, e.g. "All channels". */
+  allLabel: string;
+  /** The options' plural, for the button with three or more ticked, e.g. "channels". */
+  plural: string;
+  /** The options; undefined while they load. */
+  options: { value: string; label: string }[] | undefined;
+  /** Why the options couldn't load. */
+  error: string | undefined;
+  /** The ticked options' values, in the options' order; [] for none. */
+  value: string[];
+  onChange: (value: string[]) => void;
+  /** What the choice narrows, under the menu. */
+  note: string;
+}
 
 interface AnalyticsFiltersProps {
   /** The first and last day with records: the ends of the slider and the limits of the fields. */
   dates: AnalyticsDateRange;
   value: DateRange;
   onChange: (next: DateRange) => void;
-  /** The business's channels; undefined while they load. */
-  channels: Channel[] | undefined;
-  channelsError: string | undefined;
-  /** The chosen channel's id, or '' for all channels. */
-  channelId: string;
-  onChannelChange: (channelId: string) => void;
-  /** Back to the period the page opened with and all channels; disabled when `isDefault`. */
+  /** A checkbox menu under the dates (Sales' channels, Expenses' tags); none without it. */
+  choice?: FilterChoice;
+  /** Back to the period the page opened with (and nothing ticked); disabled when `isDefault`. */
   onReset: () => void;
   isDefault: boolean;
 }
 
 /**
- * The Analytics side bar. It filters by date, two ways that stay in step (Start and End date
- * fields, and a slider running from the first record to the latest), and by sales channel.
+ * The Analytics filters: the period, set two ways that stay in step (Start and End date fields,
+ * and a slider running from the first record to the latest), and on some pages a checkbox menu,
+ * such as the sales channels.
  */
 export function AnalyticsFilters({
   dates,
   value,
   onChange,
-  channels,
-  channelsError,
-  channelId,
-  onChannelChange,
+  choice,
   onReset,
   isDefault,
 }: AnalyticsFiltersProps) {
@@ -66,31 +84,139 @@ export function AnalyticsFilters({
         )}
       </section>
 
-      <section className="analytics-filters__group" aria-labelledby="analytics-filters-channel">
-        <h3 id="analytics-filters-channel">Sales channel</h3>
-        <div className="analytics-filters__field">
-          <label htmlFor="analytics-filter-channel">Channel</label>
-          <select
-            id="analytics-filter-channel"
-            value={channelId}
-            disabled={!channels}
-            onChange={(event) => onChannelChange(event.target.value)}
-            aria-describedby="analytics-filter-channel-note"
-          >
-            <option value="">All channels</option>
-            {channels?.map((channel) => (
-              <option key={channel.id} value={channel.id}>
-                {channel.name}
-              </option>
-            ))}
-          </select>
-          {channelsError && <p className="field-error">{channelsError}</p>}
-        </div>
-        <p id="analytics-filter-channel-note" className="muted analytics-filters__note">
-          Narrows revenue and sales. Expenses aren't tied to a channel, so they always show in full.
-        </p>
-      </section>
+      {choice && <ChoiceFilter {...choice} />}
     </aside>
+  );
+}
+
+/**
+ * A button that opens a menu of checkboxes, with a tick-all box first (half-ticked when only some
+ * are). The menu stays open while boxes are ticked; Escape, a click outside it, or tabbing away
+ * closes it.
+ */
+function ChoiceFilter({
+  heading,
+  label,
+  allLabel,
+  plural,
+  options,
+  error,
+  value,
+  onChange,
+  note,
+}: FilterChoice) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const allRef = useRef<HTMLInputElement>(null);
+
+  const choices = options ?? [];
+  const ticked = choices.filter((option) => value.includes(option.value));
+  const every = choices.length > 0 && ticked.length === choices.length;
+  const some = ticked.length > 0 && !every;
+  const summary =
+    ticked.length === 0 || every
+      ? allLabel
+      : ticked.length <= 2
+        ? ticked.map((option) => option.label).join(', ')
+        : `${ticked.length} ${plural}`;
+
+  useEffect(() => {
+    if (!open) return;
+    function closeOnOutside(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return;
+      setOpen(false);
+      buttonRef.current?.focus();
+    }
+    document.addEventListener('pointerdown', closeOnOutside);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutside);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [open]);
+
+  // "Half-ticked" exists only as a DOM property, not an attribute.
+  useEffect(() => {
+    if (allRef.current) allRef.current.indeterminate = some;
+  });
+
+  function toggle(option: string) {
+    const next = new Set(value);
+    if (next.has(option)) next.delete(option);
+    else next.add(option);
+    onChange(choices.filter((choice) => next.has(choice.value)).map((choice) => choice.value));
+  }
+
+  return (
+    <section className="analytics-filters__group" aria-labelledby="analytics-filters-choice">
+      <h3 id="analytics-filters-choice">{heading}</h3>
+      <div
+        ref={rootRef}
+        className="analytics-filters__field choice-menu"
+        onBlur={(event) => {
+          // Tabbing past the menu closes it; clicks inside it (on no box) leave it open.
+          const next = event.relatedTarget;
+          if (next && !event.currentTarget.contains(next)) setOpen(false);
+        }}
+      >
+        <span id="analytics-filter-choice-label" className="choice-menu__label">
+          {label}
+        </span>
+        <button
+          ref={buttonRef}
+          id="analytics-filter-choice"
+          type="button"
+          className="choice-menu__button"
+          aria-labelledby="analytics-filter-choice-label analytics-filter-choice"
+          aria-describedby="analytics-filter-choice-note"
+          aria-expanded={open}
+          aria-controls="analytics-filter-choice-menu"
+          disabled={!options}
+          onClick={() => setOpen((wasOpen) => !wasOpen)}
+        >
+          <span className="choice-menu__summary">{summary}</span>
+          <span className="choice-menu__chevron" aria-hidden="true">
+            ▾
+          </span>
+        </button>
+        {open && (
+          <fieldset id="analytics-filter-choice-menu" className="choice-menu__menu">
+            <legend className="visually-hidden">{label}</legend>
+            <label className="choice-menu__option choice-menu__option--all">
+              <input
+                ref={allRef}
+                type="checkbox"
+                checked={every}
+                onChange={() => onChange(every ? [] : choices.map((option) => option.value))}
+              />
+              {allLabel}
+            </label>
+            {choices.map((option) => (
+              <label key={option.value} className="choice-menu__option">
+                <input
+                  type="checkbox"
+                  checked={value.includes(option.value)}
+                  onChange={() => toggle(option.value)}
+                />
+                {option.label}
+              </label>
+            ))}
+          </fieldset>
+        )}
+        {error && (
+          <p className="field-error">
+            Couldn't load the {plural}: {error}
+          </p>
+        )}
+      </div>
+      <p id="analytics-filter-choice-note" className="muted analytics-filters__note">
+        {note}
+      </p>
+    </section>
   );
 }
 

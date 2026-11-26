@@ -142,6 +142,15 @@ export interface ExpenseMonthBreakdown {
   /** Free-text lines: rent, fees, supplies and so on. */
   runningCents: number;
   totalCents: number;
+  /** All of last month's spending, to compare this month's so far with. */
+  previousTotalCents: number;
+  /** This month's costliest expense, in the account's currency; null with none. */
+  largestExpense: {
+    id: number;
+    incurredAt: string;
+    description: string;
+    totalCents: number;
+  } | null;
   /** Top items by restock spending this month, most first (up to 5). */
   topRestockItems: { id: number; name: string; units: number; spentCents: number }[];
 }
@@ -157,17 +166,28 @@ export interface SalesMonthSummary {
   largestSale: { id: number; soldAt: string; totalCents: number } | null;
 }
 
+export interface InventorySeller {
+  id: number;
+  name: string;
+  unitsSold: number;
+  revenueCents: number;
+}
+
 export interface InventoryInsights {
   /** Quantity x unit (selling) price, summed over every item. */
   stockValueCents: number;
   totalUnits: number;
-  /** The calendar month the best sellers cover: [start, end). */
+  /** The period the sellers cover, [start, end): this calendar month, or the last N days. */
   periodStart: string;
   periodEnd: string;
-  /** Top 3 items by units sold this month, most first. */
-  bestSellers: { id: number; name: string; unitsSold: number; revenueCents: number }[];
-  /** In-stock items with no sales this calendar month. */
+  /** Top 3 items by units sold in the period, most first. */
+  bestSellers: InventorySeller[];
+  /** The item that sold the fewest units in the period (but at least one); null if nothing sold. */
+  worstSeller: InventorySeller | null;
+  /** In-stock items with no sales in the period. */
   notSelling: { id: number; name: string; quantity: number }[];
+  /** What the `notSelling` items are worth at selling price (part of stockValueCents). */
+  notSellingValueCents: number;
 }
 
 export interface LowStock {
@@ -410,7 +430,7 @@ export interface AnalyticsDateRange {
   today: string;
 }
 
-/** Current stock by first tag. A snapshot, so the date filter doesn't apply. */
+/** Current stock by first tag, for the Analytics CSV export. A snapshot, so dates don't apply. */
 export interface InventoryByTag {
   /** Largest first; tags past the top 7 fold into "Other" (last). */
   byTag: { label: string; quantity: number; itemCount: number }[];
@@ -433,6 +453,61 @@ export interface AnalyticsSummary {
   salesByTag: { label: string; valueCents: number }[];
   /** Every channel with revenue in the range or period, largest first. */
   revenueByChannel: { label: string; valueCents: number }[];
+  /** Every expense first tag ("Untagged" if none) in the range or period, largest first. */
+  expensesByTag: { label: string; valueCents: number }[];
+}
+
+/**
+ * Sales Analytics: the chosen period, or the last 12 calendar months (UTC), from every channel or
+ * the one asked for.
+ */
+export interface SalesTrends {
+  /** How the period is split, by its length, as for the summary. */
+  granularity: 'day' | 'week' | 'month';
+  /** "YYYY-MM", or "YYYY-MM-DD" (a day, or a week's Monday), oldest first; the lists line up with them. */
+  buckets: string[];
+  /** "Jan", or "Oct 5" for a day or week. */
+  bucketLabels: string[];
+  revenueCents: number[];
+  /** Revenue over time by channel: the top 3 channels, then "Other" (last), lined up with `buckets`. */
+  channelSeries: AnalyticsTagSeries[];
+  saleCounts: number[];
+  /** Monday to Sunday. */
+  byWeekday: { day: string; saleCount: number; revenueCents: number }[];
+  /** Every channel with revenue, largest first. */
+  byChannel: { label: string; valueCents: number }[];
+}
+
+/** Expense Analytics: the chosen period, or the last 12 calendar months (UTC). */
+export interface ExpenseTrends {
+  /** As in SalesTrends. */
+  granularity: 'day' | 'week' | 'month';
+  buckets: string[];
+  bucketLabels: string[];
+  revenueCents: number[];
+  /** Expense lines linked to an item. */
+  restockCents: number[];
+  /** Expense lines without an item, e.g. rent. */
+  runningCents: number[];
+  /** Spending over time by first tag: the top 3 tags, then "Other" (last), lined up with `buckets`. */
+  expenseSeries: AnalyticsTagSeries[];
+  /** Spending by first tag over the whole period, largest first; past the top 6, "Other" (last). */
+  byTag: { label: string; valueCents: number }[];
+}
+
+/** Inventory Analytics: stock as it is now. */
+export interface StockHealth {
+  lowStockThreshold: number;
+  outOfStockCount: number;
+  /** In stock, at or below the threshold. */
+  lowStockCount: number;
+  wellStockedCount: number;
+  /** Stock value at selling price by first tag, largest first; past the top 7, "Other" (last). */
+  valueByTag: { label: string; valueCents: number; quantity: number; itemCount: number }[];
+  /** How many days (today included) `runningOut` measures each item's selling pace over. */
+  paceDays: number;
+  /** Items that sold in the last `paceDays` days, the soonest to run out first. */
+  runningOut: { id: number; name: string; quantity: number; unitsSold: number; daysLeft: number }[];
 }
 
 export interface Paginated<T> {
