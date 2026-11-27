@@ -182,6 +182,15 @@ public class SaleService {
                 .filter(line -> line.getItemId() != null && "ITEM".equals(line.getKind()) && !line.isFree()
                         && !line.isTrade())
                 .collect(Collectors.toMap(SaleLine::getItemId, SaleLine::getUnitPriceCents, (first, ignored) -> first));
+        Map<Integer, Integer> existingQuantities = sale.getLines().stream()
+                .filter(line -> "ITEM".equals(line.getKind()) && line.getItemId() != null)
+                .collect(Collectors.toMap(SaleLine::getItemId, SaleLine::getQuantity, Integer::sum));
+        long remainingOneTime = sale.getLines().stream()
+                .filter(line -> "ITEM".equals(line.getKind()) && line.getItemId() == null)
+                .mapToLong(SaleLine::getQuantity).sum();
+        if (new LinkedHashSet<>(input.discountIds()).size() != input.discountIds().size()) {
+            throw new BadRequestException("Each discount or charge can only be applied once");
+        }
         if (input.items().isEmpty() && input.tipCents() == null) {
             throw new BadRequestException("A sale needs at least one item or a tip");
         }
@@ -208,12 +217,15 @@ public class SaleService {
                 if (line.itemId() != null) {
                     throw new BadRequestException("Item " + line.itemId() + " does not exist");
                 }
-                if (input.miscId() == null) {
-                    throw new BadRequestException("One-time items can only be sold in Miscellaneous");
-                }
                 itemName = line.itemName() == null ? "" : line.itemName().strip();
                 if (itemName.isEmpty()) {
                     throw new BadRequestException("A name is required for a one-time item");
+                }
+                if (input.miscId() == null) {
+                    remainingOneTime -= line.quantity();
+                    if (remainingOneTime < 0 || input.marketId() != null || input.commissionId() != null) {
+                        throw new BadRequestException("One-time items can only be sold in Miscellaneous");
+                    }
                 }
                 if (!Boolean.TRUE.equals(line.isFree()) && !Boolean.TRUE.equals(line.isTrade())
                         && line.unitPriceCents() == null) {
@@ -221,8 +233,12 @@ public class SaleService {
                 }
             } else {
                 itemName = item.getName();
-                if (!item.isActive() && !existingPrices.containsKey(item.getId())) {
-                    throw new BadRequestException("\"" + itemName + "\" is inactive and can't be sold");
+                if (!item.isActive()) {
+                    int remaining = existingQuantities.getOrDefault(item.getId(), 0) - line.quantity();
+                    if (remaining < 0) {
+                        throw new BadRequestException("\"" + itemName + "\" is inactive and can't be sold");
+                    }
+                    existingQuantities.put(item.getId(), remaining);
                 }
                 if (item.getQuantity() < line.quantity()) {
                     throw new BadRequestException("Not enough stock for \"" + itemName + "\" (have "

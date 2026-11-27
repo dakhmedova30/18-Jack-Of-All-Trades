@@ -27,7 +27,7 @@ public class OnlineShopService {
 
     private static final String ONLINE_SALES = """
             s.business_id = :b AND s.market_id IS NULL
-            AND s.channel_id IN (SELECT id FROM channels WHERE business_id = :b AND lower(name) = 'online')
+            AND s.channel_id IN (SELECT id FROM channels WHERE business_id = :b AND is_online)
             """;
 
     private final JdbcClient jdbc;

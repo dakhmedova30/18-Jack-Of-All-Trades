@@ -53,6 +53,8 @@ export function CommissionFormModal({
     if (!name.trim()) errors.name = 'Name is required';
     if (!receivedOn) errors.receivedOn = 'Pick a date received';
     if (!deadline) errors.deadline = 'Pick a deadline';
+    else if (receivedOn && deadline < receivedOn)
+      errors.deadline = 'Deadline must be on or after the received date';
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
     setSubmitting(true);

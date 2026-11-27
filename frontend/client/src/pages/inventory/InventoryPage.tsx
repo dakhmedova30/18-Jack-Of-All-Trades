@@ -6,9 +6,11 @@ import {
   bulkSetItemsPublic,
   createItem,
   deleteItem,
+  listItems,
   updateItem,
 } from '../../api/items';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { CsvTransfer } from '../../components/CsvTransfer';
 import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
 import { TagList } from '../../components/TagList';
@@ -18,7 +20,15 @@ import { useItems } from '../../hooks/useItems';
 import { usePreferences } from '../../hooks/usePreferences';
 import type { Item, ItemInput, ItemSortField, SortOrder } from '../../types';
 import { formatCents } from '../../utils/money';
+import { fetchAllPages } from '../../utils/csv';
+import {
+  itemCsvRow,
+  importItemFromCsv,
+  ITEM_CSV_HEADERS,
+  ITEM_IMPORT_HEADERS,
+} from '../../utils/businessCsv';
 import { ItemFormModal } from './ItemFormModal';
+import { TagFilter } from './TagFilter';
 
 const SORTABLE_COLUMNS: { field: ItemSortField; label: string; numeric?: boolean }[] = [
   { field: 'id', label: 'ID' },
@@ -73,6 +83,7 @@ export function InventoryPage() {
   const { business } = useAuth();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
   const [sort, setSort] = useState<{ field: ItemSortField; order: SortOrder }>({
     field: 'id',
     order: 'asc',
@@ -82,9 +93,14 @@ export function InventoryPage() {
     page,
     pageSize: preferences.rowsPerPage,
     search,
+    tags: tagFilter,
     sort: sort.field,
     order: sort.order,
   });
+
+  async function importItem(record: Record<string, string>) {
+    return importItemFromCsv(record, updateItem, createItem);
+  }
 
   /** Clicking the current sort column flips its direction; a new column starts ascending. */
   function toggleSort(field: ItemSortField) {
@@ -210,6 +226,19 @@ export function InventoryPage() {
 
       <div className="toolbar">
         <div className="toolbar__actions">
+          <CsvTransfer
+            filename="inventory"
+            headers={ITEM_CSV_HEADERS}
+            loadRows={() =>
+              fetchAllPages((requestedPage, pageSize) =>
+                listItems({ page: requestedPage, pageSize }),
+              )
+            }
+            exportRow={itemCsvRow}
+            importHeaders={ITEM_IMPORT_HEADERS}
+            importRow={importItem}
+            onImported={reload}
+          />
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
             Add <PlusIcon />
           </button>
@@ -239,21 +268,30 @@ export function InventoryPage() {
             Hide from profile{toHide.length > 0 && ` (${toHide.length})`}
           </button>
         </div>
-        <div className="search-field">
-          <label htmlFor="inventory-search">Search</label>
-          <div className="search">
-            <input
-              id="inventory-search"
-              type="search"
-              placeholder="Search"
-              value={searchInput}
-              onChange={(event) => {
-                setSearchInput(event.target.value);
-                setPage(1);
-              }}
-              aria-label="Search items by name or tag"
-            />
-            <SearchIcon />
+        <div className="toolbar__filters">
+          <TagFilter
+            value={tagFilter}
+            onChange={(tags) => {
+              setTagFilter(tags);
+              setPage(1);
+            }}
+          />
+          <div className="search-field">
+            <label htmlFor="inventory-search">Search</label>
+            <div className="search">
+              <input
+                id="inventory-search"
+                type="search"
+                placeholder="Search"
+                value={searchInput}
+                onChange={(event) => {
+                  setSearchInput(event.target.value);
+                  setPage(1);
+                }}
+                aria-label="Search items by name or tag"
+              />
+              <SearchIcon />
+            </div>
           </div>
         </div>
       </div>
@@ -398,7 +436,7 @@ export function InventoryPage() {
         </table>
 
         {!data && loading && <p className="empty-state">Loading…</p>}
-        {isEmpty && !search && (
+        {isEmpty && !search && tagFilter.length === 0 && (
           <div className="empty-state">
             <p>Add a new item into the table</p>
             <button
@@ -410,7 +448,12 @@ export function InventoryPage() {
             </button>
           </div>
         )}
-        {isEmpty && search && <p className="empty-state">No items match “{search}”.</p>}
+        {isEmpty && (search || tagFilter.length > 0) && (
+          <p className="empty-state">
+            {search ? `No items match “${search}”` : 'No items'}
+            {tagFilter.length > 0 && ` with ${tagFilter.length === 1 ? 'that tag' : 'those tags'}`}.
+          </p>
+        )}
       </div>
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}

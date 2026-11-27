@@ -60,6 +60,10 @@ export function createSale(input: SaleInput): Promise<Sale> {
   return apiRequest('/sales', { method: 'POST', json: input });
 }
 
+export function getSale(id: number): Promise<Sale> {
+  return apiRequest(`/sales/${id}`);
+}
+
 export function updateSale(id: number, input: SaleInput): Promise<Sale> {
   return apiRequest(`/sales/${id}`, { method: 'PATCH', json: input });
 }

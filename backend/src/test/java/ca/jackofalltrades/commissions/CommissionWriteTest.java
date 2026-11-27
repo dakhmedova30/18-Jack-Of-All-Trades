@@ -56,7 +56,7 @@ class CommissionWriteTest extends PostgresTestBase {
         mockMvc.perform(get("/api/commissions/" + commissionId).cookie(cookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.receivedOn").value("2026-10-12"))
-                .andExpect(jsonPath("$.revenueCents").value(1000))
+                .andExpect(jsonPath("$.revenueCents").value(1200))
                 .andExpect(jsonPath("$.tipsCents").value(200))
                 .andExpect(jsonPath("$.profitCents").value(1200));
 

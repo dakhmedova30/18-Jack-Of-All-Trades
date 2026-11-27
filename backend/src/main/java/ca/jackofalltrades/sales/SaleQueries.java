@@ -98,7 +98,7 @@ public class SaleQueries {
         String direction = "desc".equals(order) ? "DESC" : "ASC";
         params.put("limit", pageSize);
         params.put("offset", (page - 1) * pageSize);
-        List<SaleRow> rows = jdbcClient.sql("SELECT s.*, c.name AS channel_name" + FROM + where
+        List<SaleRow> rows = jdbcClient.sql("SELECT s.*, c.name AS channel_name, c.is_online AS channel_online" + FROM + where
                         + " ORDER BY " + SORT_EXPRESSIONS.get(sort) + " " + direction + " NULLS LAST, s.id DESC"
                         + " LIMIT :limit OFFSET :offset")
                 .params(params)
@@ -194,7 +194,7 @@ public class SaleQueries {
         return new SaleRow(
                 rs.getInt("id"),
                 rs.getObject("sold_at", OffsetDateTime.class).toInstant(),
-                new ChannelResponse(rs.getInt("channel_id"), rs.getString("channel_name")),
+                new ChannelResponse(rs.getInt("channel_id"), rs.getString("channel_name"), rs.getBoolean("channel_online")),
                 rs.getString("description"),
                 List.of((String[]) rs.getArray("tags").getArray()),
                 rs.getObject("created_at", OffsetDateTime.class).toInstant(),

@@ -1,5 +1,6 @@
 package ca.jackofalltrades.channels;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Channels (contract §4.1): the business's list, oldest first, adding, renaming and deleting. */
+@Tag(name = "Sales channels", description = "Where sales happen, e.g. Etsy or a market.")
 @RestController
 @RequestMapping("/api/channels")
 public class ChannelController {
@@ -38,6 +40,11 @@ public class ChannelController {
     @PutMapping("/{id}")
     public ChannelResponse rename(@PathVariable int id, @Valid @RequestBody ChannelRequest request) {
         return channelService.rename(id, request);
+    }
+
+    @PutMapping("/{id}/online")
+    public ChannelResponse designateOnline(@PathVariable int id) {
+        return channelService.designateOnline(id);
     }
 
     /** 409 if any sale still uses the channel. */

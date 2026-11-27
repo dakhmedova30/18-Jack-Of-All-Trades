@@ -1,7 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { bulkDeleteSales, createSale, deleteSale, updateSale } from '../../api/sales';
+import {
+  bulkDeleteSales,
+  createSale,
+  deleteSale,
+  getSale,
+  listSales,
+  updateSale,
+} from '../../api/sales';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { CsvTransfer } from '../../components/CsvTransfer';
 import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -10,7 +18,19 @@ import { useCurrency } from '../../hooks/useCurrency';
 import type { Sale, SaleInput, SaleSortField, SortOrder } from '../../types';
 import { usePreferences } from '../../hooks/usePreferences';
 import { formatCents } from '../../utils/money';
+import { fetchAllPages } from '../../utils/csv';
+import {
+  csvId,
+  saleCsvRow,
+  saleHasUnsupportedCsvDetails,
+  saleInputFromCsv,
+  upsertFromCsv,
+  SALE_CSV_HEADERS,
+  SALE_IMPORT_HEADERS,
+} from '../../utils/businessCsv';
 import { SaleFormModal } from './SaleFormModal';
+import { MarketSaleFormModal } from '../markets/MarketSaleFormModal';
+import type { CurrencyCode } from '../../types';
 import {
   canApplySaleFilters,
   hasSaleFilters,
@@ -59,6 +79,24 @@ export function SalesPage() {
     from: applied.from || undefined,
     to: applied.to || undefined,
   });
+
+  async function importSale(record: Record<string, string>) {
+    const id = csvId(record);
+    const input = saleInputFromCsv(record);
+    return upsertFromCsv(
+      id,
+      async (existingId) => {
+        const existing = await getSale(existingId);
+        if (saleHasUnsupportedCsvDetails(existing)) {
+          throw new Error(
+            'This sale has group or special line details that CSV import cannot preserve. Edit it on its sales page.',
+          );
+        }
+        return updateSale(existingId, input);
+      },
+      () => createSale(input),
+    );
+  }
 
   /** Clicking the current sort column flips its direction; a new column starts ascending. */
   function toggleSort(field: SaleSortField) {
@@ -144,6 +182,19 @@ export function SalesPage() {
 
       <div className="toolbar">
         <div className="toolbar__actions">
+          <CsvTransfer
+            filename="sales"
+            headers={SALE_CSV_HEADERS}
+            loadRows={() =>
+              fetchAllPages((requestedPage, pageSize) =>
+                listSales({ page: requestedPage, pageSize }),
+              )
+            }
+            exportRow={saleCsvRow}
+            importHeaders={SALE_IMPORT_HEADERS}
+            importRow={importSale}
+            onImported={reload}
+          />
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
             Add <PlusIcon />
           </button>
@@ -309,12 +360,32 @@ export function SalesPage() {
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}
 
-      {formState && (
-        <SaleFormModal
-          sale={formState.mode === 'edit' ? formState.sale : undefined}
+      {formState?.mode === 'edit' &&
+      formState.sale.items.some(
+        (line) => line.itemId === null || line.isFree || line.isTrade || line.kind !== 'ITEM',
+      ) ? (
+        <MarketSaleFormModal
+          sale={formState.sale}
+          target={{
+            marketId: null,
+            commissionId: null,
+            miscId: null,
+            channelName: formState.sale.channel?.name ?? '',
+            title: 'Modify sale',
+            currency: formState.sale.originalCurrency as CurrencyCode,
+            defaultDate: '',
+          }}
           onCancel={() => setFormState(null)}
           onSubmit={handleSave}
         />
+      ) : (
+        formState && (
+          <SaleFormModal
+            sale={formState.mode === 'edit' ? formState.sale : undefined}
+            onCancel={() => setFormState(null)}
+            onSubmit={handleSave}
+          />
+        )
       )}
 
       {deleteTarget && (

@@ -412,6 +412,7 @@ export function CommissionDetailPage() {
       )}
       {formState?.kind === 'expense' && (
         <OnlineExpenseFormModal
+          context="commission"
           expense={formState.expense}
           defaultDate={new Date().toISOString().slice(0, 10)}
           knownTags={knownTags}

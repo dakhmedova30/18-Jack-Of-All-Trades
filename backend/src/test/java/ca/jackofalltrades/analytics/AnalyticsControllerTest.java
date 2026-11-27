@@ -108,7 +108,8 @@ class AnalyticsControllerTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.netProfitCents").value(0))
                 .andExpect(jsonPath("$.revenueSeries").isEmpty())
                 .andExpect(jsonPath("$.expenseSeries").isEmpty())
-                .andExpect(jsonPath("$.salesByTag").isEmpty());
+                .andExpect(jsonPath("$.salesByTag").isEmpty())
+                .andExpect(jsonPath("$.expensesByTag").isEmpty());
         mockMvc.perform(get("/api/analytics/summary?range=week").cookie(cookie))
                 .andExpect(jsonPath("$.granularity").value("day"))
                 .andExpect(jsonPath("$.buckets", hasSize(7)));
@@ -137,7 +138,9 @@ class AnalyticsControllerTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.revenueSeries[3].values[11]").value(150))   // pin + Untagged
                 .andExpect(jsonPath("$.expenseSeries[*].label", contains("supplies", "Untagged")))
                 .andExpect(jsonPath("$.salesByTag[*].label", contains("print", "keychain", "sticker", "Other")))
-                .andExpect(jsonPath("$.salesByTag[*].valueCents", contains(400, 300, 200, 150)));
+                .andExpect(jsonPath("$.salesByTag[*].valueCents", contains(400, 300, 200, 150)))
+                .andExpect(jsonPath("$.expensesByTag[*].label", contains("supplies", "Untagged")))
+                .andExpect(jsonPath("$.expensesByTag[*].valueCents", contains(1000, 200)));
     }
 
     @Test
@@ -231,6 +234,29 @@ class AnalyticsControllerTest extends PostgresTestBase {
         mockMvc.perform(get("/api/analytics/summary?from=2026-10-01&to=2026-10-31").cookie(cookie))
                 .andExpect(jsonPath("$.revenueByChannel[*].label", contains("Online", "In person")))
                 .andExpect(jsonPath("$.revenueByChannel[*].valueCents", contains(350, 300)));
+    }
+
+    @Test
+    void expensesByTagListsEveryFirstTagLargestFirst() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        // Five tags, more than the expense series keeps (top 3 + "Other"): this list keeps them all.
+        insertExpense(business, Instant.parse("2026-10-02T12:00:00Z"), 100, "rent", "ignored-second-tag");
+        insertExpense(business, Instant.parse("2026-10-03T12:00:00Z"), 250, "rent");
+        insertExpense(business, Instant.parse("2026-10-04T12:00:00Z"), 300, "supplies");
+        insertExpense(business, Instant.parse("2026-10-05T12:00:00Z"), 80, "shipping");
+        insertExpense(business, Instant.parse("2026-10-06T12:00:00Z"), 80, "fees");
+        insertExpense(business, Instant.parse("2026-10-07T12:00:00Z"), 20);                // untagged
+        insertExpense(business, Instant.parse("2026-11-02T12:00:00Z"), 9000, "rent");      // after the period
+        // A channel narrows revenue only, so it doesn't change the expense list.
+        insertSale(business, Instant.parse("2026-10-02T12:00:00Z"), 100, "print");
+        moveLastSaleTo(business, "Online");
+
+        mockMvc.perform(get("/api/analytics/summary?from=2026-10-01&to=2026-10-31&channelId="
+                        + channelId(business, "In person")).cookie(cookie))
+                .andExpect(jsonPath("$.expensesByTag[*].label",
+                        contains("rent", "supplies", "fees", "shipping", "Untagged")))
+                .andExpect(jsonPath("$.expensesByTag[*].valueCents", contains(350, 300, 80, 80, 20)));
     }
 
     @Test

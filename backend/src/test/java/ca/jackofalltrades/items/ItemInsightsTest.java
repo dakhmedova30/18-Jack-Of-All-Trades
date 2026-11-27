@@ -75,7 +75,9 @@ class ItemInsightsTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.periodStart").value(start.toString()))
                 .andExpect(jsonPath("$.periodEnd").value(end.toString()))
                 .andExpect(jsonPath("$.bestSellers").isEmpty())
-                .andExpect(jsonPath("$.notSelling").isEmpty());
+                .andExpect(jsonPath("$.worstSeller").isEmpty())
+                .andExpect(jsonPath("$.notSelling").isEmpty())
+                .andExpect(jsonPath("$.notSellingValueCents").value(0));
     }
 
     @Test
@@ -122,7 +124,33 @@ class ItemInsightsTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.bestSellers[0].unitsSold").value(9))
                 .andExpect(jsonPath("$.bestSellers[0].revenueCents").value(900))
                 .andExpect(jsonPath("$.bestSellers[1].unitsSold").value(5))
-                .andExpect(jsonPath("$.bestSellers[1].revenueCents").value(5000));
+                .andExpect(jsonPath("$.bestSellers[1].revenueCents").value(5000))
+                // Tote sold 50 last month but only 1 this month, the fewest of anything.
+                .andExpect(jsonPath("$.worstSeller.id").value(tote))
+                .andExpect(jsonPath("$.worstSeller.unitsSold").value(1))
+                .andExpect(jsonPath("$.worstSeller.revenueCents").value(2000));
+    }
+
+    @Test
+    void daysCoversTheLastThatManyDaysInsteadOfThisMonth() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        Instant now = Instant.now();
+        int candle = insertItem(business, "Candle", 10, 1000);
+        int soap = insertItem(business, "Soap", 10, 500);
+        int mug = insertItem(business, "Mug", 10, 1500);
+        insertSale(business, now.minus(java.time.Duration.ofDays(10)), candle, "Candle", 4, 1000);
+        insertSale(business, now.minus(java.time.Duration.ofDays(20)), soap, "Soap", 2, 500);
+        insertSale(business, now.minus(java.time.Duration.ofDays(40)), mug, "Mug", 50, 1500);
+
+        // Mug's big sale was 40 days ago, so in the last 30 days it hasn't sold at all.
+        mockMvc.perform(get("/api/items/insights").param("days", "30").cookie(cookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bestSellers[*].name", contains("Candle", "Soap")))
+                .andExpect(jsonPath("$.worstSeller.name").value("Soap"))
+                .andExpect(jsonPath("$.notSelling[*].name", contains("Mug")));
+        mockMvc.perform(get("/api/items/insights").param("days", "0").cookie(cookie))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -157,7 +185,10 @@ class ItemInsightsTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.notSelling[*].name", contains("Mug", "Zine")))
                 .andExpect(jsonPath("$.notSelling[0].id").value(soldLastMonth))
                 .andExpect(jsonPath("$.notSelling[0].quantity").value(2))
-                .andExpect(jsonPath("$.notSelling[1].id").value(neverSold));
+                .andExpect(jsonPath("$.notSelling[1].id").value(neverSold))
+                // What those two are worth at selling price: Mug 2 x 12.00 + Zine 4 x 5.00.
+                .andExpect(jsonPath("$.notSellingValueCents").value(4400))
+                .andExpect(jsonPath("$.stockValueCents").value(4400 + 8 * 1000));
     }
 
     @Test

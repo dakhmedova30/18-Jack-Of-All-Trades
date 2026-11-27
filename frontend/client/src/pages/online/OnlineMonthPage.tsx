@@ -41,10 +41,24 @@ function toggle(set: Set<number>, id: number): Set<number> {
 
 export function OnlineMonthPage() {
   const month = useParams().month ?? '';
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    return (
+      <section className="page">
+        <div className="banner banner--error" role="alert">
+          That month isn’t valid.
+        </div>
+        <Link to="/sales/online">Back to Online Shop</Link>
+      </section>
+    );
+  }
+  return <ValidOnlineMonthPage month={month} />;
+}
+
+function ValidOnlineMonthPage({ month }: { month: string }) {
   const currency = useCurrency() as CurrencyCode;
   const { formatDate } = usePreferences();
   const channels = useLoad(listChannels);
-  const onlineChannelId = channels.data?.find((c) => c.name.toLowerCase() === 'online')?.id;
+  const onlineChannelId = channels.data?.find((c) => c.isOnline)?.id;
   const summary = useLoad(() => listOnlineMonths(currency), [currency]);
   const sales = useLoad(
     () =>
@@ -73,7 +87,7 @@ export function OnlineMonthPage() {
   const info = summary.data?.find((entry) => entry.month === month);
   const knownTags = [...new Set((allExpenses.data ?? []).flatMap((expense) => expense.tags))];
   const firstOfMonth = `${month}-01`;
-  const error = summary.error ?? sales.error ?? expenses.error;
+  const error = channels.error ?? summary.error ?? sales.error ?? expenses.error;
 
   function reloadAll() {
     summary.reload();
@@ -113,17 +127,6 @@ export function OnlineMonthPage() {
     }
     setDeleteTarget(null);
     reloadAll();
-  }
-
-  if (!/^\d{4}-\d{2}$/.test(month)) {
-    return (
-      <section className="page">
-        <div className="banner banner--error" role="alert">
-          That month isn’t valid.
-        </div>
-        <Link to="/sales/online">Back to Online Shop</Link>
-      </section>
-    );
   }
 
   const allSalesSelected =
@@ -301,6 +304,8 @@ export function OnlineMonthPage() {
               </th>
               <th>ID</th>
               <th>Date</th>
+              <th>Description</th>
+              <th>Category</th>
               <th>Tags</th>
               <th>Currency</th>
               <th className="numeric">Amount</th>
@@ -333,6 +338,8 @@ export function OnlineMonthPage() {
                 </td>
                 <td>{expense.id}</td>
                 <td>{formatDate(expense.spentOn)}</td>
+                <td>{expense.description || '—'}</td>
+                <td>{expense.category || '—'}</td>
                 <td>
                   <TagList tags={expense.tags} />
                 </td>
@@ -357,14 +364,14 @@ export function OnlineMonthPage() {
           {info && (
             <tfoot>
               <tr>
-                <th scope="row" colSpan={5}>
+                <th scope="row" colSpan={7}>
                   Total expenses
                 </th>
                 <td className="numeric">{formatCents(info.expensesCents, info.currency)}</td>
                 <td />
               </tr>
               <tr>
-                <th scope="row" colSpan={5}>
+                <th scope="row" colSpan={7}>
                   Profit
                 </th>
                 <td className="numeric">{formatCents(info.profitCents, info.currency)}</td>
@@ -385,6 +392,7 @@ export function OnlineMonthPage() {
             commissionId: null,
             miscId: null,
             channelName: 'online',
+            onlineChannel: true,
             title: 'Add online sale',
             currency,
             defaultDate: firstOfMonth,
@@ -399,7 +407,6 @@ export function OnlineMonthPage() {
           expense={formState.expense}
           defaultDate={firstOfMonth}
           knownTags={knownTags}
-          hideDescriptionCategory
           onCancel={() => setFormState(null)}
           onSubmit={handleSaveExpense}
         />

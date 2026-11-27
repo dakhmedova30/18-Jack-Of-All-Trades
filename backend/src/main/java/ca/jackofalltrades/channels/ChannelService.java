@@ -2,6 +2,7 @@ package ca.jackofalltrades.channels;
 
 import ca.jackofalltrades.common.api.ConflictException;
 import ca.jackofalltrades.common.api.NotFoundException;
+import ca.jackofalltrades.auth.BusinessRepository;
 import ca.jackofalltrades.common.security.CurrentBusiness;
 import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -18,11 +19,29 @@ public class ChannelService {
     private final ChannelRepository channels;
     private final CurrentBusiness currentBusiness;
     private final JdbcClient jdbcClient;
+    private final BusinessRepository businesses;
 
-    public ChannelService(ChannelRepository channels, CurrentBusiness currentBusiness, JdbcClient jdbcClient) {
+    public ChannelService(ChannelRepository channels, CurrentBusiness currentBusiness, JdbcClient jdbcClient,
+            BusinessRepository businesses) {
         this.channels = channels;
         this.currentBusiness = currentBusiness;
         this.jdbcClient = jdbcClient;
+        this.businesses = businesses;
+    }
+
+    /** Changes which channel the online shop uses, without changing any sales. */
+    @Transactional
+    public ChannelResponse designateOnline(int id) {
+        int businessId = currentBusiness.id();
+        businesses.findLockedById(businessId)
+                .orElseThrow(() -> new NotFoundException("Business", businessId));
+        Channel selected = channels.findByIdAndBusinessId(id, businessId)
+                .orElseThrow(() -> new NotFoundException("Channel", id));
+        jdbcClient.sql("UPDATE channels SET is_online = false WHERE business_id = :businessId AND is_online")
+                .param("businessId", businessId).update();
+        jdbcClient.sql("UPDATE channels SET is_online = true WHERE id = :id AND business_id = :businessId")
+                .param("id", id).param("businessId", businessId).update();
+        return new ChannelResponse(selected.getId(), selected.getName(), true);
     }
 
     @Transactional(readOnly = true)
@@ -80,7 +99,7 @@ public class ChannelService {
     @Transactional
     public void createStarterChannels(Integer businessId) {
         for (String name : STARTER_CHANNELS) {
-            channels.save(new Channel(businessId, name));
+            channels.save(new Channel(businessId, name, "Online".equals(name)));
         }
     }
 

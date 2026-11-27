@@ -29,6 +29,7 @@ export interface SaleTarget {
   miscId: number | null;
   /** The channel the sale is put on, matched by name ignoring case. */
   channelName: string;
+  onlineChannel?: boolean;
   title: string;
   currency: CurrencyCode;
   defaultDate: string;
@@ -166,13 +167,17 @@ export function MarketSaleFormModal({
     if (sale?.channel) return;
     listChannels()
       .then((channels) => {
-        const found = channels.find(
-          (channel) => channel.name.toLowerCase() === target.channelName.toLowerCase(),
+        const found = channels.find((channel) =>
+          target.onlineChannel
+            ? channel.isOnline
+            : channel.name.toLowerCase() === target.channelName.toLowerCase(),
         );
-        setInPersonChannelId((found ?? channels[0])?.id ?? null);
+        setInPersonChannelId((target.onlineChannel ? found : (found ?? channels[0]))?.id ?? null);
+        if (!found && target.onlineChannel)
+          setLoadError('Choose an Online Shop channel in Settings > Preferences.');
       })
       .catch((error: unknown) => setLoadError(getErrorMessage(error)));
-  }, [sale, target.channelName]);
+  }, [sale, target.channelName, target.onlineChannel]);
 
   const itemById = useMemo(() => new Map((items ?? []).map((item) => [item.id, item])), [items]);
   const selectableItems = (items ?? []).filter(
@@ -270,7 +275,11 @@ export function MarketSaleFormModal({
       const itemId = customItem ? null : Number(line.itemId);
       const quantity = Number(line.quantity);
       let unitPriceCents: number | null = null;
-      if (customItem && target.miscId === null)
+      if (
+        customItem &&
+        target.miscId === null &&
+        !sale?.items.some((item) => item.kind === 'ITEM' && item.itemId === null)
+      )
         errors[line.key] = 'One-time items are only available in Miscellaneous';
       else if (customItem && !line.itemName.trim())
         errors[line.key] = 'Enter a name for the one-time item';
@@ -300,7 +309,7 @@ export function MarketSaleFormModal({
     return {
       soldAt,
       channelId: inPersonChannelId,
-      description: '',
+      description: sale?.description ?? '',
       tags: sale?.tags ?? [],
       items: parsed,
       marketId: target.marketId,
@@ -419,7 +428,9 @@ export function MarketSaleFormModal({
                       {entry.name} ({entry.quantity} in stock)
                     </option>
                   ))}
-                  {target.miscId !== null && <option value="custom">One-time item</option>}
+                  {(target.miscId !== null || line.itemId === 'custom') && (
+                    <option value="custom">One-time item</option>
+                  )}
                 </select>
                 {line.itemId === 'custom' && (
                   <input

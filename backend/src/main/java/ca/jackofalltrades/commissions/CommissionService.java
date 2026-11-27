@@ -3,12 +3,14 @@ package ca.jackofalltrades.commissions;
 import ca.jackofalltrades.auth.Business;
 import ca.jackofalltrades.auth.BusinessRepository;
 import ca.jackofalltrades.common.api.NotFoundException;
+import ca.jackofalltrades.common.api.BadRequestException;
 import ca.jackofalltrades.common.security.CurrentBusiness;
 import ca.jackofalltrades.currency.CurrencyTotals;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +60,8 @@ public class CommissionService {
 
     @Transactional
     public CommissionResponse create(CommissionInput input) {
+        validateDeadline(input.deadline(), input.receivedOn() == null
+                ? LocalDate.now(ZoneOffset.UTC) : input.receivedOn());
         int id = jdbc.sql("""
                         INSERT INTO commissions (business_id, name, contact, request, received_on, deadline, tags)
                         VALUES (:b, :name, :contact, :request,
@@ -72,6 +76,8 @@ public class CommissionService {
 
     @Transactional
     public CommissionResponse replace(int id, CommissionInput input) {
+        LocalDate receivedOn = input.receivedOn() == null ? get(id).receivedOn() : input.receivedOn();
+        validateDeadline(input.deadline(), receivedOn);
         int updated = jdbc.sql("""
                         UPDATE commissions SET name = :name, contact = :contact, request = :request,
                                received_on = COALESCE(CAST(:receivedOn AS DATE), received_on),
@@ -85,6 +91,12 @@ public class CommissionService {
             throw new NotFoundException("Commission", id);
         }
         return get(id);
+    }
+
+    private static void validateDeadline(LocalDate deadline, LocalDate receivedOn) {
+        if (deadline != null && deadline.isBefore(receivedOn)) {
+            throw new BadRequestException("Deadline must be on or after the received date");
+        }
     }
 
     /** Keeps linked sales and expenses; the foreign-key links are explicitly detached before deletion. */
@@ -348,7 +360,7 @@ public class CommissionService {
         return new CommissionResponse(id, rs.getString("name"), rs.getString("contact"), rs.getString("request"),
                 rs.getObject("received_on", LocalDate.class), rs.getObject("deadline", LocalDate.class),
                 List.of((String[]) rs.getArray("tags").getArray()),
-                amounts.salesCount(), expenses, revenue, tips, revenue + tips - expenses, currency,
+                amounts.salesCount(), expenses, revenue + tips, tips, revenue + tips - expenses, currency,
                 rs.getObject("created_at", OffsetDateTime.class).toInstant(),
                 rs.getObject("updated_at", OffsetDateTime.class).toInstant());
     }

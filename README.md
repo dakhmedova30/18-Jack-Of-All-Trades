@@ -8,7 +8,7 @@
 ​
 ## Try It Now
 
-**Live app: https://jack-of-all-trades-m86p.onrender.com** (no install needed)
+**Live app: https://jack-of-all-trades-app.onrender.com** (no install needed)
 
 Dev site, which updates on every merge to `main`: https://jack-of-all-trades-dev.onrender.com (its own database; see [Environments and releases](#environments-and-releases)).
 
@@ -47,6 +47,37 @@ Log in as the demo account, then:
 6. **Settings:** change the account **currency** (preview first, then convert prices or only relabel them); rename channels and expense tags and set the low-stock cutoff (Preferences); choose which alerts appear in the bell (Notifications); and switch the theme or text size (Appearance).
 7. **Public profile:** in Settings > Profile, set a link name (e.g. `demo-shop`) and click **Turn on**, then tick **Show on my public profile** on products (or select several in Inventory and click **Show on profile**). Customers open `/p/demo-shop` with no account, and never see contact details or stock counts, only "In stock" or "Sold out".
 8. **Read aloud:** the bar at the bottom of every page reads it out, one highlighted passage at a time.
+
+Home, Analytics and Expenses currently count only ordinary Expenses records. Online Shop,
+commission and miscellaneous expenses, and market table fees and extra expenses, are not
+included in those totals; their displayed profit can therefore be overstated. The individual
+sales-category pages include their own expenses.
+
+Online Shop follows a designated channel even if it is renamed. If your online channel was
+renamed before this update, choose it under Settings > Preferences > Online Shop channel.
+
+### CSV Import and Export
+
+Use **Import CSV** and **Export CSV** above Inventory, Sales and Expenses to move business records in or out. Imports with an `id` update that record; rows with an empty `id`, or an `id` that no longer exists (for example after deleting it), create a new record with a new ID. IDs only refer to records in the current business. Import continues after row errors and reports which rows failed. Analytics has an export-only control for the selected date range and channel, along with the current inventory-by-tag snapshot.
+
+Review the confirmation before importing: changes cannot be undone. Inventory imports preserve current stock when updating an existing item; `quantity` sets starting stock only for newly created items. Within one import, repeated IDs and identical rows without IDs are skipped after the first successful row, and their row numbers are reported. Exported text that could be interpreted as a spreadsheet formula is prefixed with an apostrophe; importing removes that protective prefix. For a manually authored CSV, double an initial apostrophe before a formula-like value if the apostrophe itself is part of the text.
+
+Sales CSV import does not preserve market, commission or miscellaneous links, tips, discounts,
+free/trade lines or one-time items. It rejects exported rows and updates to existing sales with
+these details; edit them on their sales page instead. Older CSV exports do not contain this
+protection, so do not use them to recreate such sales.
+
+The export contains the record fields, including IDs, timestamps, computed totals and currencies. Imports require these columns:
+
+| Section | Required columns |
+| --- | --- |
+| Inventory | `name`, `quantity`, `unitPriceCents`, `tags`, `note`, `isPublic` |
+| Sales | `soldAt`, `channelId`, `description`, `tags`, `items` |
+| Expenses | `incurredAt`, `description`, `tags`, `items` |
+
+`tags` and `items` are JSON arrays inside CSV cells. For example, inventory tags use `["paper","gift"]`; a sale's `items` uses objects with `itemId` and `quantity`; an expense's `items` uses objects with `itemId` (or `null` for a non-inventory cost), `description`, `quantity` and `unitCostCents`. Use integer cents for money fields such as `unitPriceCents` and `unitCostCents`. Sales must reference an existing channel and inventory item. The application recalculates totals and currency-converted values during import; exported computed fields and timestamps are informational and are not overwritten. If a sale line references a deleted inventory item, that row cannot be imported until corrected.
+
+The sample files in `docs/sample-data` contain example channel and item IDs, not IDs that work for every account. Before importing sample sales or expenses, replace each `channelId` and non-null `itemId` with IDs from your own Sales and Inventory exports. You can also find channel IDs at `/api/channels` while logged in. Import the sample inventory first if you need items, then export Inventory to find their assigned IDs. Rows with `itemId: null` are non-inventory expenses and need no item ID.
 
 ### Screenshots
 
@@ -240,6 +271,8 @@ Each feature follows the same layers: **controllers** handle HTTP only, **servic
 
 See [`docs/api-contracts.md`](docs/api-contracts.md) for the authoritative, endpoint-by-endpoint spec. The summary below covers the same contract.
 
+**Interactive docs:** every running backend serves Swagger UI at `/swagger-ui.html` (locally, http://localhost:4000/swagger-ui.html) and the generated OpenAPI 3.1 spec at `/v3/api-docs`. Both are generated from the controllers by [springdoc](https://springdoc.org), so they always match the deployed code. Endpoints are grouped by feature, and a lock icon marks the ones that need a login. To try a locked endpoint, run `POST /api/auth/login` from the same page first: it sets the session cookie in your browser, and later calls send it automatically. Set `API_DOCS_ENABLED=false` to turn the docs off.
+
 All error responses share one shape: `{ "error": { "message": string, "details"?: [{ "field", "message" }] } }`. Money is always sent as integer cents.
 
 Every route except `/api/health`, `/api/health/live`, `/api/auth/*` and the read-only `/api/public/*` requires a logged-in session
@@ -325,6 +358,7 @@ Vite reads `frontend/client/.env` by itself when `npm run dev` or `npm run build
 | `SPRING_DATASOURCE_PASSWORD`   | No       | Default: `jack`                                                              |
 | `SPRING_PROFILES_ACTIVE`       | No       | Set to `demo` to seed the demo account on startup                           |
 | `PORT`                         | No       | Defaults to 4000 (Render sets it automatically)                             |
+| `API_DOCS_ENABLED`             | No       | `false` turns off Swagger UI and `/v3/api-docs`. Default: `true`             |
 
 **Client** (`frontend/client/.env`, read at build time):
 
@@ -353,7 +387,7 @@ Vite reads `frontend/client/.env` by itself when `npm run dev` or `npm run build
 | Environment | URL | Database | Deploys when |
 | --- | --- | --- | --- |
 | **dev** | https://jack-of-all-trades-dev.onrender.com | Neon branch `dev` | Every merge to `main`, after all CI checks pass (`deploy-dev` job) |
-| **prod** | https://jack-of-all-trades-m86p.onrender.com | Neon branch `production` | A GitHub release is published, after all CI checks pass on the tagged commit (`deploy-prod` job) |
+| **prod** | https://jack-of-all-trades-app.onrender.com | Neon branch `production` | A GitHub release is published, after all CI checks pass on the tagged commit (`deploy-prod` job) |
 
 Both are Render web services built from the same Dockerfile, set up as in the steps above, with
 the same environment variables except the database host and password. CI sends the commit SHA with each

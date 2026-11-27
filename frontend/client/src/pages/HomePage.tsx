@@ -1,12 +1,16 @@
 import { useState } from 'react';
+import { ExpenseScopeNotice } from '../components/ExpenseScopeNotice';
 import { Link } from 'react-router-dom';
 import { useAnalyticsSummary } from '../hooks/useAnalyticsSummary';
+import { useAuth } from '../hooks/useAuth';
+import { useInventoryInsights } from '../hooks/useInventoryInsights';
 import { useItemCount } from '../hooks/useItemCount';
 import { useLowStock } from '../hooks/useLowStock';
+import { useRecentExpenses } from '../hooks/useRecentExpenses';
 import { useRecentSales } from '../hooks/useRecentSales';
 import { useCurrency } from '../hooks/useCurrency';
-import type { AnalyticsRange, AnalyticsSummary, LowStock, Sale } from '../types';
-import { usePreferences } from '../hooks/usePreferences';
+import type { AnalyticsRange, DateRange, LowStock } from '../types';
+import { addDays } from '../utils/date';
 import { formatCents } from '../utils/money';
 import {
   AnalyticsPreview,
@@ -23,6 +27,19 @@ import {
   type HomeRangeOption,
 } from './homeRange';
 
+/** How many of the latest sales and expenses their cards list. */
+const RECENT_COUNT = 6;
+/** The Inventory card's best and worst sellers cover this many days, up to today. */
+const SELLER_DAYS = 30;
+/** The Analytics card's revenue chart covers this many days, today included. */
+const CHART_DAYS = 14;
+
+/** The last `days` whole UTC days, today included, as the summary API's from/to. */
+function lastDays(days: number): DateRange {
+  const today = new Date().toISOString().slice(0, 10);
+  return { from: addDays(today, -(days - 1)), to: today };
+}
+
 type SummaryResult = ReturnType<typeof useAnalyticsSummary>;
 
 /** Keeps showing the last data while a reload is in flight, like the KPI strip does. */
@@ -34,36 +51,60 @@ function toPreviewState<T>(data: T | undefined, error: string | undefined): Prev
 export function HomePage() {
   const [range, setRange] = useState<AnalyticsRange>(loadHomeRange);
   const option = homeRangeOption(range);
-  // One summary request for the chosen period feeds both the KPI strip and the card previews.
+  // The chosen period's summary feeds the KPI strip; the Analytics card has its own two weeks.
   const summary = useAnalyticsSummary(range);
+  const [chartDays] = useState(() => lastDays(CHART_DAYS));
+  const chartSummary = useAnalyticsSummary(chartDays);
   const itemCount = useItemCount();
-  const summaryState: PreviewState<AnalyticsSummary> = toPreviewState(summary.data, summary.error);
+  const insights = useInventoryInsights(SELLER_DAYS);
+  const recentSales = useRecentSales(RECENT_COUNT);
+  const recentExpenses = useRecentExpenses(RECENT_COUNT);
+  const { business } = useAuth();
+  const businessName = business?.name.trim();
 
   function changeRange(next: AnalyticsRange) {
     setRange(next);
     saveHomeRange(next);
   }
 
+  // `timeframe` sits at each card's top right, saying what period its preview covers.
   const dashboards = [
     {
       to: '/sales',
       title: 'Sales',
-      preview: <SalesPreview summary={summaryState} range={option} />,
+      timeframe: 'Most recent',
+      preview: <SalesPreview sales={toPreviewState(recentSales.sales, recentSales.error)} />,
     },
     {
       to: '/inventory',
       title: 'Inventory',
-      preview: <InventoryPreview itemCount={toPreviewState(itemCount.count, itemCount.error)} />,
+      timeframe: `Last ${SELLER_DAYS} days`,
+      preview: (
+        <InventoryPreview
+          days={SELLER_DAYS}
+          insights={toPreviewState(insights.data, insights.error)}
+          itemCount={toPreviewState(itemCount.count, itemCount.error)}
+        />
+      ),
     },
     {
       to: '/expenses',
       title: 'Expenses',
-      preview: <ExpensesPreview summary={summaryState} range={option} />,
+      timeframe: 'Most recent',
+      preview: (
+        <ExpensesPreview expenses={toPreviewState(recentExpenses.expenses, recentExpenses.error)} />
+      ),
     },
     {
       to: '/analytics',
       title: 'Analytics',
-      preview: <AnalyticsPreview summary={summaryState} range={option} />,
+      timeframe: `Last ${CHART_DAYS} days`,
+      preview: (
+        <AnalyticsPreview
+          summary={toPreviewState(chartSummary.data, chartSummary.error)}
+          days={CHART_DAYS}
+        />
+      ),
     },
   ];
 
@@ -71,7 +112,9 @@ export function HomePage() {
     <section className="page home">
       <div className="toolbar home-header">
         <div>
-          <h1>Welcome back</h1>
+          <h1 className="home-header__title">
+            {businessName ? `Welcome back, ${businessName}` : 'Welcome back'}
+          </h1>
           <p className="muted">Pick a dashboard to get started.</p>
         </div>
         <div className="filter-field">
@@ -90,82 +133,19 @@ export function HomePage() {
         </div>
       </div>
       <KpiStrip summary={summary} range={option} />
+      <ExpenseScopeNotice />
       <div className="home-cards">
-        {dashboards.map(({ to, title, preview }) => (
+        {dashboards.map(({ to, title, timeframe, preview }) => (
           <Link key={to} to={to} className="home-card">
-            <h2 className="home-card__title">{title}</h2>
+            <div className="home-card__header">
+              <h2 className="home-card__title">{title}</h2>
+              <span className="home-card__timeframe">{timeframe}</span>
+            </div>
             {preview}
           </Link>
         ))}
       </div>
-      <RecentSales />
     </section>
-  );
-}
-
-const RECENT_SALES_COUNT = 5;
-const ITEMS_NAMED_PER_SALE = 2;
-
-/** "Ceramic planter ×2, Soap ×1 +1 more": the first few line items, the rest counted. */
-function describeSaleItems(sale: Sale): string {
-  const named = sale.items
-    .slice(0, ITEMS_NAMED_PER_SALE)
-    .map((item) => `${item.itemName} ×${item.quantity}`)
-    .join(', ');
-  const remaining = sale.items.length - ITEMS_NAMED_PER_SALE;
-  return remaining > 0 ? `${named} +${remaining} more` : named;
-}
-
-/** The latest sales by sale date. Display only: rows don't open the sale. */
-function RecentSales() {
-  const { formatDate } = usePreferences();
-  const currency = useCurrency();
-  const { sales, error, loading, reload } = useRecentSales(RECENT_SALES_COUNT);
-
-  return (
-    <div className="card home-recent">
-      <div className="home-recent__header">
-        <h2>Recent sales</h2>
-        <Link to="/sales" className="home-recent__link">
-          View all sales →
-        </Link>
-      </div>
-      {error ? (
-        <div className="banner banner--error" role="alert">
-          Couldn't load recent sales: {error}{' '}
-          <button type="button" className="link-button" onClick={reload}>
-            Retry
-          </button>
-        </div>
-      ) : !sales ? (
-        <p className="empty-state">{loading ? 'Loading recent sales…' : 'No data.'}</p>
-      ) : sales.length === 0 ? (
-        <p className="empty-state">No sales recorded yet.</p>
-      ) : (
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Items</th>
-                <th className="numeric">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sales.map((sale) => (
-                <tr key={sale.id}>
-                  <td className="home-recent__date">{formatDate(sale.soldAt)}</td>
-                  <td className="home-recent__items">{describeSaleItems(sale)}</td>
-                  <td className="numeric home-recent__amount">
-                    +{formatCents(sale.totalCents, currency)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
   );
 }
 

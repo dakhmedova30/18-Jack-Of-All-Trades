@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { listChannels } from '../../api/channels';
 import {
   createOnlineExpense,
   deleteOnlineMonths,
@@ -37,6 +38,7 @@ export function OnlineShopPage() {
   const [currency, setCurrency] = useState<CurrencyCode>(businessCurrency);
   const { data, error, loading, reload } = useLoad(() => listOnlineMonths(currency), [currency]);
   const expenses = useLoad(() => listOnlineExpenses());
+  const channels = useLoad(listChannels);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [formState, setFormState] = useState<FormState>(null);
   const [deleteMonths, setDeleteMonths] = useState<string[] | null>(null);
@@ -101,10 +103,25 @@ export function OnlineShopPage() {
           Months are built from your Online sales and expenses. Open a month to see or change them.
         </p>
       </div>
+      {channels.data && !channels.data.some((channel) => channel.isOnline) && (
+        <p className="banner banner--error" role="alert">
+          Choose your Online Shop channel in Settings &gt; Preferences to see its sales.
+        </p>
+      )}
+      {channels.error && (
+        <p className="banner banner--error" role="alert">
+          {channels.error}
+        </p>
+      )}
 
       <div className="toolbar">
         <div className="toolbar__actions">
-          <button type="button" className="button" onClick={() => setFormState('sale')}>
+          <button
+            type="button"
+            className="button"
+            disabled={!channels.data?.some((channel) => channel.isOnline)}
+            onClick={() => setFormState('sale')}
+          >
             Add Sale <PlusIcon />
           </button>
           <button type="button" className="button" onClick={() => setFormState('expense')}>
@@ -237,6 +254,7 @@ export function OnlineShopPage() {
             commissionId: null,
             miscId: null,
             channelName: 'online',
+            onlineChannel: true,
             title: 'Add online sale',
             currency,
             defaultDate: today,
@@ -249,7 +267,6 @@ export function OnlineShopPage() {
         <OnlineExpenseFormModal
           defaultDate={today}
           knownTags={knownTags}
-          hideDescriptionCategory
           onCancel={() => setFormState(null)}
           onSubmit={handleSaveExpense}
         />

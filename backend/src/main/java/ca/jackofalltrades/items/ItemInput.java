@@ -34,7 +34,8 @@ public record ItemInput(
         Integer unitPriceCents,
 
         @Size(max = 10, message = "At most 10 tags")
-        List<@NotBlank(message = "Tags cannot be empty") @Size(max = 30, message = "Tags must be at most 30 characters") String> tags,
+        List<@NotBlank(message = "Tags cannot be empty") @Size(max = 30, message = "Tags must be at most 30 characters")
+                @Pattern(regexp = TAG_CHARACTERS, message = TAG_CHARACTERS_MESSAGE) String> tags,
 
         @Size(max = 1000, message = "Note must be at most 1000 characters")
         String note,
@@ -64,6 +65,16 @@ public record ItemInput(
 
         /** Optional; omitted means active. */
         Boolean isActive) {
+
+    /**
+     * The characters an item tag may use: letters and numbers in any language, spaces, and
+     * {@code & - _ / # : ' ’ . + % ( ) !}. Never a comma: the item form separates tags with
+     * commas (a comma tag would split in two on its next save), and {@code ?tag=} splits on them.
+     * The frontend's utils/itemTags.ts has the same rule.
+     */
+    static final String TAG_CHARACTERS = "[\\p{L}\\p{M}\\p{N} &_/#:'’.+%()!-]*";
+    static final String TAG_CHARACTERS_MESSAGE =
+            "Tags can only use letters, numbers, spaces and & - _ / # : ' . + % ( ) !";
 
     public ItemInput {
         name = name == null ? null : name.strip();

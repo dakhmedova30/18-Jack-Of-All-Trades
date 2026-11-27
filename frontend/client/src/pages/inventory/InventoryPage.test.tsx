@@ -59,6 +59,36 @@ describe('InventoryPage', () => {
     expect(screen.queryByRole('dialog', { name: 'Add new item' })).not.toBeInTheDocument();
   });
 
+  it('filters by the ticked tags from page 1, and says when nothing has them', async () => {
+    const user = userEvent.setup();
+    vi.mocked(itemApi.listItemTags).mockResolvedValue([
+      { name: 'stickers', itemCount: 4 },
+      { name: 'prints', itemCount: 2 },
+    ]);
+    render(<InventoryPage />, { wrapper: PageProviders });
+    await screen.findByText('Tea');
+
+    vi.mocked(itemApi.listItems).mockResolvedValue({
+      data: [],
+      page: 1,
+      pageSize: 15,
+      total: 0,
+      totalPages: 1,
+    });
+    await user.click(screen.getByRole('button', { name: 'Tags All tags' }));
+    await user.click(await screen.findByRole('checkbox', { name: /^stickers/ }));
+    await user.click(screen.getByRole('checkbox', { name: /^prints/ }));
+
+    await waitFor(() =>
+      expect(itemApi.listItems).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 1, tags: ['stickers', 'prints'] }),
+      ),
+    );
+    expect(screen.getByRole('button', { name: 'Tags 2 tags' })).toBeInTheDocument();
+    expect(await screen.findByText('No items with those tags.')).toBeInTheDocument();
+    expect(screen.queryByText('Add a new item into the table')).not.toBeInTheDocument();
+  });
+
   it('shows an error when saving a new item fails', async () => {
     const user = userEvent.setup();
     vi.mocked(itemApi.createItem).mockRejectedValue(new Error('Could not save item'));
@@ -88,6 +118,27 @@ describe('InventoryPage', () => {
         isActive: true,
       }),
     );
+  });
+
+  it('does not send an old CSV stock quantity when importing an existing item', async () => {
+    const user = userEvent.setup();
+    vi.mocked(itemApi.updateItem).mockResolvedValue(testItem);
+    render(<InventoryPage />, { wrapper: PageProviders });
+    await screen.findByText('Tea');
+    const csv = 'id,name,quantity,unitPriceCents,tags,note,isPublic\n1,Tea,15,450,[],old,false';
+    const file = new File([csv], 'inventory.csv', { type: 'text/csv' });
+    Object.defineProperty(file, 'text', { value: async () => csv });
+    await user.upload(screen.getByLabelText('Import inventory CSV'), file);
+    const dialog = await screen.findByRole('dialog', { name: 'Confirm CSV Import' });
+    await user.click(within(dialog).getByRole('button', { name: 'Import CSV' }));
+    await waitFor(() => expect(itemApi.updateItem).toHaveBeenCalledTimes(1));
+    expect(itemApi.updateItem).toHaveBeenCalledWith(1, {
+      name: 'Tea',
+      unitPriceCents: 450,
+      tags: [],
+      note: 'old',
+      isPublic: false,
+    });
   });
 
   /** The stock shown in the Qty column of `name`'s row. */

@@ -1,6 +1,7 @@
 package ca.jackofalltrades.expenses;
 
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -32,8 +33,8 @@ class ExpenseMonthBreakdownTest extends PostgresTestBase {
                 .query(Integer.class).single();
     }
 
-    /** Inserts an expense with one line; {@code itemId} null makes it a running cost. */
-    private void insertExpense(int businessId, OffsetDateTime incurredAt, Integer itemId, int quantity,
+    /** Inserts an expense with one line; {@code itemId} null makes it a running cost. Returns its id. */
+    private int insertExpense(int businessId, OffsetDateTime incurredAt, Integer itemId, int quantity,
             int totalCents) {
         int expenseId = jdbcClient.sql("INSERT INTO expenses (business_id, incurred_at) VALUES (:b, :at) RETURNING id")
                 .param("b", businessId).param("at", incurredAt)
@@ -45,6 +46,7 @@ class ExpenseMonthBreakdownTest extends PostgresTestBase {
                 .param("expense", expenseId).param("item", itemId)
                 .param("quantity", quantity).param("total", totalCents)
                 .update();
+        return expenseId;
     }
 
     @Test
@@ -63,7 +65,32 @@ class ExpenseMonthBreakdownTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.restockCents").value(0))
                 .andExpect(jsonPath("$.runningCents").value(0))
                 .andExpect(jsonPath("$.totalCents").value(0))
+                .andExpect(jsonPath("$.previousTotalCents").value(0))
+                .andExpect(jsonPath("$.largestExpense").value(nullValue()))
                 .andExpect(jsonPath("$.topRestockItems").isEmpty());
+    }
+
+    @Test
+    void comparesWithAllOfLastMonthAndFindsTheLargestExpense() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        OffsetDateTime lastMonth = MONTH_START.minusMonths(1);
+        insertExpense(business, lastMonth, null, 1, 3000);                      // last month's first moment
+        insertExpense(business, MONTH_START.minusSeconds(1), null, 1, 1000);    // and its last
+        insertExpense(business, lastMonth.minusSeconds(1), null, 1, 9999);      // two months back
+        insertExpense(business, MONTH_START.plusDays(1), null, 1, 2500);
+        int largest = insertExpense(business, MONTH_START.plusDays(2), null, 1, 2500);   // ties: the later
+        jdbcClient.sql("UPDATE expenses SET description = 'Market stall fee' WHERE id = :id")
+                .param("id", largest).update();
+
+        mockMvc.perform(get("/api/expenses/month-breakdown").cookie(cookie))
+                .andExpect(jsonPath("$.totalCents").value(5000))
+                .andExpect(jsonPath("$.previousTotalCents").value(4000))
+                .andExpect(jsonPath("$.largestExpense.id").value(largest))
+                .andExpect(jsonPath("$.largestExpense.totalCents").value(2500))
+                .andExpect(jsonPath("$.largestExpense.description").value("Market stall fee"))
+                .andExpect(jsonPath("$.largestExpense.incurredAt")
+                        .value(MONTH_START.plusDays(2).toInstant().toString()));
     }
 
     @Test

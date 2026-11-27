@@ -1,5 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { createChannel, deleteChannel, listChannels, renameChannel } from '../../api/channels';
+import {
+  createChannel,
+  deleteChannel,
+  designateOnlineChannel,
+  listChannels,
+  renameChannel,
+} from '../../api/channels';
 import {
   createExpenseTag,
   deleteExpenseTag,
@@ -12,6 +18,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { MAX_ROWS_PER_PAGE, MIN_ROWS_PER_PAGE, usePreferences } from '../../hooks/usePreferences';
 import type { Channel, ExpenseTag, ItemTagCount } from '../../types';
 import { DATE_FORMAT_LABELS, type DateFormat } from '../../utils/date';
+import { hasOnlyItemTagCharacters, ITEM_TAG_CHARACTERS_MESSAGE } from '../../utils/itemTags';
 import { ManagedList } from './ManagedList';
 import { SettingsRow } from './SettingsRow';
 
@@ -25,28 +32,96 @@ function SalesChannels({
   error: string | null;
 }) {
   const { preferences, update } = usePreferences();
+  const [onlineChoice, setOnlineChoice] = useState('');
+  const [onlineError, setOnlineError] = useState<string | null>(null);
+  const [savingOnline, setSavingOnline] = useState(false);
+  const selectedOnline =
+    onlineChoice || String(channels?.find((channel) => channel.isOnline)?.id ?? '');
+  const currentOnline = channels?.find((channel) => channel.isOnline);
+
+  async function assignOnline() {
+    if (
+      currentOnline &&
+      !window.confirm(
+        'Changing the Online Shop channel changes which existing sales appear there. Continue?',
+      )
+    )
+      return;
+    setSavingOnline(true);
+    setOnlineError(null);
+    try {
+      const assigned = await designateOnlineChannel(Number(selectedOnline));
+      setChannels(
+        (current) =>
+          current?.map((channel) =>
+            channel.id === assigned.id ? assigned : { ...channel, isOnline: false },
+          ) ?? null,
+      );
+      setOnlineChoice('');
+    } catch (caught) {
+      setOnlineError(getErrorMessage(caught));
+    } finally {
+      setSavingOnline(false);
+    }
+  }
+
   return (
-    <ManagedList
-      noun="channel"
-      entries={channels}
-      loadError={error}
-      deleteWarning="This can't be undone."
-      onAdd={async (name) => {
-        const created = await createChannel(name);
-        setChannels((current) => [...(current ?? []), created]);
-      }}
-      onRename={async (entryId, name) => {
-        const id = Number(entryId);
-        const renamed = await renameChannel(id, name);
-        setChannels((current) => current?.map((c) => (c.id === id ? renamed : c)) ?? null);
-      }}
-      onDelete={async (entryId) => {
-        const id = Number(entryId);
-        await deleteChannel(id);
-        setChannels((current) => current?.filter((c) => c.id !== id) ?? null);
-        if (preferences.defaultChannelId === id) update({ defaultChannelId: null });
-      }}
-    />
+    <>
+      <ManagedList
+        noun="channel"
+        entries={channels}
+        loadError={error}
+        deleteWarning="This can't be undone."
+        onAdd={async (name) => {
+          const created = await createChannel(name);
+          setChannels((current) => [...(current ?? []), created]);
+        }}
+        onRename={async (entryId, name) => {
+          const id = Number(entryId);
+          const renamed = await renameChannel(id, name);
+          setChannels((current) => current?.map((c) => (c.id === id ? renamed : c)) ?? null);
+        }}
+        onDelete={async (entryId) => {
+          const id = Number(entryId);
+          await deleteChannel(id);
+          setChannels((current) => current?.filter((c) => c.id !== id) ?? null);
+          if (preferences.defaultChannelId === id) update({ defaultChannelId: null });
+        }}
+      />
+      {channels && (
+        <div className="settings-stack">
+          <p>Choose the channel used for Online Shop sales. This may be a channel you renamed.</p>
+          <label htmlFor="online-shop-channel">Online Shop channel</label>
+          <select
+            id="online-shop-channel"
+            value={selectedOnline}
+            onChange={(event) => setOnlineChoice(event.target.value)}
+          >
+            <option value="">Choose a channel</option>
+            {channels.map((channel) => (
+              <option key={channel.id} value={channel.id}>
+                {channel.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="button"
+            disabled={
+              !selectedOnline || selectedOnline === String(currentOnline?.id) || savingOnline
+            }
+            onClick={assignOnline}
+          >
+            Assign channel
+          </button>
+          {onlineError && (
+            <p className="form-error" role="alert">
+              {onlineError}
+            </p>
+          )}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -117,6 +192,7 @@ function InventoryTags({
       }
       loadError={error}
       deleteWarning={(entry) => `Removes it from ${items(count(entry.id))}. The items stay.`}
+      validateName={(name) => (hasOnlyItemTagCharacters(name) ? null : ITEM_TAG_CHARACTERS_MESSAGE)}
       onRename={async (id, name) => {
         await renameItemTag(String(id), name);
         await reload(); // renaming onto an existing tag merges two, so refetch the counts

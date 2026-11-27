@@ -19,7 +19,7 @@ interface OnlineExpenseFormModalProps {
   defaultDate: string;
   /** Tags already used on other expenses, offered in the tag dropdown. */
   knownTags: string[];
-  hideDescriptionCategory?: boolean;
+  context?: 'online' | 'commission' | 'miscellaneous';
   onCancel: () => void;
   onSubmit: (input: OnlineExpenseInput) => Promise<void>;
 }
@@ -30,7 +30,7 @@ export function OnlineExpenseFormModal({
   expense,
   defaultDate,
   knownTags,
-  hideDescriptionCategory = false,
+  context = 'online',
   onCancel,
   onSubmit,
 }: OnlineExpenseFormModalProps) {
@@ -114,7 +114,7 @@ export function OnlineExpenseFormModal({
 
   return (
     <Modal
-      title={isEditing ? 'Modify online expense' : 'Add online expense'}
+      title={`${isEditing ? 'Modify' : 'Add'} ${context} expense`}
       onClose={handleCancel}
       footer={
         <>
@@ -143,28 +143,26 @@ export function OnlineExpenseFormModal({
             onChange={(event) => touch(setSpentOn)(event.target.value)}
           />
         </FormRow>
-        {!hideDescriptionCategory && (
-          <>
-            <FormRow label="Description" htmlFor="online-expense-description">
-              <input
-                id="online-expense-description"
-                value={description}
-                maxLength={200}
-                placeholder="e.g. Etsy listing fees"
-                onChange={(event) => touch(setDescription)(event.target.value)}
-              />
-            </FormRow>
-            <FormRow label="Category" htmlFor="online-expense-category">
-              <input
-                id="online-expense-category"
-                value={category}
-                maxLength={60}
-                placeholder="e.g. Shipping"
-                onChange={(event) => touch(setCategory)(event.target.value)}
-              />
-            </FormRow>
-          </>
-        )}
+        <>
+          <FormRow label="Description" htmlFor="online-expense-description">
+            <input
+              id="online-expense-description"
+              value={description}
+              maxLength={200}
+              placeholder="e.g. Etsy listing fees"
+              onChange={(event) => touch(setDescription)(event.target.value)}
+            />
+          </FormRow>
+          <FormRow label="Category" htmlFor="online-expense-category">
+            <input
+              id="online-expense-category"
+              value={category}
+              maxLength={60}
+              placeholder="e.g. Shipping"
+              onChange={(event) => touch(setCategory)(event.target.value)}
+            />
+          </FormRow>
+        </>
         <FormRow label="Currency" htmlFor="online-expense-currency">
           <select
             id="online-expense-currency"

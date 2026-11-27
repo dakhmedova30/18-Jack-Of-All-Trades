@@ -165,7 +165,11 @@ export function DiscountsPage() {
                   {discount.name}
                   {discount.isCharge && <span className="public-marker">Charge</span>}
                 </td>
-                <td>{KIND_NAMES[discount.kind]}</td>
+                <td>
+                  {discount.kind === 'SOLID' && discount.valueType === 'PERCENT'
+                    ? 'Percentage'
+                    : KIND_NAMES[discount.kind]}
+                </td>
                 <td>
                   <TagList tags={discount.appliesTo ? [discount.appliesTo] : []} />
                   {!discount.appliesTo && <span className="muted">All items</span>}

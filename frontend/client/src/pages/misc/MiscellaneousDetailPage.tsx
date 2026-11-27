@@ -391,6 +391,7 @@ export function MiscellaneousDetailPage() {
       )}
       {formState?.kind === 'expense' && (
         <OnlineExpenseFormModal
+          context="miscellaneous"
           expense={formState.expense}
           defaultDate={new Date().toISOString().slice(0, 10)}
           knownTags={knownTags}

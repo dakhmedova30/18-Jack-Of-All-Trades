@@ -5,9 +5,12 @@ import {
   deleteExpense,
   getExpense,
   listExpenseLines,
+  listExpenses,
   updateExpense,
 } from '../../api/expenses';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { ExpenseScopeNotice } from '../../components/ExpenseScopeNotice';
+import { CsvTransfer } from '../../components/CsvTransfer';
 import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
 import { Pagination } from '../../components/Pagination';
 import { TagList } from '../../components/TagList';
@@ -25,6 +28,15 @@ import {
 } from '../../types';
 import { usePreferences } from '../../hooks/usePreferences';
 import { formatCents } from '../../utils/money';
+import { fetchAllPages } from '../../utils/csv';
+import {
+  csvId,
+  expenseCsvRow,
+  expenseInputFromCsv,
+  upsertFromCsv,
+  EXPENSE_CSV_HEADERS,
+  EXPENSE_IMPORT_HEADERS,
+} from '../../utils/businessCsv';
 import { ExpenseFormModal } from './ExpenseFormModal';
 import { ExpenseLineReportView } from './ExpenseLineReport';
 
@@ -125,6 +137,16 @@ export function ExpensesPage() {
   function reload() {
     reloadExpenses();
     reloadReport();
+  }
+
+  async function importExpense(record: Record<string, string>) {
+    const id = csvId(record);
+    const input = expenseInputFromCsv(record);
+    return upsertFromCsv(
+      id,
+      (existingId) => updateExpense(existingId, input),
+      () => createExpense(input),
+    );
   }
 
   /** Clicking the current sort column flips its direction; a new column starts ascending. */
@@ -249,6 +271,7 @@ export function ExpensesPage() {
     <section className="page">
       <div>
         <h1>Expenses</h1>
+        <ExpenseScopeNotice />
         <p className="muted">A recap of expenses made over the chosen date range.</p>
       </div>
 
@@ -384,6 +407,19 @@ export function ExpensesPage() {
 
       <div className="toolbar">
         <div className="toolbar__actions">
+          <CsvTransfer
+            filename="expenses"
+            headers={EXPENSE_CSV_HEADERS}
+            loadRows={() =>
+              fetchAllPages((requestedPage, pageSize) =>
+                listExpenses({ page: requestedPage, pageSize }),
+              )
+            }
+            exportRow={expenseCsvRow}
+            importHeaders={EXPENSE_IMPORT_HEADERS}
+            importRow={importExpense}
+            onImported={reload}
+          />
           <button type="button" className="button" onClick={() => setFormState({ mode: 'create' })}>
             Add Expense <PlusIcon />
           </button>

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, apiRequest } from './http';
+import { ApiError, apiRequest, onDataChanged } from './http';
 
 const UNREACHABLE = 'Could not reach the server. Check your connection and try again.';
 
@@ -65,5 +65,47 @@ describe('apiRequest errors', () => {
     const error = await errorFrom(apiRequest('/items'));
     expect(error.status).toBe(503);
     expect(error.message).toBe('Database unavailable');
+  });
+});
+
+describe('onDataChanged', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function changesAfter(request: () => Promise<unknown>): Promise<number> {
+    const listener = vi.fn();
+    const unsubscribe = onDataChanged(listener);
+    try {
+      await request().catch(() => {});
+    } finally {
+      unsubscribe();
+    }
+    return listener.mock.calls.length;
+  }
+
+  it('fires after a successful save, with or without a body', async () => {
+    respond(201, JSON.stringify({ id: 1 }));
+    expect(await changesAfter(() => apiRequest('/sales', { method: 'POST', json: {} }))).toBe(1);
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
+    expect(await changesAfter(() => apiRequest('/sales/1', { method: 'DELETE' }))).toBe(1);
+  });
+
+  it('does not fire after a read or a failed save', async () => {
+    respond(200, '[]');
+    expect(await changesAfter(() => apiRequest('/sales'))).toBe(0);
+
+    respond(400, JSON.stringify({ error: { message: 'Validation failed' } }));
+    expect(await changesAfter(() => apiRequest('/sales', { method: 'POST', json: {} }))).toBe(0);
+  });
+
+  it('stops calling a listener once it unsubscribes', async () => {
+    const listener = vi.fn();
+    onDataChanged(listener)();
+
+    respond(201, '{}');
+    await apiRequest('/sales', { method: 'POST', json: {} });
+    expect(listener).not.toHaveBeenCalled();
   });
 });

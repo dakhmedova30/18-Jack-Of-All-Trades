@@ -15,6 +15,8 @@ export interface ListItemsParams {
   page: number;
   pageSize: number;
   search?: string;
+  /** Keeps items with any of these tags; empty or missing for all items. */
+  tags?: string[];
   /** Server default: id ascending. */
   sort?: ItemSortField;
   order?: SortOrder;
@@ -24,11 +26,13 @@ export function listItems({
   page,
   pageSize,
   search,
+  tags,
   sort,
   order,
 }: ListItemsParams): Promise<Paginated<Item>> {
   const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (search) query.set('search', search);
+  tags?.forEach((tag) => query.append('tag', tag));
   if (sort) query.set('sort', sort);
   if (order) query.set('order', order);
   return apiRequest(`/items?${query}`);
@@ -40,8 +44,9 @@ export function getLowStock(limit?: number): Promise<LowStock> {
 }
 
 /** Stock value, this month's top 3 sellers and in-stock items with no sales this month. */
-export function getInventoryInsights(): Promise<InventoryInsights> {
-  return apiRequest('/items/insights');
+/** @param days The last this many days up to now; leave out for this calendar month. */
+export function getInventoryInsights(days?: number): Promise<InventoryInsights> {
+  return apiRequest(`/items/insights${days !== undefined ? `?days=${days}` : ''}`);
 }
 
 export function createItem(input: ItemInput): Promise<Item> {
