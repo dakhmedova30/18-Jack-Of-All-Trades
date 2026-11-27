@@ -21,32 +21,65 @@ password: ChangeMe123!
 
 ...or click **Register** to create your own business. Every page only ever shows your own business's data.
 
-## What's New in D3
+## What's New in D4
+
+D4 makes the app ready to hand over. It now runs as two environments: every merge goes to a dev site and only a published release reaches prod. Every pull request is checked by end-to-end browser tests as well as the backend and frontend suites, and every running backend serves interactive API docs (Swagger UI). For owners:
+
+- **Analytics** has a page each for Sales, Expenses and Inventory, with charts. Sales and Expenses can be narrowed to some channels or tags, and every chart has a "Show as a table" view for screen readers ([#36](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/36), [#45](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/45)).
+- **Home** greets the business by name and shows four larger cards: the latest sales and expenses, the best and worst sellers of the last 30 days, and two weeks of revenue ([#46](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/46)).
+- **CSV import and export** for Inventory, Sales and Expenses, and an export for Analytics ([#30](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/30)).
+- **Inventory tag filter**: tick one or more tags to see the items that have any of them ([#41](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/41)).
+- **Alerts show straight away**: the bell updates as soon as a save succeeds, instead of up to 2 minutes later ([#40](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/40)).
+- **Public profile contact**: a public email and an optional phone number for customers ([#44](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/44)).
+- **Read aloud** can skip to the previous or next section ([#37](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/37)).
+
+Behind the scenes: dev and prod environments ([#39](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/39)), a prod URL that also works on the UofT network ([#42](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/42)), end-to-end tests ([#38](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/38)), Swagger UI ([#43](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/43)), and a database that sleeps while nobody uses the app ([#34](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/34)). Taking the project over is covered in [Handoff and Maintenance](#handoff-and-maintenance).
+
+### Response to D3 Feedback
+
+| TA feedback at the D3 demo | What we changed | Where to see it |
+| --- | --- | --- |
+| Notifications should update faster | The bell refetches as soon as any save succeeds, and checks every 30 seconds while the tab is open ([#40](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/40)) | Sell an item down to its low-stock cutoff |
+| Keep the public profile view-only | It stays view-only (no ordering); customers can now contact the business by email or phone ([#44](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/44)) | `/p/<link name>` |
+| Make Analytics more detailed, with more realistic charts | A page each for Sales, Expenses and Inventory with trend charts, channel and tag filters, and new cards such as **Largest expense** and **Tied up in unsold stock** ([#36](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/36), [#45](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/45)) | Analytics in the sidebar |
+| What would stop people using it? | Typing every record by hand: CSV import and export move existing records in and out ([#30](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/30)) | **Import CSV** above Inventory, Sales and Expenses |
+
+<details>
+<summary>Earlier deliverables: What's New in D3 and Response to D2 Feedback</summary>
+
+### What's New in D3
 
 D3 turns the dashboards into answers: filter Sales by channel and dates, explore any period of your history on Analytics (date slider, channel filter, Revenue by Channel), and switch Home between the week, month or year. Owners can also set their account currency, see which products aren't selling, and manage their account, channels and alerts in Settings. The full analysis is in the [product evolution report](deliverables/D3/product-evolution.md).
 
-### Response to D2 Feedback
+#### Response to D2 Feedback
 
 | TA feedback at the D2 demo | What we changed | Where to see it |
 | --- | --- | --- |
 | Make fonts and colours consistent | One heading font, one readable body font (Atkinson Hyperlegible) and shared colours ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9), [#14](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/14), [#22](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/22)) | Every page |
-| Make widgets consistent; show which items are low or not selling | One shared summary card, plus **Low stock** and **Not selling** panels ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9), [#22](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/22)) | Inventory |
-| Put stock value and low stock, and this month and best sellers, at the top | Moved above the tables ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9)) | Inventory, Sales |
-| Change the cards' font | Card figures use the heading font ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9), [#14](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/14)) | Inventory, Sales |
-| Add tests | 237 backend and 56 frontend tests, run on every pull request ([#10](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/10), [#18](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/18)) | [Running tests](#running-tests) |
+| Make widgets consistent; show which items are low or not selling | One shared summary card, plus **Low stock** and **Not selling** panels ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9), [#22](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/22)) | Analytics > Inventory |
+| Put stock value and low stock, and this month and best sellers, at the top | Moved above the tables ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9)); since then they have their own pages under Analytics, so Inventory and Sales open straight to their tables ([#36](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/36)) | Analytics > Inventory, Analytics > Sales |
+| Change the cards' font | Card figures use the heading font ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9), [#14](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/14)) | Home, Analytics |
+| Add tests | 267 backend, 162 frontend and 9 end-to-end browser tests, run on every pull request ([#10](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/10), [#18](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/18), [#38](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/38)) | [Running tests](#running-tests) |
+
+</details>
 
 ## Core Workflows (What to Try)
 
 Log in as the demo account, then:
 
-1. **Home:** use **Show** (top right) to switch between the last 7 days, this month, this year and the last 12 months; the tiles and card previews follow. A new account shows "No sales yet this month" instead of bare zeros.
+1. **Home:** use **Show** (top right) to switch the tiles between the last 7 days, this month, this year and the last 12 months. A new account shows "No sales yet this month" instead of bare zeros. Below them, four cards preview each area, each with its period at the top right: the latest sales, the best and worst sellers of the last 30 days, the latest expenses, and the last two weeks of revenue. Click a card to open that page.
 2. **Sales:** click **Add** to record a sale: pick a date, a channel and one or more items. Totals come from each item's price, and stock goes down automatically. Use the **Channel** and date filters above the table to find, for example, last December's Online sales.
-3. **Inventory:** add or edit products. The cards at the top show the stock value, **Low stock**, and **Not selling** (in stock, but no sales this month).
+3. **Inventory:** add or edit products, with tags and a note, and search by name or tag. Click **Tags** next to the search box and tick one or more tags to show only the items that have any of them.
 4. **Expenses:** click **Add** to record a cost. Each line either restocks a product (its stock goes up) or is a free-text cost such as rent.
-5. **Analytics:** pick any period with the date fields or the slider, and narrow revenue to one channel. **Revenue by Channel** shows where the money comes from; Net Profit shows "—" while a channel is selected, since expenses have no channel.
-6. **Settings:** change the account **currency** (preview first, then convert prices or only relabel them); rename channels and expense tags and set the low-stock cutoff (Preferences); choose which alerts appear in the bell (Notifications); and switch the theme or text size (Appearance).
-7. **Public profile:** in Settings > Profile, set a link name (e.g. `demo-shop`) and click **Turn on**, then tick **Show on my public profile** on products (or select several in Inventory and click **Show on profile**). Customers open `/p/demo-shop` with no account, and never see contact details or stock counts, only "In stock" or "Sold out".
-8. **Read aloud:** the bar at the bottom of every page reads it out, one highlighted passage at a time.
+5. **Analytics:** pick any period with the date fields or the slider. The page shows Net Profit, revenue and expenses, one chart with both over time, and **Revenue by Channel** and **Expenses by Tag** beside it. Open **Sales**, **Expenses** or **Inventory** (the links at the top, or under Analytics in the sidebar) for more:
+   - **Sales:** this month at a glance and best sellers, then charts of revenue per channel, number of sales, average sale, busiest days and revenue by channel. Tick channels under **Channels** to narrow every chart to them.
+   - **Expenses:** **Spent** (this month against last month), **Largest expense**, where the money goes and the top restock spending, then charts of spending per tag, costs and profit, and restocks against running costs. Tick tags under **Tags** to narrow the charts.
+   - **Inventory:** stock value, **Low stock**, **Not selling** (in stock, but no sales this month) and **Tied up in unsold stock**, then charts of stock levels, stock value by tag, and days of stock left at the last 30 days' pace.
+
+   Every chart has a **Show as a table** view.
+6. **Settings:** change the account **currency** (preview first, then convert prices or only relabel them); rename channels and expense tags and set the low-stock cutoff (Preferences); choose which alerts appear in the bell (Notifications), which updates as soon as you save, e.g. a sale that brings an item down to low stock; and switch the theme or text size (Appearance).
+7. **Public profile:** in Settings > Profile, set a link name (e.g. `demo-shop`) and click **Turn on**, then tick **Show on my public profile** on products (or select several in Inventory and click **Show on profile**). Customers open `/p/demo-shop` with no account. Under **Contact** you can also add a **Public email** and choose to show your phone; customers never see your login email, street address or stock counts, only "In stock" or "Sold out".
+8. **Read aloud:** the bar at the bottom of every page reads it out, one highlighted passage at a time; **Previous section** and **Next section** skip around while it plays.
 
 ### CSV Import and Export
 
@@ -68,30 +101,30 @@ The sample files in `docs/sample-data` contain example channel and item IDs, not
 
 ### Screenshots
 
-**Home:** this month's revenue, expenses, profit and low stock, with the **Show** period choice (top right).
+**Home:** this month's revenue, expenses, profit and low stock, with the **Show** period choice (top right), then the Sales, Inventory, Expenses and Analytics cards.
 
-![Home dashboard with the Show period choice set to This month](docs/screenshots/home.jpg)
+![Home dashboard with this month's tiles and the Sales, Inventory, Expenses and Analytics cards](docs/screenshots/home.jpg)
 
-**Inventory:** stock value, **Low stock** and **Not selling** panels above the product table.
+**Inventory:** CSV import and export, the **Tags** filter and search above the product table.
 
-![Inventory page with the stock value, low stock and not selling panels](docs/screenshots/inventory.jpg)
+![Inventory page with the CSV buttons, Tags filter, search and product table](docs/screenshots/inventory.jpg)
 
-**Sales:** this month at a glance and best sellers, then the channel and date filters above the sales table.
+**Sales:** the channel and date filters and search above the sales table.
 
-![Sales page with summary cards, channel and date filters, and the sales table](docs/screenshots/sales.jpg)
+![Sales page with channel and date filters, search and the sales table](docs/screenshots/sales.jpg)
 
-**Analytics:** the period and channel filters, Revenue by Channel, and the overview charts.
+**Analytics:** links to the Inventory, Sales and Expense pages, the period filter, Revenue by Channel, Expenses by Tag, and revenue and expenses over time.
 
-![Analytics page with date range and channel filters, revenue by channel, and charts](docs/screenshots/analytics.jpg)
+![Analytics page with section links, date filter, revenue by channel, expenses by tag, and the overview chart](docs/screenshots/analytics.jpg)
 
 ## Non-Functional Requirements
 
 ### Accessibility
 
-- **Lighthouse accessibility** on the live site (Chrome DevTools, desktop, Nov 6, 2026): Home **100**, Inventory **100**, Sales **100**, Expenses **100**, Analytics **96-100**, Login **96**.
+- **Lighthouse accessibility** on the dev site, which runs the code the D4 release puts on prod (Lighthouse 12.6, desktop, Nov 27, 2026): Home **100**, Inventory **100**, Sales **100**, Expenses **100**, Settings **100**, Inventory Analytics **100**, Analytics, Sales Analytics and Expense Analytics **96**, Login **96**. The 96s come from the date slider's handles being smaller than 24px, and the Register link's contrast against the text around it.
 
-  ![Lighthouse accessibility score of 100 for the Home page on the live site](docs/screenshots/lighthouse.png)
-  ![Lighthouse accessibility score of 96 for the Login page on the live site](docs/screenshots/lighthouse-login.png)
+  ![Lighthouse accessibility score of 100 for the Home page](docs/screenshots/lighthouse.png)
+  ![Lighthouse accessibility score of 96 for the Login page](docs/screenshots/lighthouse-login.png)
 
 - **Keyboard:** every workflow above works with Tab, Enter and Esc. Dialogs start on their first field, keep focus inside, and return it to the button that opened them ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9), [#14](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/14)).
 - **Forms:** every field has a label; an error is tied to its field and read out by screen readers, and login and registration errors say what to fix ([#20](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/20)).
@@ -136,7 +169,7 @@ The sample files in `docs/sample-data` contain example channel and item IDs, not
 | Backend  | Java 25, Spring Boot 4, Spring Security, Spring Data JPA / `JdbcClient`, Flyway, BCrypt, Maven |
 | Database | PostgreSQL (Neon in production)                                           |
 | Hosting  | Render (two Docker web services: dev and prod), Neon Postgres (one branch each) |
-| Tooling  | ESLint, Prettier (frontend); JUnit 5 + Testcontainers (backend tests)      |
+| Tooling  | ESLint, Prettier, Vitest + React Testing Library (frontend); Playwright (end-to-end); JUnit 5 + Testcontainers (backend tests); springdoc (Swagger UI) |
 
 ### Setup
 
@@ -176,6 +209,7 @@ Frontend (run from `frontend/`, not the repo root — there is no root `package.
 | `npm run e2e`       | Runs the end-to-end tests (Playwright) against a running app |
 | `npm run lint`      | Runs ESLint                        |
 | `npm run format`    | Formats everything with Prettier   |
+| `npm run format:check` | Checks formatting without changing files (what CI runs) |
 | `npm run build`     | Builds `client/dist`               |
 
 Backend (run from `backend/`):
@@ -189,7 +223,7 @@ Backend (run from `backend/`):
 
 ### Running tests
 
-The backend has a JUnit 5 test suite (240 tests) covering the API endpoints, input
+The backend has a JUnit 5 test suite (over 260 tests) covering the API endpoints, input
 validation, auth and sessions, and the sales, expense, analytics and notification
 calculations. Tests run against a real PostgreSQL that Testcontainers starts in Docker, so
 there's no database to set up.
@@ -205,9 +239,9 @@ A passing run ends with `Failures: 0, Errors: 0` and `BUILD SUCCESS`. The first 
 Maven dependencies and the Postgres image, so it takes a few minutes; after that it's about a
 minute.
 
-The frontend has a Vitest suite with React Testing Library, covering login and registration,
-protected routes, the inventory, sale and expense forms, Analytics, and the date and money
-helpers. It runs in a simulated browser (jsdom) with the API mocked, so it needs neither
+The frontend has a Vitest suite with React Testing Library (over 160 tests), covering login and
+registration, protected routes, the inventory, sale and expense forms, Home, Analytics and its
+charts, CSV parsing, and the date and money helpers. It runs in a simulated browser (jsdom) with the API mocked, so it needs neither
 Docker nor the backend:
 
 ```bash
@@ -217,7 +251,9 @@ npm test
 
 The end-to-end tests (`frontend/e2e`, Playwright) drive Chromium through the real app: register,
 log out and back in, pages that need a login, adding an item and selling some (stock goes down,
-and the sale shows on Home and in Analytics), and adding an expense. Each test registers its own
+and the sale shows on Home and in Analytics), adding an expense, and a sale that brings an item
+to low stock showing in the bell without a reload, the Inventory tag filter, and the channel
+and tag menus on Sales and Expense Analytics. Each test registers its own
 new business, so tests never share data and can run against any database. To run them locally,
 start the backend and the web app as in [Setup](#setup), then:
 
@@ -239,9 +275,11 @@ frontend/
   client/                    React app
     src/api/                 fetch wrappers, one file per resource
     src/components/          shared UI: layout, modal, pagination, icons
-    src/hooks/                data-loading hooks (useItems)
+    src/hooks/                data-loading hooks (useItems, useSales, ...)
     src/pages/                one folder per dashboard
+    src/utils/                money, dates, CSV and other helpers
     src/styles.css            design tokens + styles from the Figma wireframe
+  e2e/                       Playwright end-to-end tests
 backend/                     Java/Spring Boot API
   src/main/java/ca/jackofalltrades/<feature>/   controller -> service -> repository
   src/main/resources/db/migration/              Flyway SQL migrations
@@ -250,13 +288,15 @@ backend/                     Java/Spring Boot API
   render.yaml                                      Render deployment config
 docs/
   api-contracts.md           the API contract the backend implements
+  sample-data/               example CSV files for import
+.github/workflows/ci.yml     CI: checks, tests, and deploys to dev and prod
 ```
 
-Each feature follows the same layers: **controllers** handle HTTP only, **services** hold business rules, **repositories** hold all SQL. A new feature should copy an existing one, e.g. `backend/src/main/java/ca/jackofalltrades/items`, and should be added to `docs/api-contracts.md` to keep it accurate.
+Each feature follows the same layers: **controllers** handle HTTP only, **services** hold business rules, and **repositories** (plus `*Queries` classes for reports) read and write the database. The core features (items, sales, expenses, analytics, public profiles) keep all their SQL there; a few small services (`ChannelService`, `ExpenseTagService`, `NotificationService`, `CurrencyChangeService`, `AccountSecurityService`) run their short queries with `JdbcClient` directly. A new feature should copy an existing one, e.g. `backend/src/main/java/ca/jackofalltrades/items`, and should be added to `docs/api-contracts.md` and tagged for Swagger UI to keep the docs accurate.
 
 ### API
 
-See [`docs/api-contracts.md`](docs/api-contracts.md) for the authoritative, endpoint-by-endpoint spec. The summary below covers the same contract.
+See [`docs/api-contracts.md`](docs/api-contracts.md) for the authoritative, endpoint-by-endpoint spec, or the interactive docs below for every endpoint. The table below lists the main ones.
 
 **Interactive docs:** every running backend serves Swagger UI at `/swagger-ui.html` (locally, http://localhost:4000/swagger-ui.html) and the generated OpenAPI 3.1 spec at `/v3/api-docs`. Both are generated from the controllers by [springdoc](https://springdoc.org), so they always match the deployed code. Endpoints are grouped by feature, and a lock icon marks the ones that need a login. To try a locked endpoint, run `POST /api/auth/login` from the same page first: it sets the session cookie in your browser, and later calls send it automatically. Set `API_DOCS_ENABLED=false` to turn the docs off.
 
@@ -276,7 +316,8 @@ guessing an id in the URL.
 | POST   | `/api/auth/login`        | Log in (`{ email, password }`)             |
 | POST   | `/api/auth/logout`       | Log out                                    |
 | GET    | `/api/auth/me`           | The logged-in business, or 401             |
-| GET    | `/api/items`             | List items (`page`, `pageSize`, `search`)  |
+| GET    | `/api/items`             | List items (`page`, `pageSize`, `search`, repeatable `tag`) |
+| GET    | `/api/items/tags`        | The tags in use, with how many items have each (`PUT`/`DELETE` with `?name=` rename or remove one) |
 | GET    | `/api/items/:id`         | Get one item                               |
 | POST   | `/api/items`             | Create item                                |
 | PATCH  | `/api/items/:id`         | Update some fields of an item              |
@@ -294,7 +335,10 @@ guessing an id in the URL.
 | PATCH  | `/api/expenses/:id`         | Replace an expense's date, tags and lines     |
 | DELETE | `/api/expenses/:id`         | Delete an expense (undoes any restock)        |
 | POST   | `/api/expenses/bulk-delete` | Delete several expenses (`{ "ids": [1, 2] }`) |
-| GET    | `/api/analytics/summary`    | Dashboard totals and charts (`range`, default `12months`) |
+| GET    | `/api/analytics/summary`    | Dashboard totals and charts (`range`, default `12months`, or `from`/`to`) |
+| GET    | `/api/analytics/sales-trends`   | Sales Analytics charts (`from`, `to`, repeatable `channelId`) |
+| GET    | `/api/analytics/expense-trends` | Expense Analytics charts (`from`, `to`, repeatable `tag`) |
+| GET    | `/api/analytics/stock-health`   | Inventory Analytics charts                  |
 | GET    | `/api/public/businesses/:slug`      | A business's public profile and public items (**no login needed**) |
 | GET    | `/api/public/businesses/:slug/logo` | That business's logo (**no login needed**)                   |
 
@@ -346,6 +390,7 @@ Vite reads `frontend/client/.env` by itself when `npm run dev` or `npm run build
 | `SPRING_PROFILES_ACTIVE`       | No       | Set to `demo` to seed the demo account on startup                           |
 | `PORT`                         | No       | Defaults to 4000 (Render sets it automatically)                             |
 | `API_DOCS_ENABLED`             | No       | `false` turns off Swagger UI and `/v3/api-docs`. Default: `true`             |
+| `EXCHANGE_RATES_SOURCE`        | No       | `live` (default) fetches exchange rates, falling back to cached or bundled ones; `fallback` uses only the bundled rates (as CI does). The other `EXCHANGE_*` settings are in [`backend/README.md`](backend/README.md) |
 
 **Client** (`frontend/client/.env`, read at build time):
 
@@ -360,7 +405,7 @@ Vite reads `frontend/client/.env` by itself when `npm run dev` or `npm run build
 3. Language: **Docker**. Dockerfile Path: `backend/Dockerfile`. Docker Build Context Directory: leave as `.` (the repo root — the Dockerfile needs both `backend/` and `frontend/client/`).
 4. Health Check Path: `/api/health/live` (exactly — a trailing/duplicated path here will make every deploy time out waiting on the health check). Don't use `/api/health`: it queries the database, and Render's checks every few seconds would keep a Neon database awake around the clock and use up its monthly compute hours.
 5. Environment variables: `SPRING_DATASOURCE_URL` (JDBC form, e.g. `jdbc:postgresql://<host>/<db>?sslmode=require`), `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, and `SPRING_PROFILES_ACTIVE=demo`.
-6. The free instance type's 0.1 CPU is too slow to boot the JVM within Render's health-check window — every free-tier deploy we tried either failed outright or took 15+ minutes. Use the $7/month instance (0.5 CPU), which boots in under a minute.
+6. The free instance type's 0.1 CPU is too slow to boot the JVM within Render's health-check window — every free-tier deploy we tried either failed outright or took 15+ minutes. Use the Starter instance type (0.5 CPU), which boots in under a minute.
 7. Set **Auto-Deploy** to **Off**. Deploys are triggered from GitHub Actions, not by Render
    itself: "Public Git Repository" services don't get webhooks from a repo they don't own, and
    CI should only deploy commits that passed its checks. Copy the service's **Deploy Hook**
@@ -392,6 +437,37 @@ click **Rollback**. It reuses that deploy's build, so it's quick. **Manual Deplo
 Deploy a specific commit** works too, but rebuilds. Publishing a release for an earlier commit
 only deploys commits from after release deploys were added (PR #39), since a release runs the
 workflow file from the tagged commit, and it waits for all of CI first.
+
+## Handoff and Maintenance
+
+### Who owns what
+
+| Piece | What it holds | Owner today | How to take it over |
+| --- | --- | --- | --- |
+| GitHub repo `dakhmedova30/18-Jack-Of-All-Trades` | Code, CI, the two deploy-hook secrets | Team member `dakhmedova30` | The owner transfers it (**Settings > General > Transfer ownership**), or the partner forks it. Either way, check the two secrets under **Settings > Secrets and variables > Actions**. |
+| Render: `jack-of-all-trades-app` (prod) and `jack-of-all-trades-dev` (dev) | The running app | Team member `h-santiago` | The owner invites the partner to the Render workspace, or the partner creates both services with [Deploying to Render](#deploying-to-render). |
+| Neon project `jack-of-all-trades-java`, branches `production` and `dev` | All business data | Team member `h-santiago` | The owner invites the partner to the Neon organization, or the partner creates a new project and copies the data with `pg_dump` / `pg_restore`. |
+
+### Taking over in a new account
+
+1. Get the code: the transferred repo or your fork.
+2. Create a Neon project with a `production` branch and a `dev` branch, and copy each connection string.
+3. Create the two Render services as in [Deploying to Render](#deploying-to-render), each with its own branch's database settings.
+4. Copy each new service's **Deploy Hook** into the repo's Actions secrets: `RENDER_DEPLOY_HOOK_URL` for prod and `RENDER_DEPLOY_HOOK_URL_DEV` for dev. New services get new hooks, so the old secrets stop working. If a hook leaks, click **Regenerate hook** on Render and update the secret.
+5. Merge any small change to `main` and check that the `deploy-dev` job passes and the dev site's `/api/health` returns `"database":"ok"`. Then publish a release to reach prod ([Releasing to prod](#environments-and-releases)).
+6. For real customers, remove `SPRING_PROFILES_ACTIVE=demo` from the prod service and delete the demo account, whose password is public in this README.
+
+### Routine maintenance
+
+- **Is it up?** `GET /api/health` checks the app and the database; `GET /api/health/live` checks only the app. Render emails the workspace when a deploy or health check fails.
+- **Database changes:** add a new Flyway file in `backend/src/main/resources/db/migration` named `V<yyyymmdd>_<n>__<what>.sql`. Never edit one that has already run; Flyway applies new files on the next deploy.
+- **Rotating the database password:** reset it in Neon (**Roles**), then update `SPRING_DATASOURCE_PASSWORD` on the matching Render service (**Environment**) and redeploy it.
+- **Keeping the database asleep when idle:** keep Render's health check on `/api/health/live`, never `/api/health` (see [Deploying to Render](#deploying-to-render)).
+- **Refreshing dev data:** Neon's **Reset from parent** on the `dev` branch copies prod's data over it.
+
+### Next steps
+
+Open pull requests at D4 carry the next features: sales categories, markets, commissions and more expense types ([#32](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/32)); product photos ([#49](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/49)); clearer profile field errors ([#48](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/48)); and a UI polish pass ([#50](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/50)). Each one's review lists what still needs fixing.
 
  ## Deployment and Github Workflow
 
