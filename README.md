@@ -44,11 +44,14 @@ Behind the scenes: dev and prod environments ([#39](https://github.com/dakhmedov
 | Make Analytics more detailed, with more realistic charts | A page each for Sales, Expenses and Inventory with trend charts, channel and tag filters, and new cards such as **Largest expense** and **Tied up in unsold stock** ([#36](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/36), [#45](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/45)) | Analytics in the sidebar |
 | What would stop people using it? | Typing every record by hand: CSV import and export move existing records in and out ([#30](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/30)) | **Import CSV** above Inventory, Sales and Expenses |
 
-## What's New in D3
+<details>
+<summary>Earlier deliverables: What's New in D3 and Response to D2 Feedback</summary>
+
+### What's New in D3
 
 D3 turns the dashboards into answers: filter Sales by channel and dates, explore any period of your history on Analytics (date slider, channel filter, Revenue by Channel), and switch Home between the week, month or year. Owners can also set their account currency, see which products aren't selling, and manage their account, channels and alerts in Settings. The full analysis is in the [product evolution report](deliverables/D3/product-evolution.md).
 
-### Response to D2 Feedback
+#### Response to D2 Feedback
 
 | TA feedback at the D2 demo | What we changed | Where to see it |
 | --- | --- | --- |
@@ -57,6 +60,8 @@ D3 turns the dashboards into answers: filter Sales by channel and dates, explore
 | Put stock value and low stock, and this month and best sellers, at the top | Moved above the tables ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9)); since then they have their own pages under Analytics, so Inventory and Sales open straight to their tables ([#36](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/36)) | Analytics > Inventory, Analytics > Sales |
 | Change the cards' font | Card figures use the heading font ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9), [#14](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/14)) | Home, Analytics |
 | Add tests | 267 backend, 162 frontend and 9 end-to-end browser tests, run on every pull request ([#10](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/10), [#18](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/18), [#38](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/38)) | [Running tests](#running-tests) |
+
+</details>
 
 ## Core Workflows (What to Try)
 
