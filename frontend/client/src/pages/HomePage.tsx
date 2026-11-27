@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ExpenseScopeNotice } from '../components/ExpenseScopeNotice';
 import { Link } from 'react-router-dom';
 import { useAnalyticsSummary } from '../hooks/useAnalyticsSummary';
 import { useAuth } from '../hooks/useAuth';
@@ -132,6 +133,7 @@ export function HomePage() {
         </div>
       </div>
       <KpiStrip summary={summary} range={option} />
+      <ExpenseScopeNotice />
       <div className="home-cards">
         {dashboards.map(({ to, title, timeframe, preview }) => (
           <Link key={to} to={to} className="home-card">

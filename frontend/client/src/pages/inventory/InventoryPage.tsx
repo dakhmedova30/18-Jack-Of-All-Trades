@@ -18,7 +18,6 @@ import { useAuth } from '../../hooks/useAuth';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useItems } from '../../hooks/useItems';
 import { usePreferences } from '../../hooks/usePreferences';
-import { useCurrency } from '../../hooks/useCurrency';
 import type { Item, ItemInput, ItemSortField, SortOrder } from '../../types';
 import { formatCents } from '../../utils/money';
 import { fetchAllPages } from '../../utils/csv';
@@ -35,8 +34,14 @@ const SORTABLE_COLUMNS: { field: ItemSortField; label: string; numeric?: boolean
   { field: 'id', label: 'ID' },
   { field: 'name', label: 'Name' },
   { field: 'quantity', label: 'Qty', numeric: true },
-  { field: 'unitPriceCents', label: 'Unit price', numeric: true },
+  { field: 'unitPriceCents', label: 'Price', numeric: true },
 ];
+
+function formatSize(item: Item): string {
+  return item.width != null && item.height != null && item.sizeUnit
+    ? `${item.width} × ${item.height} ${item.sizeUnit}`
+    : '—';
+}
 
 type FormState = { mode: 'create' } | { mode: 'edit'; item: Item } | null;
 type DeleteTarget = { kind: 'single'; item: Item } | { kind: 'bulk'; ids: number[] } | null;
@@ -76,7 +81,6 @@ function skippedMessage({ isPublic, change, skipped }: NonNullable<VisibilityTar
 export function InventoryPage() {
   const { preferences } = usePreferences();
   const { business } = useAuth();
-  const currency = useCurrency();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [tagFilter, setTagFilter] = useState<string[]>([]);
@@ -145,8 +149,9 @@ export function InventoryPage() {
   }
 
   async function handleSave(input: ItemInput) {
-    if (formState?.mode === 'edit') await updateItem(formState.item.id, input);
-    else await createItem(input);
+    if (formState?.mode === 'edit') {
+      await updateItem(formState.item.id, { ...input, clearSize: input.width === null });
+    } else await createItem(input);
     setFormState(null);
     reload();
   }
@@ -243,7 +248,7 @@ export function InventoryPage() {
             disabled={selected.size === 0}
             onClick={() => setDeleteTarget({ kind: 'bulk', ids: [...selected.keys()] })}
           >
-            Bulk delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
+            Bulk Delete{selected.size > 0 && ` (${selected.size})`} <TrashIcon />
           </button>
           {/* Each is enabled only when some selected item would change; the count is how many. */}
           <button
@@ -353,6 +358,9 @@ export function InventoryPage() {
                   </th>
                 );
               })}
+              <th className="numeric">Amount sold</th>
+              <th className="numeric">Total</th>
+              <th>Size</th>
               <th>Tags</th>
               <th className="table__action">Delete</th>
             </tr>
@@ -361,7 +369,7 @@ export function InventoryPage() {
             {items.map((item) => (
               <tr
                 key={item.id}
-                className="table__row"
+                className={`table__row${!item.isActive || item.quantity === 0 ? ' is-inactive' : ''}`}
                 tabIndex={0}
                 aria-label={`Edit ${item.name}`}
                 onClick={() => setFormState({ mode: 'edit', item })}
@@ -385,9 +393,15 @@ export function InventoryPage() {
                 <td>
                   {item.name}
                   {item.isPublic && <span className="public-marker">Public</span>}
+                  {!item.isActive && <span className="public-marker">Inactive</span>}
                 </td>
                 <td className="numeric">{item.quantity}</td>
-                <td className="numeric">{formatCents(item.unitPriceCents, currency)}</td>
+                <td className="numeric">{formatCents(item.unitPriceCents, item.currency)}</td>
+                <td className="numeric">{item.amountSold}</td>
+                <td className="numeric">
+                  {formatCents(item.unitPriceCents * item.amountSold, item.currency)}
+                </td>
+                <td>{formatSize(item)}</td>
                 <td>
                   <TagList tags={item.tags} />
                 </td>
@@ -407,6 +421,18 @@ export function InventoryPage() {
               </tr>
             ))}
           </tbody>
+          {items.length > 0 && (
+            <tfoot>
+              <tr>
+                <td />
+                <td colSpan={2}>Totals (this page)</td>
+                <td className="numeric">{items.reduce((sum, item) => sum + item.quantity, 0)}</td>
+                <td />
+                <td className="numeric">{items.reduce((sum, item) => sum + item.amountSold, 0)}</td>
+                <td colSpan={4} />
+              </tr>
+            </tfoot>
+          )}
         </table>
 
         {!data && loading && <p className="empty-state">Loading…</p>}

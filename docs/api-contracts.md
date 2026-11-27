@@ -273,12 +273,12 @@ A page customers can read **without logging in**: the business's public details 
 | `ItemInput` field | Rules |
 | --- | --- |
 | `name` | Required on create; 1–120 characters, trimmed |
-| `quantity` | Required on create; whole number ≥ 0 |
+| `quantity` | Required on create; whole number from 0 to 1,000,000 |
 | `unitPriceCents` | Required on create; whole number from 0 to 999,999,999 cents ($0.00–$9,999,999.99) |
 | `tags` | Optional; ≤ 10 tags, each 1–30 characters of letters and numbers (any language), spaces and `& - _ / # : ' ’ . + % ( ) !`, never a comma (the item form separates tags with commas); duplicates removed; default `[]` |
 | `note` | Optional; ≤ 1000 characters; default `""` |
 
-Deleting an item doesn't change past sales or expenses: their lines keep the item's name, and `itemId` becomes `null`.
+Items used by sales can't be deleted; deactivate them instead. Sale lines retain their item references and names.
 
 ## 4. Sales: `/api/sales` (US1)
 
@@ -341,13 +341,17 @@ were recorded in different currencies.
 | `channelId` | Required; one of your channels (§4.1) |
 | `description` | Optional; ≤ 200 characters, trimmed; default `""`. Blank → the server writes it from the lines: `"Flower Print x 2, Flower Keychain x 1"` (cut to 200 characters with `…`) |
 | `tags` | As for items; default `[]` |
-| `items` | 1–50 lines; each `itemId` must be one of your items; `quantity` ≥ 1 |
+| `items` | Up to 50 lines; each `quantity` is 1–1,000,000 and the total across lines is at most 100,000. Empty only when `tipCents` is provided. Inventory lines use one of your `itemId`s. A Miscellaneous sale may also include a one-time line with `itemId: null`, `itemName` and `unitPriceCents` (unless free or trade) |
 
 **Behavior:**
 - A `channelId` that isn't one of yours → `400 Channel 3 does not exist`. It's checked before the lines.
 - An `itemId` that isn't one of yours → `400 Item 7 does not exist`.
 - Each line's price is the item's **current** `unitPriceCents`, copied into the sale. Later price changes don't affect past sales.
+- One-time lines are allowed when `miscId` is set. After the group is deleted, existing one-time lines can still be edited without increasing their quantity; they retain their name and price in sale history and do not change inventory.
+- Existing inactive items can remain on an edited sale, including free or trade lines, but their total quantity cannot increase.
+- Market and commission `revenueCents` include tips; `tipsCents` also reports them separately, and profit is revenue less expenses. Commission and Miscellaneous records include a `receivedOn` date; create requests that omit it default to the current date, while updates that omit it preserve the stored date. A commission deadline cannot precede that date.
 - `totalCents` (line and sale) is calculated by the server.
+- Discounts cannot reduce the item subtotal below zero; a repeated ID in `discountIds` is rejected.
 - Recording a sale decreases stock; editing restores the old lines and applies the new ones; deleting restores stock.
 - Not enough stock → `400 Not enough stock for "Flower Print" (have 1, need 2)`, and nothing is saved.
 - `largestSale` is `null` in a month with no sales; `averageSaleCents` is then `0`.
@@ -362,24 +366,28 @@ were recorded in different currencies.
 | `GET` | `/api/channels` | — | `200` `Channel[]`, oldest first (not paginated) | — |
 | `POST` | `/api/channels` | `{ "name": "Etsy" }` | `201` `Channel` | `400` invalid name; `409 Channel "Etsy" already exists` |
 | `PUT` | `/api/channels/{id}` | `{ "name": "Etsy" }` (rename) | `200` `Channel` | `400`; `404`; `409` the name is taken (changing only the capitalisation is fine) |
+| `PUT` | `/api/channels/{id}/online` | — | `200` `Channel`; designate the channel used by Online Shop | `404` if the channel is not yours |
 | `DELETE` | `/api/channels/{id}` | — | `204` | `404`; `409 Channel "Online" is used by 3 sales, so it can't be deleted. Rename it instead.` |
 
 ```json
 // Channel
-{ "id": 5, "name": "Etsy" }
+{ "id": 5, "name": "Etsy", "isOnline": true }
 ```
 
 - `name`: required; 1–40 characters, trimmed. Names are unique per business, **ignoring case** (`etsy` conflicts with `Etsy`).
 - New businesses start with `In person`, `Online`, `Commission` and `Misc`.
-- Channels can't be renamed or deleted yet.
+- The Online Shop uses the designated channel ID, so renaming it preserves its sales. Existing accounts whose channel was renamed before this update can choose it in Settings > Preferences. Changing the designation changes which historical sales appear in the shop.
 
 ## 5. Expenses: `/api/expenses`
 
 *Source: `claude-demo`; sorting and `month-breakdown` from `merge-ui-mods`; description and expense tags from `implement-user-login` (Oct 22).*
 
 Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `month-summary`.
+`GET /api/expenses/line-report` returns all classified expense lines with their original transaction IDs,
+source and display currencies, and line totals for the grouped expense views.
 
 - **List:** `search` matches tags, the description, or line names (item names and plain-cost descriptions). `sort` is `incurredAt` (default), `id`, `total` or `tags` (first tag, ignoring case); `order` is `desc` (default) or `asc`. Untagged expenses go last either way.
+- **Filters:** optional `category`, `subcategory`, `manufacturer`, `type`, `from` and `to` filters can be combined. Classification filters match an expense when at least one of its lines matches; `from` and `to` are inclusive UTC calendar dates. `type` is `product`, `shipping`, `fee` or `other`.
 
 ```json
 // Expense
@@ -391,8 +399,8 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
   "currency": "CAD", "originalAmount": 175.00, "originalCurrency": "CAD",
   "totalCents": 17500,
   "items": [
-    { "id": 11, "itemId": 7, "itemName": "Flower Print", "quantity": 200, "unitCostCents": 75, "totalCents": 15000 },
-    { "id": 12, "itemId": null, "itemName": "Shipping", "quantity": 1, "unitCostCents": 2500, "totalCents": 2500 }
+    { "id": 11, "itemId": 7, "itemName": "Flower Print", "quantity": 200, "unitCostCents": 75, "totalCents": 15000, "category": "Materials", "subcategory": "Prints", "manufacturer": "Studio", "type": "product" },
+    { "id": 12, "itemId": null, "itemName": "Shipping", "quantity": 1, "unitCostCents": 2500, "totalCents": 2500, "category": "Delivery", "subcategory": "", "manufacturer": "", "type": "shipping" }
   ],
   "createdAt": "2026-10-10T12:01:00.000Z",
   "updatedAt": "2026-10-10T12:01:00.000Z"
@@ -401,11 +409,12 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
 // ExpenseInput
 {
   "incurredAt": "2026-10-10T08:00:00-04:00",
+  "currency": "CAD",
   "description": "",
   "tags": ["supplies"],
   "items": [
-    { "itemId": 7, "quantity": 200, "unitCostCents": 75 },
-    { "itemId": null, "description": "Shipping", "quantity": 1, "unitCostCents": 2500 }
+    { "itemId": 7, "quantity": 200, "unitCostCents": 75, "category": "Materials", "subcategory": "Prints", "manufacturer": "Studio", "type": "product" },
+    { "itemId": null, "description": "Shipping", "quantity": 1, "unitCostCents": 2500, "category": "Delivery", "subcategory": "", "manufacturer": "", "type": "shipping" }
   ]
 }
 
@@ -422,6 +431,7 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
 | `ExpenseInput` field | Rules |
 | --- | --- |
 | `incurredAt` | Required; ISO-8601 timestamp with an offset |
+| `currency` | Optional on older clients; one of CAD, USD, EUR, GBP or AUD; defaults to the account currency |
 | `description` | Optional; ≤ 200 characters, trimmed; default `""`. Blank → the server writes it from the lines: `"Flower Print x 200, Shipping x 1"` (cut to 200 characters with `…`) |
 | `tags` | As for items; default `[]`. The form offers the business's expense tags (§5.1), but any tag is accepted |
 | `items` | 1–50 lines |
@@ -429,6 +439,9 @@ Same endpoints as Sales, with `GET /api/expenses/month-breakdown` in place of `m
 | line `description` | Required when `itemId` is `null` (`Pick an item or enter a description`, on `items.N.description`); ≤ 120 characters, trimmed. Ignored when `itemId` is set |
 | line `quantity` | ≥ 1 |
 | line `unitCostCents` | 0–999,999,999 cents ($0.00–$9,999,999.99) |
+| line `category` / `subcategory` | Optional; up to 60 characters each |
+| line `manufacturer` | Optional; up to 100 characters |
+| line `type` | Optional; `product`, `shipping`, `fee` or `other`; defaults to `product` for restocks and `other` for free-text costs |
 
 **Behavior:**
 - A restock line increases the item's stock and copies the item's current name into `itemName`; a plain-cost line's `itemName` is its `description`. Unlike sales, the cost is whatever the client sends, not the item's price.

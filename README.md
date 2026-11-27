@@ -48,11 +48,24 @@ Log in as the demo account, then:
 7. **Public profile:** in Settings > Profile, set a link name (e.g. `demo-shop`) and click **Turn on**, then tick **Show on my public profile** on products (or select several in Inventory and click **Show on profile**). Customers open `/p/demo-shop` with no account, and never see contact details or stock counts, only "In stock" or "Sold out".
 8. **Read aloud:** the bar at the bottom of every page reads it out, one highlighted passage at a time.
 
+Home, Analytics and Expenses currently count only ordinary Expenses records. Online Shop,
+commission and miscellaneous expenses, and market table fees and extra expenses, are not
+included in those totals; their displayed profit can therefore be overstated. The individual
+sales-category pages include their own expenses.
+
+Online Shop follows a designated channel even if it is renamed. If your online channel was
+renamed before this update, choose it under Settings > Preferences > Online Shop channel.
+
 ### CSV Import and Export
 
 Use **Import CSV** and **Export CSV** above Inventory, Sales and Expenses to move business records in or out. Imports with an `id` update that record; rows with an empty `id`, or an `id` that no longer exists (for example after deleting it), create a new record with a new ID. IDs only refer to records in the current business. Import continues after row errors and reports which rows failed. Analytics has an export-only control for the selected date range and channel, along with the current inventory-by-tag snapshot.
 
 Review the confirmation before importing: changes cannot be undone. Inventory imports preserve current stock when updating an existing item; `quantity` sets starting stock only for newly created items. Within one import, repeated IDs and identical rows without IDs are skipped after the first successful row, and their row numbers are reported. Exported text that could be interpreted as a spreadsheet formula is prefixed with an apostrophe; importing removes that protective prefix. For a manually authored CSV, double an initial apostrophe before a formula-like value if the apostrophe itself is part of the text.
+
+Sales CSV import does not preserve market, commission or miscellaneous links, tips, discounts,
+free/trade lines or one-time items. It rejects exported rows and updates to existing sales with
+these details; edit them on their sales page instead. Older CSV exports do not contain this
+protection, so do not use them to recreate such sales.
 
 The export contains the record fields, including IDs, timestamps, computed totals and currencies. Imports require these columns:
 

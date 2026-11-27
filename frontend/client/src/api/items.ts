@@ -4,6 +4,7 @@ import type {
   ItemInput,
   ItemSortField,
   ItemTagCount,
+  ItemUpdateInput,
   LowStock,
   Paginated,
   SortOrder,
@@ -52,7 +53,7 @@ export function createItem(input: ItemInput): Promise<Item> {
   return apiRequest('/items', { method: 'POST', json: input });
 }
 
-export function updateItem(id: number, changes: Partial<ItemInput>): Promise<Item> {
+export function updateItem(id: number, changes: ItemUpdateInput): Promise<Item> {
   return apiRequest(`/items/${id}`, { method: 'PATCH', json: changes });
 }
 

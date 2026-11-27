@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { bulkDeleteSales, createSale, deleteSale, listSales, updateSale } from '../../api/sales';
+import { useNavigate } from 'react-router-dom';
+import {
+  bulkDeleteSales,
+  createSale,
+  deleteSale,
+  getSale,
+  listSales,
+  updateSale,
+} from '../../api/sales';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CsvTransfer } from '../../components/CsvTransfer';
 import { PlusIcon, SearchIcon, TrashIcon } from '../../components/icons';
@@ -14,12 +22,15 @@ import { fetchAllPages } from '../../utils/csv';
 import {
   csvId,
   saleCsvRow,
+  saleHasUnsupportedCsvDetails,
   saleInputFromCsv,
   upsertFromCsv,
   SALE_CSV_HEADERS,
   SALE_IMPORT_HEADERS,
 } from '../../utils/businessCsv';
 import { SaleFormModal } from './SaleFormModal';
+import { MarketSaleFormModal } from '../markets/MarketSaleFormModal';
+import type { CurrencyCode } from '../../types';
 import {
   canApplySaleFilters,
   hasSaleFilters,
@@ -42,6 +53,7 @@ type FormState = { mode: 'create' } | { mode: 'edit'; sale: Sale } | null;
 type DeleteTarget = { kind: 'single'; sale: Sale } | { kind: 'bulk'; ids: number[] } | null;
 
 export function SalesPage() {
+  const navigate = useNavigate();
   const { preferences, formatDate } = usePreferences();
   const currency = useCurrency();
   const [page, setPage] = useState(1);
@@ -73,7 +85,15 @@ export function SalesPage() {
     const input = saleInputFromCsv(record);
     return upsertFromCsv(
       id,
-      (existingId) => updateSale(existingId, input),
+      async (existingId) => {
+        const existing = await getSale(existingId);
+        if (saleHasUnsupportedCsvDetails(existing)) {
+          throw new Error(
+            'This sale has group or special line details that CSV import cannot preserve. Edit it on its sales page.',
+          );
+        }
+        return updateSale(existingId, input);
+      },
       () => createSale(input),
     );
   }
@@ -118,6 +138,14 @@ export function SalesPage() {
       }
       return next;
     });
+  }
+
+  /** Linked sales are edited on their owning market or commission page. */
+  function openSale(sale: Sale) {
+    if (sale.marketId !== null) navigate(`/sales/in-person/${sale.marketId}`);
+    else if (sale.commissionId !== null) navigate(`/sales/commissions/${sale.commissionId}`);
+    else if (sale.miscId !== null) navigate(`/sales/misc/${sale.miscId}`);
+    else setFormState({ mode: 'edit', sale });
   }
 
   async function handleSave(input: SaleInput) {
@@ -176,7 +204,7 @@ export function SalesPage() {
             disabled={selectedIds.size === 0}
             onClick={() => setDeleteTarget({ kind: 'bulk', ids: [...selectedIds] })}
           >
-            Bulk delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
+            Bulk Delete{selectedIds.size > 0 && ` (${selectedIds.size})`} <TrashIcon />
           </button>
         </div>
         <div className="toolbar__filters">
@@ -256,12 +284,12 @@ export function SalesPage() {
                 className="table__row"
                 tabIndex={0}
                 aria-label={`Edit sale ${sale.id}`}
-                onClick={() => setFormState({ mode: 'edit', sale })}
+                onClick={() => openSale(sale)}
                 onKeyDown={(event) => {
                   if (event.target !== event.currentTarget) return;
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
-                    setFormState({ mode: 'edit', sale });
+                    openSale(sale);
                   }
                 }}
               >
@@ -332,12 +360,32 @@ export function SalesPage() {
 
       {data && <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />}
 
-      {formState && (
-        <SaleFormModal
-          sale={formState.mode === 'edit' ? formState.sale : undefined}
+      {formState?.mode === 'edit' &&
+      formState.sale.items.some(
+        (line) => line.itemId === null || line.isFree || line.isTrade || line.kind !== 'ITEM',
+      ) ? (
+        <MarketSaleFormModal
+          sale={formState.sale}
+          target={{
+            marketId: null,
+            commissionId: null,
+            miscId: null,
+            channelName: formState.sale.channel?.name ?? '',
+            title: 'Modify sale',
+            currency: formState.sale.originalCurrency as CurrencyCode,
+            defaultDate: '',
+          }}
           onCancel={() => setFormState(null)}
           onSubmit={handleSave}
         />
+      ) : (
+        formState && (
+          <SaleFormModal
+            sale={formState.mode === 'edit' ? formState.sale : undefined}
+            onCancel={() => setFormState(null)}
+            onSubmit={handleSave}
+          />
+        )
       )}
 
       {deleteTarget && (

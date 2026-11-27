@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -129,6 +130,50 @@ class SaleWriteTest extends PostgresTestBase {
     }
 
     @Test
+    void miscellaneousSalesCanMixOneTimeAndInventoryItemsWithoutChangingOneTimeStock() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        int miscChannel = channelId(business, "Misc");
+        int inventoryItem = insertItem(business, "Inventory print", 5, 1200);
+        int miscId = jdbcClient.sql("""
+                        INSERT INTO miscellaneous_records (business_id, name)
+                        VALUES (:b, 'Craft fair') RETURNING id
+                        """)
+                .param("b", business)
+                .query(Integer.class)
+                .single();
+
+        record(cookie, """
+                {"soldAt":"2026-10-18T15:30:00-04:00","channelId":%d,"miscId":%d,"currency":"CAD",
+                 "items":[
+                   {"itemId":%d,"quantity":1},
+                   {"itemId":null,"itemName":"Custom bookmark","quantity":2,"unitPriceCents":400}
+                 ]}
+                """.formatted(miscChannel, miscId, inventoryItem))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.items", hasSize(2)))
+                .andExpect(jsonPath("$.items[1].itemId").value(nullValue()))
+                .andExpect(jsonPath("$.items[1].itemName").value("Custom bookmark"))
+                .andExpect(jsonPath("$.items[1].unitPriceCents").value(400))
+                .andExpect(jsonPath("$.items[1].totalCents").value(800))
+                .andExpect(jsonPath("$.totalCents").value(2000));
+
+        assertThat(stock(inventoryItem)).isEqualTo(4);
+    }
+
+    @Test
+    void oneTimeItemsAreRestrictedToMiscellaneousSales() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        record(cookie, """
+                {"soldAt":"2026-10-18T15:30:00-04:00","channelId":%d,
+                 "items":[{"itemId":null,"itemName":"Custom bookmark","quantity":1,"unitPriceCents":400}]}
+                """.formatted(channelId(business, "Online")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("One-time items can only be sold in Miscellaneous"));
+    }
+
+    @Test
     void laterPriceChangesDontChangeTheSale() throws Exception {
         Cookie cookie = registerAndLogin();
         int business = businessId(cookie);
@@ -210,10 +255,22 @@ class SaleWriteTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.error.message").value("Validation failed"))
                 .andExpect(jsonPath("$.error.details[0].field").value("items.1.quantity"));
         record(cookie, input(online).replace(SOLD_AT, "2026-10-18T15:30:00"))
-                .andExpect(jsonPath("$.error.details[*].field", containsInAnyOrder("soldAt", "items")));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].field").value("soldAt"));
         record(cookie, input(online))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("A sale needs at least one item or a tip"));
+        record(cookie, """
+                {"soldAt": "%s", "channelId": %d, "tipCents": 500}
+                """.formatted(SOLD_AT, online))
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.details[0].field").value("items"))
-                .andExpect(jsonPath("$.error.details[0].message").value("A sale needs at least one item"));
+                .andExpect(jsonPath("$.error.details[0].message").value("Required"));
+        record(cookie, """
+                {"soldAt": "%s", "channelId": %d, "items": [], "tipCents": 500}
+                """.formatted(SOLD_AT, online))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.totalCents").value(500));
         record(cookie, """
                 {"soldAt": "%s", "items": [{"itemId": %d, "quantity": 1}], "tags": ["%s"]}
                 """.formatted(SOLD_AT, print, "x".repeat(31)))
@@ -223,6 +280,59 @@ class SaleWriteTest extends PostgresTestBase {
                 .andExpect(jsonPath("$.error.message").value("Request body is not valid JSON"));
 
         assertThat(stock(print)).isEqualTo(5);
+    }
+
+    @Test
+    void boundsSaleLineAndAggregateQuantitiesBeforeProcessingLines() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        int online = channelId(business, "Online");
+        int item = insertItem(business, "Bulk item", 5, 1);
+
+        record(cookie, """
+                {"soldAt":"%s","channelId":%d,"items":[{"itemId":%d,"quantity":1000001}]}
+                """.formatted(SOLD_AT, online, item))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details[0].field").value("items.0.quantity"));
+        record(cookie, """
+                {"soldAt":"%s","channelId":%d,"items":[
+                  {"itemId":%d,"quantity":50001},{"itemId":%d,"quantity":50000}]}
+                """.formatted(SOLD_AT, online, item, item))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("A sale can't include more than 100000 total units"));
+        assertThat(stock(item)).isEqualTo(5);
+    }
+
+    @Test
+    void stackedDiscountsCannotReduceSaleBelowZero() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int business = businessId(cookie);
+        int online = channelId(business, "Online");
+        int item = insertItem(business, "Print", 3, 10_000);
+        int firstDiscount = insertHundredPercentDiscount(business, "First 100%");
+        int secondDiscount = insertHundredPercentDiscount(business, "Second 100%");
+
+        record(cookie, """
+                {"soldAt":"%s","channelId":%d,"discountIds":[%d,%d],
+                 "items":[{"itemId":%d,"quantity":1}]}
+                """.formatted(SOLD_AT, online, firstDiscount, secondDiscount, item))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.totalCents").value(0))
+                .andExpect(jsonPath("$.items[1].totalCents").value(-10_000))
+                .andExpect(jsonPath("$.items", hasSize(2)));
+        assertThat(stock(item)).isEqualTo(2);
+    }
+
+    private int insertHundredPercentDiscount(int business, String name) {
+        return jdbcClient.sql("""
+                        INSERT INTO discounts (business_id, name, kind, is_charge, value_type, value, currency)
+                        VALUES (:business, :name, 'SOLID', false, 'PERCENT', 100, 'CAD')
+                        RETURNING id
+                        """)
+                .param("business", business)
+                .param("name", name)
+                .query(Integer.class)
+                .single();
     }
 
     @Test

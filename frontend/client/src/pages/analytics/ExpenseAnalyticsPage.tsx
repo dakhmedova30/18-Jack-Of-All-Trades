@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import { ExpenseScopeNotice } from '../../components/ExpenseScopeNotice';
 import { getExpenseTagsInUse, getExpenseTrends } from '../../api/analytics';
 import { useAnalyticsDateRange } from '../../hooks/useAnalyticsDateRange';
 import { useApiData } from '../../hooks/useApiData';
@@ -34,6 +35,7 @@ export function ExpenseAnalyticsPage() {
 
   return (
     <AnalyticsSubpage slug="expenses">
+      <ExpenseScopeNotice />
       <div className="analytics-subpage__top">
         {/* Always there, so the cards keep their place while the filters load. */}
         <div className="analytics-subpage__filters">

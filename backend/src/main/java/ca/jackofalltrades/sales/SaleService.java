@@ -5,6 +5,9 @@ import ca.jackofalltrades.channels.ChannelRepository;
 import ca.jackofalltrades.auth.Business;
 import ca.jackofalltrades.auth.BusinessRepository;
 import ca.jackofalltrades.currency.CurrencyTotals;
+import ca.jackofalltrades.discounts.DiscountCalculator;
+import ca.jackofalltrades.discounts.DiscountResponse;
+import ca.jackofalltrades.discounts.DiscountService;
 import ca.jackofalltrades.common.api.BadRequestException;
 import ca.jackofalltrades.common.api.NotFoundException;
 import ca.jackofalltrades.common.api.Paginated;
@@ -39,6 +42,7 @@ public class SaleService {
 
     /** The demo's describeLines.ts limit, which is also the description field's limit. */
     static final int DESCRIPTION_MAX = 200;
+    static final long MAX_TOTAL_LINE_QUANTITY = 100_000;
 
     private final SaleRepository sales;
     private final SaleQueries queries;
@@ -47,10 +51,19 @@ public class SaleService {
     private final CurrentBusiness currentBusiness;
     private final BusinessRepository businesses;
     private final CurrencyTotals currencyTotals;
+    private final DiscountService discounts;
+    private final MarketLookup markets;
+    private final CommissionLookup commissions;
+    private final MiscLookup miscellaneous;
 
     public SaleService(SaleRepository sales, SaleQueries queries, ItemRepository items,
             ChannelRepository channels, CurrentBusiness currentBusiness, BusinessRepository businesses,
-            CurrencyTotals currencyTotals) {
+            CurrencyTotals currencyTotals, DiscountService discounts, MarketLookup markets,
+            CommissionLookup commissions, MiscLookup miscellaneous) {
+        this.discounts = discounts;
+        this.markets = markets;
+        this.commissions = commissions;
+        this.miscellaneous = miscellaneous;
         this.sales = sales;
         this.queries = queries;
         this.items = items;
@@ -156,31 +169,140 @@ public class SaleService {
      * same item sees the stock left by the earlier one. Any failure rolls back the transaction.
      */
     private void apply(Sale sale, SaleInput input, Channel channel, Map<Integer, Item> locked, String currency) {
+        long totalQuantity = input.items().stream().mapToLong(line -> line.quantity()).sum();
+        if (totalQuantity > MAX_TOTAL_LINE_QUANTITY) {
+            throw new BadRequestException("A sale can't include more than "
+                    + MAX_TOTAL_LINE_QUANTITY + " total units");
+        }
         List<SaleLine> lines = new ArrayList<>();
-        Map<Integer, Integer> existingPrices = sale.getLines().stream()
-                .filter(line -> line.getItemId() != null)
+        String saleCurrency = input.currency() != null ? input.currency()
+                : sale.getCurrency() != null ? sale.getCurrency() : currency;
+        boolean repricing = sale.getCurrency() != null && !sale.getCurrency().equals(saleCurrency);
+        Map<Integer, Integer> existingPrices = repricing ? Map.of() : sale.getLines().stream()
+                .filter(line -> line.getItemId() != null && "ITEM".equals(line.getKind()) && !line.isFree()
+                        && !line.isTrade())
                 .collect(Collectors.toMap(SaleLine::getItemId, SaleLine::getUnitPriceCents, (first, ignored) -> first));
+        Map<Integer, Integer> existingQuantities = sale.getLines().stream()
+                .filter(line -> "ITEM".equals(line.getKind()) && line.getItemId() != null)
+                .collect(Collectors.toMap(SaleLine::getItemId, SaleLine::getQuantity, Integer::sum));
+        long remainingOneTime = sale.getLines().stream()
+                .filter(line -> "ITEM".equals(line.getKind()) && line.getItemId() == null)
+                .mapToLong(SaleLine::getQuantity).sum();
+        if (new LinkedHashSet<>(input.discountIds()).size() != input.discountIds().size()) {
+            throw new BadRequestException("Each discount or charge can only be applied once");
+        }
+        if (input.items().isEmpty() && input.tipCents() == null) {
+            throw new BadRequestException("A sale needs at least one item or a tip");
+        }
+        long assignedTargets = java.util.stream.Stream.of(input.marketId(), input.commissionId(), input.miscId())
+                .filter(Objects::nonNull).count();
+        if (assignedTargets > 1) {
+            throw new BadRequestException("A sale can belong to only one market, commission, or miscellaneous group");
+        }
+        if (input.marketId() != null && !markets.exists(sale.getBusinessId(), input.marketId())) {
+            throw new BadRequestException("Market " + input.marketId() + " does not exist");
+        }
+        if (input.commissionId() != null && !commissions.exists(sale.getBusinessId(), input.commissionId())) {
+            throw new BadRequestException("Commission " + input.commissionId() + " does not exist");
+        }
+        if (input.miscId() != null && !miscellaneous.exists(sale.getBusinessId(), input.miscId())) {
+            throw new BadRequestException("Miscellaneous group " + input.miscId() + " does not exist");
+        }
+        List<Integer> eligiblePrices = new ArrayList<>();
+        List<Item> soldItems = new ArrayList<>();
         for (SaleInput.Line line : input.items()) {
-            Item item = locked.get(line.itemId());
+            Item item = line.itemId() == null ? null : locked.get(line.itemId());
+            String itemName;
             if (item == null) {
-                throw new BadRequestException("Item " + line.itemId() + " does not exist");
+                if (line.itemId() != null) {
+                    throw new BadRequestException("Item " + line.itemId() + " does not exist");
+                }
+                itemName = line.itemName() == null ? "" : line.itemName().strip();
+                if (itemName.isEmpty()) {
+                    throw new BadRequestException("A name is required for a one-time item");
+                }
+                if (input.miscId() == null) {
+                    remainingOneTime -= line.quantity();
+                    if (remainingOneTime < 0 || input.marketId() != null || input.commissionId() != null) {
+                        throw new BadRequestException("One-time items can only be sold in Miscellaneous");
+                    }
+                }
+                if (!Boolean.TRUE.equals(line.isFree()) && !Boolean.TRUE.equals(line.isTrade())
+                        && line.unitPriceCents() == null) {
+                    throw new BadRequestException("A price is required for a one-time item");
+                }
+            } else {
+                itemName = item.getName();
+                if (!item.isActive()) {
+                    int remaining = existingQuantities.getOrDefault(item.getId(), 0) - line.quantity();
+                    if (remaining < 0) {
+                        throw new BadRequestException("\"" + itemName + "\" is inactive and can't be sold");
+                    }
+                    existingQuantities.put(item.getId(), remaining);
+                }
+                if (item.getQuantity() < line.quantity()) {
+                    throw new BadRequestException("Not enough stock for \"" + itemName + "\" (have "
+                            + item.getQuantity() + ", need " + line.quantity() + ")");
+                }
+                item.adjustQuantity(-line.quantity());
+                item.adjustAmountSold(line.quantity());
             }
-            if (item.getQuantity() < line.quantity()) {
-                throw new BadRequestException("Not enough stock for \"" + item.getName() + "\" (have "
-                        + item.getQuantity() + ", need " + line.quantity() + ")");
+            boolean free = Boolean.TRUE.equals(line.isFree());
+            boolean trade = Boolean.TRUE.equals(line.isTrade());
+            int unitPriceCents;
+            if (free || trade) {
+                unitPriceCents = 0;
+            } else if (line.unitPriceCents() != null) {
+                unitPriceCents = line.unitPriceCents();
+            } else if (item != null && existingPrices.containsKey(item.getId())) {
+                unitPriceCents = existingPrices.get(item.getId());
+            } else if (item == null || item.getCurrency().equals(saleCurrency)) {
+                unitPriceCents = item == null ? 0 : item.getUnitPriceCents();
+            } else {
+                unitPriceCents = convertedUnitPrice(item.getUnitPriceCents(), item.getCurrency(), saleCurrency);
             }
-            item.adjustQuantity(-line.quantity());
-            int unitPriceCents = existingPrices.containsKey(item.getId())
-                    ? existingPrices.get(item.getId())
-                    : currency.equals(sale.getCurrency()) || sale.getCurrency() == null
-                            ? item.getUnitPriceCents()
-                            : convertedUnitPrice(item.getUnitPriceCents(), currency, sale.getCurrency());
             int total = multiplyCents(unitPriceCents, line.quantity());
-            lines.add(new SaleLine(item.getId(), item.getName(), line.quantity(), unitPriceCents, total));
+            lines.add(new SaleLine(item == null ? null : item.getId(), itemName, line.quantity(), unitPriceCents, total, free,
+                    trade));
+            if (!free && !trade) {
+                for (int i = 0; i < line.quantity(); i++) {
+                    eligiblePrices.add(unitPriceCents);
+                    soldItems.add(item);
+                }
+            }
+        }
+        long eligibleSubtotal = eligiblePrices.stream().mapToLong(Integer::longValue).sum();
+        long appliedDiscountCents = 0;
+        for (Integer discountId : input.discountIds()) {
+            DiscountResponse discount = discounts.find(sale.getBusinessId(), discountId)
+                    .orElseThrow(() -> new BadRequestException("Discount " + discountId + " does not exist"));
+            List<Integer> prices = new ArrayList<>();
+            for (int i = 0; i < soldItems.size(); i++) {
+                Item item = soldItems.get(i);
+                if (discount.appliesTo() == null
+                        || item != null && item.getTags().contains(discount.appliesTo())) {
+                    prices.add(eligiblePrices.get(i));
+                }
+            }
+            long amount = DiscountCalculator.amountOffCents(discounts.toRule(discount, saleCurrency), prices);
+            if (!discount.isCharge()) {
+                long remaining = eligibleSubtotal - appliedDiscountCents;
+                amount = Math.min(amount, Math.min(remaining, Integer.MAX_VALUE));
+                appliedDiscountCents += amount;
+            }
+            if (amount <= 0) {
+                continue;
+            }
+            int signed = Math.toIntExact(discount.isCharge() ? amount : -amount);
+            lines.add(SaleLine.adjustment(discount.isCharge() ? "CHARGE" : "DISCOUNT", discount.name(), signed,
+                    discount.id()));
+        }
+        if (input.tipCents() != null) {
+            lines.add(SaleLine.adjustment("TIP", "Tip", input.tipCents(), null));
         }
         String description = input.description().isEmpty() ? describe(lines) : input.description();
         sale.replace(OffsetDateTime.parse(input.soldAt()).toInstant(), channel, description, input.tags(), lines,
-                currency);
+                saleCurrency, input.marketId(), input.commissionId(), input.miscId());
     }
 
     private Business lockBusiness(Integer businessId) {
@@ -206,6 +328,7 @@ public class SaleService {
             if (item != null) {
                 try {
                     item.adjustQuantity(line.getQuantity());
+                    item.adjustAmountSold(-line.getQuantity());
                 } catch (ArithmeticException e) {
                     throw new BadRequestException("Number is out of range");
                 }
@@ -233,13 +356,18 @@ public class SaleService {
     /** The default description, as the demo's describeLines.ts: "Flower Print x 2, Keychain x 1". */
     static String describe(List<SaleLine> lines) {
         String text = lines.stream()
+                .filter(line -> "ITEM".equals(line.getKind()))
                 .map(line -> line.getItemName() + " x " + line.getQuantity())
                 .collect(Collectors.joining(", "));
+        if (text.isEmpty()) {
+            return "Tip";
+        }
         return text.length() <= DESCRIPTION_MAX ? text : text.substring(0, DESCRIPTION_MAX - 1) + "…";
     }
 
     private static Set<Integer> itemIds(List<SaleInput.Line> lines) {
-        return lines.stream().map(SaleInput.Line::itemId).collect(Collectors.toCollection(LinkedHashSet::new));
+        return lines.stream().map(SaleInput.Line::itemId).filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private static Set<Integer> lineItemIds(List<Sale> sales) {

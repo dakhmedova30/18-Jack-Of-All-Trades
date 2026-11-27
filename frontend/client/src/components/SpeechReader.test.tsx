@@ -1,8 +1,14 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { getCurrentBusiness } from '../api/auth';
+import { PageProviders } from '../test/providers';
+import type { Business } from '../types';
 import { SpeechReader } from './SpeechReader';
+
+// The reader reads the show/hide preference; with no business, preferences are the defaults.
+vi.mock('../api/auth', () => ({ getCurrentBusiness: vi.fn() }));
 
 class MockUtterance {
   text: string;
@@ -30,6 +36,8 @@ describe('SpeechReader section navigation', () => {
   beforeEach(() => {
     spoken.length = 0;
     vi.clearAllMocks();
+    localStorage.clear();
+    vi.mocked(getCurrentBusiness).mockResolvedValue(undefined);
     vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
     Object.defineProperty(window, 'speechSynthesis', {
       configurable: true,
@@ -41,16 +49,42 @@ describe('SpeechReader section navigation', () => {
   function renderReader() {
     render(
       <MemoryRouter>
+        <PageProviders>
+          <main>
+            <h1>First section</h1>
+            <p>Second section</p>
+            <h2>Third section</h2>
+            <p>Fourth section</p>
+          </main>
+          <SpeechReader />
+        </PageProviders>
+      </MemoryRouter>,
+    );
+  }
+
+  it('shows on pages outside the preferences provider', () => {
+    render(
+      <MemoryRouter>
         <main>
-          <h1>First section</h1>
-          <p>Second section</p>
-          <h2>Third section</h2>
-          <p>Fourth section</p>
+          <h1>Logged-out page</h1>
         </main>
         <SpeechReader />
       </MemoryRouter>,
     );
-  }
+
+    expect(screen.getByRole('button', { name: 'Read page aloud' })).toBeInTheDocument();
+  });
+
+  it('respects the saved hide preference for a logged-in business', async () => {
+    localStorage.setItem('jat:preferences:42', JSON.stringify({ showSpeechReader: false }));
+    vi.mocked(getCurrentBusiness).mockResolvedValue({ id: 42 } as Business);
+
+    renderReader();
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Read page aloud' })).not.toBeInTheDocument();
+    });
+  });
 
   it('skips forward and backward between page sections', async () => {
     const user = userEvent.setup();

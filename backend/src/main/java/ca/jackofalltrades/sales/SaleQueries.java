@@ -67,6 +67,18 @@ public class SaleQueries {
             params.put("channelId", filters.channelId());
             where += " AND s.channel_id = :channelId";
         }
+        if (filters.marketId() != null) {
+            params.put("marketId", filters.marketId());
+            where += " AND s.market_id = :marketId";
+        }
+        if (filters.commissionId() != null) {
+            params.put("commissionId", filters.commissionId());
+            where += " AND s.commission_id = :commissionId";
+        }
+        if (filters.miscId() != null) {
+            params.put("miscId", filters.miscId());
+            where += " AND s.misc_id = :miscId";
+        }
         // Whole UTC days: from the start of `from` up to (not including) the day after `to`.
         if (filters.from() != null) {
             params.put("from", startOfUtcDay(filters.from()));
@@ -86,7 +98,7 @@ public class SaleQueries {
         String direction = "desc".equals(order) ? "DESC" : "ASC";
         params.put("limit", pageSize);
         params.put("offset", (page - 1) * pageSize);
-        List<SaleRow> rows = jdbcClient.sql("SELECT s.*, c.name AS channel_name" + FROM + where
+        List<SaleRow> rows = jdbcClient.sql("SELECT s.*, c.name AS channel_name, c.is_online AS channel_online" + FROM + where
                         + " ORDER BY " + SORT_EXPRESSIONS.get(sort) + " " + direction + " NULLS LAST, s.id DESC"
                         + " LIMIT :limit OFFSET :offset")
                 .params(params)
@@ -97,7 +109,7 @@ public class SaleQueries {
         List<SaleResponse> data = rows.stream()
                 .map(row -> SaleResponse.of(row.id(), row.soldAt(), row.channel(), row.description(), row.tags(),
                         lines.getOrDefault(row.id(), List.of()), row.createdAt(), row.updatedAt(), row.currency(),
-                        row.originalAmount(), row.originalCurrency()))
+                        row.originalAmount(), row.originalCurrency(), row.marketId(), row.commissionId(), row.miscId()))
                 .toList();
         return Paginated.of(data, page, pageSize, total);
     }
@@ -160,7 +172,11 @@ public class SaleQueries {
                         rs.getString("item_name"),
                         rs.getInt("quantity"),
                         rs.getInt("unit_price_cents"),
-                        rs.getInt("total_cents"))))
+                        rs.getInt("total_cents"),
+                        rs.getString("kind"),
+                        rs.getBoolean("is_free"),
+                        rs.getBoolean("is_trade"),
+                        rs.getObject("discount_id", Integer.class))))
                 .list().stream()
                 .collect(Collectors.groupingBy(Map.Entry::getKey,
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
@@ -172,19 +188,22 @@ public class SaleQueries {
 
     private record SaleRow(Integer id, Instant soldAt, ChannelResponse channel, String description,
             List<String> tags, Instant createdAt, Instant updatedAt, String currency, BigDecimal originalAmount,
-            String originalCurrency) {}
+            String originalCurrency, Integer marketId, Integer commissionId, Integer miscId) {}
 
     private static SaleRow mapSale(ResultSet rs, int rowNum) throws SQLException {
         return new SaleRow(
                 rs.getInt("id"),
                 rs.getObject("sold_at", OffsetDateTime.class).toInstant(),
-                new ChannelResponse(rs.getInt("channel_id"), rs.getString("channel_name")),
+                new ChannelResponse(rs.getInt("channel_id"), rs.getString("channel_name"), rs.getBoolean("channel_online")),
                 rs.getString("description"),
                 List.of((String[]) rs.getArray("tags").getArray()),
                 rs.getObject("created_at", OffsetDateTime.class).toInstant(),
                 rs.getObject("updated_at", OffsetDateTime.class).toInstant(),
                 rs.getString("currency"),
                 rs.getBigDecimal("original_amount"),
-                rs.getString("original_currency"));
+                rs.getString("original_currency"),
+                rs.getObject("market_id", Integer.class),
+                rs.getObject("commission_id", Integer.class),
+                rs.getObject("misc_id", Integer.class));
     }
 }

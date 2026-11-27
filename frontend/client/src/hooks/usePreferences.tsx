@@ -23,6 +23,7 @@ export interface Preferences {
   defaultChannelId: number | null;
   /** Pre-selected in the Add expense form; null = nothing pre-selected. */
   defaultExpenseTag: string | null;
+  showSpeechReader: boolean;
 }
 
 const DEFAULTS: Preferences = {
@@ -30,6 +31,7 @@ const DEFAULTS: Preferences = {
   rowsPerPage: 15,
   defaultChannelId: null,
   defaultExpenseTag: null,
+  showSpeechReader: true,
 };
 
 const DATE_FORMATS: DateFormat[] = ['medium', 'iso', 'dmy', 'mdy'];
@@ -52,6 +54,10 @@ function load(businessId: number): Preferences {
       defaultChannelId: typeof saved.defaultChannelId === 'number' ? saved.defaultChannelId : null,
       defaultExpenseTag:
         typeof saved.defaultExpenseTag === 'string' ? saved.defaultExpenseTag : null,
+      showSpeechReader:
+        typeof saved.showSpeechReader === 'boolean'
+          ? saved.showSpeechReader
+          : DEFAULTS.showSpeechReader,
     };
   } catch {
     return DEFAULTS;
@@ -67,18 +73,37 @@ interface PreferencesContextValue {
 
 const PreferencesContext = createContext<PreferencesContextValue | undefined>(undefined);
 
-/** Loads this business's saved preferences and keeps them in localStorage. Needs a logged-in user. */
+/** Loads this business's saved preferences when a session is available. */
 export function PreferencesProvider({ children }: { children: ReactNode }) {
   const { business } = useAuth();
   const businessId = business?.id;
-  const [preferences, setPreferences] = useState<Preferences>(() =>
-    businessId === undefined ? DEFAULTS : load(businessId),
+  const [savedPreferences, setSavedPreferences] = useState<{
+    businessId: number | undefined;
+    preferences: Preferences;
+  }>(() => ({
+    businessId,
+    preferences: businessId === undefined ? DEFAULTS : load(businessId),
+  }));
+  const preferences = useMemo(
+    () =>
+      savedPreferences.businessId === businessId
+        ? savedPreferences.preferences
+        : businessId === undefined
+          ? DEFAULTS
+          : load(businessId),
+    [businessId, savedPreferences],
   );
 
   const update = useCallback(
     (changes: Partial<Preferences>) => {
-      setPreferences((current) => {
-        const next = { ...current, ...changes };
+      setSavedPreferences((current) => {
+        const currentPreferences =
+          current.businessId === businessId
+            ? current.preferences
+            : businessId === undefined
+              ? DEFAULTS
+              : load(businessId);
+        const next = { ...currentPreferences, ...changes };
         if (businessId !== undefined) {
           try {
             localStorage.setItem(storageKey(businessId), JSON.stringify(next));
@@ -86,7 +111,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
             // Storage blocked or full: the setting still applies until the page is closed.
           }
         }
-        return next;
+        return { businessId, preferences: next };
       });
     },
     [businessId],
@@ -108,4 +133,8 @@ export function usePreferences(): PreferencesContextValue {
   const context = useContext(PreferencesContext);
   if (!context) throw new Error('usePreferences must be used within a PreferencesProvider');
   return context;
+}
+
+export function useOptionalPreferences(): PreferencesContextValue | undefined {
+  return useContext(PreferencesContext);
 }

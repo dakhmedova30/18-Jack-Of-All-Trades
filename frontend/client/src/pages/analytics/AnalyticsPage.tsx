@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { getAnalyticsSummary, getInventoryByTag } from '../../api/analytics';
 import { CsvTransfer } from '../../components/CsvTransfer';
+import { ExpenseScopeNotice } from '../../components/ExpenseScopeNotice';
 import { Link } from 'react-router-dom';
 import { useAnalyticsDateRange } from '../../hooks/useAnalyticsDateRange';
 import { useAnalyticsSummary } from '../../hooks/useAnalyticsSummary';
@@ -45,6 +46,7 @@ function AnalyticsHeader({ actions }: { actions?: ReactNode }) {
             Revenue, expenses and profit over the period you choose, where your revenue comes from
             by sales channel, and where your expenses go by tag.
           </p>
+          <ExpenseScopeNotice />
         </div>
         {actions}
       </div>

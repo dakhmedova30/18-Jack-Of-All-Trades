@@ -84,8 +84,22 @@ describe('business CSV mappings', () => {
       originalAmount: 5,
       originalCurrency: 'CAD',
       items: [
-        { id: 1, itemId: 2, itemName: 'Tea', quantity: 1, unitPriceCents: 500, totalCents: 500 },
+        {
+          id: 1,
+          itemId: 2,
+          itemName: 'Tea',
+          quantity: 1,
+          unitPriceCents: 500,
+          totalCents: 500,
+          kind: 'ITEM',
+          isFree: false,
+          isTrade: false,
+          discountId: null,
+        },
       ],
+      marketId: null,
+      commissionId: null,
+      miscId: null,
       createdAt: '',
       updatedAt: '',
     };
@@ -106,6 +120,10 @@ describe('business CSV mappings', () => {
           quantity: 1,
           unitCostCents: 500,
           totalCents: 500,
+          category: '',
+          subcategory: '',
+          manufacturer: '',
+          type: 'other',
         },
       ],
       createdAt: '',
@@ -116,9 +134,25 @@ describe('business CSV mappings', () => {
     expect(
       saleInputFromCsv(parseCsv(encodeCsv(SALE_CSV_HEADERS, [saleRow])).records[0]).items,
     ).toEqual([{ itemId: 2, quantity: 1 }]);
+    const groupedRow = saleCsvRow({ ...sale, marketId: 1 });
+    const groupedRecord = parseCsv(encodeCsv(SALE_CSV_HEADERS, [groupedRow])).records[0];
+    expect(() => saleInputFromCsv(groupedRecord)).toThrow(
+      'details that CSV import cannot preserve',
+    );
     expect(
       expenseInputFromCsv(parseCsv(encodeCsv(EXPENSE_CSV_HEADERS, [expenseRow])).records[0]).items,
-    ).toEqual([{ itemId: null, description: 'Rent', quantity: 1, unitCostCents: 500 }]);
+    ).toEqual([
+      {
+        itemId: null,
+        description: 'Rent',
+        quantity: 1,
+        unitCostCents: 500,
+        category: '',
+        subcategory: '',
+        manufacturer: '',
+        type: 'other',
+      },
+    ]);
   });
 });
 

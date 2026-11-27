@@ -42,6 +42,11 @@ public class ChannelController {
         return channelService.rename(id, request);
     }
 
+    @PutMapping("/{id}/online")
+    public ChannelResponse designateOnline(@PathVariable int id) {
+        return channelService.designateOnline(id);
+    }
+
     /** 409 if any sale still uses the channel. */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

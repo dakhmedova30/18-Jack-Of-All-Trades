@@ -1,5 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { createChannel, deleteChannel, listChannels, renameChannel } from '../../api/channels';
+import {
+  createChannel,
+  deleteChannel,
+  designateOnlineChannel,
+  listChannels,
+  renameChannel,
+} from '../../api/channels';
 import {
   createExpenseTag,
   deleteExpenseTag,
@@ -26,28 +32,96 @@ function SalesChannels({
   error: string | null;
 }) {
   const { preferences, update } = usePreferences();
+  const [onlineChoice, setOnlineChoice] = useState('');
+  const [onlineError, setOnlineError] = useState<string | null>(null);
+  const [savingOnline, setSavingOnline] = useState(false);
+  const selectedOnline =
+    onlineChoice || String(channels?.find((channel) => channel.isOnline)?.id ?? '');
+  const currentOnline = channels?.find((channel) => channel.isOnline);
+
+  async function assignOnline() {
+    if (
+      currentOnline &&
+      !window.confirm(
+        'Changing the Online Shop channel changes which existing sales appear there. Continue?',
+      )
+    )
+      return;
+    setSavingOnline(true);
+    setOnlineError(null);
+    try {
+      const assigned = await designateOnlineChannel(Number(selectedOnline));
+      setChannels(
+        (current) =>
+          current?.map((channel) =>
+            channel.id === assigned.id ? assigned : { ...channel, isOnline: false },
+          ) ?? null,
+      );
+      setOnlineChoice('');
+    } catch (caught) {
+      setOnlineError(getErrorMessage(caught));
+    } finally {
+      setSavingOnline(false);
+    }
+  }
+
   return (
-    <ManagedList
-      noun="channel"
-      entries={channels}
-      loadError={error}
-      deleteWarning="This can't be undone."
-      onAdd={async (name) => {
-        const created = await createChannel(name);
-        setChannels((current) => [...(current ?? []), created]);
-      }}
-      onRename={async (entryId, name) => {
-        const id = Number(entryId);
-        const renamed = await renameChannel(id, name);
-        setChannels((current) => current?.map((c) => (c.id === id ? renamed : c)) ?? null);
-      }}
-      onDelete={async (entryId) => {
-        const id = Number(entryId);
-        await deleteChannel(id);
-        setChannels((current) => current?.filter((c) => c.id !== id) ?? null);
-        if (preferences.defaultChannelId === id) update({ defaultChannelId: null });
-      }}
-    />
+    <>
+      <ManagedList
+        noun="channel"
+        entries={channels}
+        loadError={error}
+        deleteWarning="This can't be undone."
+        onAdd={async (name) => {
+          const created = await createChannel(name);
+          setChannels((current) => [...(current ?? []), created]);
+        }}
+        onRename={async (entryId, name) => {
+          const id = Number(entryId);
+          const renamed = await renameChannel(id, name);
+          setChannels((current) => current?.map((c) => (c.id === id ? renamed : c)) ?? null);
+        }}
+        onDelete={async (entryId) => {
+          const id = Number(entryId);
+          await deleteChannel(id);
+          setChannels((current) => current?.filter((c) => c.id !== id) ?? null);
+          if (preferences.defaultChannelId === id) update({ defaultChannelId: null });
+        }}
+      />
+      {channels && (
+        <div className="settings-stack">
+          <p>Choose the channel used for Online Shop sales. This may be a channel you renamed.</p>
+          <label htmlFor="online-shop-channel">Online Shop channel</label>
+          <select
+            id="online-shop-channel"
+            value={selectedOnline}
+            onChange={(event) => setOnlineChoice(event.target.value)}
+          >
+            <option value="">Choose a channel</option>
+            {channels.map((channel) => (
+              <option key={channel.id} value={channel.id}>
+                {channel.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="button"
+            disabled={
+              !selectedOnline || selectedOnline === String(currentOnline?.id) || savingOnline
+            }
+            onClick={assignOnline}
+          >
+            Assign channel
+          </button>
+          {onlineError && (
+            <p className="form-error" role="alert">
+              {onlineError}
+            </p>
+          )}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -304,6 +378,16 @@ export function PreferencesTab() {
 
       <h3 className="settings-section">Display</h3>
       <p className="muted">These are saved in this browser.</p>
+      <SettingsRow label="Text To Speech controls">
+        <label className="settings-checkbox">
+          <input
+            type="checkbox"
+            checked={preferences.showSpeechReader}
+            onChange={(event) => update({ showSpeechReader: event.target.checked })}
+          />
+          Show floating controls
+        </label>
+      </SettingsRow>
       <SettingsRow label="Date format">
         <select
           className="settings-row__input"

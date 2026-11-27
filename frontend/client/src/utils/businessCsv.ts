@@ -37,6 +37,7 @@ export const SALE_CSV_HEADERS = [
   'originalAmount',
   'originalCurrency',
   'items',
+  'hasUnsupportedDetails',
   'createdAt',
   'updatedAt',
 ];
@@ -87,9 +88,21 @@ export function saleCsvRow(sale: Sale): Array<string | number | boolean | null> 
     sale.originalAmount,
     sale.originalCurrency,
     JSON.stringify(sale.items.map(({ itemId, quantity }) => ({ itemId, quantity }))),
+    saleHasUnsupportedCsvDetails(sale),
     sale.createdAt,
     sale.updatedAt,
   ];
+}
+
+export function saleHasUnsupportedCsvDetails(sale: Sale): boolean {
+  return (
+    sale.marketId !== null ||
+    sale.commissionId !== null ||
+    sale.miscId !== null ||
+    sale.items.some(
+      (line) => line.itemId === null || line.isFree || line.isTrade || line.kind !== 'ITEM',
+    )
+  );
 }
 
 export function expenseCsvRow(expense: Expense): Array<string | number | boolean | null> {
@@ -108,6 +121,10 @@ export function expenseCsvRow(expense: Expense): Array<string | number | boolean
         description: item.itemId === null ? item.itemName : '',
         quantity: item.quantity,
         unitCostCents: item.unitCostCents,
+        category: item.category,
+        subcategory: item.subcategory,
+        manufacturer: item.manufacturer,
+        type: item.type,
       })),
     ),
     expense.createdAt,
@@ -171,6 +188,11 @@ export async function importItemFromCsv(
 }
 
 export function saleInputFromCsv(record: CsvRecord): SaleInput {
+  if (record.hasUnsupportedDetails && csvBoolean(record, 'hasUnsupportedDetails')) {
+    throw new Error(
+      'This sale has details that CSV import cannot preserve. Edit it on its sales page.',
+    );
+  }
   return {
     soldAt: requiredText(record, 'soldAt'),
     channelId: csvInteger(record, 'channelId'),

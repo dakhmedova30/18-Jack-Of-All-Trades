@@ -1,5 +1,5 @@
 import { ANALYTICS_SECTIONS } from '../pages/analytics/analyticsSections';
-import { BoxIcon, ChartIcon, HomeIcon, ReceiptIcon, WalletIcon } from './icons';
+import { BoxIcon, ChartIcon, HomeIcon, ReceiptIcon, TagIcon, WalletIcon } from './icons';
 
 export interface SidebarNavItem {
   to: string;
@@ -16,8 +16,21 @@ export interface SidebarNavItem {
 export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
   { to: '/', label: 'Home', icon: HomeIcon, end: true },
   { to: '/inventory', label: 'Inventory', icon: BoxIcon, end: false },
-  { to: '/sales', label: 'Sales', icon: ReceiptIcon, end: false },
+  {
+    to: '/sales',
+    label: 'Sales',
+    icon: ReceiptIcon,
+    // Like Analytics: stays highlighted on its sub-pages.
+    end: false,
+    children: [
+      { to: '/sales/in-person', label: 'In-Person Markets' },
+      { to: '/sales/online', label: 'Online Shop' },
+      { to: '/sales/commissions', label: 'Commissions' },
+      { to: '/sales/misc', label: 'Miscellaneous' },
+    ],
+  },
   { to: '/expenses', label: 'Expenses', icon: WalletIcon, end: false },
+  { to: '/discounts', label: 'Discounts & Charges', icon: TagIcon, end: false },
   {
     to: '/analytics',
     label: 'Analytics',

@@ -79,7 +79,7 @@ export async function addItem(
   const form = page.getByRole('dialog', { name: 'Add new item' });
   await form.getByLabel('Name').fill(name);
   await form.getByLabel('Qty').fill(String(qty));
-  await form.getByLabel(/Unit price/).fill(unitPrice);
+  await form.getByLabel(/^Price/).fill(unitPrice);
   await form.getByRole('button', { name: 'Save' }).click();
   await expect(form).toBeHidden();
   const row = page.getByRole('row').filter({ hasText: name });
@@ -93,7 +93,7 @@ export async function addSale(
 ): Promise<void> {
   await openFromSidebar(page, 'Sales');
   await addButton(page).click();
-  const form = page.getByRole('dialog', { name: 'Add sale' });
+  const form = page.getByRole('dialog', { name: 'Add Sale' });
   // The option's text also has the price and stock ("… — CA$5.00 (10 in stock)"), so pick it by name.
   const itemSelect = form.getByLabel('Item');
   const option = itemSelect.locator('option', { hasText: item });

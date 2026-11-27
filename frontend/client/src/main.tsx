@@ -5,6 +5,7 @@ import { App } from './App';
 import { SpeechReader } from './components/SpeechReader';
 import { AppearanceProvider } from './hooks/useAppearance';
 import { AuthProvider } from './hooks/useAuth';
+import { PreferencesProvider } from './hooks/usePreferences';
 import './styles.css';
 
 const rootElement = document.getElementById('root');
@@ -15,8 +16,10 @@ createRoot(rootElement).render(
     <AppearanceProvider>
       <BrowserRouter>
         <AuthProvider>
-          <SpeechReader />
-          <App />
+          <PreferencesProvider>
+            <SpeechReader />
+            <App />
+          </PreferencesProvider>
         </AuthProvider>
       </BrowserRouter>
     </AppearanceProvider>

@@ -52,6 +52,8 @@ class CurrencyChangeApiTest extends PostgresTestBase {
         String saleResponse = mockMvc.perform(post("/api/sales").cookie(cookie)
                         .contentType(MediaType.APPLICATION_JSON).content(saleBody))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.currency").value("EUR"))
+                .andExpect(jsonPath("$.totalCents").value(10000))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -63,16 +65,22 @@ class CurrencyChangeApiTest extends PostgresTestBase {
         String expenseResponse = mockMvc.perform(post("/api/expenses").cookie(cookie)
                         .contentType(MediaType.APPLICATION_JSON).content(expenseBody))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.currency").value("EUR"))
+                .andExpect(jsonPath("$.totalCents").value(10000))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
         expenseId = JsonPath.read(expenseResponse, "$.id");
 
         changeCurrency(cookie, "CAD", true);
-        mockMvc.perform(get("/api/expenses/{id}", expenseId).cookie(cookie))
+        String oldExpense = mockMvc.perform(get("/api/expenses/{id}", expenseId).cookie(cookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.currency").value("EUR"))
-                .andExpect(jsonPath("$.totalCents").value(10000));
+                .andExpect(jsonPath("$.totalCents").value(10000))
+                .andExpect(jsonPath("$.items[0].unitCostCents").value(10000))
+                .andExpect(jsonPath("$.items[0].totalCents").value(10000))
+                .andReturn().getResponse().getContentAsString();
+        int oldUnitCost = JsonPath.read(oldExpense, "$.items[0].unitCostCents");
         mockMvc.perform(get("/api/sales/{id}", saleId).cookie(cookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.currency").value("EUR"))
@@ -83,8 +91,8 @@ class CurrencyChangeApiTest extends PostgresTestBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"incurredAt":"2026-10-10T08:00:00-04:00","description":"Edited expense",
-                                 "items":[{"description":"Service","quantity":1,"unitCostCents":10000}]}
-                                """))
+                                 "items":[{"description":"Service","quantity":1,"unitCostCents":%d}]}
+                                """.formatted(oldUnitCost)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.currency").value("EUR"))
                 .andExpect(jsonPath("$.totalCents").value(10000));
@@ -112,6 +120,47 @@ class CurrencyChangeApiTest extends PostgresTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].currency").value("CAD"))
                 .andExpect(jsonPath("$.data[0].totalCents").value(8889));
+    }
+
+    @Test
+    void sellingAnItemInAnotherCurrencyConvertsItsPriceAndPreservesItOnEdit() throws Exception {
+        Cookie cookie = registerAndLogin();
+        int businessId = businessId(cookie);
+        changeCurrency(cookie, "EUR", false);
+        int itemId = insertItem(businessId);
+        jdbc.sql("UPDATE items SET unit_price_cents = 10000, currency = 'CAD' WHERE id = :id")
+                .param("id", itemId).update();
+        int channelId = jdbc.sql("SELECT id FROM channels WHERE business_id = :business AND name = 'Online'")
+                .param("business", businessId).query(Integer.class).single();
+        String body = """
+                {"soldAt":"2026-10-18T15:30:00-04:00","channelId":%d,
+                 "items":[{"itemId":%d,"quantity":1}]}
+                """.formatted(channelId, itemId);
+
+        String created = mockMvc.perform(post("/api/sales").cookie(cookie)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.currency").value("EUR"))
+                .andExpect(jsonPath("$.totalCents").value(11250))
+                .andExpect(jsonPath("$.items[0].unitPriceCents").value(11250))
+                .andReturn().getResponse().getContentAsString();
+        int saleId = JsonPath.read(created, "$.id");
+
+        changeCurrency(cookie, "CAD", true);
+        mockMvc.perform(get("/api/sales/{id}", saleId).cookie(cookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currency").value("EUR"))
+                .andExpect(jsonPath("$.totalCents").value(11250));
+        mockMvc.perform(patch("/api/sales/{id}", saleId).cookie(cookie)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currency").value("EUR"))
+                .andExpect(jsonPath("$.items[0].unitPriceCents").value(11250))
+                .andExpect(jsonPath("$.totalCents").value(11250));
+        mockMvc.perform(get("/api/sales").cookie(cookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].currency").value("CAD"))
+                .andExpect(jsonPath("$.data[0].totalCents").value(10000));
     }
 
     @Test
@@ -390,8 +439,9 @@ class CurrencyChangeApiTest extends PostgresTestBase {
 
     private int insertItem(int businessId) {
         return jdbc.sql("""
-                        INSERT INTO items (business_id, name, quantity, unit_price_cents)
-                        VALUES (:business, 'Test item', 4, 1250) RETURNING id
+                        INSERT INTO items (business_id, name, quantity, unit_price_cents, currency)
+                        SELECT id, 'Test item', 4, 1250, currency FROM businesses WHERE id = :business
+                        RETURNING id
                         """)
                 .param("business", businessId).query(Integer.class).single();
     }

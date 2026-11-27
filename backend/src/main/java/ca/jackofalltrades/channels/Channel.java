@@ -24,6 +24,9 @@ public class Channel {
     @Column(nullable = false)
     private String name;
 
+    @Column(nullable = false)
+    private boolean isOnline;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
@@ -33,8 +36,13 @@ public class Channel {
     }
 
     public Channel(Integer businessId, String name) {
+        this(businessId, name, false);
+    }
+
+    public Channel(Integer businessId, String name, boolean isOnline) {
         this.businessId = businessId;
         this.name = name;
+        this.isOnline = isOnline;
     }
 
     public Integer getId() {
@@ -47,6 +55,10 @@ public class Channel {
 
     public String getName() {
         return name;
+    }
+
+    public boolean isOnline() {
+        return isOnline;
     }
 
     public void setName(String name) {
