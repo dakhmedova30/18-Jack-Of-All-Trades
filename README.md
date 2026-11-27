@@ -116,10 +116,10 @@ The sample files in `docs/sample-data` contain example channel and item IDs, not
 
 ### Accessibility
 
-- **Lighthouse accessibility** on the live site (Chrome DevTools, desktop, Nov 6, 2026): Home **100**, Inventory **100**, Sales **100**, Expenses **100**, Analytics **96-100**, Login **96**.
+- **Lighthouse accessibility** on the dev site, which runs the code the D4 release puts on prod (Lighthouse 12.6, desktop, Nov 27, 2026): Home **100**, Inventory **100**, Sales **100**, Expenses **100**, Settings **100**, Inventory Analytics **100**, Analytics, Sales Analytics and Expense Analytics **96**, Login **96**. The 96s come from the date slider's handles being smaller than 24px, and the Register link's contrast against the text around it.
 
-  ![Lighthouse accessibility score of 100 for the Home page on the live site](docs/screenshots/lighthouse.png)
-  ![Lighthouse accessibility score of 96 for the Login page on the live site](docs/screenshots/lighthouse-login.png)
+  ![Lighthouse accessibility score of 100 for the Home page](docs/screenshots/lighthouse.png)
+  ![Lighthouse accessibility score of 96 for the Login page](docs/screenshots/lighthouse-login.png)
 
 - **Keyboard:** every workflow above works with Tab, Enter and Esc. Dialogs start on their first field, keep focus inside, and return it to the button that opened them ([#9](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/9), [#14](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/14)).
 - **Forms:** every field has a label; an error is tied to its field and read out by screen readers, and login and registration errors say what to fix ([#20](https://github.com/dakhmedova30/18-Jack-Of-All-Trades/pull/20)).
