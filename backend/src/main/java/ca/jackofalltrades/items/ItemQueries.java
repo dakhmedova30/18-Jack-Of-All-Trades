@@ -44,17 +44,22 @@ public class ItemQueries {
 
     /**
      * @param search already trimmed; null for no search
+     * @param tags   keeps items with any of these exact tags; empty for no tag filter
      * @param sort   a key of {@link #SORT_COLUMNS}
      * @param order  "asc" or "desc"
      */
     public Paginated<ItemResponse> findPage(
-            int businessId, String search, String sort, String order, int page, int pageSize) {
+            int businessId, String search, List<String> tags, String sort, String order, int page, int pageSize) {
         Map<String, Object> params = new HashMap<>();
         params.put("businessId", businessId);
         String where = "WHERE business_id = :businessId";
         if (search != null) {
             params.put("pattern", LikePatterns.contains(search));
             where += " AND (name ILIKE :pattern OR array_to_string(tags, ' ') ILIKE :pattern)";
+        }
+        if (!tags.isEmpty()) {
+            params.put("tags", tags);
+            where += " AND tags && ARRAY[:tags]::text[]";
         }
 
         long total = jdbcClient.sql("SELECT COUNT(*) FROM items " + where)
@@ -88,11 +93,11 @@ public class ItemQueries {
     }
 
     /**
-     * The {@code limit} items with the most units sold in {@code [from, to)}, most first, from the
-     * demo's bestSellers. Only lines still linked to an item count: a deleted item has no place here.
+     * Every item with units sold in {@code [from, to)}, most units first (then most revenue, then
+     * name). Only lines still linked to an item count: a deleted item has no place here.
      */
-    public List<InventoryInsights.BestSeller> bestSellers(
-            int businessId, Instant from, Instant to, int limit, String targetCurrency) {
+    public List<InventoryInsights.BestSeller> sellers(
+            int businessId, Instant from, Instant to, String targetCurrency) {
         List<RawBestSeller> rows = jdbcClient.sql("""
                         SELECT i.id, i.name, s.currency, SUM(si.quantity::bigint) AS units_sold,
                                SUM(si.total_cents::bigint) AS revenue_cents
@@ -126,14 +131,13 @@ public class ItemQueries {
                 .sorted(Comparator.comparingLong(InventoryInsights.BestSeller::unitsSold).reversed()
                         .thenComparing(Comparator.comparingLong(InventoryInsights.BestSeller::revenueCents).reversed())
                         .thenComparing(InventoryInsights.BestSeller::name))
-                .limit(limit)
                 .toList();
     }
 
     /** In-stock items with no sale lines in {@code [from, to)}, by name. */
-    public List<InventoryInsights.NotSellingItem> notSelling(int businessId, Instant from, Instant to) {
-        return jdbcClient.sql("""
-                        SELECT i.id, i.name, i.quantity
+    public NotSelling notSelling(int businessId, Instant from, Instant to) {
+        List<NotSellingRow> rows = jdbcClient.sql("""
+                        SELECT i.id, i.name, i.quantity, i.quantity::bigint * i.unit_price_cents AS value_cents
                         FROM items i
                         WHERE i.business_id = :businessId AND i.quantity > 0
                           AND NOT EXISTS (
@@ -148,10 +152,20 @@ public class ItemQueries {
                 .param("businessId", businessId)
                 .param("from", OffsetDateTime.ofInstant(from, ZoneOffset.UTC))
                 .param("to", OffsetDateTime.ofInstant(to, ZoneOffset.UTC))
-                .query((rs, rowNum) -> new InventoryInsights.NotSellingItem(
-                        rs.getInt("id"), rs.getString("name"), rs.getInt("quantity")))
+                .query((rs, rowNum) -> new NotSellingRow(new InventoryInsights.NotSellingItem(
+                        rs.getInt("id"), rs.getString("name"), rs.getInt("quantity")), rs.getLong("value_cents")))
                 .list();
+        return new NotSelling(rows.stream().map(NotSellingRow::item).toList(),
+                rows.stream().mapToLong(NotSellingRow::valueCents).sum());
     }
+
+    /**
+     * The in-stock items with no sales in a period, and what they're worth at selling price. Items
+     * are kept in the account's currency, so their prices add up as they are, as in stockTotals.
+     */
+    public record NotSelling(List<InventoryInsights.NotSellingItem> items, long valueCents) {}
+
+    private record NotSellingRow(InventoryInsights.NotSellingItem item, long valueCents) {}
 
     /** How many items have at most {@code threshold} left, plus the {@code limit} lowest, lowest first. */
     public LowStock lowStock(int businessId, int threshold, int limit) {

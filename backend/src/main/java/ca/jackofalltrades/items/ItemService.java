@@ -6,6 +6,7 @@ import ca.jackofalltrades.common.api.BadRequestException;
 import ca.jackofalltrades.common.api.NotFoundException;
 import ca.jackofalltrades.common.api.Paginated;
 import ca.jackofalltrades.common.security.CurrentBusiness;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -66,8 +67,9 @@ public class ItemService {
     }
 
     @Transactional(readOnly = true)
-    public Paginated<ItemResponse> list(String search, String sort, String order, int page, int pageSize) {
-        return queries.findPage(currentBusiness.id(), search, sort, order, page, pageSize);
+    public Paginated<ItemResponse> list(
+            String search, List<String> tags, String sort, String order, int page, int pageSize) {
+        return queries.findPage(currentBusiness.id(), search, tags, sort, order, page, pageSize);
     }
 
     @Transactional(readOnly = true)
@@ -77,20 +79,35 @@ public class ItemService {
                 .orElseThrow(() -> new NotFoundException("Item", id));
     }
 
-    /** Stock value, plus this UTC month's best sellers and unsold in-stock items, as the demo and Analytics use. */
+    /**
+     * Stock value, plus the best and worst sellers and unsold in-stock items over a period: this
+     * UTC month when {@code days} is null, otherwise the last {@code days} days up to now.
+     */
     @Transactional(readOnly = true)
-    public InventoryInsights insights() {
-        LocalDate firstOfMonth = LocalDate.now(ZoneOffset.UTC).withDayOfMonth(1);
-        Instant start = firstOfMonth.atStartOfDay(ZoneOffset.UTC).toInstant();
-        Instant end = firstOfMonth.plusMonths(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+    public InventoryInsights insights(Integer days) {
+        Instant start;
+        Instant end;
+        if (days == null) {
+            LocalDate firstOfMonth = LocalDate.now(ZoneOffset.UTC).withDayOfMonth(1);
+            start = firstOfMonth.atStartOfDay(ZoneOffset.UTC).toInstant();
+            end = firstOfMonth.plusMonths(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        } else {
+            end = Instant.now();
+            start = end.minus(Duration.ofDays(days));
+        }
         Integer businessId = currentBusiness.id();
         String currency = businesses.findById(businessId)
                 .map(Business::getCurrency)
                 .orElseThrow(() -> new NotFoundException("Business", businessId));
         long[] totals = queries.stockTotals(businessId);
+        // Every item that sold in the period, most first: the top few are the best sellers, the
+        // last is the worst.
+        List<InventoryInsights.BestSeller> sellers = queries.sellers(businessId, start, end, currency);
+        ItemQueries.NotSelling notSelling = queries.notSelling(businessId, start, end);
         return new InventoryInsights(totals[0], totals[1], start, end,
-                queries.bestSellers(businessId, start, end, BEST_SELLERS_LIMIT, currency),
-                queries.notSelling(businessId, start, end));
+                sellers.stream().limit(BEST_SELLERS_LIMIT).toList(),
+                sellers.isEmpty() ? null : sellers.getLast(),
+                notSelling.items(), notSelling.valueCents());
     }
 
     @Transactional(readOnly = true)

@@ -5,7 +5,6 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as analyticsApi from '../../api/analytics';
 import * as authApi from '../../api/auth';
-import * as channelApi from '../../api/channels';
 import { PageProviders } from '../../test/providers';
 import type { AnalyticsDateRange, AnalyticsSummary } from '../../types';
 import * as csv from '../../utils/csv';
@@ -22,10 +21,6 @@ vi.mock('../../api/auth', () => ({
   getCurrentBusiness: vi.fn(),
 }));
 
-vi.mock('../../api/channels', () => ({
-  listChannels: vi.fn(),
-}));
-
 const summary: AnalyticsSummary = {
   totalRevenueCents: 0,
   totalExpensesCents: 0,
@@ -38,6 +33,33 @@ const summary: AnalyticsSummary = {
   expenseSeries: [],
   salesByTag: [],
   revenueByChannel: [],
+  expensesByTag: [],
+};
+
+/** September and October: revenue in two tags, expenses in two tags. */
+const twoMonths: AnalyticsSummary = {
+  ...summary,
+  totalRevenueCents: 60000,
+  totalExpensesCents: 15000,
+  netProfitCents: 45000,
+  buckets: ['2026-09', '2026-10'],
+  bucketLabels: ['Sep', 'Oct'],
+  revenueSeries: [
+    { label: 'prints', values: [10000, 30000] },
+    { label: 'Other', values: [5000, 15000] },
+  ],
+  expenseSeries: [
+    { label: 'rent', values: [5000, 5000] },
+    { label: 'supplies', values: [0, 5000] },
+  ],
+  revenueByChannel: [
+    { label: 'Online', valueCents: 45000 },
+    { label: 'In person', valueCents: 15000 },
+  ],
+  expensesByTag: [
+    { label: 'rent', valueCents: 10000 },
+    { label: 'supplies', valueCents: 5000 },
+  ],
 };
 
 /** Records from Aug 1, 2025 to Oct 29, 2026, viewed on Nov 5, 2026. */
@@ -56,21 +78,17 @@ function Providers({ children }: { children: ReactNode }) {
   );
 }
 
+async function findCard(title: string) {
+  const heading = await screen.findByRole('heading', { name: title });
+  return within(heading.closest('.card') as HTMLElement);
+}
+
 describe('AnalyticsPage', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(authApi.getCurrentBusiness).mockResolvedValue(undefined);
     vi.mocked(analyticsApi.getAnalyticsDateRange).mockResolvedValue(dates);
     vi.mocked(analyticsApi.getAnalyticsSummary).mockResolvedValue(summary);
-    vi.mocked(analyticsApi.getInventoryByTag).mockResolvedValue({
-      byTag: [],
-      totalQuantity: 0,
-      totalItems: 0,
-    });
-    vi.mocked(channelApi.listChannels).mockResolvedValue([
-      { id: 2, name: 'Online' },
-      { id: 3, name: 'In person' },
-    ]);
   });
 
   it('links to the deeper Inventory, Sales and Expense pages', async () => {
@@ -103,8 +121,7 @@ describe('AnalyticsPage', () => {
     );
   });
 
-  it('reloads the summary for a typed period and a chosen channel', async () => {
-    const user = userEvent.setup();
+  it('filters by date only, and reloads the summary for a typed period', async () => {
     render(<AnalyticsPage />, { wrapper: Providers });
 
     // A complete, valid start date applies on its own; the page reloads once it settles. (The
@@ -119,41 +136,102 @@ describe('AnalyticsPage', () => {
         undefined,
       ),
     );
-
-    await screen.findByRole('option', { name: 'Online' });
-    await user.selectOptions(screen.getByLabelText('Channel'), 'Online');
-    await waitFor(() =>
-      expect(analyticsApi.getAnalyticsSummary).toHaveBeenLastCalledWith(
-        { from: '2026-10-01', to: '2026-10-29' },
-        2,
-      ),
-    );
-    // One channel's revenue minus every expense isn't a real profit, so it isn't shown.
-    expect(
-      await screen.findByText("Not shown for one channel: expenses aren't tied to a channel."),
-    ).toBeInTheDocument();
+    expect(screen.queryByLabelText('Channel')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Sales channel' })).not.toBeInTheDocument();
   });
 
-  it('exports profit for all channels but leaves it blank for a selected channel', async () => {
+  it('charts total revenue and total expenses as two lines on one chart', async () => {
+    vi.mocked(analyticsApi.getAnalyticsSummary).mockResolvedValue(twoMonths);
+    render(<AnalyticsPage />, { wrapper: Providers });
+
+    const chart = await findCard('Revenue & Expenses Overview');
+    expect(
+      chart.getByRole('img', { name: 'Total revenue and total expenses' }),
+    ).toBeInTheDocument();
+    expect(chart.getByText('Total Revenue')).toBeInTheDocument();
+    expect(chart.getByText('Total Expenses')).toBeInTheDocument();
+    // Each month's lines are the sums of its tags.
+    expect(
+      chart.getByRole('row', { name: 'Sep 150.00 CAD 50.00 CAD', hidden: true }),
+    ).toBeInTheDocument();
+    expect(
+      chart.getByRole('row', { name: 'Oct 450.00 CAD 100.00 CAD', hidden: true }),
+    ).toBeInTheDocument();
+    expect(chart.getByText(/^Expenses came to 25% of revenue from /)).toBeInTheDocument();
+
+    // The separate overviews and the bottom two cards are gone.
+    for (const removed of [
+      'Revenue Overview',
+      'Expenses Overview',
+      'Revenue & Expense Breakdown',
+      'Inventory Overview',
+    ]) {
+      expect(screen.queryByRole('heading', { name: removed })).not.toBeInTheDocument();
+    }
+  });
+
+  it('shows revenue by channel, then expenses by tag, under the filters', async () => {
+    vi.mocked(analyticsApi.getAnalyticsSummary).mockResolvedValue(twoMonths);
+    render(<AnalyticsPage />, { wrapper: Providers });
+
+    // The card shows "Loading channels…" until the summary arrives, so wait for its bars.
+    const revenue = await findCard('Revenue by Channel');
+    expect(
+      await revenue.findByRole('list', { name: 'Revenue by sales channel' }),
+    ).toBeInTheDocument();
+    expect(
+      revenue.getByText(/^"Online" brings in the most revenue .* \(75%\)\.$/),
+    ).toBeInTheDocument();
+
+    const expenses = await findCard('Expenses by Tag');
+    const list = expenses.getByRole('list', { name: 'Expenses by tag' });
+    expect(
+      within(list)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual(['rent$100', 'supplies$50']);
+    expect(expenses.getByText(/^"rent" is your biggest expense .* \(67%\)\.$/)).toBeInTheDocument();
+
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(headings.indexOf('Filters')).toBeLessThan(headings.indexOf('Revenue by Channel'));
+    expect(headings.indexOf('Revenue by Channel')).toBeLessThan(
+      headings.indexOf('Expenses by Tag'),
+    );
+  });
+
+  it('says so when the period has no sales or expenses', async () => {
+    render(<AnalyticsPage />, { wrapper: Providers });
+
+    // One line each, without an insight repeating it.
+    const chart = await findCard('Revenue & Expenses Overview');
+    expect(chart.getByText(/^No sales or expenses from /)).toBeInTheDocument();
+    expect((await findCard('Revenue by Channel')).getByText(/^No sales from /)).toBeInTheDocument();
+    expect((await findCard('Expenses by Tag')).getByText(/^No expenses from /)).toBeInTheDocument();
+  });
+
+  it("exports the period's summary, profit included, and current stock", async () => {
     const user = userEvent.setup();
     const download = vi.spyOn(csv, 'downloadCsv').mockImplementation(() => {});
     vi.mocked(analyticsApi.getAnalyticsSummary).mockResolvedValue({
       ...summary,
       netProfitCents: -123,
     });
+    vi.mocked(analyticsApi.getInventoryByTag).mockResolvedValue({
+      byTag: [{ label: 'prints', quantity: 12, itemCount: 3 }],
+      totalQuantity: 12,
+      totalItems: 3,
+    });
     render(<AnalyticsPage />, { wrapper: Providers });
-    await screen.findByRole('option', { name: 'Online' });
 
-    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+    await user.click(await screen.findByRole('button', { name: 'Export CSV' }));
     await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
-    expect(csv.parseCsv(download.mock.calls[0][1]).records[0].netProfitCents).toBe('-123');
-
-    await user.selectOptions(screen.getByLabelText('Channel'), 'Online');
-    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
-    await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
-    expect(csv.parseCsv(download.mock.calls[1][1]).records[0]).toMatchObject({
-      channelId: '2',
-      netProfitCents: '',
+    // There's no channel filter here, so the export is always every channel's.
+    expect(csv.parseCsv(download.mock.calls[0][1]).records[0]).toMatchObject({
+      from: '2025-11-01',
+      to: '2026-10-29',
+      channelId: '',
+      netProfitCents: '-123',
+      inventoryTotalQuantity: '12',
     });
     download.mockRestore();
   });

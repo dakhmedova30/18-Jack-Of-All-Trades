@@ -82,6 +82,15 @@ record AnalyticsWindow(String granularity, List<Bucket> buckets, Instant end) {
         return new AnalyticsWindow("month", buckets, end);
     }
 
+    /**
+     * The {@code count} calendar months ending with this one, labelled "Jan", like the "12months"
+     * range but ending with this month, so records dated after it don't count.
+     */
+    static AnalyticsWindow lastMonths(LocalDate today, int count) {
+        return new AnalyticsWindow("month", months(today, count).buckets(),
+                startOf(YearMonth.from(today).plusMonths(1).atDay(1)));
+    }
+
     /** The first instant of the window; everything from here on counts, as in the demo. */
     Instant start() {
         return buckets.getFirst().start();

@@ -20,7 +20,7 @@ export const ANALYTICS_SECTIONS: AnalyticsSection[] = [
     to: '/analytics/inventory',
     label: 'Inventory',
     title: 'Inventory Analytics',
-    description: 'Stock value, low stock, and items not selling this month.',
+    description: "Stock value and levels, what's running out, and what isn't selling.",
     icon: BoxIcon,
   },
   {
@@ -28,7 +28,7 @@ export const ANALYTICS_SECTIONS: AnalyticsSection[] = [
     to: '/analytics/sales',
     label: 'Sales',
     title: 'Sales Analytics',
-    description: "This month's sales count, average and largest sale, and best sellers.",
+    description: 'This month and best sellers, plus trends, busiest days and channels over time.',
     icon: ReceiptIcon,
   },
   {
@@ -36,7 +36,7 @@ export const ANALYTICS_SECTIONS: AnalyticsSection[] = [
     to: '/analytics/expenses',
     label: 'Expenses',
     title: 'Expense Analytics',
-    description: "Where this month's money goes, and the biggest restock spending.",
+    description: "Where this month's money goes, plus profit and costs over time.",
     icon: WalletIcon,
   },
 ];
